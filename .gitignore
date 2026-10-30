@@ -6,3 +6,9 @@ local.properties
 .cxx/
 .kotlin/
 captures/
+# Never commit models, recordings or keys (public repo)
+*.gguf
+*.f32
+*.wav
+*.keystore
+*.jks
