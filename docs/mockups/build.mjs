@@ -1,15 +1,15 @@
 // Builds the spec page with mock-ups: bun add marked && bun build.mjs ../spec.md index.html
 import { marked } from "marked";
 import { readFileSync, writeFileSync } from "fs";
-import * as M from "./mocks.mjs";
-import * as D from "./directions.mjs";
+import * as F from "./final.mjs";
 
 const [spec, out] = process.argv.slice(2);
 let md = readFileSync(spec, "utf8");
 // Link bare source URLs.
 md = md.replace(/ — (https:\/\/\S+)/g, " — [$1]($1)");
-const cut = md.indexOf("## 1.");
-const body = D.html + marked.parse(md.slice(0, cut)) + M.html + D.others + marked.parse(md.slice(cut));
+// The mock-ups go right under the title.
+const nl = md.indexOf("\n");
+const body = marked.parse(md.slice(0, nl)) + F.html + marked.parse(md.slice(nl));
 
 const css = `
 body{font-size:15px;line-height:1.5}
@@ -21,6 +21,6 @@ table{border-collapse:collapse;width:100%;font-size:13px;display:block;overflow-
 th,td{border:1px solid var(--line,#d4d4d8);padding:6px 8px;text-align:left;vertical-align:top}
 th{background:var(--well,#f1f1f3)}
 .cap{color:var(--fg2,#6b6d74);font-size:13px}
-` + M.css + D.css;
+` + F.css;
 
-writeFileSync(out, `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LFM3 on Pixel: spec</title><style>${css}</style></head><body>${body}<script>${M.script}${D.script}</script></body></html>`);
+writeFileSync(out, `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LFM3 on Pixel: spec</title><style>${css}</style></head><body>${body}<script>${F.script}</script></body></html>`);

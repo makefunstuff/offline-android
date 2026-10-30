@@ -11,372 +11,413 @@ th{background:var(--well,#f1f1f3)}
 
 .themes{display:flex;gap:6px;margin:8px 0 4px}
 .themes button{font:inherit;font-size:13px;padding:6px 14px;border-radius:16px;border:1px solid var(--line,#d4d4d8);background:none;color:var(--fg,#18181b);cursor:pointer}
-.themes button.on{background:var(--fg,#18181b);color:var(--bg,#ffffff);border-color:var(--fg,#18181b)}
-.phones{display:flex;flex-wrap:wrap;gap:22px 18px;justify-content:center;margin:12px 0;
- --bg:#0e0f11;--s1:#18191c;--s2:#222327;--ln:#2a2b30;--t1:#ececee;--t2:#a2a3aa;--t3:#8a8b92;--ac:#7aa7ff;--acb:#1c2638;--act:#0e0f11;--ok:#5fd38d;--okb:#16291f;--red:#ff7b72;--amb:#f2c46d;--ambb:#2e2614}
-.phones.light{--bg:#f7f7f8;--s1:#ffffff;--s2:#eeeff1;--ln:#e2e3e7;--t1:#121316;--t2:#5d5f66;--t3:#6b6d74;--ac:#2a5fd4;--acb:#e5edfc;--act:#ffffff;--ok:#1d8048;--okb:#e2f3e8;--red:#c4382d;--amb:#8a5c00;--ambb:#fbf1dc}
-figure{margin:0}figcaption{text-align:center;color:var(--fg2,#6b6d74);font-size:13px;margin-top:8px}figcaption b{color:var(--fg,#18181b);font-weight:600;margin-right:4px}
-.ph{width:360px;height:800px;border:7px solid #1d1e21;border-radius:42px;overflow:hidden;background:var(--bg,#ffffff);color:var(--t1)}
+.themes button.on{background:var(--fg,#18181b);color:var(--bg,#fff);border-color:var(--fg,#18181b)}
+.fphones{display:flex;flex-wrap:wrap;gap:26px 18px;justify-content:center;margin:12px 0;
+ --bg:#ffffff;--t1:#0b0b0c;--t2:#5c5c62;--t3:#8b8b92;--ln:#e4e4e7;--s1:#f4f4f5;--ctl:#8b8b92;--hl:#ffd400;--onhl:#0b0b0c;--scrim:#0b0b0c}
+.fphones.dark{--bg:#09090a;--t1:#f2f2f3;--t2:#9d9da4;--t3:#6c6c74;--ln:#27272a;--s1:#161618;--ctl:#6a6a72;--hl:#ffd400;--onhl:#09090a;--scrim:#000000}
+.fphones figure{margin:0;width:374px}.fphones figcaption{text-align:center;color:var(--fg2,#6b6d74);font-size:13px;margin-top:8px}
+.fphones figcaption b{color:var(--fg,#18181b);font-weight:600;margin-right:4px}.fphones figcaption span{display:block;font-size:12px;font-style:italic}
+@media (max-width:400px){.fphones figure{zoom:.92}}
+.dph{width:360px;height:800px;border:7px solid #1d1e21;border-radius:42px;overflow:hidden;background:var(--bg);color:var(--t1)}
 .scr{position:relative;height:100%;display:flex;flex-direction:column;font:14px/1.4 Roboto,"Google Sans",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
 .scr b{font-weight:600}
 .i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.i.s{width:16px;height:16px}.i.m{width:20px;height:20px;color:var(--t2)}.i.ac{color:var(--ac)}.i.dim{color:var(--t3)}.i.ok{color:var(--ok)}
+.i.s{width:16px;height:16px}.i.dim{color:var(--t3)}
 .sb{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:13px;font-weight:500;position:relative;flex:none}
 .hole{position:absolute;left:50%;top:9px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#000}
 .sbi{display:flex;align-items:center;gap:5px}.sbi svg{height:11px;width:auto}.sbi b{font-weight:500;font-size:12px}
 .gb{height:22px;display:flex;justify-content:center;align-items:center;flex:none}.gb span{width:108px;height:4px;border-radius:2px;background:var(--t1);opacity:.85}
 .app{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .pad{padding:0 16px;flex:1;overflow:hidden}
-.top{display:flex;justify-content:space-between;align-items:flex-end;padding:12px 16px 14px}
-.h1{font-size:26px;font-weight:500;letter-spacing:-.01em}.sub{color:var(--t2);font-size:13px;margin-bottom:2px}
-.av,.ib{width:40px;height:40px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;color:var(--t2)}
-.hdr{display:flex;align-items:center;gap:14px;padding:10px 16px;height:36px}.hdr b{flex:1;font-size:18px;font-weight:500}.hdr .i{color:var(--t2)}
-.comp{display:flex;align-items:center;gap:12px;background:var(--s1);border:1px solid var(--ln);border-radius:28px;height:52px;padding:0 6px 0 18px;margin:0 0 12px}
-.app>.comp{margin:8px 12px 10px}
-.cph{flex:1;color:var(--t3);font-size:15px}.micb{width:40px;height:40px;border-radius:50%;background:var(--ac);color:var(--act);display:flex;align-items:center;justify-content:center}
-.chips{display:flex;gap:8px;flex-wrap:wrap}.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:5px 10px;border-radius:14px;background:var(--s2);color:var(--t2)}
-.chip.ok{background:var(--okb);color:var(--ok)}
-.sec{color:var(--t2);font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;margin:20px 0 8px}
-.list{background:var(--s1);border-radius:18px;border:1px solid var(--ln)}
-.li{display:flex;align-items:center;gap:14px;padding:12px 14px;border-top:1px solid var(--ln)}.li:first-child{border-top:0}
-.li div{flex:1;display:flex;flex-direction:column;min-width:0}.li span{color:var(--t2);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav{display:flex;height:72px;border-top:1px solid var(--ln);background:var(--bg,#ffffff);flex:none}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--t2)}
-.ni span{width:56px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
-.ni.on{color:var(--t1);font-weight:600}.ni.on span{background:var(--acb);color:var(--ac)}
-.thread{display:flex;flex-direction:column;gap:10px}.day{align-self:center;color:var(--t3);font-size:12px;margin:2px 0}
-.me{align-self:flex-end;max-width:82%;background:var(--ac);color:var(--act);border-radius:20px 20px 6px 20px;padding:10px 14px}
-.me.voice .i{vertical-align:-3px;margin-right:4px}.me.voice span{font-size:12px;opacity:.8;margin-right:6px}
-.ai{align-self:flex-start;max-width:86%;background:var(--s1);border:1px solid var(--ln);border-radius:20px 20px 20px 6px;padding:10px 14px}
-.meta{color:var(--t3);font-size:11.5px;margin-top:6px}.lnk{color:var(--ac)}
-.tool{display:flex;align-items:center;gap:12px;background:var(--s1);border:1px solid var(--ln);border-radius:16px;padding:10px 12px;max-width:92%}
-.tool div{flex:1;display:flex;flex-direction:column}.tool span{color:var(--t2);font-size:12.5px}.tool .undo{color:var(--ac);font-weight:500;font-size:13px}
-.q{display:flex;align-items:center;gap:10px;border:1px solid var(--ac);border-radius:16px;padding:10px 12px;background:var(--acb)}
-.q .i{color:var(--ac)}.q div{flex:1;display:flex;flex-direction:column}.q span{font-size:12px;color:var(--t2)}
-.qb{font-size:13px;font-weight:500;color:var(--ac);padding:6px 8px}.qb.pri{background:var(--ac);color:var(--act);border-radius:14px;padding:6px 12px}
-.sent{display:flex;align-items:center;gap:10px;background:var(--s2);border-radius:14px;padding:10px 12px;margin:4px 0 14px}
-.sent div{flex:1;display:flex;flex-direction:column}.sent span{font-size:12px;color:var(--t2)}
-.ans p{margin:0;font-size:15.5px;line-height:1.5}.ans sup{display:inline-block;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;background:var(--acb);color:var(--ac);font-size:10px;font-weight:600;vertical-align:2px}
-.src{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--ln)}.src div{display:flex;flex-direction:column}.src span{color:var(--t2);font-size:12.5px}
-.n{width:24px;height:24px;border-radius:12px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none}
-.note{display:flex;gap:8px;align-items:flex-start;color:var(--t2);font-size:12.5px;margin-top:14px;background:var(--okb);padding:10px 12px;border-radius:12px}
-.faded{opacity:.9}.scrim{position:absolute;inset:0;background:#000;opacity:.45}
-.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--s1);border-radius:28px 28px 0 0;padding:8px 20px 18px}
-.grab{width:36px;height:4px;border-radius:2px;background:var(--t3);margin:4px auto 14px}
-.sh{display:flex;align-items:center;gap:10px;font-size:19px;margin-bottom:10px}
-.fld{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--ln)}.fld span{color:var(--t2)}
-.btns{display:flex;gap:8px;margin-top:16px}.btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:42px;border-radius:21px;border:1px solid var(--ln);color:var(--ac);font-weight:500}
-.btn.pri{background:var(--ac);border-color:var(--ac);color:var(--act)}.btn.red{color:var(--red)}.btn.sm{height:34px;flex:none;padding:0 14px;font-size:13px}
-.fine{color:var(--t3);font-size:12px;margin-top:12px}.fine.c{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:18px}
-.tabs{display:flex;gap:8px;margin:0 0 14px}.tabs span{padding:7px 16px;border-radius:18px;border:1px solid var(--ln);font-size:13.5px;color:var(--t2)}
-.tabs .on{background:var(--t1);color:var(--bg,#ffffff);border-color:var(--t1);font-weight:500}
-.nl .nr{padding:12px 0;border-bottom:1px solid var(--ln)}.nh{display:flex;justify-content:space-between}.nh span{color:var(--t3);font-size:12px}
-.nr p{margin:3px 0 7px;color:var(--t2);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.tg{display:flex;gap:6px}.tg span{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--t2);background:var(--s2);border-radius:8px;padding:2px 8px}
-.fab{position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:18px;background:var(--ac);color:var(--act);display:flex;align-items:center;justify-content:center}
-.ig{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ic{background:var(--s1);border:1px solid var(--ln);border-radius:16px;padding:12px;min-height:76px;display:flex;flex-direction:column;justify-content:space-between;gap:8px}
-.ic span{color:var(--t3);font-size:12px}.ic.wide{grid-column:span 2}.ic em{font-style:normal;color:var(--ac);font-size:13px;font-weight:500}
-.prompt{background:var(--acb);border-radius:18px;padding:14px}.prompt>span{color:var(--ac);font-size:12px;font-weight:500}.prompt b{display:block;font-size:17px;font-weight:500;margin:4px 0 12px}
-.pa{display:flex;gap:8px}.pa .btn{background:var(--s1)}
-.jd{color:var(--t2);font-size:13px;font-weight:500;margin:18px 0 6px}
-.je{display:flex;gap:12px;padding:8px 0}.je p{margin:0}.je span{color:var(--t3);font-size:12px}
-.mood{width:10px;height:10px;border-radius:5px;margin-top:6px;flex:none}.m1{background:var(--ok)}.m2{background:var(--amb)}
-.td{display:flex;gap:14px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--ln)}.td div{display:flex;flex-direction:column}.td span{color:var(--t2);font-size:12.5px}
-.cb{width:20px;height:20px;border:2px solid var(--t3);border-radius:6px;flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center}
-.cb.on{background:var(--ac);border-color:var(--ac);color:var(--act)}.cb .i{width:14px;height:14px;stroke-width:2.5}
-.td.done b{color:var(--t3);text-decoration:line-through;font-weight:400}
-.cam{height:100%;display:flex;flex-direction:column;background:#000;color:#fff}
-.vf{flex:1;position:relative;background:#46523f;margin:0 0 0;border-radius:0 0 24px 24px;overflow:hidden}
-.plant{position:absolute;left:0;right:0;top:120px;height:330px}
-.plant i{position:absolute;display:block;background:#6f9a57}
-.l1{left:110px;top:30px;width:120px;height:140px;border-radius:0 100% 0 100%}
-.l2{left:60px;top:110px;width:100px;height:110px;border-radius:100% 0 100% 0;background:#5d8749!important}
-.l3{left:180px;top:120px;width:100px;height:100px;border-radius:0 100% 0 100%;background:#7aa862!important}
-.pot{left:105px;top:225px;width:130px;height:110px;border-radius:0 0 26px 26px;background:#b57658!important}
-.tb{position:absolute;top:10px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center}
-.seg{display:flex;background:#0009;border-radius:16px;padding:3px}.seg span{padding:5px 12px;border-radius:13px;font-size:13px}.seg .on{background:#fff;color:#000}
-.cq{display:flex;align-items:center;gap:10px;margin:12px 14px 0;background:#1c1d20;border-radius:22px;padding:12px 14px;font-size:14px}
-.cb2{display:flex;justify-content:space-around;align-items:center;padding:18px 0 14px}
-.shut{width:70px;height:70px;border-radius:50%;background:#fff;border:5px solid #000;outline:3px solid #fff}
-.thumbb{width:46px;height:46px;border-radius:50%;background:#1c1d20;display:flex;align-items:center;justify-content:center}
-.lang{font-size:13px;color:var(--t2);border:1px solid var(--ln);border-radius:14px;padding:4px 10px}
-.talk{display:flex;flex-direction:column;align-items:center}
-.orb{width:200px;height:200px;border-radius:50%;background:var(--acb);display:flex;align-items:center;justify-content:center;margin:34px 0 12px}
-.bars{display:flex;gap:6px;align-items:center}.bars i{display:block;width:8px;border-radius:4px;background:var(--ac)}
-.state{color:var(--ac);font-weight:500;margin-bottom:26px}
-.tl{align-self:stretch;padding:10px 0;border-top:1px solid var(--ln)}.tl span{display:block;font-size:11.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
-.warm{display:flex;gap:8px;align-items:center;align-self:stretch;margin-top:12px;background:var(--ambb);color:var(--amb);border-radius:12px;padding:10px 12px;font-size:13px}
-.tctl{display:flex;justify-content:center;align-items:center;gap:28px;padding:10px 0 18px}
-.ib2{width:48px;height:48px;border-radius:50%;background:var(--s2);display:flex;align-items:center;justify-content:center;color:var(--t2)}
-.stopb{width:68px;height:68px;border-radius:50%;background:var(--red);color:var(--act);display:flex;align-items:center;justify-content:center}
-.grp{background:var(--s1);border:1px solid var(--ln);border-radius:18px;margin-bottom:10px}
-.sr,.tg2{display:flex;align-items:center;gap:14px;padding:11px 14px;border-top:1px solid var(--ln)}.grp>:first-child{border-top:0}
-.sr div,.tg2 div{flex:1;display:flex;flex-direction:column}.sr span,.tg2 span{color:var(--t2);font-size:12.5px}
-.sw{width:42px;height:24px;border-radius:12px;background:var(--s2);position:relative;flex:none;border:1px solid var(--ln)}
-.sw i{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:8px;background:var(--t3)}.sw.on{background:var(--ac);border-color:var(--ac)}.sw.on i{left:21px;background:var(--act)}
-.seg3{display:flex;margin:4px 14px 10px;border:1px solid var(--ln);border-radius:18px;overflow:hidden}.seg3 span{flex:1;text-align:center;padding:7px 0;font-size:13px;color:var(--t2);border-left:1px solid var(--ln)}
-.seg3 span:first-child{border-left:0}.seg3 .on{background:var(--acb);color:var(--ac);font-weight:500}
-.big{font-size:22px;font-weight:500;margin:6px 0 14px}
-.pr{display:flex;gap:12px;align-items:center;padding:8px 0}.pr div{flex:1;display:flex;flex-direction:column}.pr span{color:var(--t2);font-size:12.5px}
-.pr>.i{width:30px;height:30px;padding:6px;border-radius:15px;background:var(--okb);box-sizing:border-box}.pr>.i.ac{background:var(--acb)}
-.nlg{display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--ln)}.nlg>span{color:var(--t3);font-size:12px;width:36px}
-.nlg div{flex:1;display:flex;flex-direction:column;min-width:0}.nlg div span{color:var(--t2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nlg em{font-style:normal;color:var(--t3);font-size:12px}
-.stor{margin:2px 0 14px}.stor>span{color:var(--t2);font-size:12.5px}
-.bar{height:6px;border-radius:3px;background:var(--s2);margin:6px 0}.bar span{display:block;height:6px;border-radius:3px;background:var(--ac)}
-.md{border:1px solid var(--ln);background:var(--s1);border-radius:18px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:2px}
-.md.on{border-color:var(--ac)}.md>span{color:var(--t2);font-size:12.5px;display:flex;align-items:center;gap:4px}.md .for{color:var(--t3)}.md.dim b{color:var(--t2)}
-.mh{display:flex;justify-content:space-between;align-items:center}.pill{font-size:11.5px;background:var(--acb);color:var(--ac);border-radius:10px;padding:2px 8px}
-@media (max-width:400px){.phones figure{zoom:.92}}
-.pct{color:var(--ac);font-size:13px;font-weight:500}.get{color:var(--ac)}
-
-.dirs{display:flex;flex-wrap:wrap;gap:28px 20px;justify-content:center;margin:12px 0 8px}
-.dcol{display:flex;flex-direction:column;gap:18px;align-items:center;width:374px}
-.dhead{display:flex;gap:12px;align-self:stretch;min-height:176px}
-.dk{width:34px;height:34px;border-radius:17px;background:var(--fg,#18181b);color:var(--bg,#fff);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
-.dhead b{font-size:18px}.dhead p{margin:4px 0;font-size:13.5px;color:var(--fg2,#6b6d74)}.dhead .mo{font-style:italic}
-.sws{display:flex;gap:6px;margin:6px 0}.sws i{width:22px;height:22px;border-radius:6px;border:1px solid var(--line,#d4d4d8)}
-.dph{width:360px;height:800px;border:7px solid #1d1e21;border-radius:42px;overflow:hidden;background:var(--bg);color:var(--t1)}
-.dph .app{position:relative}
-.dnav{display:flex;height:70px;flex:none;border-top:1px solid var(--ln)}
-.dni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--t2)}
-.dni span{width:56px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
-.dni.on{color:var(--t1);font-weight:700}.dni.on span{background:var(--acb);color:var(--acf)}
-
-/* A Signal */
-.dph.A{--bg:#ffffff;--t1:#0a0a0a;--t2:#55565c;--ln:#0a0a0a;--ac:#ff4f1f;--acb:#0a0a0a;--acf:#ffffff;--s2:#f1f1ee}
-.dirs.dark .dph.A{--bg:#0b0b0b;--t1:#f5f5f0;--t2:#a3a39c;--ln:#f5f5f0;--ac:#ff6a3d;--acb:#f5f5f0;--acf:#0b0b0b;--s2:#1b1b1a}
-.A .dnav{border-top:2px solid var(--ln)}
-.a-lab{font:600 11px/1.2 ui-monospace,"Roboto Mono",Menlo,monospace;letter-spacing:.08em;color:var(--t2)}.a-lab.mt{display:block;margin:20px 0 8px}
-.a-top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 0}
-.a-av{width:36px;height:36px;border:2px solid var(--t1);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
-.a-h{font-size:46px;line-height:.95;font-weight:800;letter-spacing:-.04em;padding:10px 16px 16px}.a-dot{color:var(--ac)}
-.a-comp{display:flex;align-items:center;gap:12px;border:2px solid var(--t1);height:52px;padding:0 4px 0 14px;font-size:15px}
-.a-comp>span:first-child{flex:1;color:var(--t2)}.a-comp.in{margin:8px 12px 10px}
-.a-mic{width:42px;height:42px;background:var(--ac);color:#0a0a0a;display:flex;align-items:center;justify-content:center}
-.a-row{display:flex;gap:14px;align-items:center;padding:10px 0;border-top:2px solid var(--t1)}.a-row.last{border-bottom:2px solid var(--t1)}
-.a-row div{display:flex;flex-direction:column}.a-row span{color:var(--t2);font-size:12.5px}.a-row b{font-size:16px}
-.a-t{font-size:26px!important;font-weight:800;letter-spacing:-.03em;width:84px;color:var(--t1)!important}.a-row.hot .a-t{color:var(--ac)!important}
-.a-cap{background:var(--ac);color:#0a0a0a;padding:14px;display:flex;flex-direction:column;gap:6px}.a-cap b{font-size:17px;font-weight:800;line-height:1.15}.a-cap span{font:600 11px ui-monospace,monospace;letter-spacing:.08em}
-.a-hdr{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:2px solid var(--t1)}.a-hdr b{flex:1;font:700 13px ui-monospace,monospace;letter-spacing:.1em}
-.a-thread{display:flex;flex-direction:column;gap:12px;padding-top:14px}
-.a-me{align-self:flex-end;max-width:84%;background:var(--t1);color:var(--bg);padding:12px 14px;font-weight:500}
-.a-tool{display:flex;align-items:center;gap:12px;border:2px solid var(--t1);padding:10px}.a-tool div:nth-child(2){flex:1;display:flex;flex-direction:column}
-.a-tool b{font-size:17px;font-weight:800}.a-tool span{color:var(--t2);font-size:12.5px}
-.a-tk{width:40px;height:40px;background:var(--ac);color:#0a0a0a;display:flex;align-items:center;justify-content:center}.a-tool.alt .a-tk{background:var(--t1);color:var(--bg)}
-.a-undo{font:700 12px ui-monospace,monospace!important;letter-spacing:.08em;color:var(--t1)!important;text-decoration:underline;text-underline-offset:3px}
-.a-ai{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:4px}.a-meta{display:block;font:600 10.5px ui-monospace,monospace;letter-spacing:.08em;color:var(--t2);margin-top:8px}
-.a-prompt{background:var(--t1);color:var(--bg);padding:16px;margin-top:12px}.a-prompt .a-lab{color:var(--ac)}.dirs.dark .a-prompt .a-lab{color:#c2350b}.a-prompt b{display:block;font-size:24px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin:8px 0 14px}
-.a-pa{display:flex;gap:8px}.a-pa span{display:flex;align-items:center;gap:6px;border:2px solid var(--bg);padding:7px 12px;font:700 11.5px ui-monospace,monospace;letter-spacing:.08em}.a-pa span:first-child{background:var(--ac);border-color:var(--ac);color:#0a0a0a}
-.a-day{display:flex;align-items:baseline;gap:10px;margin:18px 0 4px;border-bottom:2px solid var(--t1)}.a-big{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1}
-.a-je{display:flex;gap:12px;padding:8px 0}.a-je p{margin:0;font-size:15px}.a-mood{width:12px;height:12px;flex:none;margin-top:5px}.a-mood.m1{background:var(--ac)}.a-mood.m2{background:var(--t1)}
-
-/* A' Signal, calm */
-.dph.S{--bg:#faf8f5;--t1:#26231f;--t2:#6b665e;--ln:#e4dfd7;--s1:#f2eee8;--t3:#8a847b;--ctl:#958e83;--ac:#b34b30;--acb:#ebe5dc;--acf:#26231f;--onac:#ffffff}
-.dirs.dark .dph.S{--bg:#171513;--t1:#ece7e0;--t2:#a39d94;--ln:#2e2a26;--s1:#211e1b;--t3:#7c766e;--ctl:#6a645c;--ac:#e0795d;--acb:#2b2723;--acf:#ece7e0;--onac:#171513}
-.S .dni.on span{border-radius:6px}
-.s-lab{font-size:12.5px;font-weight:500;color:var(--t2)}.s-lab.mt{display:block;margin:22px 0 6px}
-.s-top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0;color:var(--t2)}
-.s-av{width:34px;height:34px;border:1px solid var(--ln);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--t2)}
-.s-h{font-size:32px;line-height:1.1;font-weight:600;letter-spacing:-.025em;padding:6px 16px 18px}
-.s-h2{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--t1)}
-.s-comp{display:flex;align-items:center;gap:12px;border:1px solid var(--ctl);background:var(--s1);border-radius:8px;height:52px;padding:0 5px 0 14px;font-size:15px}
-.s-comp>span:first-child{flex:1;color:var(--t2)}.s-comp>.i{color:var(--t2)}.s-comp.in{margin:8px 12px 10px}
-.s-mic{width:42px;height:42px;border-radius:6px;border:1px solid var(--micb,transparent);box-sizing:border-box;background:var(--acfill,var(--ac));color:var(--onac);display:flex;align-items:center;justify-content:center}
-.s-row{display:flex;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--ln)}.s-row.last{border-bottom:1px solid var(--ln)}
-.s-row div{flex:1;display:flex;flex-direction:column}.s-row span{color:var(--t2);font-size:12.5px}.s-row b{font-size:15.5px;font-weight:600}
-.s-t{font-size:24px!important;font-weight:500;letter-spacing:-.02em;width:76px;color:var(--t1)!important;font-variant-numeric:tabular-nums}
-.s-row.next .s-t{color:var(--ac)!important}.s-row.next .s-t span{background:var(--mark,transparent);padding:0 3px;margin-left:-3px;font-size:inherit!important;color:inherit!important}.s-next{font-size:12px!important;font-weight:500;color:var(--t2)!important}
-.s-cap{border:1px solid var(--ln);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}.s-cap b{font-size:16px;font-weight:600}.s-cap span{color:var(--t2);font-size:12.5px}
-.s-hdr{display:flex;align-items:center;gap:14px;padding:10px 16px 12px;border-bottom:1px solid var(--ln)}.s-hdr b{flex:1;font-size:18px;font-weight:600}.s-hdr .i{color:var(--t2)}
-.s-thread{display:flex;flex-direction:column;gap:10px;padding-top:14px}
-.s-me{align-self:flex-end;max-width:84%;background:var(--s1);border:1px solid var(--ln);border-radius:8px 8px 2px 8px;padding:10px 14px}
-.s-vt{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);margin-bottom:4px}
-.s-tool{display:flex;align-items:center;gap:12px;border:1px solid var(--ln);border-radius:8px;padding:10px 12px}.s-tool div:nth-child(2){flex:1;display:flex;flex-direction:column}
-.s-tool b{font-size:16px;font-weight:600}.s-tool span{color:var(--t2);font-size:12.5px}
-.s-tk{width:36px;height:36px;border-radius:6px;border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t1)}
-.s-undo{font-size:13px!important;font-weight:600;color:var(--t1)!important;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
-.s-ai{font-size:19px;font-weight:500;letter-spacing:-.01em;line-height:1.3;margin-top:4px}.s-meta{display:block;font-size:12px;font-weight:400;color:var(--t2);margin-top:6px;letter-spacing:0}
-.s-prompt{background:var(--s1);border:1px solid var(--ln);border-radius:8px;padding:16px;margin-top:14px}.s-prompt b{display:block;font-size:21px;font-weight:600;line-height:1.2;letter-spacing:-.015em;margin:6px 0 14px}
-.s-pa{display:flex;gap:8px}.s-pa span{display:flex;align-items:center;gap:6px;border:1px solid var(--ln);background:var(--bg);border-radius:6px;padding:8px 14px;font-size:13.5px;font-weight:500}
-.s-pa{align-items:center}.s-pa .s-mic{background:var(--acfill,var(--ac));border-color:var(--micb,var(--ac));color:var(--onac);padding:0;width:40px;height:38px;justify-content:center}.s-pa em{font-style:normal;font-size:12.5px;color:var(--t2)}
-.s-day{display:flex;align-items:baseline;gap:10px;margin:20px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--ln)}.s-big{font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1}
-.s-je{display:flex;gap:12px;padding:8px 0}.s-je p{margin:0;font-size:15px}.s-mood{width:9px;height:9px;flex:none;margin-top:6px;border-radius:2px}.s-mood.m1{background:var(--t1)}.s-mood.m2{border:1px solid var(--t2)}
-
-/* A′ palettes: only colours change */
-.dph.S.P1{--bg:#ffffff;--t1:#12151a;--t2:#5b6270;--t3:#8a919c;--ln:#e3e6eb;--s1:#f3f5f8;--ctl:#7d8591;--ac:#1f4fff;--acfill:#1f4fff;--onac:#ffffff;--acb:#e8ecf3;--acf:#12151a}
-.dirs.dark .dph.S.P1{--bg:#0d1014;--t1:#e8ebf0;--t2:#9aa1ad;--t3:#6f7682;--ln:#262b33;--s1:#171b21;--ctl:#6a717d;--ac:#6b8cff;--acfill:#5b7fff;--onac:#0d1014;--acb:#1f242c;--acf:#e8ebf0}
-.dph.S.P2{--bg:#fafafa;--t1:#1c1c1e;--t2:#5f5f66;--t3:#8e8e95;--ln:#e2e2e5;--s1:#f1f1f2;--ctl:#808088;--ac:#3d7a00;--acfill:#a6e22e;--micb:#3d7a00;--onac:#1c1c1e;--acb:#e9e9eb;--acf:#1c1c1e}
-.dirs.dark .dph.S.P2{--bg:#111112;--t1:#ececee;--t2:#a0a0a7;--t3:#6f6f76;--ln:#2a2a2d;--s1:#1b1b1d;--ctl:#6b6b73;--ac:#b5f23d;--acfill:#b5f23d;--micb:transparent;--onac:#111112;--acb:#232325;--acf:#ececee}
-.dph.S.P3{--bg:#ffffff;--t1:#0b0b0c;--t2:#5c5c62;--t3:#8b8b92;--ln:#e4e4e7;--s1:#f4f4f5;--ctl:#8b8b92;--ac:#0b0b0c;--acfill:#ffd400;--micb:#0b0b0c;--mark:#ffd400;--onac:#0b0b0c;--acb:#ececee;--acf:#0b0b0c}
-.dirs.dark .dph.S.P3{--bg:#09090a;--t1:#f2f2f3;--t2:#9d9da4;--t3:#6c6c74;--ln:#27272a;--s1:#161618;--ctl:#6a6a72;--ac:#09090a;--acfill:#ffd400;--micb:transparent;--mark:#ffd400;--onac:#09090a;--acb:#1f1f22;--acf:#f2f2f3}
-.dhead.pal{min-height:120px}
-
-/* B Bloom */
-.dph.B{--bg:#fbf8ff;--t1:#1b1a21;--t2:#5c5868;--ln:#e7e0f2;--ac:#6b4eff;--acb:#e9ddff;--acf:#3b22c9;--lil:#e9ddff;--min:#c9f0d8;--pea:#ffdcc7;--sky:#d3e4ff;--on:#1b1a21}
-.dirs.dark .dph.B{--bg:#141218;--t1:#ede7f6;--t2:#b3abc3;--ln:#2b2734;--ac:#b9a6ff;--acb:#3a2e5c;--acf:#e4dbff;--lil:#3a2e5c;--min:#1f3d2c;--pea:#4a2e1f;--sky:#1e3150;--on:#ede7f6}
-.B .dnav{border-top:0}.B .dni span{height:32px;border-radius:16px}
-.blob{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none}.blob>svg{position:absolute;inset:0;width:100%;height:100%}.blob span{position:relative;display:flex}
-.blob.bav{width:48px;height:48px}.blob.bav path{fill:var(--min)}.blob.bav.sm path{fill:var(--lil)}
-.blob.mic{width:46px;height:46px;color:#fff}.blob.mic path{fill:var(--ac)}.dirs.dark .blob.mic{color:#141218}
-.blob.ok{width:40px;height:40px}.blob.ok path{fill:var(--bg)}
-.b-top{display:flex;justify-content:space-between;align-items:flex-end;padding:12px 16px 14px}
-.b-sub{color:var(--t2);font-size:13px}.b-h{font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
-.b-comp{display:flex;align-items:center;gap:12px;background:var(--lil);border-radius:30px;height:56px;padding:0 5px 0 20px;font-size:15px;margin-bottom:14px}
-.b-comp>span:first-child{flex:1;color:var(--t2)}.b-comp.in{margin:8px 12px 10px}
-.b-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.b-tile{border-radius:28px 28px 28px 10px;padding:14px;display:flex;flex-direction:column;gap:2px;min-height:110px}.b-tile b{font-size:16px;line-height:1.2;margin-top:auto}.b-tile span{color:var(--t2);font-size:13px}
-.b-tile.wide{grid-column:span 2;flex-direction:row;align-items:center;gap:12px;min-height:0;border-radius:10px 28px 28px 28px}.b-tile.wide div{flex:1;display:flex;flex-direction:column}.b-tile.wide b{margin:0}
-.lil{background:var(--lil)}.pea{background:var(--pea)}.min{background:var(--min)}.sky{background:var(--sky)}
-.b-ic{width:36px;height:36px;border-radius:12px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--t1)!important}
-.b-count{font-size:34px!important;font-weight:700;color:var(--t1)!important}
-.b-sec{font-size:15px;font-weight:700;margin:20px 0 8px}
-.b-cap{display:flex;gap:12px;align-items:center;border-radius:24px;padding:14px}.b-cap div{display:flex;flex-direction:column}.b-cap span{color:var(--t2);font-size:12.5px}
-.b-hdr{display:flex;align-items:center;gap:14px;padding:10px 16px}.b-hdr b{flex:1;font-size:20px;font-weight:700}
-.b-thread{display:flex;flex-direction:column;gap:10px}
-.b-me{align-self:flex-end;max-width:84%;background:var(--ac);color:#fff;border-radius:24px 24px 8px 24px;padding:12px 16px}.dirs.dark .b-me{color:#141218}
-.b-wave{display:flex;gap:3px;align-items:center;height:16px;margin-bottom:6px}.b-wave i{display:block;width:4px;border-radius:2px;background:currentColor;height:8px}.b-wave i:nth-child(2n){height:14px}.b-wave i:nth-child(3){height:16px}
-.b-tool{display:flex;align-items:center;gap:12px;border-radius:24px;padding:10px 14px 10px 10px}.b-tool div{flex:1;display:flex;flex-direction:column}.b-tool span{color:var(--t2);font-size:12.5px}.b-tool b{font-size:16px}
-.b-undo{background:var(--bg);border-radius:16px;padding:6px 12px;font-weight:600;color:var(--t1)!important;font-size:13px!important}
-.b-ai{align-self:flex-start;max-width:84%;background:var(--acb);border-radius:24px 24px 24px 8px;padding:12px 16px;font-size:15px}
-.b-meta{display:block;font-size:11.5px;color:var(--t2);margin-top:4px}
-.b-chips{display:flex;gap:8px;flex-wrap:wrap}.b-chips span{border:1.5px solid var(--ac);color:var(--acf);border-radius:18px;padding:6px 12px;font-size:13px;font-weight:500}
-.b-prompt{background:var(--sky);border-radius:32px 32px 32px 12px;padding:18px}.b-prompt>span{font-size:12.5px;color:var(--t2)}.b-prompt b{display:block;font-size:21px;line-height:1.2;margin:4px 0 14px}
-.b-pa{display:flex;gap:8px}.b-pa span{display:flex;gap:6px;align-items:center;background:var(--bg);border-radius:20px;padding:8px 14px;font-weight:600;font-size:13.5px}.b-pa .pri{background:var(--ac);color:#fff}.dirs.dark .b-pa .pri{color:#141218}
-.b-week{display:flex;justify-content:space-between;margin:18px 0 14px}.b-week span{width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--t2);border:1.5px dashed var(--t2)}
-.b-week .has{background:var(--min);border:0;color:var(--t1)}.b-week .wm{background:var(--pea)}.b-week .on{background:var(--ac);color:#fff;border-radius:12px}.dirs.dark .b-week .on{color:#141218}
-.b-je{border-radius:24px;padding:14px;margin-bottom:10px}.b-je p{margin:6px 0 0}.b-jh{display:flex;justify-content:space-between;align-items:center}
-.b-mood{background:var(--bg);border-radius:12px;padding:2px 10px;font-size:12px;color:var(--t2)}
-
-/* C Paper */
-.dph.C{--bg:#f6efe4;--t1:#2b2118;--t2:#6e5f50;--ln:#e2d6c4;--ac:#a9431f;--ol:#5d6a2f;--oc:#d9a23b;--oct:#8a5f12;--card:#fbf7f0;--acb:#efd9c9;--acf:#9c3e1e;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='3' cy='3' r='1.1' fill='%23d9cdb8'/%3E%3C/svg%3E")}
-.dirs.dark .dph.C{--bg:#1e1915;--t1:#f1e6d6;--t2:#bba893;--ln:#3a3029;--ac:#e07a55;--ol:#a5b46a;--oc:#e3b55b;--oct:#e3b55b;--card:#28211c;--acb:#3d2a20;--acf:#f0a283;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='3' cy='3' r='1.1' fill='%232f2822'/%3E%3C/svg%3E")}
-.C .dnav{background:var(--bg)}
-.c-top{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 18px 10px}
-.c-sub{color:var(--t2);font-size:13px;font-style:italic}.c-h{font:500 31px/1.12 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;letter-spacing:-.01em;margin-top:2px}
-.sq{display:block;width:120px;height:8px;margin-top:6px}.sq path{fill:none;stroke:var(--ac);stroke-width:2;stroke-linecap:round}
-.doodle{width:64px;height:64px;fill:none;stroke:var(--oc);stroke-width:2.5;stroke-linecap:round}.doodle.sm{stroke:var(--ol)}
-.c-comp{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--t1);border-radius:16px;height:54px;padding:0 6px 0 16px;font-size:15px}
-.c-comp>span:first-child{flex:1;color:var(--t2);font-style:italic}.c-comp.in{margin:8px 12px 10px}
-.c-mic{width:42px;height:42px;border-radius:12px;background:var(--ac);color:#fff8f0;display:flex;align-items:center;justify-content:center}.dirs.dark .c-mic{color:#1e1915}
-.c-sec{font:italic 500 17px "Iowan Old Style",Palatino,Georgia,serif;color:var(--ac);margin:18px 0 6px}
-.c-li{display:flex;gap:14px;align-items:center;padding:8px 0;border-bottom:1.5px dashed var(--ln)}.c-li div{display:flex;flex-direction:column}.c-li span{color:var(--t2);font-size:12.5px}
-.c-time{width:58px;text-align:center;font:600 15px "Iowan Old Style",Georgia,serif;color:var(--t1)!important;background:var(--acb);border-radius:10px;padding:6px 0;transform:rotate(-2deg)}
-.c-time.t2{background:var(--oc);color:#2b2118!important;transform:rotate(1.5deg)}.c-time.t3{background:var(--ol);color:#fbf7f0!important;transform:rotate(-1deg)}.dirs.dark .c-time.t3{color:#1e1915!important}
-.c-note{background:var(--card);border:1.5px solid var(--t1);border-radius:4px 16px 16px 16px;padding:12px 14px;display:flex;flex-direction:column;transform:rotate(-.6deg)}.c-note b{font:500 17px "Iowan Old Style",Georgia,serif}.c-note span{color:var(--t2);font-size:12.5px;font-style:italic}
-.c-hdr{display:flex;align-items:center;gap:14px;padding:12px 16px}.c-hdr b{flex:1;font:500 21px "Iowan Old Style",Georgia,serif}
-.c-thread{display:flex;flex-direction:column;gap:12px}
-.c-me{align-self:flex-end;max-width:84%;background:var(--t1);color:var(--bg);border-radius:18px 18px 4px 18px;padding:12px 14px}
-.c-ticket{display:flex;background:var(--card);border:1.5px solid var(--t1);border-radius:14px;overflow:hidden}
-.c-stub{width:70px;flex:none;background:var(--ac);color:#fff8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-right:2px dashed var(--bg);font:600 14px "Iowan Old Style",Georgia,serif}.c-stub.s2{background:var(--ol)}
-.dirs.dark .c-stub{color:#1e1915}
-.c-tb{flex:1;padding:10px 12px;display:flex;flex-direction:column;position:relative}.c-tb span{color:var(--t2);font-size:12.5px}.c-tb b{font-size:15.5px}
-.c-tb em{position:absolute;right:12px;top:50%;margin-top:-10px;font-style:normal;color:var(--acf);font-weight:600;font-size:13px;text-decoration:underline;text-underline-offset:3px}
-.c-ai{align-self:flex-start;max-width:86%;font:500 20px/1.3 "Iowan Old Style",Palatino,Georgia,serif}.c-ai span{display:block;font:italic 12px system-ui,sans-serif;color:var(--t2);margin-top:4px}
-.c-prompt{background:var(--card);border:1.5px solid var(--t1);border-radius:18px;padding:16px;margin-top:6px}.c-prompt>span{font-style:italic;color:var(--ac);font-size:13px}
-.c-prompt b{display:block;font:500 22px/1.2 "Iowan Old Style",Georgia,serif;margin:4px 0 12px}
-.c-pa{display:flex;gap:8px}.c-pa span{display:flex;gap:6px;align-items:center;border:1.5px solid var(--t1);border-radius:12px;padding:7px 12px;font-size:13.5px;font-weight:500}.c-pa span:first-child{background:var(--ac);border-color:var(--ac);color:#fff8f0}.dirs.dark .c-pa span:first-child{color:#1e1915}
-.c-entry{display:flex;gap:14px;padding:12px 0;border-bottom:1.5px dashed var(--ln)}.c-entry p{margin:0;font:400 16px/1.4 "Iowan Old Style",Palatino,Georgia,serif}.c-entry p span{display:block;font:italic 12px system-ui,sans-serif;color:var(--t2);margin-top:4px}
-.c-stamp{width:52px;height:52px;flex:none;border:2px solid var(--ac);border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ac);transform:rotate(-8deg);line-height:1}
-.c-stamp b{font:600 19px "Iowan Old Style",Georgia,serif}.c-stamp span{font-size:10px;text-transform:uppercase;letter-spacing:.08em}.c-stamp.s2{border-color:var(--ol);color:var(--ol);transform:rotate(5deg)}.c-stamp.s3{border-color:var(--oc);color:var(--oct);transform:rotate(-3deg)}
-</style></head><body><h2 id="directions">Signal (A′): pick a palette</h2>
-<p class="cap">A′'s structure, type and 1 px lines are unchanged; only the colours differ. True neutral or cool greys, no beige; one accent each, used only on the mic and the next item. Shown on Today and Chat, dark and light. Once a palette is picked, all 13 screens are redrawn in it. Earlier directions B and C stay at the end of the mock-ups.</p>
-<div class="themes" id="themesDir" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
-<div class="dirs" id="dirs">
-<section class="dcol"><div class="dhead pal"><span class="dk">1</span><div><b>Cobalt</b><p>Cool ink on pure white, cool grey lines, one electric cobalt blue for the mic and the next item.</p><div class="sws"><i style="background:#12151a"></i><i style="background:#ffffff"></i><i style="background:#1f4fff"></i><i style="background:#e3e6eb"></i></div></div></div>
-<figure><div class="dph S P1"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+mark.hl{background:var(--hl);color:var(--onhl);padding:0 3px;margin:0 -1px;border-radius:2px}
+.f-lab{font-size:12.5px;font-weight:500;color:var(--t2)}.f-lab.mt{display:block;margin:20px 0 6px}
+.f-top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0;color:var(--t2)}
+.f-av{width:34px;height:34px;border:1px solid var(--ln);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.f-h{font-size:32px;line-height:1.1;font-weight:600;letter-spacing:-.025em;padding:6px 16px 16px}
+.f-h2{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--t1)}
+.f-comp{display:flex;align-items:center;gap:12px;border:1px solid var(--ctl);background:var(--s1);border-radius:8px;height:52px;padding:0 5px 0 14px;font-size:15px}
+.f-comp>span:first-child{flex:1;color:var(--t2)}.f-comp>.i{color:var(--t2)}.f-comp.in{margin:8px 12px 10px}
+.f-mic{width:42px;height:42px;flex:none;border-radius:6px;background:var(--hl);color:var(--onhl);display:flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--t1)}
+.fphones.dark .f-mic{border-color:var(--hl)}
+.f-mic.fab{position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:10px}.f-mic.sm{width:34px;height:34px}
+.f-chips{display:flex;gap:8px;margin-top:10px}.f-chips span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);border:1px solid var(--ln);border-radius:6px;padding:4px 8px}
+.f-row{display:flex;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--ln)}.f-row.last{border-bottom:1px solid var(--ln)}
+.f-row div{flex:1;display:flex;flex-direction:column}.f-row span{color:var(--t2);font-size:12.5px}.f-row b{font-size:15.5px}
+.f-t{font-size:24px!important;font-weight:500;letter-spacing:-.02em;width:76px;color:var(--t1)!important;font-variant-numeric:tabular-nums}
+.f-next{font-size:12px!important;font-weight:500}
+.f-card{border:1px solid var(--ln);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}.f-card b{font-size:16px}.f-card span{color:var(--t2);font-size:12.5px}
+.f-nav{display:flex;height:70px;flex:none;border-top:1px solid var(--ln)}
+.f-ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--t2)}
+.f-ni span{width:56px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.f-ni.on{color:var(--t1);font-weight:700}.f-ni.on span{background:var(--s1);border:1px solid var(--ln)}
+.f-hdr{display:flex;align-items:center;gap:14px;padding:10px 16px 12px;border-bottom:1px solid var(--ln);flex:none}.f-hdr b{flex:1;font-size:18px}.f-hdr .i{color:var(--t2)}
+.f-pill{font-size:12px;color:var(--t2);border:1px solid var(--ln);border-radius:6px;padding:2px 8px}
+.f-thread{display:flex;flex-direction:column;gap:10px;padding-top:14px}
+.f-me{align-self:flex-end;max-width:84%;background:var(--s1);border:1px solid var(--ln);border-radius:8px 8px 2px 8px;padding:10px 14px}
+.f-vt{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);margin-bottom:4px}
+.f-tool{display:flex;align-items:center;gap:12px;border:1px solid var(--ln);border-radius:8px;padding:10px 12px}.f-tool>div:nth-child(2){flex:1;display:flex;flex-direction:column}
+.f-tool b{font-size:16px}.f-tool span{color:var(--t2);font-size:12.5px}
+.f-tk{width:36px;height:36px;border-radius:6px;border:1px solid var(--ln);display:flex;align-items:center;justify-content:center}
+.f-undo{font-size:13px!important;font-weight:600;color:var(--t1)!important;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+.f-ai{font-size:19px;font-weight:500;letter-spacing:-.01em;line-height:1.3}.f-ai.sm{font-size:16px}.f-meta{display:block;font-size:12px;font-weight:400;color:var(--t2);margin-top:4px;letter-spacing:0}
+.f-q{display:flex;align-items:center;gap:8px;border:1px solid var(--ctl);border-radius:8px;padding:10px}.f-q>div{flex:1;display:flex;flex-direction:column}.f-q b{font-size:14px}
+.f-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 14px;border:1px solid var(--ctl);border-radius:6px;font-weight:500;font-size:14px;flex:1;box-sizing:border-box}
+.f-btn.sm{height:32px;flex:none;padding:0 10px;font-size:13px}.f-btn.pri{background:var(--t1);color:var(--bg);border-color:var(--t1)}.f-btn.wide{width:100%}
+.f-btn.go{background:var(--hl);color:var(--onhl);border-color:var(--t1)}.fphones.dark .f-btn.go{border-color:var(--hl)}
+.f-btns{display:flex;gap:8px;margin-top:14px}
+.f-sent{display:flex;align-items:center;gap:10px;border:1px solid var(--ln);border-radius:8px;padding:10px 12px;margin:14px 0 14px}.f-sent div{display:flex;flex-direction:column}
+.f-ans{margin:0;font-size:16.5px;line-height:1.5}.f-ans sup{font-size:10px;font-weight:600;border:1px solid var(--ctl);border-radius:3px;padding:0 4px;margin-left:2px;vertical-align:3px}
+.f-src{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--ln)}.f-src.last{border-bottom:1px solid var(--ln)}.f-src div{display:flex;flex-direction:column}.f-src span{color:var(--t2);font-size:12.5px}
+.f-src .n{width:22px;height:22px;border:1px solid var(--ctl);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--t1);flex:none}
+.f-note{display:flex;gap:8px;align-items:flex-start;color:var(--t2);font-size:12.5px;margin-top:14px}
+.f-scrim{position:absolute;inset:0;background:var(--scrim);opacity:.45}
+.f-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--ln);border-radius:14px 14px 0 0;padding:8px 20px 18px}
+.f-grab{width:36px;height:4px;border-radius:2px;background:var(--t3);margin:4px auto 14px}
+.f-sh{display:flex;align-items:center;gap:10px;font-size:19px;margin-bottom:8px}
+.f-warn{display:flex;gap:8px;align-items:flex-start;font-size:13px;border:1px solid var(--ctl);border-radius:6px;padding:8px 10px;margin:4px 0 6px}
+.f-fld{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--ln)}.f-fld span{color:var(--t2)}
+.f-fine{color:var(--t2);font-size:12px;margin-top:12px}.f-fine.c{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:16px}
+.f-tabs{display:flex;gap:6px;margin:12px 0 14px}.f-tabs span{padding:6px 14px;border-radius:6px;border:1px solid var(--ln);font-size:13.5px;color:var(--t2)}
+.f-tabs .on{background:var(--t1);color:var(--bg);border-color:var(--t1);font-weight:500}
+.f-nr{padding:12px 0;border-bottom:1px solid var(--ln)}.f-nh{display:flex;justify-content:space-between}.f-nh span{color:var(--t2);font-size:12px}
+.f-nr p{margin:3px 0 7px;color:var(--t2);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.f-tg{display:flex;gap:6px}.f-tg span{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--t2);border:1px solid var(--ln);border-radius:4px;padding:1px 7px}
+.f-ig{display:grid;grid-template-columns:1fr 1fr;gap:8px}.f-ic{border:1px solid var(--ln);border-radius:6px;padding:12px;min-height:76px;display:flex;flex-direction:column;justify-content:space-between;gap:8px}
+.f-ic span{color:var(--t2);font-size:12px}.f-ic em{font-style:normal;font-weight:500;font-size:13px;display:flex;align-items:center;gap:2px;text-decoration:underline;text-underline-offset:3px}
+.f-prompt{background:var(--s1);border:1px solid var(--ln);border-radius:8px;padding:16px}.f-prompt b{display:block;font-size:21px;line-height:1.2;letter-spacing:-.015em;margin:6px 0 14px}
+.f-pa{display:flex;gap:8px;align-items:center}.f-pa .f-btn{background:var(--bg)}.f-pa em{font-style:normal;font-size:12.5px;color:var(--t2)}
+.f-day{display:flex;align-items:baseline;gap:10px;margin:18px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--ln)}.f-big{font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1}
+.f-je{display:flex;gap:12px;padding:8px 0}.f-je p{margin:0;font-size:15px}.f-mood{width:9px;height:9px;flex:none;margin-top:6px;border-radius:2px}.f-mood.m1{background:var(--t1)}.f-mood.m2{border:1px solid var(--t2)}
+.f-td{display:flex;gap:14px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--ln)}.f-td div{display:flex;flex-direction:column}.f-td span{color:var(--t2);font-size:12.5px}
+.f-cb{width:18px;height:18px;border:1px solid var(--ctl);border-radius:4px;flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center}
+.f-cb.on{background:var(--t1);border-color:var(--t1);color:var(--bg)}.f-cb .i{width:13px;height:13px;stroke-width:2.5}
+.f-td.done b{color:var(--t3);text-decoration:line-through;font-weight:400}
+.f-cam{height:100%;display:flex;flex-direction:column;background:#000;color:#fff}
+.f-vf{flex:1;position:relative;background:#3d4a3a;border-radius:0 0 14px 14px;overflow:hidden}
+.plant{position:absolute;left:0;right:0;top:120px;height:330px}.plant i{position:absolute;display:block;background:#6f9a57}
+.l1{left:110px;top:30px;width:120px;height:140px;border-radius:0 100% 0 100%}.l2{left:60px;top:110px;width:100px;height:110px;border-radius:100% 0 100% 0;background:#5d8749!important}
+.l3{left:180px;top:120px;width:100px;height:100px;border-radius:0 100% 0 100%;background:#7aa862!important}.pot{left:105px;top:225px;width:130px;height:110px;border-radius:0 0 18px 18px;background:#8c8c8c!important}
+.f-tb{position:absolute;top:10px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center}
+.f-seg{display:flex;background:#000a;border-radius:6px;padding:3px}.f-seg span{padding:5px 12px;border-radius:4px;font-size:13px}.f-seg .on{background:#fff;color:#000}
+.f-cq{display:flex;align-items:center;gap:10px;margin:12px 14px 0;background:#161618;border:1px solid #3a3a3f;border-radius:8px;padding:8px 12px 8px 8px;font-size:14px}
+.f-cam .f-mic{border-color:#ffd400}
+.f-cb2{display:flex;justify-content:space-around;align-items:center;padding:18px 0 14px}
+.f-shut{width:70px;height:70px;border-radius:50%;background:#fff;border:5px solid #000;outline:2px solid #fff}
+.f-round{width:46px;height:46px;border-radius:8px;border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)}
+.f-cam .f-round{border-color:#3a3a3f;color:#fff}
+.f-talk{display:flex;flex-direction:column;align-items:center}
+.f-orb{width:190px;height:190px;border-radius:24px;background:var(--hl);display:flex;align-items:center;justify-content:center;margin:32px 0 12px}
+.f-bars{display:flex;gap:6px;align-items:center}.f-bars i{display:block;width:8px;border-radius:2px;background:var(--onhl)}
+.f-state{font-weight:600;margin-bottom:22px}
+.f-tl{align-self:stretch;padding:10px 0;border-top:1px solid var(--ln)}.f-tl .f-lab{display:block;margin-bottom:2px}
+.f-warm{display:flex;gap:8px;align-items:center;align-self:stretch;margin-top:12px;border:1px solid var(--ctl);border-radius:6px;padding:9px 12px;font-size:13px}
+.f-tctl{display:flex;justify-content:center;align-items:center;gap:28px;padding:10px 0 18px}
+.f-stop{width:64px;height:64px;border-radius:10px;background:var(--t1);color:var(--bg);display:flex;align-items:center;justify-content:center}
+.f-grp{border:1px solid var(--ln);border-radius:8px;margin-top:12px}
+.f-sr,.f-tg2{display:flex;align-items:center;gap:14px;padding:11px 14px;border-top:1px solid var(--ln)}.f-grp>:first-child{border-top:0}
+.f-sr>.i:first-child{color:var(--t2)}.f-sr div,.f-tg2 div{flex:1;display:flex;flex-direction:column}.f-sr span,.f-tg2 span{color:var(--t2);font-size:12.5px}
+.f-tg2{border:1px solid var(--ln);border-radius:8px;margin-top:8px}
+.f-sw{width:40px;height:22px;border-radius:6px;border:1px solid var(--ctl);position:relative;flex:none;box-sizing:border-box}
+.f-sw i{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:3px;background:var(--t3)}.f-sw.on{background:var(--t1);border-color:var(--t1)}.f-sw.on i{left:21px;background:var(--bg)}
+.f-seg3{display:flex;border:1px solid var(--ln);border-radius:6px;overflow:hidden}.f-seg3 span{flex:1;text-align:center;padding:8px 0;font-size:13px;color:var(--t2);border-left:1px solid var(--ln)}
+.f-seg3 span:first-child{border-left:0}.f-seg3 .on{background:var(--t1);color:var(--bg);font-weight:500}
+.f-big2{font-size:22px;font-weight:600;letter-spacing:-.015em;margin:14px 0 10px}
+.f-pr{display:flex;gap:12px;align-items:center;padding:8px 0}.f-pr div{flex:1;display:flex;flex-direction:column}.f-pr span{color:var(--t2);font-size:12.5px}
+.f-pr>.i:first-child{width:30px;height:30px;padding:6px;border:1px solid var(--ln);border-radius:6px;box-sizing:border-box}
+.f-nlg{display:flex;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--ln)}.f-nlg>span{color:var(--t2);font-size:12px;width:36px}
+.f-nlg div{flex:1;display:flex;flex-direction:column;min-width:0}.f-nlg div span{color:var(--t2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.f-nlg em{font-style:normal;color:var(--t2);font-size:12px}
+.f-stor{margin:14px 0 12px}.f-stor>span{color:var(--t2);font-size:12.5px}
+.f-bar{height:4px;border-radius:2px;background:var(--ln);margin:6px 0}.f-bar span{display:block;height:4px;border-radius:2px;background:var(--t1)}
+.f-md{border:1px solid var(--ln);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;flex-direction:column;gap:2px}
+.f-md>span{color:var(--t2);font-size:12.5px;display:flex;align-items:center;gap:4px}.f-md .dim{color:var(--t3)}
+.f-mh{display:flex;justify-content:space-between;align-items:center}
+.f-first{display:flex;flex-direction:column;padding-top:18px}.f-first .f-h{padding:8px 0 10px}
+.f-steps{display:flex;gap:6px}.f-steps span{width:28px;height:4px;border-radius:2px;background:var(--ln)}.f-steps .on{background:var(--t1)}
+.f-lead{margin:0;color:var(--t2);font-size:15px}
+.f-opt{display:flex;gap:12px;align-items:center;border:1px solid var(--ln);border-radius:8px;padding:11px 12px;margin-bottom:8px}.f-opt.on{border-color:var(--t1)}
+.f-opt div{flex:1;display:flex;flex-direction:column}.f-opt span{color:var(--t2);font-size:12.5px}
+.f-radio{width:18px;height:18px;border-radius:50%;border:1px solid var(--ctl);flex:none;box-sizing:border-box}.f-radio.on{border:6px solid var(--t1)}
+.f-cta{padding:10px 16px 14px;flex:none}
+.f-file{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--ln)}.f-file div{display:flex;flex-direction:column;min-width:0}.f-file b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.f-file span{color:var(--t2);font-size:12.5px}
+.f-ck{display:flex;gap:12px;align-items:flex-start;padding:8px 0}.f-ck div{display:flex;flex-direction:column}.f-ck span{color:var(--t2);font-size:12.5px}
+.f-qw{border:1px solid var(--t1);border-radius:8px;padding:12px}.f-qh{display:flex;gap:8px;align-items:center;font-size:14px}
+.f-qq{display:flex;flex-direction:column;border-top:1px solid var(--ln);border-bottom:1px solid var(--ln);padding:8px 0;margin:10px 0}.f-qw p{margin:0;font-size:13px;color:var(--t2)}
+.f-qw .f-btns{margin-top:10px}.f-qw .f-btn{font-size:12.5px;padding:0 8px;height:36px}
+</style></head><body><h1>LFM3 on Pixel: spec (v2)</h1>
+<h2 id="mockups">Mock-ups</h2>
+<p class="cap">Style: calm Signal with the Ink + highlighter palette (section 7). Pixel 10 Pro proportions (20:9; frames 360×800). Flat: no gradients, glows or shadows. Yellow appears only on the mic and the one thing that matters most on each screen (named under each). Numbers and names are illustrative.</p>
+<div class="themes" id="themesF" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
+<div class="fphones" id="fphones">
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
 <svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
 <svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
 <svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
 <b>82%</b></span></div><div class="app">
-  <div class="s-top"><span class="s-lab">Friday 30 October</span><span class="s-av"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span></div>
-  <div class="s-h">Good afternoon</div>
+  <div class="f-top"><span class="f-lab">Friday 30 October</span><span class="f-av"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span></div>
+  <div class="f-h">Good afternoon</div>
   <div class="pad">
-    <div class="s-comp"><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="s-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
-    <div class="s-lab mt">Today · 3 things</div>
-    <div class="s-row next"><span class="s-t"><span>15:30</span></span><div><b>Design review</b><span>Room 4 · 45 min</span></div><span class="s-next">Next</span></div>
-    <div class="s-row"><span class="s-t">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
-    <div class="s-row last"><span class="s-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-    <div class="s-lab mt">Just captured</div>
-    <div class="s-cap"><b>Weekend market stall for old prints</b><span>Idea · 11:20 · voice</span></div>
-  </div></div><div class="dnav"><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>Cobalt · Today</figcaption></figure>
-<figure><div class="dph S P1"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+    <div class="f-comp "><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="f-mic "><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
+    <div class="f-chips"><span><svg class="i s" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>On this phone</span><span><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>Search: ask first</span></div>
+    <div class="f-lab mt">Today · 3 things</div>
+    <div class="f-row"><span class="f-t"><mark class="hl">15:30</mark></span><div><b>Design review</b><span>Room 4 · 45 min</span></div><span class="f-next">Next</span></div>
+    <div class="f-row"><span class="f-t">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
+    <div class="f-row last"><span class="f-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+    <div class="f-lab mt">Just captured</div>
+    <div class="f-card"><b>Weekend market stall for old prints</b><span>Idea · 11:20 · voice</span></div>
+  </div></div><div class="f-nav"><div class="f-ni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>1</b> Today<span>yellow: mic, next item</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
 <svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
 <svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
 <svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
 <b>82%</b></span></div><div class="app">
-  <div class="s-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad s-thread">
-    <div class="s-me"><span class="s-vt"><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>0:06</span>Remind me to call the plumber at six, and add oat milk to my list</div>
-    <div class="s-tool"><div class="s-tk"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div><span class="s-lab">Reminder set</span><b>Call the plumber</b><span>Today 18:00</span></div><span class="s-undo">Undo</span></div>
-    <div class="s-tool"><div class="s-tk"><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div><span class="s-lab">Added to Shopping</span><b>Oat milk</b></div><span class="s-undo">Undo</span></div>
-    <div class="s-ai">Done. Anything else before six?<span class="s-meta">LFM3-1.7B · on this phone</span></div>
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
+  <div class="pad f-thread">
+    <div class="f-me"><span class="f-vt"><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>0:06</span>Remind me to call the plumber at six, and add oat milk to my list</div>
+    <div class="f-tool"><div class="f-tk"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div><span class="f-lab">Reminder set</span><b>Call the plumber</b><span>Today 18:00</span></div><span class="f-undo">Undo</span></div>
+    <div class="f-tool"><div class="f-tk"><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div><span class="f-lab">Added to Shopping</span><b>Oat milk</b></div><span class="f-undo">Undo</span></div>
+    <div class="f-ai">Done. Anything else before six?<span class="f-meta">LFM3-1.7B · on this phone</span></div>
+    <div class="f-me">What does a plumber in Leeds usually charge for a call-out?</div>
+    <div class="f-q"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><span class="f-lab">Search the web for</span><b>plumber call-out fee Leeds 2026</b></div><span class="f-btn sm">Edit</span><span class="f-btn sm pri">Send</span></div>
   </div>
-  <div class="s-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="s-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption>Cobalt · Chat with a tool card</figcaption></figure>
-</section>
-<section class="dcol"><div class="dhead pal"><span class="dk">2</span><div><b>Graphite + lime</b><p>Neutral graphite greys, no tint; an acid lime for the mic (deep green for the next time in light mode, where lime text would be unreadable).</p><div class="sws"><i style="background:#1c1c1e"></i><i style="background:#fafafa"></i><i style="background:#a6e22e"></i><i style="background:#3d7a00"></i></div></div></div>
-<figure><div class="dph S P2"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+  <div class="f-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="f-mic "><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption><b>2</b> Chat<span>yellow: mic</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
 <svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
 <svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
 <svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
 <b>82%</b></span></div><div class="app">
-  <div class="s-top"><span class="s-lab">Friday 30 October</span><span class="s-av"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span></div>
-  <div class="s-h">Good afternoon</div>
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Search</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
   <div class="pad">
-    <div class="s-comp"><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="s-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
-    <div class="s-lab mt">Today · 3 things</div>
-    <div class="s-row next"><span class="s-t"><span>15:30</span></span><div><b>Design review</b><span>Room 4 · 45 min</span></div><span class="s-next">Next</span></div>
-    <div class="s-row"><span class="s-t">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
-    <div class="s-row last"><span class="s-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-    <div class="s-lab mt">Just captured</div>
-    <div class="s-cap"><b>Weekend market stall for old prints</b><span>Idea · 11:20 · voice</span></div>
-  </div></div><div class="dnav"><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>Graphite + lime · Today</figcaption></figure>
-<figure><div class="dph S P2"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+    <div class="f-sent"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><span class="f-lab">Sent to your SearXNG · 14:08</span><b>plumber call-out fee Leeds 2026</b></div></div>
+    <p class="f-ans">Most Leeds plumbers charge <mark class="hl">£60–£95 for a call-out</mark>, which covers the first hour <sup>1</sup><sup>2</sup>. Evenings and weekends often cost 1.5× <sup>3</sup>. Ask for a fixed quote before work starts.</p>
+    <span class="f-meta">Written on this phone from 3 pages</span>
+    <div class="f-lab mt">Sources</div>
+    <div class="f-src"><span class="n">1</span><div><b>Plumbing prices in Leeds, 2026 guide</b><span>checkatrade.com</span></div></div>
+    <div class="f-src"><span class="n">2</span><div><b>How much does a plumber cost?</b><span>which.co.uk</span></div></div>
+    <div class="f-src last"><span class="n">3</span><div><b>Emergency plumber rates explained</b><span>mybuilder.com</span></div></div>
+    <div class="f-note"><svg class="i s" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>Sent: the search words, then the 3 result pages were opened. Nothing from your notes, contacts or chats.</div>
+  </div></div><div class="gb"><span></span></div></div></div><figcaption><b>3</b> Search results<span>yellow: the answer</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
 <svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
 <svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
 <svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
 <b>82%</b></span></div><div class="app">
-  <div class="s-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad s-thread">
-    <div class="s-me"><span class="s-vt"><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>0:06</span>Remind me to call the plumber at six, and add oat milk to my list</div>
-    <div class="s-tool"><div class="s-tk"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div><span class="s-lab">Reminder set</span><b>Call the plumber</b><span>Today 18:00</span></div><span class="s-undo">Undo</span></div>
-    <div class="s-tool"><div class="s-tk"><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div><span class="s-lab">Added to Shopping</span><b>Oat milk</b></div><span class="s-undo">Undo</span></div>
-    <div class="s-ai">Done. Anything else before six?<span class="s-meta">LFM3-1.7B · on this phone</span></div>
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
+  <div class="pad f-thread">
+    <div class="f-me">Dinner with Ana next Friday at 8, at Ottolenghi</div><div class="f-ai sm">I'll add it to your calendar.</div>
   </div>
-  <div class="s-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="s-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption>Graphite + lime · Chat with a tool card</figcaption></figure>
-</section>
-<section class="dcol"><div class="dhead pal"><span class="dk">3</span><div><b>Ink + highlighter</b><p>Near-black and white only; the accent is a highlighter yellow, used as a marker behind the next time and on the mic.</p><div class="sws"><i style="background:#0b0b0c"></i><i style="background:#ffffff"></i><i style="background:#ffd400"></i><i style="background:#e4e4e7"></i></div></div></div>
-<figure><div class="dph S P3"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+  <div class="f-scrim"></div>
+  <div class="f-sheet"><div class="f-grab"></div>
+    <div class="f-sh"><svg class="i " viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><b>Add to calendar?</b></div>
+    
+    <div class="f-fld"><span>Title</span><b>Dinner with Ana</b></div>
+    <div class="f-fld"><span>When</span><b><mark class="hl">Fri 6 Nov · 20:00 – 22:00</mark></b></div>
+    <div class="f-fld"><span>Where</span><b>Ottolenghi</b></div>
+    <div class="f-fld"><span>Calendar</span><b>On this phone</b></div>
+    <div class="f-btns"><span class="f-btn">Edit</span><span class="f-btn">Cancel</span><span class="f-btn pri">Add</span></div>
+    <div class="f-fine">Calendar changes always ask first. Change in Settings → Tools.</div>
+  </div></div><div class="gb"><span></span></div></div></div><figcaption><b>4</b> Tool confirmation<span>yellow: the date it worked out</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
 <svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
 <svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
 <svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
 <b>82%</b></span></div><div class="app">
-  <div class="s-top"><span class="s-lab">Friday 30 October</span><span class="s-av"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span></div>
-  <div class="s-h">Good afternoon</div>
+  <div class="f-top"><span class="f-h2">Library</span><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div><div class="pad">
+  <div class="f-tabs"><span class="on">Notes</span><span class="">Ideas</span><span class="">Journal</span></div>
+    <div class="f-nr"><div class="f-nh"><b>Standup, Thursday</b><span>Thu</span></div><p>Release moves to Monday; payment test fails on older phones. Review on Friday.</p><div class="f-tg"><span><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>4:12</span><span>work</span><span>3 to-dos</span></div></div>
+    <div class="f-nr"><div class="f-nh"><b>Boiler service</b><span>Tue</span></div><p>Model Vaillant ecoTEC 832. Last service March. Pressure drops below 1 bar overnight.</p><div class="f-tg"><span>home</span></div></div>
+    <div class="f-nr"><div class="f-nh"><b>Lease, pages 1–6</b><span>Mon</span></div><p>12 months from 1 Dec, rent 1,450. Clause 9: tenant pays repairs under 200.</p><div class="f-tg"><span><svg class="i s" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>6 pages</span><span>home</span></div></div>
+    <div class="f-nr"><div class="f-nh"><b>Book list from Mia</b><span>Sun</span></div><p>Piranesi; The Overstory; Tomorrow, and Tomorrow, and Tomorrow.</p><div class="f-tg"><span>reading</span></div></div>
+  </div><span class="f-mic fab"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div><div class="f-nav"><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="f-ni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>5</b> Notes<span>yellow: mic</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-top"><span class="f-h2">Library</span><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div><div class="pad">
+  <div class="f-tabs"><span class="">Notes</span><span class="on">Ideas</span><span class="">Journal</span></div>
+    <div class="f-lab">Side projects</div>
+    <div class="f-ig"><div class="f-ic"><b>Weekend market stall for old prints</b><span>Today · voice</span></div><div class="f-ic"><b>Map of every bakery I've tried</b><span>Oct 21</span></div></div>
+    <div class="f-lab mt">Home</div>
+    <div class="f-ig"><div class="f-ic"><b>Shelf above the radiator</b><span>Oct 27</span></div><div class="f-ic"><b>Herb box on the balcony</b><span>Oct 12</span></div></div>
+    <div class="f-lab mt">Writing</div>
+    <div class="f-ic wide"><b>Essay: why small models feel more personal</b><span>Oct 29 · 3 linked notes</span><em>Expand this idea <svg class="i s" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></em></div>
+  </div><span class="f-mic fab"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div><div class="f-nav"><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="f-ni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>6</b> Ideas<span>yellow: mic</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-top"><span class="f-h2">Library</span><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div><div class="pad">
+  <div class="f-tabs"><span class="">Notes</span><span class="">Ideas</span><span class="on">Journal</span></div>
+    <div class="f-prompt"><span class="f-lab">Today's prompt</span><b>What gave you energy this week?</b><div class="f-pa"><span class="f-mic "><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span class="f-btn sm"><svg class="i s" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Write</span><em>or tap the mic to speak</em></div></div>
+    <div class="f-day"><span class="f-big">30</span><span class="f-lab">Friday</span></div>
+    <div class="f-je"><span class="f-mood m1"></span><p>Slept well. Felt calmer after the walk; less worried about the review.</p></div>
+    <div class="f-day"><span class="f-big">29</span><span class="f-lab">Thursday</span></div>
+    <div class="f-je"><span class="f-mood m2"></span><p>Long day. Want to say no to the Saturday shift.</p></div>
+    <div class="f-je"><span class="f-mood m1"></span><p>Lunch with Mia, laughed a lot.</p></div>
+    <div class="f-fine c"><svg class="i s" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Journal is locked with your fingerprint</div>
+  </div></div><div class="f-nav"><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="f-ni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>7</b> Journal<span>yellow: mic</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-top"><span class="f-h2">To-dos</span><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
   <div class="pad">
-    <div class="s-comp"><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="s-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
-    <div class="s-lab mt">Today · 3 things</div>
-    <div class="s-row next"><span class="s-t"><span>15:30</span></span><div><b>Design review</b><span>Room 4 · 45 min</span></div><span class="s-next">Next</span></div>
-    <div class="s-row"><span class="s-t">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
-    <div class="s-row last"><span class="s-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-    <div class="s-lab mt">Just captured</div>
-    <div class="s-cap"><b>Weekend market stall for old prints</b><span>Idea · 11:20 · voice</span></div>
-  </div></div><div class="dnav"><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>Ink + highlighter · Today</figcaption></figure>
-<figure><div class="dph S P3"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+    <div class="f-tabs"><span class="on">Today</span><span>Upcoming</span><span>Someday</span></div>
+    <div class="f-td"><span class="f-cb"></span><div><b><mark class="hl">Renew passport</mark></b><span>Due today · expires in 3 weeks</span></div></div>
+    <div class="f-td"><span class="f-cb"></span><div><b>Buy oat milk</b><span>Shopping · from voice, 14:05</span></div></div>
+    <div class="f-td"><span class="f-cb"></span><div><b>Send invoice to Studio K</b><span>Due today · Work</span></div></div>
+    <div class="f-td"><span class="f-cb"></span><div><b>Fix payment test on Android 14</b><span>Work · from Standup note</span></div></div>
+    <div class="f-lab mt">Done</div>
+    <div class="f-td done"><span class="f-cb on"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><b>Book Friday review</b><span>Work</span></div></div>
+    <div class="f-td done"><span class="f-cb on"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><b>Water the herbs</b><span>Home</span></div></div>
+  </div><span class="f-mic fab"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div><div class="f-nav"><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="f-ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="f-ni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>8</b> To-dos<span>yellow: mic, most urgent to-do</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="f-cam"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div>
+  <div class="f-vf"><div class="plant"><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="pot"></i></div>
+    <div class="f-tb"><svg class="i " viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="f-seg"><span class="on">Photo</span><span>Video</span></span><svg class="i " viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg></div></div>
+  <div class="f-cq"><span class="f-mic sm"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><span>What plant is this, and does it need more light?</span></div>
+  <div class="f-cb2"><span class="f-round"><svg class="i " viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg></span><span class="f-shut"></span><span class="f-round"><svg class="i " viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5l2 2M20 12a8 8 0 0 1-14 5l-2-2M20 4v5h-5M4 20v-5h5"/></svg></span></div>
+<div class="gb"><span></span></div></div></div></div><figcaption><b>9</b> Ask about this<span>yellow: mic</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
 <svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
 <svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
 <svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
 <b>82%</b></span></div><div class="app">
-  <div class="s-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad s-thread">
-    <div class="s-me"><span class="s-vt"><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>0:06</span>Remind me to call the plumber at six, and add oat milk to my list</div>
-    <div class="s-tool"><div class="s-tk"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div><span class="s-lab">Reminder set</span><b>Call the plumber</b><span>Today 18:00</span></div><span class="s-undo">Undo</span></div>
-    <div class="s-tool"><div class="s-tk"><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div><span class="s-lab">Added to Shopping</span><b>Oat milk</b></div><span class="s-undo">Undo</span></div>
-    <div class="s-ai">Done. Anything else before six?<span class="s-meta">LFM3-1.7B · on this phone</span></div>
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><b>Talk</b><span class="f-pill">English</span></div>
+  <div class="pad f-talk">
+    <div class="f-orb"><div class="f-bars"><i style="height:22px"></i><i style="height:46px"></i><i style="height:70px"></i><i style="height:40px"></i><i style="height:58px"></i><i style="height:28px"></i><i style="height:18px"></i></div></div>
+    <div class="f-state">Speaking</div>
+    <div class="f-tl"><span class="f-lab">You</span>How long should I boil an egg for a runny yolk?</div>
+    <div class="f-tl"><span class="f-lab">LFM</span>About six minutes from boiling, then straight into cold water.</div>
+    <div class="f-warm"><svg class="i s" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>Phone is warm, answers may be slower</div>
   </div>
-  <div class="s-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="s-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption>Ink + highlighter · Chat with a tool card</figcaption></figure>
-</section>
-</div><h1>LFM3 on Pixel: spec (v2)</h1>
-<p>One personal assistant for the owner&#39;s Pixel 10 Pro, built on Liquid AI&#39;s LFM3 models. It sees, listens, talks,
+  <div class="f-tctl"><span class="f-round"><svg class="i " viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg></span><span class="f-stop"><svg class="i " viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg></span><span class="f-round"><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption><b>10</b> Talk<span>yellow: the live voice</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Settings</b></div>
+  <div class="pad">
+    <div class="f-grp"><div class="f-sr"><svg class="i " viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><div><b>Models</b><span>Omni-2B, LFM3-1.7B in memory · 2.5 GB</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div><div class="f-sr"><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><b>Web search</b><span>Your SearXNG + Wikipedia · ask first</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div><div class="f-sr"><svg class="i " viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><div><b>Tools</b><span>6 run directly · 6 always ask</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div></div>
+    <div class="f-grp"><div class="f-sr"><svg class="i " viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg><div><b>Privacy</b><span>Network log, export, delete</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div><div class="f-sr"><svg class="i " viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><div><b>Lock</b><span>Journal only</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div></div>
+    <div class="f-grp"><div class="f-sr"><svg class="i " viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><div><b>Voice</b><span>Female · English (UK)</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div><div class="f-sr"><svg class="i " viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg><div><b>Battery & heat</b><span>Slow down when warm</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div></div>
+    <div class="f-lab mt">Web search</div>
+    <div class="f-seg3"><span>Off</span><span class="on">Ask first</span><span>Automatic</span></div>
+    <div class="f-tg2"><div><b>Warn about personal words</b><span>Names, places, numbers, e-mails</span></div><span class="f-sw on"><i></i></span></div>
+  </div></div><div class="gb"><span></span></div></div></div><figcaption><b>11</b> Settings<span>no yellow: nothing urgent</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Privacy</b></div>
+  <div class="pad">
+    <div class="f-big2">Your data stays on this phone.</div>
+    <div class="f-pr"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b><mark class="hl">Assistant has no network access</mark></b><span>Android blocks it: no internet permission</span></div></div>
+    <div class="f-pr"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>No account, no telemetry</b><span>Nothing reports back to anyone</span></div></div>
+    <div class="f-pr"><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><b>LFM Net handles search</b><span>Search words, result addresses, model downloads</span></div><span class="f-sw on"><i></i></span></div>
+    <div class="f-lab mt">Network log · today</div>
+    <div class="f-nlg"><span>14:08</span><div><b>searxng.home.arpa</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
+    <div class="f-nlg"><span>14:08</span><div><b>checkatrade.com</b><span>Opened source 1</span></div><em>38 KB</em></div>
+    <div class="f-nlg"><span>14:08</span><div><b>which.co.uk</b><span>Opened source 2</span></div><em>51 KB</em></div>
+    <div class="f-nlg"><span>13:58</span><div><b>huggingface.co</b><span>Model: LFM3-VL-2B (downloading)</span></div><em>0.8 GB</em></div>
+    <div class="f-btns"><span class="f-btn">Export…</span><span class="f-btn"><svg class="i s" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete all</span></div>
+  </div></div><div class="gb"><span></span></div></div></div><figcaption><b>12</b> Privacy and network log<span>yellow: the key guarantee</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Models</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
+  <div class="pad">
+    <div class="f-stor"><div class="f-bar"><span style="width:2%"></span></div><span>3.3 GB used · 198 GB free</span></div>
+    <div class="f-md"><div class="f-mh"><b>LFM3-Omni-2B</b><span class="f-pill">In memory</span></div><span>Q4_K_M · 1.4 GB · <svg class="i s" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>verified</span><span class="dim">Voice, camera, talk</span></div>
+    <div class="f-md"><div class="f-mh"><b>LFM3-1.7B</b><span class="f-pill">In memory</span></div><span>Q4_0 · 1.05 GB · <svg class="i s" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>verified</span><span class="dim">Chat, tools, writing</span></div>
+    <div class="f-md"><div class="f-mh"><b>LFM3-VL-2B</b><span><mark class="hl">64%</mark></span></div><span>Downloading through LFM Net · 0.8 of 1.25 GB</span><div class="f-bar"><span style="width:64%"></span></div><span class="dim">Documents · checked against SHA-256 when done · Pause</span></div>
+    <div class="f-btns"><span class="f-btn"><svg class="i s" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg>Import a file</span><span class="f-btn pri"><svg class="i s" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</span></div>
+    <div class="f-fine">Downloads come from Hugging Face with no login. Import works fully offline.</div>
+  </div></div><div class="gb"><span></span></div></div></div><figcaption><b>13</b> Models and import<span>yellow: what is in progress</span></figcaption></figure>
+</div>
+<h3>States</h3>
+<div class="fphones" id="fstates">
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="pad f-first">
+    <div class="f-steps"><span class="on"></span><span></span><span></span></div>
+    <div class="f-h">Your assistant,<br>on this phone</div>
+    <p class="f-lead">Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web.</p>
+    <div class="f-lab mt">Step 1 of 3 · Models (2.5 GB)</div>
+    <div class="f-opt on"><svg class="i " viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><div><b>Download</b><span>Omni-2B and LFM3-1.7B from Hugging Face, checked on arrival</span></div><span class="f-radio on"></span></div>
+    <div class="f-opt"><svg class="i " viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg><div><b>Import files</b><span>Already on this phone or copied over USB; no network needed</span></div><span class="f-radio"></span></div>
+    <div class="f-lab mt">Web search</div>
+    <div class="f-seg3"><span>Off</span><span class="on">Ask first</span><span>Automatic</span></div>
+    <div class="f-fine">Permissions (calendar, contacts, microphone) are asked only when a tool first needs one.</div>
+  </div>
+  <div class="f-cta"><span class="f-btn go wide">Continue</span></div></div><div class="gb"><span></span></div></div></div><figcaption><b>S1</b> First run<span>yellow: the next step</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Import model</b></div>
+  <div class="pad">
+    <div class="f-file"><svg class="i " viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg><div><b>LFM3-VL-2B-QAD-Q4_0.gguf</b><span>Downloads · 1.05 GB</span></div></div>
+    <div class="f-file"><svg class="i " viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg><div><b>mmproj-LFM3-VL-2B-Q8_0.gguf</b><span>Downloads · 203 MB</span></div></div>
+    <div class="f-lab mt">Checks</div>
+    <div class="f-ck"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Copied into the app</b><span>1.25 GB</span></div></div>
+    <div class="f-ck"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Known model: LFM3-VL-2B, Q4_0</b><span>Matches a pinned name and size</span></div></div>
+    <div class="f-ck"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b><mark class="hl">SHA-256 verified</mark></b><span>5f2c…9a71 matches the pinned hash</span></div></div>
+    <div class="f-ck"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Loads and answers a test prompt</b><span>0.9 s</span></div></div>
+    <div class="f-opt"><svg class="i " viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><div><b>Delete the downloaded originals?</b><span>Frees 1.25 GB in Downloads</span></div><span class="f-btn sm">Delete</span></div>
+  </div>
+  <div class="f-cta"><span class="f-btn pri wide">Done</span></div></div><div class="gb"><span></span></div></div></div><figcaption><b>S2</b> Import and verify<span>yellow: the result</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
+  <div class="pad f-thread">
+    <div class="f-me">Is Ana Pereira's new café any good?</div>
+    <div class="f-ai sm">I'd need the web for reviews.</div>
+    <div class="f-qw">
+      <div class="f-qh"><svg class="i s" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg><b>This search has a name from your contacts</b></div>
+      <div class="f-qq"><span class="f-lab">Search the web for</span><b><mark class="hl">Ana Pereira</mark> café Leeds reviews</b></div>
+      <p>The provider would see this name. Search without it, or send it anyway.</p>
+      <div class="f-btns"><span class="f-btn">Edit</span><span class="f-btn">Send anyway</span><span class="f-btn pri">Remove name</span></div>
+    </div>
+  </div>
+  <div class="f-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="f-mic "><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption><b>S3</b> Search query with a personal word<span>yellow: the personal word</span></figcaption></figure>
+<figure><div class="dph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="f-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
+  <div class="pad f-thread">
+    <div class="f-me">What's a good place for dinner near Leeds station on Friday?</div><div class="f-ai sm">Ottolenghi has tables at 20:00, says their page.<span class="f-meta">From 2 web pages</span></div>
+  </div>
+  <div class="f-scrim"></div>
+  <div class="f-sheet"><div class="f-grab"></div>
+    <div class="f-sh"><svg class="i " viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><b>Add to calendar?</b></div>
+    <div class="f-warn"><svg class="i s" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg><span><mark class="hl">Suggested after reading web pages.</mark> Check it before adding.</span></div>
+    <div class="f-fld"><span>Title</span><b>Dinner at Ottolenghi</b></div>
+    <div class="f-fld"><span>When</span><b>Fri 6 Nov · 20:00 – 22:00</b></div>
+    <div class="f-fld"><span>Where</span><b>Ottolenghi</b></div>
+    <div class="f-fld"><span>Calendar</span><b>On this phone</b></div>
+    <div class="f-btns"><span class="f-btn">Edit</span><span class="f-btn">Cancel</span><span class="f-btn pri">Add</span></div>
+    <div class="f-fine">Actions suggested by web text always ask, even ones set to run directly.</div>
+  </div></div><div class="gb"><span></span></div></div></div><figcaption><b>S4</b> Action suggested by web text<span>yellow: why it asks</span></figcaption></figure>
+</div><p>One personal assistant for the owner&#39;s Pixel 10 Pro, built on Liquid AI&#39;s LFM3 models. It sees, listens, talks,
 answers, searches the web, keeps notes, ideas, a journal and to-dos, and does things on the phone (calendar, alarms,
 reminders, messages, settings). All thinking happens on the phone. This is the design for review; no app code is
 written yet.</p>
@@ -385,350 +426,9 @@ independent tests exist yet. Figures marked <em>estimate</em> are mine, to be me
 <p><strong>What changed from v1.</strong> The owner widened the scope: native tool calls on Android and web search, one assistant
 for everything, and a privacy promise of &quot;no server of ours, inference on the phone, no telemetry, no accounts; the
 network only for web search and model downloads&quot;. So v1&#39;s &quot;no network at all&quot; becomes a two-app split (section 3),
-and the use cases, screens, flows and build plan are redone. The mock-ups are redrawn as real screens, in dark and
-light; their source is in <code>docs/mockups/</code>.</p>
-<h2 id="mockups">Mock-ups</h2>
-<p class="cap">Pixel 10 Pro proportions (20:9; frames 360×800). Flat: no gradients, glows or shadows. Numbers and names are illustrative.</p>
-<div class="themes" id="themes13" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
-<div class="phones" id="phones">
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="top"><div><div class="sub">Friday 30 October</div><div class="h1">Good afternoon</div></div><span class="av"><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span></div>
-  <div class="pad">
-    <div class="comp"><span class="cph">Ask, capture or do…</span><svg class="i m" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="micb"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
-    <div class="chips"><span class="chip ok"><svg class="i s" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>On this phone</span><span class="chip"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg>Search: ask first</span></div>
-    <div class="sec">Today</div>
-    <div class="list">
-      <div class="li"><svg class="i ac" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><div><b>Design review</b><span>15:30 – 16:15 · Room 4</span></div></div>
-      <div class="li"><svg class="i ac" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><div><b>Call the plumber</b><span>Reminder · 18:00</span></div></div>
-      <div class="li"><svg class="i ac" viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg><div><b>3 to-dos due</b><span>Oat milk, renew passport, send invoice</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-    </div>
-    <div class="sec">Just captured</div>
-    <div class="list">
-      <div class="li"><svg class="i dim" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><div><b>Weekend market stall for old prints</b><span>Idea · 11:20 · voice</span></div></div>
-      <div class="li"><svg class="i dim" viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg><div><b>Felt calmer after the walk</b><span>Journal · 08:05</span></div></div>
-    </div>
-  </div>
-</div><div class="nav"><div class="ni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>1</b> Today</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad thread">
-    <div class="day">Today</div>
-    <div class="me voice"><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg><span>0:06</span> Remind me to call the plumber at six, and add oat milk to my list</div>
-    <div class="tool"><svg class="i ac" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><div><b>Reminder set</b><span>Call the plumber · today 18:00</span></div><span class="undo">Undo</span></div>
-    <div class="tool"><svg class="i ac" viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg><div><b>Added to Shopping</b><span>Oat milk</span></div><span class="undo">Undo</span></div>
-    <div class="me">What does a plumber in Leeds usually charge for a call-out?</div>
-    <div class="ai">I'd need the web for current prices. <span class="lnk">See search below</span>.<div class="meta">LFM3-1.7B · on this phone</div></div>
-    <div class="q"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><span>Search the web for</span><b>plumber call-out fee Leeds 2026</b></div><span class="qb">Edit</span><span class="qb pri">Send</span></div>
-  </div>
-  <div class="comp"><span class="cph">Message…</span><svg class="i m" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="micb"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
-</div><div class="gb"><span></span></div></div></div><figcaption><b>2</b> Chat</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Search</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad">
-    <div class="sent"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><span>Sent to your SearXNG · 14:08</span><b>plumber call-out fee Leeds 2026</b></div><svg class="i s dim" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></div>
-    <div class="ans"><p>Most Leeds plumbers charge a <b>£60–£95 call-out</b> that covers the first hour <sup>1</sup> <sup>2</sup>. Evenings and weekends often cost 1.5× <sup>3</sup>. Ask for a fixed quote before work starts.</p>
-    <div class="meta">Answer written on this phone from 3 pages</div></div>
-    <div class="sec">Sources</div>
-    <div class="src"><span class="n">1</span><div><b>Plumbing prices in Leeds, 2026 guide</b><span>checkatrade.com</span></div></div>
-    <div class="src"><span class="n">2</span><div><b>How much does a plumber cost?</b><span>which.co.uk</span></div></div>
-    <div class="src"><span class="n">3</span><div><b>Emergency plumber rates explained</b><span>mybuilder.com</span></div></div>
-    <div class="note"><svg class="i s ok" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>Sent: the search words, then the 3 result pages were opened. Nothing from your notes, contacts or chats.</div>
-  </div>
-</div><div class="gb"><span></span></div></div></div><figcaption><b>3</b> Search results</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad thread faded">
-    <div class="me">Dinner with Ana next Friday at 8, at Ottolenghi</div>
-    <div class="ai">I'll add it to your calendar.</div>
-  </div>
-  <div class="scrim"></div>
-  <div class="sheet">
-    <div class="grab"></div>
-    <div class="sh"><svg class="i ac" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><b>Add to calendar?</b></div>
-    <div class="fld"><span>Title</span><b>Dinner with Ana</b></div>
-    <div class="fld"><span>When</span><b>Fri 6 Nov · 20:00 – 22:00 (2 h)</b></div>
-    <div class="fld"><span>Where</span><b>Ottolenghi</b></div>
-    <div class="fld"><span>Calendar</span><b>On this phone</b></div>
-    <div class="btns"><span class="btn">Edit</span><span class="btn">Cancel</span><span class="btn pri">Add</span></div>
-    <div class="fine">Calendar changes always ask first. Change in Settings → Tools.</div>
-  </div>
-</div><div class="gb"><span></span></div></div></div><figcaption><b>4</b> Tool confirmation</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="top"><div class="h1">Library</div><span class="ib"><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span></div><div class="pad"><div class="tabs"><span class="on">Notes</span><span class="">Ideas</span><span class="">Journal</span></div>
-    <div class="nl">
-      <div class="nr"><div class="nh"><b>Standup, Thursday</b><span>Thu</span></div><p>Release moves to Monday; payment test fails on older phones. Review on Friday.</p><div class="tg"><span><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>4:12</span><span>work</span><span>3 to-dos</span></div></div>
-      <div class="nr"><div class="nh"><b>Boiler service</b><span>Tue</span></div><p>Model Vaillant ecoTEC 832. Last service March. Pressure drops below 1 bar overnight.</p><div class="tg"><span>home</span></div></div>
-      <div class="nr"><div class="nh"><b>Lease, pages 1–6</b><span>Mon</span></div><p>12 months from 1 Dec, rent 1,450. Clause 9: tenant pays repairs under 200.</p><div class="tg"><span><svg class="i s" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg>6 pages</span><span>home</span></div></div>
-      <div class="nr"><div class="nh"><b>Book list from Mia</b><span>Sun</span></div><p>Piranesi; The Overstory; Tomorrow, and Tomorrow, and Tomorrow.</p><div class="tg"><span>reading</span></div></div>
-    </div>
-  </div>
-  <span class="fab"><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-</div><div class="nav"><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="ni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>5</b> Notes</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="top"><div class="h1">Library</div><span class="ib"><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span></div><div class="pad"><div class="tabs"><span class="">Notes</span><span class="on">Ideas</span><span class="">Journal</span></div>
-    <div class="sec">Side projects</div>
-    <div class="ig">
-      <div class="ic"><b>Weekend market stall for old prints</b><span>Today · voice</span></div>
-      <div class="ic"><b>Map of every bakery I've tried</b><span>Oct 21</span></div>
-    </div>
-    <div class="sec">Home</div>
-    <div class="ig">
-      <div class="ic"><b>Shelf above the radiator</b><span>Oct 27</span></div>
-      <div class="ic"><b>Herb box on the balcony</b><span>Oct 12</span></div>
-    </div>
-    <div class="sec">Writing</div>
-    <div class="ig"><div class="ic wide"><b>Essay: why small models feel more personal</b><span>Oct 29 · 3 linked notes</span><em>Expand this idea</em></div></div>
-  </div>
-  <span class="fab"><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-</div><div class="nav"><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="ni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>6</b> Ideas</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="top"><div class="h1">Library</div><span class="ib"><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span></div><div class="pad"><div class="tabs"><span class="">Notes</span><span class="">Ideas</span><span class="on">Journal</span></div>
-    <div class="prompt"><span>Today's prompt</span><b>What gave you energy this week?</b><div class="pa"><span class="btn sm"><svg class="i s" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Speak</span><span class="btn sm"><svg class="i s" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Write</span></div></div>
-    <div class="jd">Friday 30</div>
-    <div class="je"><span class="mood m1"></span><div><p>Slept well. Felt calmer after the walk; less worried about the review.</p><span>08:05 · written</span></div></div>
-    <div class="jd">Thursday 29</div>
-    <div class="je"><span class="mood m2"></span><div><p>Long day. Want to say no to the Saturday shift.</p><span>22:40 · voice 1:10</span></div></div>
-    <div class="je"><span class="mood m1"></span><div><p>Lunch with Mia, laughed a lot.</p><span>13:15 · written</span></div></div>
-    <div class="fine c"><svg class="i s" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Journal is locked with your fingerprint</div>
-  </div>
-</div><div class="nav"><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="ni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>7</b> Journal</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="top"><div class="h1">To-dos</div><span class="ib"><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></span></div>
-  <div class="pad">
-    <div class="tabs"><span class="on">Today</span><span>Upcoming</span><span>Someday</span></div>
-    <div class="td"><span class="cb"></span><div><b>Buy oat milk</b><span>Shopping · from voice, 14:05</span></div></div>
-    <div class="td"><span class="cb"></span><div><b>Renew passport</b><span>Due today · Personal</span></div></div>
-    <div class="td"><span class="cb"></span><div><b>Send invoice to Studio K</b><span>Due today · Work</span></div></div>
-    <div class="td"><span class="cb"></span><div><b>Fix payment test on Android 14</b><span>Work · from Standup note</span></div></div>
-    <div class="sec">Done</div>
-    <div class="td done"><span class="cb on"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><b>Book Friday review</b><span>Work</span></div></div>
-    <div class="td done"><span class="cb on"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><div><b>Water the herbs</b><span>Home</span></div></div>
-  </div>
-  <span class="fab"><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-</div><div class="nav"><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="ni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="ni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption><b>8</b> To-dos</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="cam"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-  <div class="vf">
-    <div class="plant"><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="pot"></i></div>
-    <div class="tb"><svg class="i " viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="seg"><span class="on">Photo</span><span>Video</span></span><svg class="i " viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg></div>
-  </div>
-  <div class="cq"><svg class="i s" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>What plant is this, and does it need more light?</span></div>
-  <div class="cb2"><span class="thumbb"><svg class="i " viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/></svg></span><span class="shut"></span><span class="thumbb"><svg class="i " viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5l2 2M20 12a8 8 0 0 1-14 5l-2-2M20 4v5h-5M4 20v-5h5"/></svg></span></div>
-<div class="gb"><span></span></div></div></div></div><figcaption><b>9</b> Ask about this</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg><b>Talk</b><span class="lang">English</span></div>
-  <div class="pad talk">
-    <div class="orb"><div class="bars"><i style="height:22px"></i><i style="height:46px"></i><i style="height:70px"></i><i style="height:40px"></i><i style="height:58px"></i><i style="height:28px"></i><i style="height:18px"></i></div></div>
-    <div class="state">Speaking</div>
-    <div class="tl"><span>You</span>How long should I boil an egg for a runny yolk?</div>
-    <div class="tl ai2"><span>LFM</span>About six minutes from boiling, then straight into cold water.</div>
-    <div class="warm"><svg class="i s" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>Phone is warm, answers may be slower</div>
-  </div>
-  <div class="tctl"><span class="ib2"><svg class="i " viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg></span><span class="stopb"><svg class="i " viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg></span><span class="ib2"><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span></div>
-</div><div class="gb"><span></span></div></div></div><figcaption><b>10</b> Talk</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Settings</b></div>
-  <div class="pad">
-    <div class="grp">
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><div><b>Models</b><span>Omni-2B, LFM3-1.7B in memory · 2.5 GB</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><b>Web search</b><span>Your SearXNG + Wikipedia · ask first</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><div><b>Tools</b><span>6 run directly · 6 always ask</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-    </div>
-    <div class="grp">
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg><div><b>Privacy</b><span>Network log, export, delete</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><div><b>Lock</b><span>Journal only</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-    </div>
-    <div class="grp">
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><div><b>Voice</b><span>Female · English (UK)</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg><div><b>Battery &amp; heat</b><span>Slow down when warm</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-    </div>
-    <div class="sec">Web search</div>
-    <div class="grp">
-      <div class="seg3"><span>Off</span><span class="on">Ask first</span><span>Automatic</span></div>
-      <div class="tg2"><div><b>Warn about personal words</b><span>Names, places, numbers, e-mails</span></div><span class="sw on"><i></i></span></div>
-    </div>
-  </div>
-</div><div class="gb"><span></span></div></div></div><figcaption><b>11</b> Settings</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Privacy</b></div>
-  <div class="pad">
-    <div class="big">Your data stays on this phone.</div>
-    <div class="pr"><svg class="i ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Assistant has no network access</b><span>Android blocks it: no internet permission</span></div></div>
-    <div class="pr"><svg class="i ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>No account, no telemetry</b><span>Nothing reports back to anyone</span></div></div>
-    <div class="pr"><svg class="i ac" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><b>LFM Net handles search</b><span>Sends only search words, result addresses and model downloads</span></div><span class="sw on"><i></i></span></div>
-    <div class="sec">Network log · today</div>
-    <div class="nlg"><span>14:08</span><div><b>searxng.home.arpa</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
-    <div class="nlg"><span>14:08</span><div><b>checkatrade.com</b><span>Opened source 1</span></div><em>38 KB</em></div>
-    <div class="nlg"><span>14:08</span><div><b>which.co.uk</b><span>Opened source 2</span></div><em>51 KB</em></div>
-    <div class="nlg"><span>14:08</span><div><b>mybuilder.com</b><span>Opened source 3</span></div><em>44 KB</em></div>
-    <div class="nlg"><span>13:58</span><div><b>huggingface.co</b><span>Model: LFM3-VL-2B (downloading)</span></div><em>0.8 GB</em></div>
-    <div class="btns"><span class="btn">Export…</span><span class="btn red">Delete all</span></div>
-  </div>
-</div><div class="gb"><span></span></div></div></div><figcaption><b>12</b> Privacy and network log</figcaption></figure>
-<figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div>
-<div class="app">
-  <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Models</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad">
-    <div class="stor"><div class="bar"><span style="width:2%"></span></div><span>3.3 GB used · 198 GB free</span></div>
-    <div class="md on"><div class="mh"><b>LFM3-Omni-2B</b><span class="pill">In memory</span></div><span>Q4_K_M · 1.4 GB · <svg class="i s ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>verified</span><span class="for">Voice, camera, talk</span></div>
-    <div class="md on"><div class="mh"><b>LFM3-1.7B</b><span class="pill">In memory</span></div><span>Q4_0 · 1.05 GB · <svg class="i s ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>verified</span><span class="for">Chat, tools, writing</span></div>
-    <div class="md"><div class="mh"><b>LFM3-VL-2B</b><span class="pct">64%</span></div><span>Downloading through LFM Net · 0.8 of 1.25 GB</span><div class="bar"><span style="width:64%"></span></div><span class="for">Documents · checked against SHA-256 when done</span></div>
-    <div class="btns"><span class="btn"><svg class="i s" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg>Import a file</span><span class="btn pri"><svg class="i s" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</span></div>
-    <div class="fine">Downloads come from huggingface.co with no login. Import works fully offline.</div>
-  </div>
-</div><div class="gb"><span></span></div></div></div><figcaption><b>13</b> Models and import</figcaption></figure>
-</div><h2 id="other-directions">Other directions (not picked)</h2>
-<div class="dirs" id="dirs2">
-<section class="dcol"><div class="dhead"><span class="dk">B</span><div><b>Bloom</b><p>Material 3 Expressive: playful shapes (the mic and avatar are soft 'cookies'), colour blocks per kind of thing, big rounded type. Friendly and easy to tap.</p><div class="sws"><i style="background:#6b4eff"></i><i style="background:#e9ddff"></i><i style="background:#c9f0d8"></i><i style="background:#ffdcc7"></i></div><p class="mo">Motion: springy; buttons squish on press, shapes morph.</p></div></div>
-<figure><div class="dph B"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div><div class="app">
-  <div class="b-top"><div><span class="b-sub">Friday 30 October</span><div class="b-h">Hi there</div></div><span class="blob bav"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span></span></div>
-  <div class="pad">
-    <div class="b-comp"><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="blob mic"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></span></div>
-    <div class="b-tiles">
-      <div class="b-tile lil"><span class="b-ic"><svg class="i " viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><b>Design review</b><span>15:30</span></div>
-      <div class="b-tile pea"><span class="b-ic"><svg class="i " viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><b>Call the plumber</b><span>18:00</span></div>
-      <div class="b-tile min wide"><span class="b-ic"><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span><div><b>3 to-dos due</b><span>Oat milk · passport · invoice</span></div><span class="b-count">3</span></div>
-    </div>
-    <div class="b-sec">Just captured</div>
-    <div class="b-cap sky"><svg class="i " viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><div><b>Weekend market stall for old prints</b><span>Idea · 11:20 · voice</span></div></div>
-  </div></div><div class="dnav"><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>B1 · Today</figcaption></figure>
-<figure><div class="dph B"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div><div class="app">
-  <div class="b-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad b-thread">
-    <div class="b-me"><span class="b-wave"><i></i><i></i><i></i><i></i><i></i><i></i></span>Remind me to call the plumber at six, and add oat milk to my list</div>
-    <div class="b-tool min"><span class="blob ok"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span><div><b>Reminder set</b><span>Call the plumber · 18:00</span></div><span class="b-undo">Undo</span></div>
-    <div class="b-tool pea"><span class="blob ok"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></span><div><b>Oat milk</b><span>Added to Shopping</span></div><span class="b-undo">Undo</span></div>
-    <div class="b-ai">Done. Anything else before six?<span class="b-meta">LFM3-1.7B · on this phone</span></div>
-    <div class="b-chips"><span>Set a timer</span><span>Show my list</span><span>What's next?</span></div>
-  </div>
-  <div class="b-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="blob mic"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></span></div></div><div class="gb"><span></span></div></div></div><figcaption>B2 · Chat with a tool card</figcaption></figure>
-<figure><div class="dph B"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div><div class="app">
-  <div class="b-top"><div class="b-h">Journal</div><span class="blob bav sm"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span></span></div>
-  <div class="pad">
-    <div class="b-prompt"><span>Today's prompt</span><b>What gave you energy this week?</b><div class="b-pa"><span class="pri"><svg class="i s" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Speak</span><span><svg class="i s" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Write</span></div></div>
-    <div class="b-week"><span class=" has ">M</span><span class="  ">T</span><span class=" has ">W</span><span class=" has wm">T</span><span class="on has ">F</span><span class="  ">S</span><span class="  ">S</span></div>
-    <div class="b-je lil"><div class="b-jh"><b>Friday</b><span class="b-mood">calm</span></div><p>Slept well. Felt calmer after the walk; less worried about the review.</p></div>
-    <div class="b-je pea"><div class="b-jh"><b>Thursday</b><span class="b-mood">tired</span></div><p>Long day. Want to say no to the Saturday shift.</p></div>
-    <div class="b-je sky"><div class="b-jh"><b>Thursday</b><span class="b-mood">happy</span></div><p>Lunch with Mia, laughed a lot.</p></div>
-  </div></div><div class="dnav"><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>B3 · Journal</figcaption></figure>
-</section>
-<section class="dcol"><div class="dhead"><span class="dk">C</span><div><b>Paper</b><p>A warm notebook: dotted paper, serif headings, terracotta and olive, small hand-drawn doodles, entries stamped like a diary. The most personal.</p><div class="sws"><i style="background:#f6efe4"></i><i style="background:#c4532d"></i><i style="background:#6b7a3a"></i><i style="background:#d9a23b"></i></div><p class="mo">Motion: gentle fades; ink draws the squiggles in.</p></div></div>
-<figure><div class="dph C"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div><div class="app">
-  <div class="c-top"><div><span class="c-sub">Friday, 30 October</span><div class="c-h">Good<br>afternoon</div><svg class="sq" viewBox="0 0 120 8" preserveAspectRatio="none"><path d="M1 5 Q 7 1 13 5 T 25 5 T 37 5 T 49 5 T 61 5 T 73 5 T 85 5 T 97 5 T 109 5 T 119 5"/></svg></div><svg class="doodle" viewBox="0 0 64 64"><circle cx="32" cy="33" r="11"/><path d="M32 8v8M32 50v7M8 33h8M49 33h8M15 16l5 5M44 45l5 5M15 50l5-5M44 21l5-5"/></svg></div>
-  <div class="pad">
-    <div class="c-comp"><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="c-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
-    <div class="c-sec">On today</div>
-    <div class="c-li"><span class="c-time">15:30</span><div><b>Design review</b><span>Room 4</span></div></div>
-    <div class="c-li"><span class="c-time t2">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
-    <div class="c-li"><span class="c-time t3">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div></div>
-    <div class="c-sec">Caught today</div>
-    <div class="c-note"><b>Weekend market stall for old prints</b><span>an idea, 11:20</span></div>
-  </div></div><div class="dnav"><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>C1 · Today</figcaption></figure>
-<figure><div class="dph C"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div><div class="app">
-  <div class="c-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
-  <div class="pad c-thread">
-    <div class="c-me"><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg> Remind me to call the plumber at six, and add oat milk to my list</div>
-    <div class="c-ticket"><div class="c-stub"><svg class="i " viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span>18:00</span></div><div class="c-tb"><b>Reminder set</b><span>Call the plumber, today</span><em>Undo</em></div></div>
-    <div class="c-ticket"><div class="c-stub s2"><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg><span>list</span></div><div class="c-tb"><b>Oat milk</b><span>added to Shopping</span><em>Undo</em></div></div>
-    <div class="c-ai">Done. Anything else before six?<span>written on this phone</span></div>
-  </div>
-  <div class="c-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="c-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption>C2 · Chat with a tool card</figcaption></figure>
-<figure><div class="dph C"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
-<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
-<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
-<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
-<b>82%</b></span></div><div class="app">
-  <div class="c-top"><div><div class="c-h">Journal</div><svg class="sq" viewBox="0 0 120 8" preserveAspectRatio="none"><path d="M1 5 Q 7 1 13 5 T 25 5 T 37 5 T 49 5 T 61 5 T 73 5 T 85 5 T 97 5 T 109 5 T 119 5"/></svg></div><svg class="doodle sm" viewBox="0 0 64 64"><path d="M32 58V30M32 38c-10 0-16-7-16-16 10 0 16 7 16 16zM32 32c0-10 7-17 17-17 0 10-7 17-17 17z"/></svg></div>
-  <div class="pad">
-    <div class="c-prompt"><span>Today's prompt</span><b>What gave you energy this week?</b><div class="c-pa"><span><svg class="i s" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Speak</span><span><svg class="i s" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Write</span></div></div>
-    <div class="c-entry"><div class="c-stamp"><b>30</b><span>Fri</span></div><p>Slept well. Felt calmer after the walk; less worried about the review.<span>8:05 in the morning</span></p></div>
-    <div class="c-entry"><div class="c-stamp s2"><b>29</b><span>Thu</span></div><p>Long day. Want to say no to the Saturday shift.<span>late evening, by voice</span></p></div>
-    <div class="c-entry"><div class="c-stamp s3"><b>29</b><span>Thu</span></div><p>Lunch with Mia, laughed a lot.<span>lunchtime</span></p></div>
-  </div></div><div class="dnav"><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>C3 · Journal</figcaption></figure>
-</section>
-</div><h2>1. What LFM3 really is</h2>
+and the use cases, screens, flows and build plan are redone. The mock-ups are drawn as real screens in the chosen
+style (calm Signal, Ink + highlighter; section 7), dark and light; their source is in <code>docs/mockups/</code>.</p>
+<h2>1. What LFM3 really is</h2>
 <p>Liquid AI released LFM3 on 27 October 2026: six open-weight models of about 2B parameters, all built from one base,
 LFM3-1.7B-Base, which is published too [1][7]. LFM3 is real, and it is a good fit for a phone. The family is small, though: there is no larger
 LFM3 model to fall back on.</p>
@@ -1208,10 +908,78 @@ few idle minutes); VL loads only for documents. With KV caches this
 is <em>estimate</em> about 4 GB of the phone&#39;s 16 GB.</p>
 <h2>7. App design</h2>
 <h3>Look and feel</h3>
-<p>Minimal and calm: one neutral surface, one accent (blue), the phone&#39;s system font, big touch targets,
-plain line icons, no gradients, no glows, no shadows; layers are told apart by tone and a 1 px line. Light and dark
-themes follow the phone; Material You colours are off by default so the look is stable. Status-bar safe areas and the
-gesture bar are respected.</p>
+<p>The chosen style is <strong>calm Signal with the Ink + highlighter palette</strong>: confident structure, quiet voice.</p>
+<ul>
+<li><p><strong>Structure.</strong> Clear rows divided by 1 px lines, big numbers for times and days, square-ish edges (6–8 px
+corners), plain line icons. No gradients, glows or shadows; layers are told apart by a 1 px line or a light fill.</p>
+</li>
+<li><p><strong>Type.</strong> The phone&#39;s system font (Roboto on the Pixel). Screen titles 28–32 px semi-bold (600) with slightly tight
+spacing; big numbers 24–30 px medium (500), tabular figures; body 14–16 px; labels 12.5 px medium in grey, in
+sentence case (no uppercase or monospace labels).</p>
+</li>
+<li><p><strong>Colour.</strong> True neutral greys only, no warm or beige tint:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Light</th>
+<th>Dark</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Background</td>
+<td><code>#ffffff</code></td>
+<td><code>#09090a</code></td>
+</tr>
+<tr>
+<td>Text</td>
+<td><code>#0b0b0c</code></td>
+<td><code>#f2f2f3</code></td>
+</tr>
+<tr>
+<td>Secondary text</td>
+<td><code>#5c5c62</code></td>
+<td><code>#9d9da4</code></td>
+</tr>
+<tr>
+<td>Faint text, icons</td>
+<td><code>#8b8b92</code></td>
+<td><code>#6c6c74</code></td>
+</tr>
+<tr>
+<td>Lines</td>
+<td><code>#e4e4e7</code></td>
+<td><code>#27272a</code></td>
+</tr>
+<tr>
+<td>Light fill (fields, own messages)</td>
+<td><code>#f4f4f5</code></td>
+<td><code>#161618</code></td>
+</tr>
+<tr>
+<td>Control edges (inputs, buttons)</td>
+<td><code>#8b8b92</code></td>
+<td><code>#6a6a72</code></td>
+</tr>
+<tr>
+<td>Highlighter</td>
+<td><code>#ffd400</code>, with <code>#0b0b0c</code> on it</td>
+<td><code>#ffd400</code>, with <code>#09090a</code> on it</td>
+</tr>
+</tbody></table>
+</li>
+<li><p><strong>The highlighter.</strong> Yellow is used only on the mic and on the one thing that matters most on a screen: the next
+item on Today, the key figure in a search answer, the date the assistant worked out, the most urgent to-do, the
+reason a confirmation asks. Settings has none. It is drawn as a marker behind black text, never as yellow text,
+and the mic has a 1 px ink edge in light mode so it stands out on white. Primary buttons, toggles and selected
+tabs are plain ink, not yellow.</p>
+</li>
+<li><p><strong>Themes.</strong> Light and dark follow the phone; Material You colours are off so the look stays stable. Status-bar
+safe areas and the gesture bar are respected.</p>
+</li>
+</ul>
+<p>Earlier style explorations (three directions, then three palettes) are in the artifact&#39;s versions 3–5 and in git
+history.</p>
 <h3>Structure</h3>
 <p>A bottom bar with four places. The composer (type, mic, camera) sits on Today and Chat; the assistant gesture
 opens voice from anywhere:</p>
@@ -1242,6 +1010,9 @@ export, delete), Voice, Battery.</li>
 <li><strong>Privacy and network log</strong> — what is guaranteed, LFM Net switch, every request today, export, delete all.</li>
 <li><strong>Import / Models</strong> — installed models; download through LFM Net with progress and hash check; import from a file.</li>
 </ol>
+<p>Also drawn, as states: <strong>first run</strong> (models: download or import; search mode), <strong>import and verify</strong> (copy, known
+model, SHA-256, test prompt, delete the originals), <strong>a search query with a personal word</strong> (warning, Remove name /
+Send anyway), and <strong>an action suggested by web text</strong> (the confirmation says why it asks).</p>
 <h3>Key flows</h3>
 <ul>
 <li><strong>Capture by voice:</strong> assistant gesture → &quot;Buy oat milk and remind me to call the plumber at 9&quot; → Omni transcribes → 1.7B
@@ -1338,10 +1109,7 @@ Alarms and timers ask, since undo is unreliable.</li>
 <li>Journal: lock it separately?</li>
 <li>Q4 (smaller, faster) or Q8 (more accurate; Omni about 2.4 GB) as the default?</li>
 </ol>
-<script>(function(){var p=document.getElementById('phones'),b=document.querySelectorAll('#themes13 button');
-function set(t){p.className='phones '+t;b.forEach(function(x){x.className=x.dataset.t===t?'on':''})}
-b.forEach(function(x){x.addEventListener('click',function(){set(x.dataset.t)})});
-set(document.documentElement.classList.contains('shepherdr-light')?'light':'dark');})();(function(){var p=document.getElementById('dirs'),q=document.getElementById('dirs2'),b=document.querySelectorAll('#themesDir button');
-function set(t){p.className='dirs '+t;q.className='dirs '+t;b.forEach(function(x){x.className=x.dataset.t===t?'on':''})}
+<script>(function(){var p=[document.getElementById('fphones'),document.getElementById('fstates')],b=document.querySelectorAll('#themesF button');
+function set(t){p.forEach(function(x){x.className='fphones '+t});b.forEach(function(x){x.className=x.dataset.t===t?'on':''})}
 b.forEach(function(x){x.addEventListener('click',function(){set(x.dataset.t)})});
 set(document.documentElement.classList.contains('shepherdr-light')?'light':'dark');})();</script></body></html>

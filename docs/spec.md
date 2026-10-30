@@ -11,8 +11,8 @@ independent tests exist yet. Figures marked *estimate* are mine, to be measured 
 **What changed from v1.** The owner widened the scope: native tool calls on Android and web search, one assistant
 for everything, and a privacy promise of "no server of ours, inference on the phone, no telemetry, no accounts; the
 network only for web search and model downloads". So v1's "no network at all" becomes a two-app split (section 3),
-and the use cases, screens, flows and build plan are redone. The mock-ups are redrawn as real screens, in dark and
-light; their source is in `docs/mockups/`.
+and the use cases, screens, flows and build plan are redone. The mock-ups are drawn as real screens in the chosen
+style (calm Signal, Ink + highlighter; section 7), dark and light; their source is in `docs/mockups/`.
 
 ## 1. What LFM3 really is
 
@@ -220,10 +220,36 @@ is *estimate* about 4 GB of the phone's 16 GB.
 
 ### Look and feel
 
-Minimal and calm: one neutral surface, one accent (blue), the phone's system font, big touch targets,
-plain line icons, no gradients, no glows, no shadows; layers are told apart by tone and a 1 px line. Light and dark
-themes follow the phone; Material You colours are off by default so the look is stable. Status-bar safe areas and the
-gesture bar are respected.
+The chosen style is **calm Signal with the Ink + highlighter palette**: confident structure, quiet voice.
+
+- **Structure.** Clear rows divided by 1 px lines, big numbers for times and days, square-ish edges (6–8 px
+  corners), plain line icons. No gradients, glows or shadows; layers are told apart by a 1 px line or a light fill.
+- **Type.** The phone's system font (Roboto on the Pixel). Screen titles 28–32 px semi-bold (600) with slightly tight
+  spacing; big numbers 24–30 px medium (500), tabular figures; body 14–16 px; labels 12.5 px medium in grey, in
+  sentence case (no uppercase or monospace labels).
+- **Colour.** True neutral greys only, no warm or beige tint:
+
+  | Role | Light | Dark |
+  |---|---|---|
+  | Background | `#ffffff` | `#09090a` |
+  | Text | `#0b0b0c` | `#f2f2f3` |
+  | Secondary text | `#5c5c62` | `#9d9da4` |
+  | Faint text, icons | `#8b8b92` | `#6c6c74` |
+  | Lines | `#e4e4e7` | `#27272a` |
+  | Light fill (fields, own messages) | `#f4f4f5` | `#161618` |
+  | Control edges (inputs, buttons) | `#8b8b92` | `#6a6a72` |
+  | Highlighter | `#ffd400`, with `#0b0b0c` on it | `#ffd400`, with `#09090a` on it |
+
+- **The highlighter.** Yellow is used only on the mic and on the one thing that matters most on a screen: the next
+  item on Today, the key figure in a search answer, the date the assistant worked out, the most urgent to-do, the
+  reason a confirmation asks. Settings has none. It is drawn as a marker behind black text, never as yellow text,
+  and the mic has a 1 px ink edge in light mode so it stands out on white. Primary buttons, toggles and selected
+  tabs are plain ink, not yellow.
+- **Themes.** Light and dark follow the phone; Material You colours are off so the look stays stable. Status-bar
+  safe areas and the gesture bar are respected.
+
+Earlier style explorations (three directions, then three palettes) are in the artifact's versions 3–5 and in git
+history.
 
 ### Structure
 
@@ -255,6 +281,10 @@ opens voice from anywhere:
     export, delete), Voice, Battery.
 12. **Privacy and network log** — what is guaranteed, LFM Net switch, every request today, export, delete all.
 13. **Import / Models** — installed models; download through LFM Net with progress and hash check; import from a file.
+
+Also drawn, as states: **first run** (models: download or import; search mode), **import and verify** (copy, known
+model, SHA-256, test prompt, delete the originals), **a search query with a personal word** (warning, Remove name /
+Send anyway), and **an action suggested by web text** (the confirmation says why it asks).
 
 ### Key flows
 
