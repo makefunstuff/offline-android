@@ -139,4 +139,14 @@ class AssistantTest {
         assertEquals("Renew passport by Friday", g.db.entries().todos().first().single().title)
         assertEquals(ActionStatus.Done, g.db.actions().get(result!!.actionId!!)!!.status)
     }
+
+    @Test fun newChatDropsMessagesStillQueuedForTheOldOne() = runBlocking {
+        g.assistant.send("Buy oat milk")
+        g.assistant.send("Buy bread")
+        g.assistant.newChat()
+        repeat(100) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(20) }
+        waitIdle()
+        assertTrue(g.db.messages().threadNow(g.assistant.threadId.value).isEmpty())
+        assertFalse(g.db.entries().todos().first().any { it.title == "Buy bread" })
+    }
 }

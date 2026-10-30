@@ -160,7 +160,10 @@ fun EntryEditor(g: AppGraph, sheet: EntrySheet, onClose: () -> Unit) {
                 entry = e
                 text = when {
                     // Notes from the assistant keep the whole text in the body, and its first line as the title.
-                    e.kind == EntryKind.Note && e.body.startsWith(e.title.removeSuffix("…")) -> e.body
+                    e.kind == EntryKind.Note && e.body.lineSequence().first().let { first ->
+                        first.equals(e.title, ignoreCase = true) ||
+                            (e.title.endsWith("…") && first.startsWith(e.title.removeSuffix("…"), ignoreCase = true))
+                    } -> e.body
                     e.kind == EntryKind.Note -> listOf(e.title, e.body).filter { it.isNotBlank() }.joinToString("\n")
                     else -> e.body.ifBlank { e.title }
                 }

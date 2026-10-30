@@ -83,7 +83,7 @@ class Assistant(
     val busy = MutableStateFlow(false)
     val pendingConfirm = MutableStateFlow<ConfirmRequest?>(null)
     private var job: Job? = null
-    private data class Input(val text: String, val voiceSeconds: Int, val source: String)
+    private data class Input(val text: String, val voiceSeconds: Int, val source: String, val thread: Long)
     // Messages sent while the assistant is busy wait their turn here instead of being dropped.
     private val inbox = Channel<Input>(Channel.UNLIMITED)
     private var threadSet = false
@@ -103,6 +103,9 @@ class Assistant(
 
     fun newChat() {
         stop()
+        // Messages still waiting belong to the old chat: drop them rather than start the new one with them.
+        while (inbox.tryReceive().isSuccess) Unit
+        if (job?.isActive != true) busy.value = false
         threadSet = true
         _thread.value = _thread.value + 1
     }
@@ -117,10 +120,11 @@ class Assistant(
         val clean = text.trim()
         if (clean.isEmpty()) return
         busy.value = true
-        inbox.trySend(Input(clean, voiceSeconds, source))
+        inbox.trySend(Input(clean, voiceSeconds, source, _thread.value))
     }
 
     private suspend fun handle(input: Input) {
+        if (input.thread != _thread.value) return
         try {
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = input.text, voiceSeconds = input.voiceSeconds))
             if (!models.hasText()) sortWithoutModel(input.text, input.source) else converse(input.source)
@@ -206,7 +210,7 @@ class Assistant(
                 models.textSession().generate(prompt + raw, answerBudget).collect { onPiece(it) }
             }
             val out = ModelOutput.parse(raw.toString(), prefs.thinking)
-            val st = models.textSession().stats()
+            val st = session.stats()
             val meta = "LFM3-1.7B · on this phone · %.0f tokens/s".format(Locale.ENGLISH, st.decodeTps)
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
                 raw = PromptFormat.assistantPrefix(prefs.thinking) + raw, meta = meta))
