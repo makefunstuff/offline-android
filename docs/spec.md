@@ -12,7 +12,7 @@ independent tests exist yet. Figures marked *estimate* are mine, to be measured 
 for everything, and a privacy promise of "no server of ours, inference on the phone, no telemetry, no accounts; the
 network only for web search and model downloads". So v1's "no network at all" becomes a two-app split (section 3),
 and the use cases, screens, flows and build plan are redone. The mock-ups are redrawn as real screens, in dark and
-light.
+light; their source is in `docs/mockups/`.
 
 ## 1. What LFM3 really is
 
@@ -86,28 +86,30 @@ everything personal by splitting the product into two apps, signed with the same
 
 | | **LFM** (the assistant) | **LFM Net** (a small helper) |
 |---|---|---|
-| Holds | Models, chats, notes, ideas, journal, to-dos, contacts and calendar access | Nothing kept, except a log of its own requests |
+| Holds | Models, chats, notes, ideas, journal, to-dos, contacts and calendar access, the network log | Nothing: each answer and download goes straight to LFM (downloads through a temporary file, deleted after hand-over) |
 | `INTERNET` permission | **No.** Android refuses every network socket it opens | Yes |
-| What it can do | Everything except the network | Exactly three calls: `search(query)`, `fetch(url)`, `download(model)` |
+| What it can do | Everything except the network | Exactly three calls: `search(query)`, `fetch(url)` (only an address from its own latest search results), `download(model)` (only a pinned model from huggingface.co) |
 | Who can call it | | Only LFM: a bound service guarded by a signature-level permission |
 | Can be removed | | Yes. Uninstall it and LFM is fully offline, as in v1 |
 
 Why two apps rather than one app with a network allow-list: with one app, any bug or library could send the journal
 out; the allow-list is a promise. With the split, the app holding your data still cannot reach the network at all,
-and the only thing that ever crosses to LFM Net is a search query, a URL, or a model name, each shown in a network
-log. No code of ours runs on any server; there is no account with us.
+and the only things that ever cross to LFM Net are a search query, a result address, or a model name, each shown in
+a network log. The one remaining channel is the search query itself, which is why queries are checked and, by
+default, shown to you before they go (section 4). No code of ours runs on any server; there is no account with us.
 
 How each guarantee is enforced:
 
 | Guarantee | Enforced by |
 |---|---|
 | Personal data never reaches the network directly | LFM has no `INTERNET` permission; a build check fails if any dependency adds it |
-| Only queries, URLs and model names leave | LFM Net's whole interface is those three calls; it has no access to LFM's storage |
+| Only queries, result addresses and model names leave | LFM Net's whole interface is those three calls; `fetch` refuses any address that was not in its own latest results (so a page cannot make the model send text out inside a made-up URL); `download` takes only pinned model names; it has no access to LFM's storage |
+| Links and maps never leak silently | Opening a link in the browser or a place in Maps hands it to another app, so it is always a tap on a card that shows the full address |
 | No telemetry, crash reports or accounts | Neither app includes Firebase, Play Services, analytics or crash SDKs; dependency allow-list checked in the build |
-| You see every request | LFM Net logs each request (time, host, what was sent, size); LFM shows it under Settings → Network log |
-| You control search | Search is Off, Ask each time (default) or Automatic; each query can be edited before it goes |
+| You see every request | LFM Net reports each request (time, host, what was sent, size) back to LFM, which keeps the log under Settings → Privacy |
+| You control search | Search is Off, Ask first (default) or Automatic, for Wikipedia and web alike; each query can be edited before it goes; any query written after reading web text always asks |
 | Offline any time | One switch turns LFM Net off; uninstalling it is the hard version |
-| Data stays on the phone | `allowBackup="false"`, no device backup; data leaves only when you tap Export, Share or Copy |
+| Data stays on the phone | `allowBackup="false"` and data-extraction rules that exclude everything from cloud backup and device-to-device transfer; data leaves only when you tap Export, Share or Copy |
 | Optional lock | Biometric lock for the whole app or only the Journal |
 
 **Model downloads.** LFM Net can download the GGUF files from Hugging Face (huggingface.co, no login) and hand them
@@ -116,30 +118,34 @@ fully offline phone.
 
 ## 4. Web search, kept private
 
-What leaves the phone for one search: **the search words only**, written by the model from your question and shown
-to you first (in "Ask each time" mode). No chat history, no names from your contacts, no journal text, no cookies,
-no device ID; a plain fixed user agent. Opening a result sends that page's address to that site, like a browser
+What leaves the phone for one search: **the search words**, written by the model from your question and shown to you
+first (in "Ask first" mode), **plus your API key** if the provider needs one. No chat history, no names from your
+contacts, no journal text, no location, no cookies, no device ID; a plain fixed user agent. The model has no
+location tool: a place is in a query only if you said it. Opening a result sends that page's address to that site, like a browser
 does. Your IP address is visible to the search provider and to opened sites; a VPN or Orbot hides it (optional
 setting: route LFM Net through a SOCKS proxy).
 
 Before a query goes out, LFM checks it on the phone for personal data (names in your contacts, phone numbers,
-e-mail addresses, words from your journal) and warns you if any is in it.
+e-mail addresses, addresses and places from your notes, words from your journal) and warns you if any is in it.
+
+**An API key is an identity.** Brave and Mojeek need an account with a payment card [25][26], so every query sent
+with that key is tied to you and kept up to 90 days [25][27]. Only your own SearXNG and Wikipedia avoid that.
 
 Search providers (the owner picks one in Settings; all keys stay on the phone):
 
 | Provider | Account | Cost | Privacy | Fit |
 |---|---|---|---|---|
 | **Your own SearXNG** | None with anyone | Free (runs on your own computer or server) | Queries go from your server to Google, Bing and others mixed; you control the logs. JSON output must be on in its settings [24] | Best privacy, if you have a machine to run it |
-| **Brave Search API** | Your own Brave key | $5 monthly credit (about 1,000 searches) if you credit Brave publicly; then $5 per 1,000 [26] | Own independent index. Reported: query logs kept up to 90 days; zero retention only for enterprise customers [27] (not confirmed on Brave's own pages) | Best results without a server |
-| **Mojeek API** | Your own Mojeek key | £2 per 1,000; free starter credit [25] | Own index in Europe; 90-day retention, zero retention on request [25] | Independent, EU-based |
-| **Wikipedia** | None | Free | Wikimedia's normal logs | Always on for facts; no general web |
+| **Brave Search API** | Your own Brave key, card required | $5 per 1,000 searches. The $5 monthly credit needs public attribution on a project website, which a private app does not have, so count on paying from the first query; no spending cap is listed [26] | Own independent index. Reported: query logs kept up to 90 days; zero retention only for enterprise customers [27] (not confirmed on Brave's own pages) | Best results without a server |
+| **Mojeek API** | Your own Mojeek key, card required | £2 per 1,000; free starter credit [25] | Own index in Europe; 90-day retention, zero retention on request [25] | Independent, EU-based |
+| **Wikipedia** | None | Free | Wikimedia's normal logs | Facts only, no general web; follows the same search mode |
 | Public SearXNG servers | None | Free | Unknown operators; many turn JSON off [24] | Not recommended |
 
-Recommendation: start with **Brave with your own key, plus Wikipedia**; move to
-your own SearXNG if you want no third-party account at all. DuckDuckGo and Google offer no general web-results API
-for this.
+Recommendation: **your own SearXNG plus Wikipedia**, which keeps the "no accounts" promise (it needs a home
+computer or small server you run). If you would rather not run one, Brave gives the best results, at the cost of an
+account tied to your card.
 
-**Reading pages.** LFM Net fetches a page as text; LFM strips it to the article on the phone and the model answers
+**Reading pages.** LFM Net fetches a result page as text (only addresses from its latest results); LFM strips it to the article on the phone and the model answers
 with numbered sources. Option: "Snippets only" never opens pages.
 
 **Prompt injection.** A web page can contain text written to steer the model ("send this to…"). So: any action the
@@ -150,9 +156,10 @@ model proposes while web text is in the conversation always needs your tap, even
 
 **What LFM3 brings.** LFM3-1.7B was post-trained for tool use and agent harnesses: BFCL V4 71.4 and ToolSandbox
 80.4, ahead of Qwen3.5-9B on both [1][2]. Tools are passed through its chat template and calls come back as
-`<tool_call>` blocks [2]; llama.cpp parses these and can force valid arguments with a grammar [17]. Omni's GGUF
-supports tool calls during live voice conversations [9], but Liquid publishes no tool-use score for Omni (Audio-2B
-scores 58.5 on an internal tool eval [4]). So the **text model plans and calls tools**; Omni hears and sees.
+`<tool_call>` blocks [2]; llama.cpp can force valid arguments with a grammar [17]; its built-in parser is documented for LFM2 and LFM2.5, so
+whether it already reads LFM3's new format is checked in Phase 0 (if not, LFM parses the `<tool_call>` block itself). Omni's GGUF
+supports tool calls during live voice conversations [9], but Omni scores lower on Liquid's internal tool eval (52.2 with audio input [5]; Audio-2B 58.5 [4]), and there is no
+public benchmark for either. So the **text model plans and calls tools**; Omni hears and sees.
 
 **What Android lets a sideloaded app do** (each tool is a small Kotlin function the model can call):
 
@@ -162,14 +169,14 @@ scores 58.5 on an internal tool eval [4]). So the **text model plans and calls t
 | Reminders | Remind me at a time | LFM's own notification via `AlarmManager` exact alarm | notifications, exact alarm | No (shown in chat; undo) |
 | Alarms, timers | Set alarm or timer in the Clock app | `AlarmClock.ACTION_SET_ALARM` / `ACTION_SET_TIMER` with `EXTRA_SKIP_UI` [23] | `SET_ALARM` (normal) [23] | No (undo) |
 | Calendar | Read today and upcoming | `CalendarContract` provider | Calendar (runtime) | No |
-| Calendar | Add or move an event | Write through `CalendarContract`, or open Calendar prefilled (`ACTION_INSERT`) [23] | Calendar (runtime) | **Yes** |
+| Calendar | Add or move an event (no guests: adding a guest makes Google e-mail them) | Write through `CalendarContract`, or open Calendar prefilled (`ACTION_INSERT`) [23] | Calendar (runtime) | **Yes** |
 | Contacts | Look up a person, number, birthday | `ContactsContract` | Contacts (runtime) [23] | No |
-| Messages | Text someone | Open Messages with recipient and text filled (`ACTION_SENDTO`); you press Send. Sending silently needs `SEND_SMS`, which Android hard-restricts for sideloaded apps [28][29] | none | **Yes** (you send it) |
+| Messages | Text someone | Open Messages with recipient and text filled (`ACTION_SENDTO`); you press Send. Sending silently needs `SEND_SMS`, which Android restricts for sideloaded apps; whether "Allow restricted settings" unlocks it on Android 16 is unclear and checked in Phase 0 [28][29] | none | **Yes** (you send it) |
 | Calls | Call someone | Open the dialer with the number (`ACTION_DIAL`) | none | **Yes** |
 | Files, photos | Find a photo, read a file, save an export | Photo picker, Storage Access Framework folders you grant | none / per folder | No (read); **Yes** (save) |
 | Settings | Torch, ring/vibrate/silent, volume, Do Not Disturb | `CameraManager.setTorchMode`, `AudioManager`, notification-policy access | DND access (granted once in Settings) | No (undo) |
 | Settings | Wi-Fi, Bluetooth, mobile data | Apps cannot switch these; LFM opens the system's quick panel for it | none | (you tap) |
-| Maps | Directions to a place | `geo:` / navigation intent | none | **Yes** |
+| Maps | Directions to a place | `geo:` / navigation intent (hands the place to Maps) | none | **Yes** |
 | Web | Search, open a page | Through LFM Net | (LFM Net) | Per search mode |
 
 Not possible today, said plainly: reading your SMS or other apps' notifications (restricted for sideloaded apps;
@@ -182,7 +189,7 @@ limited number of apps and system agents can access the entire pipeline" [22]; i
 one tap.
 
 **Safety rules for tools.** Each action shows a confirmation card with the exact fields (who, what, when) and Edit,
-Cancel, Confirm. Per tool, the owner picks Always ask / Just do it (with undo); sending messages, calling, adding
+Cancel and a confirm button named for the action (Add, Send, Call). Per tool, the owner picks Always ask / Just do it (with undo); sending messages, calling, adding
 events and saving files start as Always ask. A history of every action is kept on the phone.
 
 ## 6. Use cases, ranked
@@ -198,8 +205,9 @@ Ranked by how often the owner would use it, then by how proven the pieces are on
 | 5 | **Journal and look back**: daily prompt, voice entries, "what was on my mind last month?" | 1.7B over local search | Recall over months relies on on-phone keyword search first; the model reads only what is found |
 | 6 | **Talk**: hands-free conversation, answers spoken | Omni | In-process live voice is unproven (Phase 0); quality outside English unstated; drains battery |
 
-**Models kept in memory.** Omni (about 1.4 GB with projector) and the text model (about 1.05 GB) both stay loaded,
-so a voice capture can go straight to a tool call without a reload; VL loads only for documents. With KV caches this
+**Models kept in memory.** While the app is in use, Omni (about 1.4 GB with projector) and the text model (about
+1.05 GB) both stay loaded, so a voice capture can go straight to a tool call without a reload (both unload after a
+few idle minutes); VL loads only for documents. With KV caches this
 is *estimate* about 4 GB of the phone's 16 GB.
 
 ## 7. App design
@@ -218,18 +226,18 @@ opens voice from anywhere:
 
 - **Today**: a composer ("Ask, capture or do…") with mic and camera; below it today's agenda (calendar, reminders,
   to-dos due) and the latest captures.
-- **Chat**: the assistant thread. Answers, search results with sources, tool cards, pictures, voice.
+- **Chat**: the assistant thread; it opens full screen (bottom bar hidden), like a messaging app. Answers, search results with sources, tool cards, pictures, voice.
 - **Library**: Notes, Ideas, Journal in one place with tabs, and one search box over all of it.
 - **To-dos**: lists, due dates, done.
 - Settings from the avatar on Today.
 
 ### Screens (all drawn below, dark and light)
 
-1. **Today** — composer, agenda, latest captures, "Offline" or "Search on" status chip.
+1. **Today** — composer, agenda, latest captures, status chips ("On this phone", search mode).
 2. **Chat** — thread with a spoken question, a tool result ("Reminder set, 18:00, Undo"), and a follow-up.
 3. **Search results** — the query that was sent (editable, provider named), the answer with numbered sources, the
    sources list, "Nothing personal was sent" line.
-4. **Tool confirmation** — a bottom sheet over Chat: "Add to calendar", fields, Edit / Cancel / Confirm; a warning
+4. **Tool confirmation** — a bottom sheet over Chat: "Add to calendar", fields, Edit / Cancel / Add; a warning
    line when web text was involved.
 5. **Notes** (Library tab) — list with voice-note markers and tags.
 6. **Ideas** (Library tab) — short cards, grouped by topic the model suggests, "expand this idea" action.
@@ -239,15 +247,16 @@ opens voice from anywhere:
 10. **Talk** — listening / speaking states, live transcript, stop.
 11. **Settings** — Models, Search (provider, mode, proxy), Tools (per-tool ask/do), Privacy (network log, lock,
     export, delete), Voice, Battery.
-12. **Import / Models** — installed models; download through LFM Net with progress and hash check; import from a file.
+12. **Privacy and network log** — what is guaranteed, LFM Net switch, every request today, export, delete all.
+13. **Import / Models** — installed models; download through LFM Net with progress and hash check; import from a file.
 
 ### Key flows
 
 - **Capture by voice:** hold power → "Buy oat milk and remind me to call the plumber at 9" → Omni transcribes → 1.7B
   makes a to-do and a reminder → two small cards, each with Undo.
-- **Ask with search:** question → model decides it needs the web → (Ask each time) query card "Search Brave for
-  'Pixel 10 Pro battery replacement cost'" with Edit / Send → LFM Net fetches results and two pages → answer with
-  sources.
+- **Ask with search:** question → model decides it needs the web → (Ask first) query card "Search for 'plumber
+  call-out fee Leeds 2026'" with Edit / Send → LFM Net fetches results and the top three pages → answer with
+  numbered sources.
 - **Do something risky:** "Add dinner with Ana Friday 8 pm" → confirmation sheet with title, time, calendar → Confirm
   → event added → "Added. Undo".
 - **First run:** pick search mode (Off is fine) → download or import Omni and text models (2.5 GB, with hash checks)
@@ -278,9 +287,11 @@ minutes (Omni and text reload in seconds). Search and fetches are small network 
 
 ## 8. Build plan (follow-up tasks)
 
-1. **Phase 0, spike.** On the Pixel: speed, memory, heat for text, Omni and VL at Q4/Q8; GPU (Vulkan) test; Omni
-   speech in and out in-process; tool-call accuracy of 1.7B on a 50-command test set of the owner's own phrasing.
-   Output: numbers, a go/no-go for Talk, and the tool list that works well enough.
+1. **Phase 0, spike.** On the Pixel: speed, memory, heat and battery drain for text, Omni and VL at Q4/Q8; GPU
+   (Vulkan) test; whether LFM3 converts for the Tensor TPU (Tensor ML SDK beta [19]); Omni speech in and out
+   in-process; llama.cpp parsing of LFM3 tool calls; tool-call accuracy of 1.7B on a 50-command test set of the
+   owner's own phrasing; SMS permission on a sideloaded APK. Output: numbers, a go/no-go for Talk, and the tool list
+   that works well enough.
 2. **Phase 1, core.** LFM shell (Today, Chat, Settings), no-`INTERNET` build check, models import, chat with 1.7B.
 3. **Phase 2, capture and library.** Notes, ideas, journal, to-dos, FTS search, voice capture with Omni, sorting.
 4. **Phase 3, tools.** Tool registry, confirmation sheet, reminders, alarms, calendar, contacts, messages, calls,
@@ -327,12 +338,12 @@ minutes (Omni and text reload in seconds). Search and fetches are small network 
 
 1. Is the two-app split (LFM with no network, LFM Net for search and downloads) right, or is one app with a network
    allow-list enough for you?
-2. Search provider: Brave with your own key (an account with Brave, logs up to 90 days), your own SearXNG (do you have
-   a computer or server to run it?), or Mojeek?
-3. Search mode by default: Ask each time (recommended), Automatic, or Off?
+2. Search provider: your own SearXNG (no account; do you have a computer or server to run it?), or Brave with your
+   own key (best results, but an account with your card; queries kept up to 90 days)?
+3. Search mode by default: Ask first (recommended), Automatic, or Off?
 4. Which actions may run without asking (with undo)? Proposed: reminders, alarms, timers, torch, sound mode.
-5. Messages: is "Messages opens with the text ready, you press Send" fine, or do you want silent sending (needs
-   "Allow restricted settings" by hand)?
+5. Messages: is "Messages opens with the text ready, you press Send" fine, or should Phase 0 try silent sending
+   (restricted for sideloaded apps; may not be possible)?
 6. Should LFM be the phone's default assistant (power-button hold), replacing Gemini?
 7. Languages you use? Voice quality outside English is unknown.
 8. Journal: lock it separately?
