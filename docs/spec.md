@@ -9,7 +9,7 @@ independent tests exist yet. Figures marked *estimate* are mine, to be measured 
 ## 1. What LFM3 really is
 
 Liquid AI released LFM3 on 27 October 2026: six open-weight models of about 2B parameters, all built from one base,
-LFM3-1.7B-Base [1]. LFM3 is real, and it is a good fit for a phone. The family is small, though: there is no larger
+LFM3-1.7B-Base, which is published too [1][7]. LFM3 is real, and it is a good fit for a phone. The family is small, though: there is no larger
 LFM3 model to fall back on.
 
 | Model | Size | In | Out | Context | Notes |
@@ -18,7 +18,7 @@ LFM3 model to fall back on.
 | **LFM3-VL-2B** (vision) | 1.92B (1.73B LM + 164M vision encoder) | text, image, video | text | 128K | DocVQA 96.7, OCRBench v1 86.3, ChartQA 92.7; video at 2 fps; "not recommended for … multi-turn conversations" [3] |
 | **LFM3-Audio-2B** | 2B | text, 16 kHz audio | text, 24 kHz speech | 32K | ASR: 6.23 WER (English), 6.03 (FLEURS, 9 languages); live ASR and voice chat are English only [4] |
 | **LFM3-Omni-2B** | 2.17B | text, image, video, audio | text, speech, both mixed | 32K | Non-reasoning; ASR 6.36 WER (English), 6.72 (FLEURS); female or male voice; speech in 19 languages/locales; translation best to or from English [5] |
-| d1-2B, d1-Omni-2B | ~2B | (as VL / Omni) | typed answers with probabilities | | Built for routing and tagging; not needed here [6] |
+| d1-2B, d1-Omni-2B | ~2B | (as VL / Omni) | typed answers with probabilities | 128K (d1-2B) | Built for routing and tagging; not needed here [6] |
 
 - **Formats.** Liquid publishes GGUF for all four main models: Q4_0, Q4_K_M, Q8_0, F16 and BF16 for each, plus
   Q5_K_M and Q6_K for the text and VL models. There are ONNX and MLX builds of all four, and
@@ -36,44 +36,48 @@ LFM3 model to fall back on.
   revenue is not licensed for commercial use [14]. A private app for the owner is fine; selling it later needs a check.
 - **Honest limits.** The model cards say the text and audio models are "not recommended for agentic coding or complex
   multi-step reasoning" and that knowledge-heavy questions want retrieval [2][4]. The text model trails Qwen3.5-9B on
-  knowledge (GPQA 63.4 vs 80.4) and long-context recall (RULER 128K 65.6 vs 87.1) [1]. One early user saw a wrong
-  answer at Q4 that Q8 got right; that is a single anecdote, not a measurement [13]. Treat it as a quick, private
+  knowledge (GPQA 63.4 vs 80.4) and long-context recall (RULER 128K 65.6 vs 87.1) [1]. Treat it as a quick, private
   helper, not an oracle.
 
 ## 2. Running it on Android
 
 | Runtime | LFM3 support | Pixel 10 Pro acceleration | Verdict |
 |---|---|---|---|
-| **llama.cpp** (NDK + JNI) | All four models as GGUF (b11960+); images and audio in through `mtmd` and the projector file [8][9][10]. Omni speech out is shown only through `llama serve` (a `/tts` endpoint and a `/v1/realtime` WebSocket) [9][19] | CPU (arm64, runtime feature detection). Vulkan and OpenCL backends exist but "need device-specific testing"; OpenCL targets Adreno, and the Pixel's GPU is an Imagination PowerVR DXT-48-1536 [15][16] | **Use this.** Liquid's own docs now point here [17] |
+| **llama.cpp** (NDK + JNI) | All four models as GGUF (b11960+); images and audio in through `mtmd` and the projector file [8][9][10]. Omni speech out through the `llama-tts` tool (language and voice options), and live voice conversation through the `/v1/realtime` WebSocket of `llama serve` [9] | CPU (arm64, runtime feature detection). Vulkan and OpenCL backends exist but "need device-specific testing"; OpenCL targets Adreno, and the Pixel's GPU is an Imagination PowerVR DXT-48-1536 [15][16]. No Tensor TPU backend | **Use this.** Liquid's own docs now point here [17] |
 | Liquid LEAP SDK | Deprecated, frozen at v0.10.x, not updated for new checkpoints [18] | | No |
-| LiteRT-LM | Text model only, 2K/4K context, CPU and GPU; no NPU build [12] | GPU yes. Tensor TPU access is in beta (May 2026) but only Gemma 3 1B is named as an LLM [20] | Later option for faster text-only chat |
+| LiteRT-LM | Text model only, 2K/4K context, CPU and GPU; no NPU build [12] | GPU yes. Tensor TPU access is in beta (May 2026) but the only language models it names are Gemma 3 1B and FunctionGemma [19] | Later option for faster text-only chat |
 | MediaPipe LLM Inference | No LFM3 build found | | No |
 | ExecuTorch | No LFM3 export found | | No |
 | ONNX Runtime | ONNX builds of all four [7] | CPU | No: no gain over llama.cpp |
 
-**Speech out without a network.** An app without the `INTERNET` permission cannot open sockets, not even to itself on
-`localhost`, so the `llama serve` speech endpoints cannot be used as they are. Talk and read-aloud need the same speech
-code called in-process through JNI. This is the biggest technical risk and the first thing Phase 0 proves. Fallback:
-Android's own offline text-to-speech voices read the text answer aloud (worse voice, but no LFM3 speech needed).
+**Speech out without a network.** An app without the `INTERNET` permission cannot open network sockets, not even to
+itself on `localhost`, so the `llama serve` endpoints cannot be used as they are. Read-aloud is low risk: `llama-tts`
+is a standalone tool whose code can be called in-process through JNI. Live Talk is the real risk: its streaming
+turn-taking lives in the server's `/v1/realtime` code, which would have to be driven in-process too. Phase 0 proves
+both. Fallback for read-aloud only: Android's system text-to-speech with an offline voice. That hands the answer text
+to the system speech app (a separate app that does have network), so it would be an opt-in setting, off by default.
 
 **Speed and memory estimates for the Pixel 10 Pro** (Tensor G5: 1× Cortex-X4, 5× Cortex-A725, 2× A520; 16 GB RAM
 [16]). Nobody has published LFM3 numbers on this chip. Nearby points: LiteRT LFM3-1.7B on a Pixel 8a gives 12–15
 tokens/s and on a Galaxy S26 27–36 tokens/s [12]; llama.cpp on an iPhone 17 Pro gives 43.6 [13]. *Estimate* for
 llama.cpp Q4 on the G5's CPU: about 20–30 tokens/s decode and a few hundred tokens/s prefill, using about 2–3 GB of
-memory for Omni plus its projector at a few thousand tokens of context. Sustained runs will throttle. One Vulkan test
-put the G5's GPU well below the Pixel 9 Pro's [21], so the GPU is not counted on. Phase 0 measures all of this with
+memory for Omni plus its projector at a few thousand tokens of context. Sustained runs will throttle. The GPU is
+untested for this: the only data point is one unconfirmed 2025 Vulkan score, well below the Pixel 9 Pro's and possibly
+a driver issue [20]. So the plan starts on the CPU and treats the GPU as a bonus. Phase 0 measures all of this with
 `llama-bench`.
 
 ## 3. Getting models on while the app stays offline
 
-The app ships **without the `INTERNET` permission**. Android then refuses every socket the app opens, so no code
-in it (ours or a library's) can reach the network. This is enforced by the operating system, not by a promise.
+The app ships **without the `INTERNET` permission**. Android then refuses every network socket the app opens, so no
+code in it (ours or a library's) can talk to the network directly. This is enforced by the operating system, not by a
+promise. The one way out left is handing data to another app (an intent or a service call); the app does that only
+when the owner taps Export or Share, exports no services, and shows web links as text to copy, never as tappable links.
 
 Models arrive one of two ways, both owner-driven:
 
 1. **Import from the phone.** The owner downloads the GGUF files in the phone's browser (the app shows the Hugging
    Face links as plain text to copy) or copies them over USB. In the app, Models → Import opens Android's file picker;
-   the app copies the files into its private storage.
+   the app copies the files into its private storage, then offers to delete the downloaded originals so they don't take space twice.
 2. **Sideload for development.** `adb push` into the app's import folder.
 
 Each known model has a pinned SHA-256 and size in the app. An imported file is checked before it can be used; an
@@ -82,7 +86,7 @@ unknown file can still be used, labelled "unverified". Models and all user data 
 
 ## 4. Use cases, ranked
 
-Ranked by how useful offline and how well LFM3 does it today (strong OCR and ASR scores first; least proven last).
+Ranked by everyday use offline, then by how proven the pieces are on a phone (speech out, the least proven, last but one).
 
 | # | Use case | Model | Honest limits |
 |---|---|---|---|
@@ -122,7 +126,7 @@ The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not
 
 - Import (above), with a progress bar for the copy and hash check. A model and its projector import as one unit.
 - One model loaded at a time; switching to a mode that needs another model unloads and loads (a few seconds,
-  shown). Weights are memory-mapped, so Android treats them as file pages, not app memory [15].
+  shown). Weights are memory-mapped, which Android's memory manager treats more leniently than regular app memory [15].
 - Delete removes the files and frees space at once. Using a mode whose model is missing shows "Import model" instead.
 
 ### Privacy guarantees and how they are enforced
@@ -138,7 +142,7 @@ The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not
 
 ### Battery and heat
 
-- Inference runs on the performance cores only (6 threads), never the A520s.
+- Inference uses 6 threads, aimed at the performance cores rather than the A520s (Android has the last word on scheduling).
 - The app listens to Android's thermal status and headroom (`PowerManager`). At moderate heat it lowers threads and
   says so; at severe it pauses background jobs (long transcriptions, PDF reading) and resumes when cool.
 - Long jobs run in a foreground service with a notification and a stop button; optionally only while charging.
@@ -158,14 +162,15 @@ The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not
 
 1. **Phase 0, spike.** A bare app with llama.cpp + `mtmd` on the Pixel: measure decode, prefill, memory and heat for
    text, VL and Omni at Q4_0, Q4_K_M and Q8_0; test the Vulkan backend on the PowerVR GPU; prove Omni audio in and
-   speech out in-process (no sockets). Output: numbers and a go/no-go for Talk and read-aloud.
+   speech out in-process (no sockets); battery drain per answer and per minute of Talk. Output: numbers and a
+   go/no-go for Talk and read-aloud.
 2. **Phase 1, core.** App shell, no-`INTERNET` build check, model import and verify, Models screen, chat with Omni and
    the text model.
-3. **Phase 2, Ask.** Camera and share-sheet image questions with Omni.
+3. **Phase 2, Ask + Translate.** Camera and share-sheet image questions with Omni; text and photo translation.
 4. **Phase 3, Notes.** Recording service, transcription, chunked summaries, to-dos. Optional live captions with
    Audio-2B.
 5. **Phase 4, Read.** PDFs and screenshots with VL.
-6. **Phase 5, Talk + Translate.** Voice in, speech out (if Phase 0 says go; else system offline TTS).
+6. **Phase 5, Talk.** Voice in, speech out, spoken translation (if Phase 0 says go).
 7. **Phase 6, polish.** Thermal handling, app lock, export and wipe, Journal search.
 
 ## 7. Open questions for the owner
@@ -173,9 +178,10 @@ The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not
 1. Is "no network permission; you import model files yourself" acceptable, or do you want a separate download
    helper app (it would have network; this app still would not)?
 2. Default model: Omni only (about 1.4 GB), or Omni, VL and text from the start (about 3.7 GB at Q4)?
-3. Q4 (smaller, faster) or Q8 (1.85 GB per model, likely more accurate) as the default?
+3. Q4 (smaller, faster) or Q8 (likely more accurate; Omni about 2.4 GB and VL about 2.1 GB with projectors) as the default?
 4. Which languages matter to you? Live captions are English only, and voice quality outside English is unknown.
-5. Is Talk (hands-free voice) a must, or fine to drop if Phase 0 shows it is slow or speech out cannot run in-process?
+5. Is live Talk (hands-free voice) a must, or fine to drop if Phase 0 shows it is slow or cannot run in-process?
+   Read-aloud would stay.
 6. Journal: do you want an app lock and a separate encrypted store, or is the phone's own lock enough?
 7. Sideloaded APK only, or should it be ready for the Play Store some day (affects the licence check)?
 
@@ -199,6 +205,5 @@ The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not
 16. Pixel 10 Pro specifications — https://en.wikipedia.org/wiki/Pixel_10_Pro
 17. Liquid docs, migrating from LEAP SDK — https://docs.liquid.ai/deployment/on-device/llama-cpp/migrating-from-leap-sdk
 18. Liquid docs, LEAP SDK (deprecated) — https://docs.liquid.ai/deployment/on-device/sdk/overview
-19. ggml-org LFM3-Omni-2B-GGUF (`/tts` endpoint) — https://huggingface.co/ggml-org/LFM3-Omni-2B-GGUF
-20. Google, "Google Tensor SDK Beta with LiteRT", 19 May 2026 — https://developers.googleblog.com/en/google-tensor-sdk-beta-with-litert/
-21. TechNews, Tensor G5 GPU Vulkan score — https://technews.tw/2025/08/26/googles-tensor-g5-processor-gpu-performance-is-poor/
+19. Google, "Google Tensor SDK Beta with LiteRT", 19 May 2026 — https://developers.googleblog.com/en/google-tensor-sdk-beta-with-litert/
+20. TechNews, Tensor G5 GPU Vulkan score — https://technews.tw/2025/08/26/googles-tensor-g5-processor-gpu-performance-is-poor/
