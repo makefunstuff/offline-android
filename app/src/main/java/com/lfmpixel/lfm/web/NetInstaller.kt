@@ -60,7 +60,10 @@ class NetInstallReceiver : BroadcastReceiver() {
                 g.launcher.start(confirm)
             }
             PackageInstaller.STATUS_SUCCESS -> { g.netInstaller.status.value = NetInstaller.Status.Installed; g.net.refresh() }
-            else -> g.netInstaller.status.value = NetInstaller.Status.Failed(intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "Not installed")
+            PackageInstaller.STATUS_FAILURE_ABORTED -> g.netInstaller.status.value =
+                NetInstaller.Status.Failed("Not installed. If Android asked to allow installs from LFM, allow it, then tap Install again.")
+            else -> g.netInstaller.status.value = NetInstaller.Status.Failed("Not installed: " +
+                (intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "Android refused it"))
         }
     }
 }

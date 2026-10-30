@@ -29,9 +29,12 @@ class ModelStore(private val context: Context) {
 
     fun refresh() { _installed.value = scan() }
 
-    fun text(): InstalledModel? = _installed.value.firstOrNull { it.known.role == ModelRole.Text && it.verified }
-    fun omni(): InstalledModel? = _installed.value.firstOrNull { it.known.role == ModelRole.Omni && it.verified }
-    fun omniProjector(): InstalledModel? = _installed.value.firstOrNull { it.known.role == ModelRole.OmniProjector && it.verified }
+    // With two of a kind (Q4 and Q8), the one added last is used: a new download or import takes over.
+    private fun newest(role: ModelRole) = _installed.value.filter { it.known.role == role && it.verified }
+        .maxByOrNull { File(dir, it.file.name + ".sha256").lastModified() }
+    fun text(): InstalledModel? = newest(ModelRole.Text)
+    fun omni(): InstalledModel? = newest(ModelRole.Omni)
+    fun omniProjector(): InstalledModel? = newest(ModelRole.OmniProjector)
 
     fun delete(m: InstalledModel) {
         m.file.delete()

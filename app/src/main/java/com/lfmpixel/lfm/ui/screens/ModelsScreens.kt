@@ -151,7 +151,8 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
                             if (inMemory) Pill("In memory")
                             IconButtonPlain("trash", { g.models.delete(have) }, desc = "Delete ${m.fileName}")
                         }
-                        d == null -> Btn("Download", { g.downloads.startWithProjector(m) }, small = true, icon = "download", enabled = canDownload)
+                        d == null && canDownload -> Btn("Download", { g.downloads.startWithProjector(m) }, small = true, icon = "download")
+                        d == null -> Txt("Not on this phone", LfmType.meta, c.text2)
                     }
                 }
                 if (d != null) DownloadProgress(d, highlight && d == running, onPause = { g.downloads.pause(m) },

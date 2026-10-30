@@ -97,10 +97,14 @@ class NetEngine(
         if (cfg.wikipedia) {
             val base = wikipediaBase(cfg.wikiLang.ifBlank { "en" })
             runCatching { get(cfg, request(Providers.wikipedia(base, q)).build(), q, log, 1_000_000) }
-                .onSuccess { wiki += Providers.parseWikipedia(it, base) }
+                .onSuccess { body ->
+                    // Keep articles whose title shares a word with the query; the rest are usually far off.
+                    wiki += Providers.parseWikipedia(body, base).filter { h -> Providers.related(h.title, q) }
+                }
                 .onFailure { errors += "Wikipedia: ${it.message ?: "failed"}" }
         }
-        val hits = (web.distinctBy { it.url }.take(if (wiki.isEmpty()) 6 else 5) + wiki.take(if (web.isEmpty()) 5 else 2))
+        // Wikipedia matches words, not meaning: one article next to web results, more only on its own.
+        val hits = (web.distinctBy { it.url }.take(if (wiki.isEmpty()) 6 else 5) + wiki.take(if (web.isEmpty()) 5 else 1))
         latest = hits.map { it.url }.toSet()
         val error = if (hits.isEmpty() && errors.isNotEmpty()) errors.joinToString("; ") else null
         return SearchReply(cfg.label, hits, log, error)
@@ -114,7 +118,7 @@ class NetEngine(
             val body = get(config(), request(u).header("Accept", "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.8").build(), "", log, 3_000_000,
                 types = listOf("text/html", "application/xhtml+xml", "text/plain"))
             FetchReply(Html.slim(body), log, null)
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             FetchReply("", log, e.message ?: "Could not open the page")
         }
     }
@@ -140,12 +144,13 @@ class NetEngine(
                 return buf.readString(n, type?.charset() ?: Charsets.UTF_8)
             }
         } finally {
-            logHops(hops, at, sent, bytes, ok, log)
+            logHops(hops, at, sent, bytes, ok, log, r.url)
         }
     }
 
-    private fun logHops(hops: Hops, at: Long, sent: String, bytes: Long, ok: Boolean, log: MutableList<NetRequest>) {
-        val urls = synchronized(hops.hosts) { hops.hosts.toList() }
+    private fun logHops(hops: Hops, at: Long, sent: String, bytes: Long, ok: Boolean, log: MutableList<NetRequest>, first: HttpUrl) {
+        // A request that failed before it reached the server (no answer, DNS, TLS) was still attempted: log it.
+        val urls = synchronized(hops.hosts) { hops.hosts.toList() }.ifEmpty { listOf(first) }
         urls.forEachIndexed { i, u ->
             val last = i == urls.lastIndex
             log += NetRequest(at, u.host, Providers.redact(u), sent, if (last) bytes else 0, if (last) ok else true)
@@ -191,10 +196,10 @@ class NetEngine(
             }
         } catch (e: StoppedException) {
             error = "Stopped"
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             error = e.message ?: "Download failed"
         }
-        logHops(hops, at, name, bytes, error == null, log)
+        logHops(hops, at, name, bytes, error == null, log, url)
         return DownloadReply(bytes, log, error)
     }
 

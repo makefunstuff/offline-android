@@ -108,6 +108,7 @@ data class SearchRecord(
     val sources: String,            // SearchSource.encode
     val personalSent: String = "",  // personal words the owner chose to send anyway
     val answer: String = "",        // the answer written from it
+    val opened: Int = 0,            // result pages LFM Net was asked to open (some may not have answered)
     val at: Long = System.currentTimeMillis(),
 )
 

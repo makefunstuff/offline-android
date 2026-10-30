@@ -86,7 +86,8 @@ class WebSearch(
         }
         val hits = results.hits.take(6)
         val read = if (prefs.snippetsOnly) emptyMap() else coroutineScope {
-            hits.take(3).mapIndexed { i, h ->
+            // The top three results from different sites: one slow site shouldn't cost two of the three pages.
+            hits.withIndex().distinctBy { it.value.host() }.take(3).map { (i, h) ->
                 async {
                     h.url to runCatching {
                         ArticleText.excerpt(ArticleText.extract(net.fetch(h.url, "Opened source ${i + 1}")), sendQuery, 1400)
@@ -96,7 +97,7 @@ class WebSearch(
         }
         val sources = hits.mapIndexed { i, h -> SearchSource(i + 1, h.title, h.url, h.snippet, read[h.url] != null) }
         val id = db.searches().insert(SearchRecord(threadId = threadId, query = sendQuery, provider = results.provider,
-            sources = SearchSource.encode(sources), personalSent = personalSent.joinToString(", ")))
+            sources = SearchSource.encode(sources), personalSent = personalSent.joinToString(", "), opened = read.size))
         if (hits.isEmpty()) return SearchOutcome("No results for \"$sendQuery\".", id, "Searched the web", sendQuery, "No results")
 
         val forModel = buildString {
@@ -113,6 +114,8 @@ class WebSearch(
             sources.map { it.host }.distinct().take(3).joinToString(", ")
         return SearchOutcome(forModel, id, "Searched ${results.provider.ifEmpty { "the web" }}", sendQuery, detail)
     }
+
+    private fun com.lfmpixel.lfm.ipc.SearchHit.host() = url.substringAfter("://").substringBefore('/').removePrefix("www.")
 
     private fun off(why: String) = SearchOutcome("Web search is not available: $why Answer from what you know, and say it may be out of date.",
         null, "No web search", why, "")

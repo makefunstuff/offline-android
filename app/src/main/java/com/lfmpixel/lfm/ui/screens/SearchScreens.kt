@@ -201,9 +201,9 @@ fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: M
         }
     }
     val inline = numbers.associate { n ->
-        "cite$n" to InlineTextContent(Placeholder(17.sp, 14.sp, PlaceholderVerticalAlign.TextCenter)) {
-            Box(Modifier.padding(start = 2.dp).border(1.dp, c.control, RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
-                Text(n, style = LfmType.meta.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold), color = c.text)
+        "cite$n" to InlineTextContent(Placeholder(if (n.length > 1) 22.sp else 18.sp, 15.sp, PlaceholderVerticalAlign.TextCenter)) {
+            Box(Modifier.fillMaxSize().padding(start = 3.dp).border(1.dp, c.control, RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
+                Text(n, style = LfmType.meta.copy(fontSize = 10.sp, lineHeight = 10.sp, fontWeight = FontWeight.SemiBold), color = c.text, softWrap = false)
             }
         }
     }
@@ -256,7 +256,11 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
             }
             Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LIcon("shield", size = 16.dp, tint = c.text2)
-                val pages = if (read > 0) ", then the $read result ${if (read == 1) "page was" else "pages were"} opened" else ""
+                val pages = when {
+                    r.opened == 0 -> ""
+                    r.opened == read -> ", then the $read result ${if (read == 1) "page was" else "pages were"} opened"
+                    else -> ", then ${r.opened} result pages were asked for ($read answered)"
+                }
                 Txt(if (r.personalSent.isNotEmpty()) "Sent: the search words$pages. You chose to send “${r.personalSent}”. Nothing else from your notes, contacts or chats."
                     else "Sent: the search words$pages. Nothing from your notes, contacts or chats.", LfmType.label.copy(fontWeight = null), c.text2)
             }

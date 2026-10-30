@@ -52,7 +52,9 @@ class ModelManager(
 
     suspend fun omniSession(): LlamaSession = lock.withLock {
         touch()
-        omni?.let { return it }
+        omni?.takeIf { it.path == store.omni()?.file?.path }?.let { return it }
+        omni?.close()
+        omni = null
         val m = store.omni() ?: throw LlmException("Voice needs LFM3-Omni-2B. Import it in Settings → Models.")
         val proj = store.omniProjector() ?: throw LlmException("Voice needs Omni's projector file (mmproj-LFM3-Omni-2B).")
         _status.value = _status.value.copy(omni = LoadState.Loading, error = null)

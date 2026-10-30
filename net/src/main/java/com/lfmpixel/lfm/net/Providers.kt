@@ -63,6 +63,12 @@ object Providers {
         return SearchHit(Html.text(title).ifBlank { u.host }, u.toString(), Html.text(snippet).take(400), source)
     }
 
+    /** Whether a title shares a word with the query, by its first five letters ("Plumbing" and "plumber"). */
+    fun related(title: String, query: String): Boolean {
+        fun words(s: String) = s.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.length >= 3 }.map { it.take(5) }.toSet()
+        return words(title).any { it in words(query) }
+    }
+
     /** The address for the network log: never an API key. */
     fun redact(url: HttpUrl): String {
         val b = url.newBuilder()

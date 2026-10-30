@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "04cc0f5fc37eaf278928855efa77d5ee",
+    "identityHash": "3af01abbe6b9842d1e969d0e254ba71f",
     "entities": [
       {
         "tableName": "entries",
@@ -500,7 +500,7 @@
       },
       {
         "tableName": "searches",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `threadId` INTEGER NOT NULL, `query` TEXT NOT NULL, `provider` TEXT NOT NULL, `sources` TEXT NOT NULL, `personalSent` TEXT NOT NULL, `answer` TEXT NOT NULL, `at` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `threadId` INTEGER NOT NULL, `query` TEXT NOT NULL, `provider` TEXT NOT NULL, `sources` TEXT NOT NULL, `personalSent` TEXT NOT NULL, `answer` TEXT NOT NULL, `opened` INTEGER NOT NULL, `at` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -545,6 +545,12 @@
             "notNull": true
           },
           {
+            "fieldPath": "opened",
+            "columnName": "opened",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
             "fieldPath": "at",
             "columnName": "at",
             "affinity": "INTEGER",
@@ -561,7 +567,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '04cc0f5fc37eaf278928855efa77d5ee')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3af01abbe6b9842d1e969d0e254ba71f')"
     ]
   }
 }
