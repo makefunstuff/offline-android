@@ -83,7 +83,7 @@ class AddEntryTool(private val env: ToolEnv, private val kind: EntryKind) : Tool
         val title = args.opt("title").ifEmpty { firstLine(text) }
         val e = Entry(
             kind = kind,
-            title = if (kind == EntryKind.Note) title else firstLine(text, 120),
+            title = (if (kind == EntryKind.Note) title else firstLine(text, 120)).replaceFirstChar { it.uppercase() },
             body = if (kind == EntryKind.Note || text.length > 120) text else "",
             tags = args.opt("tags").lowercase().replace(",", " ").split(' ').filter { it.isNotBlank() }.take(3).joinToString(" "),
             topic = args.opt("topic").replaceFirstChar { it.uppercase() },

@@ -17,7 +17,7 @@ enum class ToolPolicy { Ask, Do }
 
 data class Prefs(
     val firstRunDone: Boolean = false,
-    val thinking: Boolean = true,
+    val thinking: Boolean = false,
     val searchMode: SearchMode = SearchMode.AskFirst,
     val warnPersonalWords: Boolean = true,
     val threads: Int = 6,
@@ -46,7 +46,7 @@ class Settings(private val context: Context) {
 
     private fun Preferences.toPrefs() = Prefs(
         firstRunDone = this[K.firstRun] ?: false,
-        thinking = this[K.thinking] ?: true,
+        thinking = this[K.thinking] ?: false,
         searchMode = this[K.search]?.let { runCatching { SearchMode.valueOf(it) }.getOrNull() } ?: SearchMode.AskFirst,
         warnPersonalWords = this[K.warn] ?: true,
         threads = this[K.threads] ?: defaultThreads(),

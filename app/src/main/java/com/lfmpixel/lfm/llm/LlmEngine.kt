@@ -96,10 +96,10 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
         withContext(dispatcher) {
             val out = StringBuilder()
             val prompt = PromptFormat.system(systemPrompt, emptyList()) +
-                "${PromptFormat.IM_START}user\n<__media__>${PromptFormat.IM_END}\n${PromptFormat.IM_START}assistant\n"
+                "${PromptFormat.IM_START}user\n<__media__>${PromptFormat.IM_END}\n${PromptFormat.IM_START}assistant\n<think></think>"
             val n = LlamaNative.transcribe(handle, pcm16k, prompt, maxTokens) { out.append(String(it, Charsets.UTF_8)); true }
             if (n < 0) throw LlmException("Transcription failed ($n)")
-            out.toString().replace("<|im_end|>", "").trim()
+            out.toString().replace(Regex("<think>.*?</think>", RegexOption.DOT_MATCHES_ALL), "").replace("<|im_end|>", "").trim()
         }
     }
 

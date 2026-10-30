@@ -162,7 +162,10 @@ class Assistant(
         val session = models.textSession()
         val prefs = settings.now()
         val tools = registry.specsJson()
-        val maxTokens = if (prefs.thinking) 1536 else 512
+        // Thinking gets a budget; past it, the think block is closed and the model must answer.
+        val thinkBudget = 384
+        val answerBudget = 512
+        val maxTokens = if (prefs.thinking) thinkBudget + answerBudget else answerBudget
         repeat(4) { round ->
             var history = db.messages().threadNow(_thread.value).mapNotNull(::toPrompt)
             var prompt = PromptFormat.build(systemPrompt(), tools, history, prefs.thinking)
@@ -173,10 +176,17 @@ class Assistant(
             }
             val raw = StringBuilder()
             streaming.value = Streaming("", prefs.thinking)
-            session.generate(prompt, maxTokens).collect { piece ->
+            val onPiece: (String) -> Unit = { piece ->
                 raw.append(piece)
                 val partial = ModelOutput.parse(raw.toString(), prefs.thinking)
                 streaming.value = Streaming(partial.answer.substringBefore("<tool_call>").trim(), partial.stillThinking)
+            }
+            val first = if (prefs.thinking) thinkBudget else answerBudget
+            session.generate(prompt, first).collect { onPiece(it) }
+            if (prefs.thinking && session.stats().decodeTokens >= first) {
+                // Out of thinking budget: close the think block if it is still open, then let the answer run.
+                if (ModelOutput.parse(raw.toString(), true).stillThinking) raw.append("\n</think>\n")
+                session.generate(prompt + raw, answerBudget).collect { onPiece(it) }
             }
             val out = ModelOutput.parse(raw.toString(), prefs.thinking)
             val st = session.stats()
@@ -184,7 +194,10 @@ class Assistant(
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
                 raw = PromptFormat.assistantPrefix(prefs.thinking) + raw, meta = meta))
             streaming.value = null
-            if (out.toolCalls.isEmpty()) return
+            if (out.toolCalls.isEmpty()) {
+                if (out.answer.isBlank() && round == 0) notice("The model gave no answer. Try again, or say it another way.")
+                return
+            }
             for (call in out.toolCalls) toolCard(execute(call, source, afterWebText = false))
             if (round == 3) notice("Stopped after four rounds of tool calls.")
         }

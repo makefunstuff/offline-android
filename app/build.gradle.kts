@@ -77,7 +77,8 @@ android {
     }
 
     packaging {
-        jniLibs { useLegacyPackaging = false }
+        // Extracted to disk: llama.cpp picks its CPU backend at run time by loading libggml-cpu-*.so from nativeLibraryDir.
+        jniLibs { useLegacyPackaging = true }
     }
 }
 

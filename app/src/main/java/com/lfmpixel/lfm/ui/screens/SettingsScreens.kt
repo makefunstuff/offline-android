@@ -263,9 +263,9 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             Txt("Permissions (calendar, contacts, microphone) are asked only when a tool first needs one.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
         }
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Btn("Import model files", { scope.launch { g.settings.setFirstRunDone() }; nav.reset(Route.Today); onImport() }, Modifier.fillMaxWidth(),
+            Btn("Import model files", { g.scope.launch { g.settings.setFirstRunDone() }; nav.reset(Route.Today); onImport() }, Modifier.fillMaxWidth(),
                 com.lfmpixel.lfm.ui.components.BtnKind.Primary, icon = "folder")
-            Btn("Later", { scope.launch { g.settings.setFirstRunDone() }; nav.reset(Route.Today) }, Modifier.fillMaxWidth())
+            Btn("Later", { g.scope.launch { g.settings.setFirstRunDone() }; nav.reset(Route.Today) }, Modifier.fillMaxWidth())
         }
     }
 }

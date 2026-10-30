@@ -29,7 +29,6 @@
         android:label="LFM"
         android:supportsRtl="true"
         android:theme="@style/Theme.Lfm"
-        android:extractNativeLibs="false"
         tools:targetApi="36">
         <activity
             android:name=".MainActivity"
