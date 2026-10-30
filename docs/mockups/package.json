@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "marked": "14.1.4"
+  }
+}
