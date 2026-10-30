@@ -1,2 +1,8 @@
-docs/mockups/node_modules/
-docs/mockups/bun.lock
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.cxx/
+.kotlin/
+captures/
