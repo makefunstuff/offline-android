@@ -1,2 +1,14 @@
-docs/mockups/node_modules/
-docs/mockups/bun.lock
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.cxx/
+.kotlin/
+captures/
+# Never commit models, recordings or keys (public repo)
+*.gguf
+*.f32
+*.wav
+*.keystore
+*.jks
