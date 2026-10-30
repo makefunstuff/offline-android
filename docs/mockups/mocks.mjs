@@ -112,7 +112,7 @@ const confirm = screen(4, "Tool confirmation", `${sb()}
 <div class="app">
   ${hdr("Assistant", i("more"), i("list"))}
   <div class="pad thread faded">
-    <div class="me">Dinner with Ana Friday at 8, at Ottolenghi</div>
+    <div class="me">Dinner with Ana next Friday at 8, at Ottolenghi</div>
     <div class="ai">I'll add it to your calendar.</div>
   </div>
   <div class="scrim"></div>
@@ -120,7 +120,7 @@ const confirm = screen(4, "Tool confirmation", `${sb()}
     <div class="grab"></div>
     <div class="sh">${i("cal", "ac")}<b>Add to calendar?</b></div>
     <div class="fld"><span>Title</span><b>Dinner with Ana</b></div>
-    <div class="fld"><span>When</span><b>Fri 6 Nov · 20:00 – 22:00</b></div>
+    <div class="fld"><span>When</span><b>Fri 6 Nov · 20:00 – 22:00 (2 h)</b></div>
     <div class="fld"><span>Where</span><b>Ottolenghi</b></div>
     <div class="fld"><span>Calendar</span><b>On this phone</b></div>
     <div class="btns"><span class="btn">Edit</span><span class="btn">Cancel</span><span class="btn pri">Add</span></div>
@@ -168,7 +168,7 @@ const journal = screen(7, "Journal", `${sb()}
   ${libTop("Journal")}
     <div class="prompt"><span>Today's prompt</span><b>What gave you energy this week?</b><div class="pa"><span class="btn sm">${i("mic", "s")}Speak</span><span class="btn sm">${i("edit", "s")}Write</span></div></div>
     <div class="jd">Friday 30</div>
-    <div class="je"><span class="mood m1"></span><div><p>Felt calmer after the walk. The review went fine; I worried for nothing again.</p><span>08:05 · written</span></div></div>
+    <div class="je"><span class="mood m1"></span><div><p>Slept well. Felt calmer after the walk; less worried about the review.</p><span>08:05 · written</span></div></div>
     <div class="jd">Thursday 29</div>
     <div class="je"><span class="mood m2"></span><div><p>Long day. Want to say no to the Saturday shift.</p><span>22:40 · voice 1:10</span></div></div>
     <div class="je"><span class="mood m1"></span><div><p>Lunch with Mia, laughed a lot.</p><span>13:15 · written</span></div></div>
@@ -225,7 +225,7 @@ const settings = screen(11, "Settings", `${sb()}
     </div>
     <div class="grp">
       <div class="sr">${i("shield", "ac")}<div><b>Privacy</b><span>Network log, export, delete</span></div>${i("right", "dim")}</div>
-      <div class="sr">${i("lock", "ac")}<div><b>Lock</b><span>Off</span></div>${i("right", "dim")}</div>
+      <div class="sr">${i("lock", "ac")}<div><b>Lock</b><span>Journal only</span></div>${i("right", "dim")}</div>
     </div>
     <div class="grp">
       <div class="sr">${i("speaker", "ac")}<div><b>Voice</b><span>Female · English (UK)</span></div>${i("right", "dim")}</div>
@@ -234,7 +234,7 @@ const settings = screen(11, "Settings", `${sb()}
     <div class="sec">Web search</div>
     <div class="grp">
       <div class="seg3"><span>Off</span><span class="on">Ask first</span><span>Automatic</span></div>
-      <div class="tg2"><div><b>Warn about personal words</b><span>Names, numbers, journal text</span></div><span class="sw on"><i></i></span></div>
+      <div class="tg2"><div><b>Warn about personal words</b><span>Names, places, numbers, e-mails</span></div><span class="sw on"><i></i></span></div>
     </div>
   </div>
 </div>${gb}`);
@@ -248,11 +248,11 @@ const privacy = screen(12, "Privacy and network log", `${sb()}
     <div class="pr">${i("check", "ok")}<div><b>No account, no telemetry</b><span>Nothing reports back to anyone</span></div></div>
     <div class="pr">${i("globe", "ac")}<div><b>LFM Net handles search</b><span>Sends only search words, result addresses and model downloads</span></div><span class="sw on"><i></i></span></div>
     <div class="sec">Network log · today</div>
-    <div class="nlg"><span>14:08</span><div><b>search.myhome.net</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>searxng.home.arpa</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
     <div class="nlg"><span>14:08</span><div><b>checkatrade.com</b><span>Opened source 1</span></div><em>38 KB</em></div>
     <div class="nlg"><span>14:08</span><div><b>which.co.uk</b><span>Opened source 2</span></div><em>51 KB</em></div>
     <div class="nlg"><span>14:08</span><div><b>mybuilder.com</b><span>Opened source 3</span></div><em>44 KB</em></div>
-    <div class="nlg"><span>08:30</span><div><b>huggingface.co</b><span>Model: LFM3-VL-2B (downloading)</span></div><em>0.8 GB</em></div>
+    <div class="nlg"><span>13:58</span><div><b>huggingface.co</b><span>Model: LFM3-VL-2B (downloading)</span></div><em>0.8 GB</em></div>
     <div class="btns"><span class="btn">Export…</span><span class="btn red">Delete all</span></div>
   </div>
 </div>${gb}`);
