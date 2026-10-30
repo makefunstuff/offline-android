@@ -97,14 +97,14 @@ const search = screen(3, "Search results", `${sb()}
 <div class="app">
   ${hdr("Search", i("more"))}
   <div class="pad">
-    <div class="sent">${i("globe", "s")}<div><span>Sent to your SearXNG · 14:02</span><b>plumber call-out fee Leeds 2026</b></div>${i("edit", "s dim")}</div>
+    <div class="sent">${i("globe", "s")}<div><span>Sent to your SearXNG · 14:08</span><b>plumber call-out fee Leeds 2026</b></div>${i("edit", "s dim")}</div>
     <div class="ans"><p>Most Leeds plumbers charge a <b>£60–£95 call-out</b> that covers the first hour <sup>1</sup> <sup>2</sup>. Evenings and weekends often cost 1.5× <sup>3</sup>. Ask for a fixed quote before work starts.</p>
     <div class="meta">Answer written on this phone from 3 pages</div></div>
     <div class="sec">Sources</div>
     <div class="src"><span class="n">1</span><div><b>Plumbing prices in Leeds, 2026 guide</b><span>checkatrade.com</span></div></div>
     <div class="src"><span class="n">2</span><div><b>How much does a plumber cost?</b><span>which.co.uk</span></div></div>
     <div class="src"><span class="n">3</span><div><b>Emergency plumber rates explained</b><span>mybuilder.com</span></div></div>
-    <div class="note">${i("shield", "s ok")}Only the search words were sent. Nothing from your notes, contacts or chats.</div>
+    <div class="note">${i("shield", "s ok")}Sent: the search words, then the 3 result pages were opened. Nothing from your notes, contacts or chats.</div>
   </div>
 </div>${gb}`);
 
@@ -122,7 +122,7 @@ const confirm = screen(4, "Tool confirmation", `${sb()}
     <div class="fld"><span>Title</span><b>Dinner with Ana</b></div>
     <div class="fld"><span>When</span><b>Fri 6 Nov · 20:00 – 22:00</b></div>
     <div class="fld"><span>Where</span><b>Ottolenghi</b></div>
-    <div class="fld"><span>Calendar</span><b>Personal</b></div>
+    <div class="fld"><span>Calendar</span><b>On this phone</b></div>
     <div class="btns"><span class="btn">Edit</span><span class="btn">Cancel</span><span class="btn pri">Add</span></div>
     <div class="fine">Calendar changes always ask first. Change in Settings → Tools.</div>
   </div>
@@ -221,11 +221,11 @@ const settings = screen(11, "Settings", `${sb()}
     <div class="grp">
       <div class="sr">${i("chip", "ac")}<div><b>Models</b><span>Omni-2B, LFM3-1.7B in memory · 2.5 GB</span></div>${i("right", "dim")}</div>
       <div class="sr">${i("globe", "ac")}<div><b>Web search</b><span>Your SearXNG + Wikipedia · ask first</span></div>${i("right", "dim")}</div>
-      <div class="sr">${i("sliders", "ac")}<div><b>Tools</b><span>8 allowed · 4 always ask</span></div>${i("right", "dim")}</div>
+      <div class="sr">${i("sliders", "ac")}<div><b>Tools</b><span>6 run directly · 6 always ask</span></div>${i("right", "dim")}</div>
     </div>
     <div class="grp">
       <div class="sr">${i("shield", "ac")}<div><b>Privacy</b><span>Network log, export, delete</span></div>${i("right", "dim")}</div>
-      <div class="sr">${i("lock", "ac")}<div><b>Lock</b><span>Journal only</span></div>${i("right", "dim")}</div>
+      <div class="sr">${i("lock", "ac")}<div><b>Lock</b><span>Off</span></div>${i("right", "dim")}</div>
     </div>
     <div class="grp">
       <div class="sr">${i("speaker", "ac")}<div><b>Voice</b><span>Female · English (UK)</span></div>${i("right", "dim")}</div>
@@ -246,13 +246,13 @@ const privacy = screen(12, "Privacy and network log", `${sb()}
     <div class="big">Your data stays on this phone.</div>
     <div class="pr">${i("check", "ok")}<div><b>Assistant has no network access</b><span>Android blocks it: no internet permission</span></div></div>
     <div class="pr">${i("check", "ok")}<div><b>No account, no telemetry</b><span>Nothing reports back to anyone</span></div></div>
-    <div class="pr">${i("globe", "ac")}<div><b>LFM Net handles search</b><span>Sends only search words and page addresses</span></div><span class="sw on"><i></i></span></div>
+    <div class="pr">${i("globe", "ac")}<div><b>LFM Net handles search</b><span>Sends only search words, result addresses and model downloads</span></div><span class="sw on"><i></i></span></div>
     <div class="sec">Network log · today</div>
-    <div class="nlg"><span>14:02</span><div><b>search.myhome.net</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
-    <div class="nlg"><span>14:02</span><div><b>checkatrade.com</b><span>Opened source 1</span></div><em>38 KB</em></div>
-    <div class="nlg"><span>14:02</span><div><b>which.co.uk</b><span>Opened source 2</span></div><em>51 KB</em></div>
-    <div class="nlg"><span>14:02</span><div><b>mybuilder.com</b><span>Opened source 3</span></div><em>44 KB</em></div>
-    <div class="nlg"><span>09:10</span><div><b>en.wikipedia.org</b><span>“Epipremnum aureum”</span></div><em>12 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>search.myhome.net</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>checkatrade.com</b><span>Opened source 1</span></div><em>38 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>which.co.uk</b><span>Opened source 2</span></div><em>51 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>mybuilder.com</b><span>Opened source 3</span></div><em>44 KB</em></div>
+    <div class="nlg"><span>08:30</span><div><b>huggingface.co</b><span>Model: LFM3-VL-2B (downloading)</span></div><em>0.8 GB</em></div>
     <div class="btns"><span class="btn">Export…</span><span class="btn red">Delete all</span></div>
   </div>
 </div>${gb}`);
@@ -261,7 +261,7 @@ const models = screen(13, "Models and import", `${sb()}
 <div class="app">
   ${hdr("Models", i("more"))}
   <div class="pad">
-    <div class="stor"><div class="bar"><span style="width:2%"></span></div><span>3.7 GB used · 198 GB free</span></div>
+    <div class="stor"><div class="bar"><span style="width:2%"></span></div><span>3.3 GB used · 198 GB free</span></div>
     <div class="md on"><div class="mh"><b>LFM3-Omni-2B</b><span class="pill">In memory</span></div><span>Q4_K_M · 1.4 GB · ${i("check", "s ok")}verified</span><span class="for">Voice, camera, talk</span></div>
     <div class="md on"><div class="mh"><b>LFM3-1.7B</b><span class="pill">In memory</span></div><span>Q4_0 · 1.05 GB · ${i("check", "s ok")}verified</span><span class="for">Chat, tools, writing</span></div>
     <div class="md"><div class="mh"><b>LFM3-VL-2B</b><span class="pct">64%</span></div><span>Downloading through LFM Net · 0.8 of 1.25 GB</span><div class="bar"><span style="width:64%"></span></div><span class="for">Documents · checked against SHA-256 when done</span></div>
@@ -284,13 +284,13 @@ set(document.documentElement.classList.contains('shepherdr-light')?'light':'dark
 
 export const css = `
 .themes{display:flex;gap:6px;margin:8px 0 4px}
-.themes button{font:inherit;font-size:13px;padding:6px 14px;border-radius:16px;border:1px solid var(--line);background:none;color:var(--fg);cursor:pointer}
-.themes button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.themes button{font:inherit;font-size:13px;padding:6px 14px;border-radius:16px;border:1px solid var(--line,#d4d4d8);background:none;color:var(--fg,#18181b);cursor:pointer}
+.themes button.on{background:var(--fg,#18181b);color:var(--bg,#ffffff);border-color:var(--fg,#18181b)}
 .phones{display:flex;flex-wrap:wrap;gap:22px 18px;justify-content:center;margin:12px 0;
  --bg:#0e0f11;--s1:#18191c;--s2:#222327;--ln:#2a2b30;--t1:#ececee;--t2:#a2a3aa;--t3:#8a8b92;--ac:#7aa7ff;--acb:#1c2638;--act:#0e0f11;--ok:#5fd38d;--okb:#16291f;--red:#ff7b72;--amb:#f2c46d;--ambb:#2e2614}
 .phones.light{--bg:#f7f7f8;--s1:#ffffff;--s2:#eeeff1;--ln:#e2e3e7;--t1:#121316;--t2:#5d5f66;--t3:#6b6d74;--ac:#2a5fd4;--acb:#e5edfc;--act:#ffffff;--ok:#1d8048;--okb:#e2f3e8;--red:#c4382d;--amb:#8a5c00;--ambb:#fbf1dc}
-figure{margin:0}figcaption{text-align:center;color:var(--fg2);font-size:13px;margin-top:8px}figcaption b{color:var(--fg);font-weight:600;margin-right:4px}
-.ph{width:360px;height:800px;border:7px solid #1d1e21;border-radius:42px;overflow:hidden;background:var(--bg);color:var(--t1)}
+figure{margin:0}figcaption{text-align:center;color:var(--fg2,#6b6d74);font-size:13px;margin-top:8px}figcaption b{color:var(--fg,#18181b);font-weight:600;margin-right:4px}
+.ph{width:360px;height:800px;border:7px solid #1d1e21;border-radius:42px;overflow:hidden;background:var(--bg,#ffffff);color:var(--t1)}
 .scr{position:relative;height:100%;display:flex;flex-direction:column;font:14px/1.4 Roboto,"Google Sans",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
 .scr b{font-weight:600}
 .i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -314,7 +314,7 @@ figure{margin:0}figcaption{text-align:center;color:var(--fg2);font-size:13px;mar
 .list{background:var(--s1);border-radius:18px;border:1px solid var(--ln)}
 .li{display:flex;align-items:center;gap:14px;padding:12px 14px;border-top:1px solid var(--ln)}.li:first-child{border-top:0}
 .li div{flex:1;display:flex;flex-direction:column;min-width:0}.li span{color:var(--t2);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav{display:flex;height:72px;border-top:1px solid var(--ln);background:var(--bg);flex:none}
+.nav{display:flex;height:72px;border-top:1px solid var(--ln);background:var(--bg,#ffffff);flex:none}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--t2)}
 .ni span{width:56px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
 .ni.on{color:var(--t1);font-weight:600}.ni.on span{background:var(--acb);color:var(--ac)}
@@ -343,7 +343,7 @@ figure{margin:0}figcaption{text-align:center;color:var(--fg2);font-size:13px;mar
 .btn.pri{background:var(--ac);border-color:var(--ac);color:var(--act)}.btn.red{color:var(--red)}.btn.sm{height:34px;flex:none;padding:0 14px;font-size:13px}
 .fine{color:var(--t3);font-size:12px;margin-top:12px}.fine.c{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:18px}
 .tabs{display:flex;gap:8px;margin:0 0 14px}.tabs span{padding:7px 16px;border-radius:18px;border:1px solid var(--ln);font-size:13.5px;color:var(--t2)}
-.tabs .on{background:var(--t1);color:var(--bg);border-color:var(--t1);font-weight:500}
+.tabs .on{background:var(--t1);color:var(--bg,#ffffff);border-color:var(--t1);font-weight:500}
 .nl .nr{padding:12px 0;border-bottom:1px solid var(--ln)}.nh{display:flex;justify-content:space-between}.nh span{color:var(--t3);font-size:12px}
 .nr p{margin:3px 0 7px;color:var(--t2);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tg{display:flex;gap:6px}.tg span{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--t2);background:var(--s2);border-radius:8px;padding:2px 8px}

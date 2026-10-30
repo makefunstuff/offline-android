@@ -1,22 +1,22 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LFM3 on Pixel: spec</title><style>
 body{font-size:15px;line-height:1.5}
-h1{font-size:22px;margin:4px 0 8px}h2{font-size:18px;margin:28px 0 8px;padding-top:12px;border-top:1px solid var(--line)}
+h1{font-size:22px;margin:4px 0 8px}h2{font-size:18px;margin:28px 0 8px;padding-top:12px;border-top:1px solid var(--line,#d4d4d8)}
 h3{font-size:16px;margin:20px 0 6px}
-a{color:var(--accent);word-break:break-all}
-code{background:var(--well);padding:1px 4px;border-radius:4px;font-size:13px}
+a{color:var(--accent,#2a5fd4);word-break:break-all}
+code{background:var(--well,#f1f1f3);padding:1px 4px;border-radius:4px;font-size:13px}
 table{border-collapse:collapse;width:100%;font-size:13px;display:block;overflow-x:auto;margin:8px 0}
-th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
-th{background:var(--well)}
-.cap{color:var(--fg2);font-size:13px}
+th,td{border:1px solid var(--line,#d4d4d8);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--well,#f1f1f3)}
+.cap{color:var(--fg2,#6b6d74);font-size:13px}
 
 .themes{display:flex;gap:6px;margin:8px 0 4px}
-.themes button{font:inherit;font-size:13px;padding:6px 14px;border-radius:16px;border:1px solid var(--line);background:none;color:var(--fg);cursor:pointer}
-.themes button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.themes button{font:inherit;font-size:13px;padding:6px 14px;border-radius:16px;border:1px solid var(--line,#d4d4d8);background:none;color:var(--fg,#18181b);cursor:pointer}
+.themes button.on{background:var(--fg,#18181b);color:var(--bg,#ffffff);border-color:var(--fg,#18181b)}
 .phones{display:flex;flex-wrap:wrap;gap:22px 18px;justify-content:center;margin:12px 0;
  --bg:#0e0f11;--s1:#18191c;--s2:#222327;--ln:#2a2b30;--t1:#ececee;--t2:#a2a3aa;--t3:#8a8b92;--ac:#7aa7ff;--acb:#1c2638;--act:#0e0f11;--ok:#5fd38d;--okb:#16291f;--red:#ff7b72;--amb:#f2c46d;--ambb:#2e2614}
 .phones.light{--bg:#f7f7f8;--s1:#ffffff;--s2:#eeeff1;--ln:#e2e3e7;--t1:#121316;--t2:#5d5f66;--t3:#6b6d74;--ac:#2a5fd4;--acb:#e5edfc;--act:#ffffff;--ok:#1d8048;--okb:#e2f3e8;--red:#c4382d;--amb:#8a5c00;--ambb:#fbf1dc}
-figure{margin:0}figcaption{text-align:center;color:var(--fg2);font-size:13px;margin-top:8px}figcaption b{color:var(--fg);font-weight:600;margin-right:4px}
-.ph{width:360px;height:800px;border:7px solid #1d1e21;border-radius:42px;overflow:hidden;background:var(--bg);color:var(--t1)}
+figure{margin:0}figcaption{text-align:center;color:var(--fg2,#6b6d74);font-size:13px;margin-top:8px}figcaption b{color:var(--fg,#18181b);font-weight:600;margin-right:4px}
+.ph{width:360px;height:800px;border:7px solid #1d1e21;border-radius:42px;overflow:hidden;background:var(--bg,#ffffff);color:var(--t1)}
 .scr{position:relative;height:100%;display:flex;flex-direction:column;font:14px/1.4 Roboto,"Google Sans",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
 .scr b{font-weight:600}
 .i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
@@ -40,7 +40,7 @@ figure{margin:0}figcaption{text-align:center;color:var(--fg2);font-size:13px;mar
 .list{background:var(--s1);border-radius:18px;border:1px solid var(--ln)}
 .li{display:flex;align-items:center;gap:14px;padding:12px 14px;border-top:1px solid var(--ln)}.li:first-child{border-top:0}
 .li div{flex:1;display:flex;flex-direction:column;min-width:0}.li span{color:var(--t2);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.nav{display:flex;height:72px;border-top:1px solid var(--ln);background:var(--bg);flex:none}
+.nav{display:flex;height:72px;border-top:1px solid var(--ln);background:var(--bg,#ffffff);flex:none}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--t2)}
 .ni span{width:56px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
 .ni.on{color:var(--t1);font-weight:600}.ni.on span{background:var(--acb);color:var(--ac)}
@@ -69,7 +69,7 @@ figure{margin:0}figcaption{text-align:center;color:var(--fg2);font-size:13px;mar
 .btn.pri{background:var(--ac);border-color:var(--ac);color:var(--act)}.btn.red{color:var(--red)}.btn.sm{height:34px;flex:none;padding:0 14px;font-size:13px}
 .fine{color:var(--t3);font-size:12px;margin-top:12px}.fine.c{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:18px}
 .tabs{display:flex;gap:8px;margin:0 0 14px}.tabs span{padding:7px 16px;border-radius:18px;border:1px solid var(--ln);font-size:13.5px;color:var(--t2)}
-.tabs .on{background:var(--t1);color:var(--bg);border-color:var(--t1);font-weight:500}
+.tabs .on{background:var(--t1);color:var(--bg,#ffffff);border-color:var(--t1);font-weight:500}
 .nl .nr{padding:12px 0;border-bottom:1px solid var(--ln)}.nh{display:flex;justify-content:space-between}.nh span{color:var(--t3);font-size:12px}
 .nr p{margin:3px 0 7px;color:var(--t2);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tg{display:flex;gap:6px}.tg span{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--t2);background:var(--s2);border-radius:8px;padding:2px 8px}
@@ -193,14 +193,14 @@ light; their source is in <code>docs/mockups/</code>.</p>
 <div class="app">
   <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Search</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
   <div class="pad">
-    <div class="sent"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><span>Sent to your SearXNG · 14:02</span><b>plumber call-out fee Leeds 2026</b></div><svg class="i s dim" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></div>
+    <div class="sent"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><span>Sent to your SearXNG · 14:08</span><b>plumber call-out fee Leeds 2026</b></div><svg class="i s dim" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></div>
     <div class="ans"><p>Most Leeds plumbers charge a <b>£60–£95 call-out</b> that covers the first hour <sup>1</sup> <sup>2</sup>. Evenings and weekends often cost 1.5× <sup>3</sup>. Ask for a fixed quote before work starts.</p>
     <div class="meta">Answer written on this phone from 3 pages</div></div>
     <div class="sec">Sources</div>
     <div class="src"><span class="n">1</span><div><b>Plumbing prices in Leeds, 2026 guide</b><span>checkatrade.com</span></div></div>
     <div class="src"><span class="n">2</span><div><b>How much does a plumber cost?</b><span>which.co.uk</span></div></div>
     <div class="src"><span class="n">3</span><div><b>Emergency plumber rates explained</b><span>mybuilder.com</span></div></div>
-    <div class="note"><svg class="i s ok" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>Only the search words were sent. Nothing from your notes, contacts or chats.</div>
+    <div class="note"><svg class="i s ok" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>Sent: the search words, then the 3 result pages were opened. Nothing from your notes, contacts or chats.</div>
   </div>
 </div><div class="gb"><span></span></div></div></div><figcaption><b>3</b> Search results</figcaption></figure>
 <figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
@@ -221,7 +221,7 @@ light; their source is in <code>docs/mockups/</code>.</p>
     <div class="fld"><span>Title</span><b>Dinner with Ana</b></div>
     <div class="fld"><span>When</span><b>Fri 6 Nov · 20:00 – 22:00</b></div>
     <div class="fld"><span>Where</span><b>Ottolenghi</b></div>
-    <div class="fld"><span>Calendar</span><b>Personal</b></div>
+    <div class="fld"><span>Calendar</span><b>On this phone</b></div>
     <div class="btns"><span class="btn">Edit</span><span class="btn">Cancel</span><span class="btn pri">Add</span></div>
     <div class="fine">Calendar changes always ask first. Change in Settings → Tools.</div>
   </div>
@@ -338,11 +338,11 @@ light; their source is in <code>docs/mockups/</code>.</p>
     <div class="grp">
       <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><div><b>Models</b><span>Omni-2B, LFM3-1.7B in memory · 2.5 GB</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
       <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><b>Web search</b><span>Your SearXNG + Wikipedia · ask first</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><div><b>Tools</b><span>8 allowed · 4 always ask</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><div><b>Tools</b><span>6 run directly · 6 always ask</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
     </div>
     <div class="grp">
       <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg><div><b>Privacy</b><span>Network log, export, delete</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
-      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><div><b>Lock</b><span>Journal only</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
+      <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><div><b>Lock</b><span>Off</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
     </div>
     <div class="grp">
       <div class="sr"><svg class="i ac" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><div><b>Voice</b><span>Female · English (UK)</span></div><svg class="i dim" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>
@@ -366,13 +366,13 @@ light; their source is in <code>docs/mockups/</code>.</p>
     <div class="big">Your data stays on this phone.</div>
     <div class="pr"><svg class="i ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>Assistant has no network access</b><span>Android blocks it: no internet permission</span></div></div>
     <div class="pr"><svg class="i ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>No account, no telemetry</b><span>Nothing reports back to anyone</span></div></div>
-    <div class="pr"><svg class="i ac" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><b>LFM Net handles search</b><span>Sends only search words and page addresses</span></div><span class="sw on"><i></i></span></div>
+    <div class="pr"><svg class="i ac" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg><div><b>LFM Net handles search</b><span>Sends only search words, result addresses and model downloads</span></div><span class="sw on"><i></i></span></div>
     <div class="sec">Network log · today</div>
-    <div class="nlg"><span>14:02</span><div><b>search.myhome.net</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
-    <div class="nlg"><span>14:02</span><div><b>checkatrade.com</b><span>Opened source 1</span></div><em>38 KB</em></div>
-    <div class="nlg"><span>14:02</span><div><b>which.co.uk</b><span>Opened source 2</span></div><em>51 KB</em></div>
-    <div class="nlg"><span>14:02</span><div><b>mybuilder.com</b><span>Opened source 3</span></div><em>44 KB</em></div>
-    <div class="nlg"><span>09:10</span><div><b>en.wikipedia.org</b><span>“Epipremnum aureum”</span></div><em>12 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>search.myhome.net</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>checkatrade.com</b><span>Opened source 1</span></div><em>38 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>which.co.uk</b><span>Opened source 2</span></div><em>51 KB</em></div>
+    <div class="nlg"><span>14:08</span><div><b>mybuilder.com</b><span>Opened source 3</span></div><em>44 KB</em></div>
+    <div class="nlg"><span>08:30</span><div><b>huggingface.co</b><span>Model: LFM3-VL-2B (downloading)</span></div><em>0.8 GB</em></div>
     <div class="btns"><span class="btn">Export…</span><span class="btn red">Delete all</span></div>
   </div>
 </div><div class="gb"><span></span></div></div></div><figcaption><b>12</b> Privacy and network log</figcaption></figure>
@@ -384,7 +384,7 @@ light; their source is in <code>docs/mockups/</code>.</p>
 <div class="app">
   <div class="hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>Models</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
   <div class="pad">
-    <div class="stor"><div class="bar"><span style="width:2%"></span></div><span>3.7 GB used · 198 GB free</span></div>
+    <div class="stor"><div class="bar"><span style="width:2%"></span></div><span>3.3 GB used · 198 GB free</span></div>
     <div class="md on"><div class="mh"><b>LFM3-Omni-2B</b><span class="pill">In memory</span></div><span>Q4_K_M · 1.4 GB · <svg class="i s ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>verified</span><span class="for">Voice, camera, talk</span></div>
     <div class="md on"><div class="mh"><b>LFM3-1.7B</b><span class="pill">In memory</span></div><span>Q4_0 · 1.05 GB · <svg class="i s ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>verified</span><span class="for">Chat, tools, writing</span></div>
     <div class="md"><div class="mh"><b>LFM3-VL-2B</b><span class="pct">64%</span></div><span>Downloading through LFM Net · 0.8 of 1.25 GB</span><div class="bar"><span style="width:64%"></span></div><span class="for">Documents · checked against SHA-256 when done</span></div>
@@ -547,7 +547,7 @@ everything personal by splitting the product into two apps, signed with the same
 <tbody><tr>
 <td>Holds</td>
 <td>Models, chats, notes, ideas, journal, to-dos, contacts and calendar access, the network log</td>
-<td>Nothing: each answer and download goes straight to LFM (downloads through a temporary file, deleted after hand-over)</td>
+<td>No personal data: only its settings (provider address, key, proxy) and its latest result addresses, to check <code>fetch</code>. Answers go straight back to LFM; a download is streamed to LFM through a file descriptor (a pipe), not stored</td>
 </tr>
 <tr>
 <td><code>INTERNET</code> permission</td>
@@ -557,7 +557,7 @@ everything personal by splitting the product into two apps, signed with the same
 <tr>
 <td>What it can do</td>
 <td>Everything except the network</td>
-<td>Exactly three calls: <code>search(query)</code>, <code>fetch(url)</code> (only an address from its own latest search results), <code>download(model)</code> (only a pinned model from huggingface.co)</td>
+<td>Exactly three calls: <code>search(query)</code>, <code>fetch(url)</code> (only an address from its own latest search results), <code>download(model)</code> (only a pinned model from Hugging Face, which serves files from huggingface.co and its download CDN)</td>
 </tr>
 <tr>
 <td>Who can call it</td>
@@ -613,7 +613,11 @@ default, shown to you before they go (section 4). No code of ours runs on any se
 </tr>
 <tr>
 <td>Data stays on the phone</td>
-<td><code>allowBackup=&quot;false&quot;</code> and data-extraction rules that exclude everything from cloud backup and device-to-device transfer; data leaves only when you tap Export, Share or Copy</td>
+<td><code>allowBackup=&quot;false&quot;</code> and data-extraction rules that exclude everything from cloud backup and device-to-device transfer; data leaves LFM only when you tap Export, Share or Copy, or when a tool writes into another app (below)</td>
+</tr>
+<tr>
+<td>Tool writes are not hidden syncs</td>
+<td>An event, contact or alarm written by a tool belongs to that app: Google Calendar or Contacts sync it to your Google account if you use one. So LFM writes events to its own <strong>on-phone calendar</strong> (a local calendar, never synced) unless you pick another calendar, and the confirmation card names the calendar</td>
 </tr>
 <tr>
 <td>Optional lock</td>
@@ -626,14 +630,15 @@ fully offline phone.</p>
 <h2>4. Web search, kept private</h2>
 <p>What leaves the phone for one search: <strong>the search words</strong>, written by the model from your question and shown to you
 first (in &quot;Ask first&quot; mode), <strong>plus your API key</strong> if the provider needs one. No chat history, no names from your
-contacts, no journal text, no location, no cookies, no device ID; a plain fixed user agent. The model has no
+contacts, no journal text, no location, no cookies, no device ID; a fixed user agent naming only the app (&quot;LFM-Net/1.0&quot;), the same for everyone. The model has no
 location tool: a place is in a query only if you said it. Opening a result sends that page&#39;s address to that site, like a browser
 does. Your IP address is visible to the search provider and to opened sites; a VPN or Orbot hides it (optional
 setting: route LFM Net through a SOCKS proxy).</p>
 <p>Before a query goes out, LFM checks it on the phone for personal data (names in your contacts, phone numbers,
-e-mail addresses, addresses and places from your notes, words from your journal) and warns you if any is in it.</p>
+e-mail addresses, addresses and places from your notes, and names of people and places mentioned in your journal) and warns you if
+any is in it.</p>
 <p><strong>An API key is an identity.</strong> Brave and Mojeek need an account with a payment card [25][26], so every query sent
-with that key is tied to you and kept up to 90 days [25][27]. Only your own SearXNG and Wikipedia avoid that.</p>
+with that key is tied to you and, as reported, kept up to 90 days [25][27]. Only your own SearXNG and Wikipedia avoid that.</p>
 <p>Search providers (the owner picks one in Settings; all keys stay on the phone):</p>
 <table>
 <thead>
@@ -649,7 +654,7 @@ with that key is tied to you and kept up to 90 days [25][27]. Only your own Sear
 <td><strong>Your own SearXNG</strong></td>
 <td>None with anyone</td>
 <td>Free (runs on your own computer or server)</td>
-<td>Queries go from your server to Google, Bing and others mixed; you control the logs. JSON output must be on in its settings [24]</td>
+<td>No account, but Google, Bing and the others still see each query, coming from your home IP; you control your server&#39;s logs. JSON output must be on in its settings [24]</td>
 <td>Best privacy, if you have a machine to run it</td>
 </tr>
 <tr>
@@ -681,8 +686,10 @@ with that key is tied to you and kept up to 90 days [25][27]. Only your own Sear
 <td>Not recommended</td>
 </tr>
 </tbody></table>
-<p>Recommendation: <strong>your own SearXNG plus Wikipedia</strong>, which keeps the &quot;no accounts&quot; promise (it needs a home
-computer or small server you run). If you would rather not run one, Brave gives the best results, at the cost of an
+<p>Recommendation: <strong>your own SearXNG plus Wikipedia</strong>, which keeps the &quot;no accounts&quot; promise. It is your server, not
+ours, but it is a server: it needs a home computer or small server you run. The phone reaches it over your own
+WireGuard VPN (no account; the server is not exposed to the internet), or over HTTPS with a password if you
+prefer. If you would rather not run one, Brave gives the best results, at the cost of an
 account tied to your card.</p>
 <p><strong>Reading pages.</strong> LFM Net fetches a result page as text (only addresses from its latest results); LFM strips it to the article on the phone and the model answers
 with numbered sources. Option: &quot;Snippets only&quot; never opens pages.</p>
@@ -692,7 +699,7 @@ model proposes while web text is in the conversation always needs your tap, even
 <h2>5. Doing things on the phone (tool calls)</h2>
 <p><strong>What LFM3 brings.</strong> LFM3-1.7B was post-trained for tool use and agent harnesses: BFCL V4 71.4 and ToolSandbox
 80.4, ahead of Qwen3.5-9B on both [1][2]. Tools are passed through its chat template and calls come back as
-<code>&lt;tool_call&gt;</code> blocks [2]; llama.cpp can force valid arguments with a grammar [17]; its built-in parser is documented for LFM2 and LFM2.5, so
+<code>&lt;tool_call&gt;</code> blocks [2]; llama.cpp supports grammar-constrained sampling, which can force valid arguments [17]; its built-in parser is documented for LFM2 and LFM2.5, so
 whether it already reads LFM3&#39;s new format is checked in Phase 0 (if not, LFM parses the <code>&lt;tool_call&gt;</code> block itself). Omni&#39;s GGUF
 supports tool calls during live voice conversations [9], but Omni scores lower on Liquid&#39;s internal tool eval (52.2 with audio input [5]; Audio-2B 58.5 [4]), and there is no
 public benchmark for either. So the <strong>text model plans and calls tools</strong>; Omni hears and sees.</p>
@@ -716,7 +723,7 @@ public benchmark for either. So the <strong>text model plans and calls tools</st
 </tr>
 <tr>
 <td>Reminders</td>
-<td>Remind me at a time</td>
+<td>Remind me at a time (the default for &quot;remind me&quot;; Clock alarms only when you say &quot;alarm&quot;)</td>
 <td>LFM&#39;s own notification via <code>AlarmManager</code> exact alarm</td>
 <td>notifications, exact alarm</td>
 <td>No (shown in chat; undo)</td>
@@ -726,7 +733,7 @@ public benchmark for either. So the <strong>text model plans and calls tools</st
 <td>Set alarm or timer in the Clock app</td>
 <td><code>AlarmClock.ACTION_SET_ALARM</code> / <code>ACTION_SET_TIMER</code> with <code>EXTRA_SKIP_UI</code> [23]</td>
 <td><code>SET_ALARM</code> (normal) [23]</td>
-<td>No (undo)</td>
+<td><strong>Yes</strong> (Android has no call to delete an alarm, so no undo; you remove it in Clock)</td>
 </tr>
 <tr>
 <td>Calendar</td>
@@ -752,7 +759,7 @@ public benchmark for either. So the <strong>text model plans and calls tools</st
 <tr>
 <td>Messages</td>
 <td>Text someone</td>
-<td>Open Messages with recipient and text filled (<code>ACTION_SENDTO</code>); you press Send. Sending silently needs <code>SEND_SMS</code>, which Android restricts for sideloaded apps; whether &quot;Allow restricted settings&quot; unlocks it on Android 16 is unclear and checked in Phase 0 [28][29]</td>
+<td>Open Messages with recipient and text filled (<code>ACTION_SENDTO</code>); you press Send. Sending silently needs <code>SEND_SMS</code>, a <em>hard-restricted</em> permission: it is granted only if the installer allow-lists it, which <code>adb install</code> does by default; on Android 15+ sideloaded apps may also need &quot;Allow restricted settings&quot; [28][29]. Phase 0 tests an adb install</td>
 <td>none</td>
 <td><strong>Yes</strong> (you send it)</td>
 </tr>
@@ -780,7 +787,7 @@ public benchmark for either. So the <strong>text model plans and calls tools</st
 <tr>
 <td>Settings</td>
 <td>Wi-Fi, Bluetooth, mobile data</td>
-<td>Apps cannot switch these; LFM opens the system&#39;s quick panel for it</td>
+<td>Apps cannot switch these; LFM opens the system panel (Internet, Wi-Fi) or the Bluetooth settings screen</td>
 <td>none</td>
 <td>(you tap)</td>
 </tr>
@@ -799,16 +806,16 @@ public benchmark for either. So the <strong>text model plans and calls tools</st
 <td>Per search mode</td>
 </tr>
 </tbody></table>
-<p>Not possible today, said plainly: reading your SMS or other apps&#39; notifications (restricted for sideloaded apps;
-needs &quot;Allow restricted settings&quot; by hand), sending WhatsApp/Signal messages without their screen, and calling other
-apps&#39; functions. Android 16&#39;s <strong>AppFunctions</strong> is the future route for that, but it is experimental and &quot;only a
+<p>Not in this plan, said plainly: reading your SMS (hard-restricted, as above) or other apps&#39; notifications (needs
+notification access, which a sideloaded app only gets after &quot;Allow restricted settings&quot; by hand; possible, but a
+big privacy door), sending WhatsApp/Signal messages without their screen, and calling other apps&#39; functions. Android 16&#39;s <strong>AppFunctions</strong> is the future route for that, but it is experimental and &quot;only a
 limited number of apps and system agents can access the entire pipeline&quot; [22]; it is a follow-up, not in this plan.</p>
 <p><strong>Being the phone&#39;s assistant.</strong> LFM can be set as the default digital assistant app, so holding the power button
 (or a corner swipe) opens it straight into voice. A Quick Settings tile and a home-screen widget add &quot;Capture&quot; in
 one tap.</p>
 <p><strong>Safety rules for tools.</strong> Each action shows a confirmation card with the exact fields (who, what, when) and Edit,
-Cancel and a confirm button named for the action (Add, Send, Call). Per tool, the owner picks Always ask / Just do it (with undo); sending messages, calling, adding
-events and saving files start as Always ask. A history of every action is kept on the phone.</p>
+Cancel and a confirm button named for the action (Add, Send, Call). Per tool, the owner picks Always ask / Just do it; sending messages, calling, adding events, alarms
+and timers, maps and saving files start as Always ask (alarms and timers because they cannot be undone). A history of every action is kept on the phone.</p>
 <h2>6. Use cases, ranked</h2>
 <p>Ranked by how often the owner would use it, then by how proven the pieces are on a phone.</p>
 <table>
@@ -904,7 +911,7 @@ makes a to-do and a reminder → two small cards, each with Undo.</li>
 <li><strong>Ask with search:</strong> question → model decides it needs the web → (Ask first) query card &quot;Search for &#39;plumber
 call-out fee Leeds 2026&#39;&quot; with Edit / Send → LFM Net fetches results and the top three pages → answer with
 numbered sources.</li>
-<li><strong>Do something risky:</strong> &quot;Add dinner with Ana Friday 8 pm&quot; → confirmation sheet with title, time, calendar → Confirm
+<li><strong>Do something risky:</strong> &quot;Add dinner with Ana Friday 8 pm&quot; → confirmation sheet with title, time, calendar → Add
 → event added → &quot;Added. Undo&quot;.</li>
 <li><strong>First run:</strong> pick search mode (Off is fine) → download or import Omni and text models (2.5 GB, with hash checks)
 → grant permissions only when a tool first needs them.</li>
@@ -922,7 +929,7 @@ minutes (Omni and text reload in seconds). Search and fetches are small network 
 <li>Kotlin, Jetpack Compose, Material 3 components with a flat custom theme.</li>
 <li>llama.cpp (git submodule) built with the NDK for <code>arm64-v8a</code>, <code>LLAMA_BUILD_MTMD=ON</code>, network code off, behind a JNI
 layer: load, generate (streamed), image and audio input, speech output, tool-call parsing with grammars [15][17].</li>
-<li>Room with SQLite FTS5 for notes, ideas, journal, to-dos and chats (on-phone search); DataStore for settings.</li>
+<li>Room with SQLite full-text search (FTS4 through Room; FTS5 through raw SQL if needed) for notes, ideas, journal, to-dos and chats (on-phone search); DataStore for settings.</li>
 <li>CameraX, <code>AudioRecord</code> 16 kHz, <code>AudioTrack</code> 24 kHz, <code>PdfRenderer</code>, Photo Picker.</li>
 <li><code>VoiceInteractionService</code> to be the default assistant; a Quick Settings tile and a Glance widget.</li>
 <li>LFM Net: a separate tiny app (OkHttp, no other libraries), bound service with a signature permission.</li>
@@ -933,7 +940,7 @@ layer: load, generate (streamed), image and audio input, speech output, tool-cal
 <li><strong>Phase 0, spike.</strong> On the Pixel: speed, memory, heat and battery drain for text, Omni and VL at Q4/Q8; GPU
 (Vulkan) test; whether LFM3 converts for the Tensor TPU (Tensor ML SDK beta [19]); Omni speech in and out
 in-process; llama.cpp parsing of LFM3 tool calls; tool-call accuracy of 1.7B on a 50-command test set of the
-owner&#39;s own phrasing; SMS permission on a sideloaded APK. Output: numbers, a go/no-go for Talk, and the tool list
+owner&#39;s own phrasing; <code>SEND_SMS</code> on an adb-installed APK. Output: numbers, a go/no-go for Talk, and the tool list
 that works well enough.</li>
 <li><strong>Phase 1, core.</strong> LFM shell (Today, Chat, Settings), no-<code>INTERNET</code> build check, models import, chat with 1.7B.</li>
 <li><strong>Phase 2, capture and library.</strong> Notes, ideas, journal, to-dos, FTS search, voice capture with Omni, sorting.</li>
@@ -982,9 +989,10 @@ network log, model downloads.</li>
 <li>Is the two-app split (LFM with no network, LFM Net for search and downloads) right, or is one app with a network
 allow-list enough for you?</li>
 <li>Search provider: your own SearXNG (no account; do you have a computer or server to run it?), or Brave with your
-own key (best results, but an account with your card; queries kept up to 90 days)?</li>
+own key (best results, but an account with your card; queries reportedly kept up to 90 days)?</li>
 <li>Search mode by default: Ask first (recommended), Automatic, or Off?</li>
-<li>Which actions may run without asking (with undo)? Proposed: reminders, alarms, timers, torch, sound mode.</li>
+<li>Which actions may run without asking (with undo)? Proposed: reminders, torch, sound mode, Do Not Disturb.
+Alarms and timers ask, since they cannot be undone.</li>
 <li>Messages: is &quot;Messages opens with the text ready, you press Send&quot; fine, or should Phase 0 try silent sending
 (restricted for sideloaded apps; may not be possible)?</li>
 <li>Should LFM be the phone&#39;s default assistant (power-button hold), replacing Gemini?</li>
