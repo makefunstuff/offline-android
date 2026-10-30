@@ -129,7 +129,7 @@ const sToday = phone("S", `${sb()}<div class="app">
   <div class="pad">
     <div class="s-comp"><span>Ask, capture or do…</span>${i("camera")}<span class="s-mic">${i("mic")}</span></div>
     <div class="s-lab mt">Today · 3 things</div>
-    <div class="s-row next"><span class="s-t">15:30</span><div><b>Design review</b><span>Room 4 · 45 min</span></div><span class="s-next">Next</span></div>
+    <div class="s-row next"><span class="s-t"><span>15:30</span></span><div><b>Design review</b><span>Room 4 · 45 min</span></div><span class="s-next">Next</span></div>
     <div class="s-row"><span class="s-t">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
     <div class="s-row last"><span class="s-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div>${i("right", "dim")}</div>
     <div class="s-lab mt">Just captured</div>
@@ -157,21 +157,24 @@ const sJournal = phone("S", `${sb()}<div class="app">
     <div class="s-je"><span class="s-mood m1"></span><p>Lunch with Mia, laughed a lot.</p></div>
   </div></div>${navd("Library")}${gb}`);
 
-const DIRS = [
-  ["A", "Signal (as picked)", "Bold type, ink black and one hot tomato colour. Big numbers, square edges, thick lines. Confident and fast to scan.", ["#0a0a0a", "#ff4f1f", "#ffffff"], "Motion: snappy, short slides; numbers tick.", [aToday, aChat, aJournal]],
-  ["A′", "Signal, calm", "Same structure: clear rows, big numbers, square-ish edges. Quieter: medium weights, 1 px warm-grey lines, off-black on warm white, and one muted coral used only for the mic and the next thing.", ["#26231f", "#faf8f5", "#b34b30", "#e4dfd7"], "Motion: short, soft slides; the next item's time ticks over.", [sToday, sChat, sJournal]],
-];
 const OTHER = [
   ["B", "Bloom", "Material 3 Expressive: playful shapes (the mic and avatar are soft 'cookies'), colour blocks per kind of thing, big rounded type. Friendly and easy to tap.", ["#6b4eff", "#e9ddff", "#c9f0d8", "#ffdcc7"], "Motion: springy; buttons squish on press, shapes morph.", [bToday, bChat, bJournal]],
   ["C", "Paper", "A warm notebook: dotted paper, serif headings, terracotta and olive, small hand-drawn doodles, entries stamped like a diary. The most personal.", ["#f6efe4", "#c4532d", "#6b7a3a", "#d9a23b"], "Motion: gentle fades; ink draws the squiggles in.", [cToday, cChat, cJournal]],
 ];
 
-export const html = `<h2 id="directions">Signal, calmed down: confirm before the redraw</h2>
-<p class="cap">The owner picked A (Signal) and found it too loud. Left: A as picked. Right: A′, the calmer version, on the same three screens. Flat (no gradients or glows), dark and light. Once A′ is confirmed, all 13 screens are redrawn in it. B and C stay at the end of the mock-ups for reference.</p>
+const PALS = [
+  ["P1", "Cobalt", "Cool ink on pure white, cool grey lines, one electric cobalt blue for the mic and the next item.", ["#12151a", "#ffffff", "#1f4fff", "#e3e6eb"]],
+  ["P2", "Graphite + lime", "Neutral graphite greys, no tint; an acid lime for the mic (deep green for the next time in light mode, where lime text would be unreadable).", ["#1c1c1e", "#fafafa", "#a6e22e", "#3d7a00"]],
+  ["P3", "Ink + highlighter", "Near-black and white only; the accent is a highlighter yellow, used as a marker behind the next time and on the mic.", ["#0b0b0c", "#ffffff", "#ffd400", "#e4e4e7"]],
+];
+const pal = (scr, k) => scr.replace('class="dph S"', `class="dph S ${k}"`);
+
+export const html = `<h2 id="directions">Signal (A′): pick a palette</h2>
+<p class="cap">A′'s structure, type and 1 px lines are unchanged; only the colours differ. True neutral or cool greys, no beige; one accent each, used only on the mic and the next item. Shown on Today and Chat, dark and light. Once a palette is picked, all 13 screens are redrawn in it. Earlier directions B and C stay at the end of the mock-ups.</p>
 <div class="themes" id="themesDir" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
-<div class="dirs" id="dirs">${DIRS.map(([k, name, desc, sw, motion, screens]) => `
-<section class="dcol"><div class="dhead"><span class="dk">${k}</span><div><b>${name}</b><p>${desc}</p><div class="sws">${sw.map((c) => `<i style="background:${c}"></i>`).join("")}</div><p class="mo">${motion}</p></div></div>
-${screens.map((s, n) => `<figure>${s}<figcaption>${k}${n + 1} · ${["Today", "Chat with a tool card", "Journal"][n]}</figcaption></figure>`).join("\n")}
+<div class="dirs" id="dirs">${PALS.map(([k, name, desc, sw]) => `
+<section class="dcol"><div class="dhead pal"><span class="dk">${k.slice(1)}</span><div><b>${name}</b><p>${desc}</p><div class="sws">${sw.map((c) => `<i style="background:${c}"></i>`).join("")}</div></div></div>
+${[sToday, sChat].map((scr, n) => `<figure>${pal(scr, k)}<figcaption>${name} · ${["Today", "Chat with a tool card"][n]}</figcaption></figure>`).join("\n")}
 </section>`).join("")}
 </div>`;
 export const others = `<h2 id="other-directions">Other directions (not picked)</h2>
@@ -241,11 +244,11 @@ export const css = `
 .s-h2{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--t1)}
 .s-comp{display:flex;align-items:center;gap:12px;border:1px solid var(--ctl);background:var(--s1);border-radius:8px;height:52px;padding:0 5px 0 14px;font-size:15px}
 .s-comp>span:first-child{flex:1;color:var(--t2)}.s-comp>.i{color:var(--t2)}.s-comp.in{margin:8px 12px 10px}
-.s-mic{width:42px;height:42px;border-radius:6px;background:var(--ac);color:var(--onac);display:flex;align-items:center;justify-content:center}
+.s-mic{width:42px;height:42px;border-radius:6px;border:1px solid var(--micb,transparent);box-sizing:border-box;background:var(--acfill,var(--ac));color:var(--onac);display:flex;align-items:center;justify-content:center}
 .s-row{display:flex;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--ln)}.s-row.last{border-bottom:1px solid var(--ln)}
 .s-row div{flex:1;display:flex;flex-direction:column}.s-row span{color:var(--t2);font-size:12.5px}.s-row b{font-size:15.5px;font-weight:600}
 .s-t{font-size:24px!important;font-weight:500;letter-spacing:-.02em;width:76px;color:var(--t1)!important;font-variant-numeric:tabular-nums}
-.s-row.next .s-t{color:var(--ac)!important}.s-next{font-size:12px!important;font-weight:500;color:var(--t2)!important}
+.s-row.next .s-t{color:var(--ac)!important}.s-row.next .s-t span{background:var(--mark,transparent);padding:0 3px;margin-left:-3px;font-size:inherit!important;color:inherit!important}.s-next{font-size:12px!important;font-weight:500;color:var(--t2)!important}
 .s-cap{border:1px solid var(--ln);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}.s-cap b{font-size:16px;font-weight:600}.s-cap span{color:var(--t2);font-size:12.5px}
 .s-hdr{display:flex;align-items:center;gap:14px;padding:10px 16px 12px;border-bottom:1px solid var(--ln)}.s-hdr b{flex:1;font-size:18px;font-weight:600}.s-hdr .i{color:var(--t2)}
 .s-thread{display:flex;flex-direction:column;gap:10px;padding-top:14px}
@@ -258,9 +261,18 @@ export const css = `
 .s-ai{font-size:19px;font-weight:500;letter-spacing:-.01em;line-height:1.3;margin-top:4px}.s-meta{display:block;font-size:12px;font-weight:400;color:var(--t2);margin-top:6px;letter-spacing:0}
 .s-prompt{background:var(--s1);border:1px solid var(--ln);border-radius:8px;padding:16px;margin-top:14px}.s-prompt b{display:block;font-size:21px;font-weight:600;line-height:1.2;letter-spacing:-.015em;margin:6px 0 14px}
 .s-pa{display:flex;gap:8px}.s-pa span{display:flex;align-items:center;gap:6px;border:1px solid var(--ln);background:var(--bg);border-radius:6px;padding:8px 14px;font-size:13.5px;font-weight:500}
-.s-pa{align-items:center}.s-pa .s-mic{background:var(--ac);border-color:var(--ac);color:var(--onac);padding:0;width:40px;height:38px;justify-content:center}.s-pa em{font-style:normal;font-size:12.5px;color:var(--t2)}
+.s-pa{align-items:center}.s-pa .s-mic{background:var(--acfill,var(--ac));border-color:var(--micb,var(--ac));color:var(--onac);padding:0;width:40px;height:38px;justify-content:center}.s-pa em{font-style:normal;font-size:12.5px;color:var(--t2)}
 .s-day{display:flex;align-items:baseline;gap:10px;margin:20px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--ln)}.s-big{font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1}
 .s-je{display:flex;gap:12px;padding:8px 0}.s-je p{margin:0;font-size:15px}.s-mood{width:9px;height:9px;flex:none;margin-top:6px;border-radius:2px}.s-mood.m1{background:var(--t1)}.s-mood.m2{border:1px solid var(--t2)}
+
+/* A′ palettes: only colours change */
+.dph.S.P1{--bg:#ffffff;--t1:#12151a;--t2:#5b6270;--t3:#8a919c;--ln:#e3e6eb;--s1:#f3f5f8;--ctl:#7d8591;--ac:#1f4fff;--acfill:#1f4fff;--onac:#ffffff;--acb:#e8ecf3;--acf:#12151a}
+.dirs.dark .dph.S.P1{--bg:#0d1014;--t1:#e8ebf0;--t2:#9aa1ad;--t3:#6f7682;--ln:#262b33;--s1:#171b21;--ctl:#6a717d;--ac:#6b8cff;--acfill:#5b7fff;--onac:#0d1014;--acb:#1f242c;--acf:#e8ebf0}
+.dph.S.P2{--bg:#fafafa;--t1:#1c1c1e;--t2:#5f5f66;--t3:#8e8e95;--ln:#e2e2e5;--s1:#f1f1f2;--ctl:#808088;--ac:#3d7a00;--acfill:#a6e22e;--micb:#3d7a00;--onac:#1c1c1e;--acb:#e9e9eb;--acf:#1c1c1e}
+.dirs.dark .dph.S.P2{--bg:#111112;--t1:#ececee;--t2:#a0a0a7;--t3:#6f6f76;--ln:#2a2a2d;--s1:#1b1b1d;--ctl:#6b6b73;--ac:#b5f23d;--acfill:#b5f23d;--micb:transparent;--onac:#111112;--acb:#232325;--acf:#ececee}
+.dph.S.P3{--bg:#ffffff;--t1:#0b0b0c;--t2:#5c5c62;--t3:#8b8b92;--ln:#e4e4e7;--s1:#f4f4f5;--ctl:#8b8b92;--ac:#0b0b0c;--acfill:#ffd400;--micb:#0b0b0c;--mark:#ffd400;--onac:#0b0b0c;--acb:#ececee;--acf:#0b0b0c}
+.dirs.dark .dph.S.P3{--bg:#09090a;--t1:#f2f2f3;--t2:#9d9da4;--t3:#6c6c74;--ln:#27272a;--s1:#161618;--ctl:#6a6a72;--ac:#ffd400;--acfill:#ffd400;--micb:transparent;--mark:transparent;--onac:#09090a;--acb:#1f1f22;--acf:#f2f2f3}
+.dhead.pal{min-height:120px}
 
 /* B Bloom */
 .dph.B{--bg:#fbf8ff;--t1:#1b1a21;--t2:#5c5868;--ln:#e7e0f2;--ac:#6b4eff;--acb:#e9ddff;--acf:#3b22c9;--lil:#e9ddff;--min:#c9f0d8;--pea:#ffdcc7;--sky:#d3e4ff;--on:#1b1a21}
