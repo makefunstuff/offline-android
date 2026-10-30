@@ -271,7 +271,7 @@ export const css = `
 .dph.S.P2{--bg:#fafafa;--t1:#1c1c1e;--t2:#5f5f66;--t3:#8e8e95;--ln:#e2e2e5;--s1:#f1f1f2;--ctl:#808088;--ac:#3d7a00;--acfill:#a6e22e;--micb:#3d7a00;--onac:#1c1c1e;--acb:#e9e9eb;--acf:#1c1c1e}
 .dirs.dark .dph.S.P2{--bg:#111112;--t1:#ececee;--t2:#a0a0a7;--t3:#6f6f76;--ln:#2a2a2d;--s1:#1b1b1d;--ctl:#6b6b73;--ac:#b5f23d;--acfill:#b5f23d;--micb:transparent;--onac:#111112;--acb:#232325;--acf:#ececee}
 .dph.S.P3{--bg:#ffffff;--t1:#0b0b0c;--t2:#5c5c62;--t3:#8b8b92;--ln:#e4e4e7;--s1:#f4f4f5;--ctl:#8b8b92;--ac:#0b0b0c;--acfill:#ffd400;--micb:#0b0b0c;--mark:#ffd400;--onac:#0b0b0c;--acb:#ececee;--acf:#0b0b0c}
-.dirs.dark .dph.S.P3{--bg:#09090a;--t1:#f2f2f3;--t2:#9d9da4;--t3:#6c6c74;--ln:#27272a;--s1:#161618;--ctl:#6a6a72;--ac:#ffd400;--acfill:#ffd400;--micb:transparent;--mark:transparent;--onac:#09090a;--acb:#1f1f22;--acf:#f2f2f3}
+.dirs.dark .dph.S.P3{--bg:#09090a;--t1:#f2f2f3;--t2:#9d9da4;--t3:#6c6c74;--ln:#27272a;--s1:#161618;--ctl:#6a6a72;--ac:#09090a;--acfill:#ffd400;--micb:transparent;--mark:#ffd400;--onac:#09090a;--acb:#1f1f22;--acf:#f2f2f3}
 .dhead.pal{min-height:120px}
 
 /* B Bloom */
