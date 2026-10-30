@@ -15,25 +15,26 @@ LFM3 model to fall back on.
 | Model | Size | In | Out | Context | Notes |
 |---|---|---|---|---|---|
 | **LFM3-1.7B** (text) | 1.73B | text | text | 256K | Reasoning ("thinking") on by default, and turning it off "can be inconsistent"; tool calls; 16 languages [2] |
-| **LFM3-VL-2B** (vision) | 1.92B (1.73B LM + 164M vision encoder) | text, image, video | text | 128K | DocVQA 96.7, OCRBench v1 86.3, ChartQA 92.7; video at 2 fps; "not recommended for … multi-turn conversations" [3] |
+| **LFM3-VL-2B** (vision) | 1.92B (1.73B LM + 164M vision encoder + 25M projector) | text, image, video | text | 128K | DocVQA 96.7, OCRBench v1 86.3, ChartQA 92.7; video at 2 fps; "not recommended for … multi-turn conversations" [3] |
 | **LFM3-Audio-2B** | 2B | text, 16 kHz audio | text, 24 kHz speech | 32K | ASR: 6.23 WER (English), 6.03 (FLEURS, 9 languages); live ASR and voice chat are English only [4] |
 | **LFM3-Omni-2B** | 2.17B | text, image, video, audio | text, speech, both mixed | 32K | Non-reasoning; ASR 6.36 WER (English), 6.72 (FLEURS); female or male voice; speech in 19 languages/locales; translation best to or from English [5] |
 | d1-2B, d1-Omni-2B | ~2B | (as VL / Omni) | typed answers with probabilities | 128K (d1-2B) | Built for routing and tagging; not needed here [6] |
 
 - **Formats.** Liquid publishes GGUF for all four main models: Q4_0, Q4_K_M, Q8_0, F16 and BF16 for each, plus
   Q5_K_M and Q6_K for the text and VL models. There are ONNX and MLX builds of all four, and
-  FP8 and NVFP4 for text and VL [7]. Q4_0 of the text and VL models is a quantization-aware checkpoint trained to
-  recover what 4-bit loses [8][10].
+  FP8 and NVFP4 for text and VL [7]. Q4_0 of the text and VL models is a quantization-aware distillation (QAD) checkpoint
+  trained to recover what 4-bit loses [8][10].
 - **Sizes on disk (Q4).** Text 1.05–1.1 GB. VL 1.05–1.1 GB plus a 203 MB image projector (`mmproj`, Q8_0). Omni
   1.1 GB plus a 292 MB projector that holds its vision, audio-in and speech-out parts (Q4_K_M). Audio 1.1 GB plus a
   172 MB projector [8][9][10][11].
-- **A LiteRT build** of the text model exists (int4 and int8, 2K or 4K context only) [12]. I found no ExecuTorch or
-  MediaPipe build on Hugging Face.
+- **A LiteRT build** of the text model exists (int4 and int8, 2K or 4K context only) [12]. A third-party ExecuTorch
+  export of text, VL and Audio exists (XNNPACK 8da4w, 8K context, built for React Native; no Omni) [21]. I found no
+  MediaPipe build.
 - **Phone fit.** At 4-bit the text model takes about 1 GB [1]. Liquid reports 43.6 tokens/s decode on an iPhone 17
   Pro with llama.cpp Q4_0 at 32K context, using 1.9 GB (Liquid's chart, as relayed by [13]). The KV cache at 128K
   context is 1.6 GB [1].
-- **Licence.** LFM Open License v1.0. Free for personal and research use; an entity with US$10M or more in yearly
-  revenue is not licensed for commercial use [14]. A private app for the owner is fine; selling it later needs a check.
+- **Licence.** LFM Open License v1.0. Free for personal, research and commercial use, except that an entity with US$10M or more in
+  yearly revenue is not licensed for commercial use [14]. A private app for the owner is fine; selling it later needs a check.
 - **Honest limits.** The model cards say the text and audio models are "not recommended for agentic coding or complex
   multi-step reasoning" and that knowledge-heavy questions want retrieval [2][4]. The text model trails Qwen3.5-9B on
   knowledge (GPQA 63.4 vs 80.4) and long-context recall (RULER 128K 65.6 vs 87.1) [1]. Treat it as a quick, private
@@ -45,21 +46,22 @@ LFM3 model to fall back on.
 |---|---|---|---|
 | **llama.cpp** (NDK + JNI) | All four models as GGUF (b11960+); images and audio in through `mtmd` and the projector file [8][9][10]. Omni speech out through the `llama-tts` tool (language and voice options), and live voice conversation through the `/v1/realtime` WebSocket of `llama serve` [9] | CPU (arm64, runtime feature detection). Vulkan and OpenCL backends exist but "need device-specific testing"; OpenCL targets Adreno, and the Pixel's GPU is an Imagination PowerVR DXT-48-1536 [15][16]. No Tensor TPU backend | **Use this.** Liquid's own docs now point here [17] |
 | Liquid LEAP SDK | Deprecated, frozen at v0.10.x, not updated for new checkpoints [18] | | No |
-| LiteRT-LM | Text model only, 2K/4K context, CPU and GPU; no NPU build [12] | GPU yes. Tensor TPU access is in beta (May 2026) but the only language models it names are Gemma 3 1B and FunctionGemma [19] | Later option for faster text-only chat |
+| LiteRT-LM | Text model only, 2K/4K context, CPU and GPU; no NPU build [12] | GPU yes. Tensor TPU access is in beta (May 2026) but the only language models it names are Gemma 3 1B and FunctionGemma (plus EmbeddingGemma) [19] | Later option for faster text-only chat |
 | MediaPipe LLM Inference | No LFM3 build found | | No |
-| ExecuTorch | No LFM3 export found | | No |
+| ExecuTorch | Third-party export of text, VL and Audio, 8K context, no Omni [21] | CPU (XNNPACK) | No: no Omni, short context, no gain over llama.cpp |
 | ONNX Runtime | ONNX builds of all four [7] | CPU | No: no gain over llama.cpp |
 
 **Speech out without a network.** An app without the `INTERNET` permission cannot open network sockets, not even to
 itself on `localhost`, so the `llama serve` endpoints cannot be used as they are. Read-aloud is low risk: `llama-tts`
-is a standalone tool whose code can be called in-process through JNI. Live Talk is the real risk: its streaming
+is a standalone tool whose code can be called in-process through JNI. Liquid's own `llama-tts` example uses the Q8_0 projector (507 MB), so Phase 0 also checks speech quality with the
+smaller Q4_K_M one. Live Talk is the real risk: its streaming
 turn-taking lives in the server's `/v1/realtime` code, which would have to be driven in-process too. Phase 0 proves
 both. Fallback for read-aloud only: Android's system text-to-speech with an offline voice. That hands the answer text
 to the system speech app (a separate app that does have network), so it would be an opt-in setting, off by default.
 
 **Speed and memory estimates for the Pixel 10 Pro** (Tensor G5: 1× Cortex-X4, 5× Cortex-A725, 2× A520; 16 GB RAM
 [16]). Nobody has published LFM3 numbers on this chip. Nearby points: LiteRT LFM3-1.7B on a Pixel 8a gives 12–15
-tokens/s and on a Galaxy S26 27–36 tokens/s [12]; llama.cpp on an iPhone 17 Pro gives 43.6 [13]. *Estimate* for
+tokens/s and on a Galaxy S26 27–36 tokens/s, CPU and GPU runs alike, at 2K–4K context [12]; llama.cpp on an iPhone 17 Pro gives 43.6, backend not stated (likely its GPU) [13]. *Estimate* for
 llama.cpp Q4 on the G5's CPU: about 20–30 tokens/s decode and a few hundred tokens/s prefill, using about 2–3 GB of
 memory for Omni plus its projector at a few thousand tokens of context. Sustained runs will throttle. The GPU is
 untested for this: the only data point is one unconfirmed 2025 Vulkan score, well below the Pixel 9 Pro's and possibly
@@ -70,8 +72,9 @@ a driver issue [20]. So the plan starts on the CPU and treats the GPU as a bonus
 
 The app ships **without the `INTERNET` permission**. Android then refuses every network socket the app opens, so no
 code in it (ours or a library's) can talk to the network directly. This is enforced by the operating system, not by a
-promise. The one way out left is handing data to another app (an intent or a service call); the app does that only
-when the owner taps Export or Share, exports no services, and shows web links as text to copy, never as tappable links.
+promise. What is left is handing data to another app (intents, services, local sockets, the clipboard, shared storage); the
+app does that only when the owner taps Export, Share or Copy, exports no services or providers, opens no local
+sockets, writes only to its private storage, and shows web links as text to copy, never as tappable links.
 
 Models arrive one of two ways, both owner-driven:
 
@@ -92,9 +95,9 @@ Ranked by everyday use offline, then by how proven the pieces are on a phone (sp
 |---|---|---|---|
 | 1 | **Ask about this**: point the camera, or share a photo or screenshot, and ask | Omni | Reads text and scenes well; facts about what it sees may be wrong; no web lookups |
 | 2 | **Voice notes to summaries**: record, get a transcript, summary and to-dos | Omni; Audio for live captions (optional) | 32K context means long recordings are cut into parts and summarised in steps; live captions English only |
-| 3 | **Read a document**: screenshots, photos of pages, PDFs → extract text, summarise, translate | VL extracts the text (best OCR, 128K); questions about it go to the text model or Omni | VL is not meant for back-and-forth, so it does one pass per page. *Estimate*: a 20-page PDF takes minutes. Handwriting untested |
+| 3 | **Read a document**: screenshots, photos of pages, PDFs → extract text, summarise, translate | VL extracts the text (strong OCR scores, 128K); questions about it go to the text model or Omni | VL is not meant for back-and-forth, so it does one pass per page. *Estimate*: a 20-page PDF takes minutes. Handwriting untested |
 | 4 | **Private chat and journal**: talk it through, write entries, ask "what did I say about…" | Text 1.7B (256K, reasoning); Omni for short chats until it is imported | Reasoning makes answers slower; RULER 128K is 65.6, so recall over very long journals is weak; plain search finds entries first |
-| 5 | **Talk hands-free**: voice in, spoken answer out | Omni | Omni lists 19 speech languages, but voice chat quality outside English is unstated; in-process speech out is unproven (Phase 0); drains battery |
+| 5 | **Talk hands-free**: voice in, spoken answer out | Omni | Omni lists 18 speech languages, but voice chat quality outside English is unstated; in-process speech out is unproven (Phase 0); drains battery |
 | 6 | **Translate**: text, photo or speech | Omni | Best to or from English; not for legal or medical text |
 
 The default install is **one model, LFM3-Omni-2B (about 1.4 GB with its projector at Q4_K_M)**, which covers cases
@@ -104,7 +107,7 @@ The default install is **one model, LFM3-Omni-2B (about 1.4 GB with its projecto
 
 ### Screens and flows
 
-1. **Home.** Five large modes: Ask, Notes, Read, Chat, Talk. Below: recent items. A small "Offline" badge always on.
+1. **Home.** Six large modes: Ask, Notes, Read, Chat, Talk, Translate. Below: recent items. A small "Offline" badge always on.
 2. **Ask (camera).** Full-screen CameraX view, a shutter, and a question field (type or hold to speak). Shared images
    from other apps (share sheet → "Ask LFM") open here with the picture already in.
 3. **Answer / chat thread.** Streaming answer, the picture as a thumbnail, follow-up field, stop button, a speaker
@@ -113,14 +116,16 @@ The default install is **one model, LFM3-Omni-2B (about 1.4 GB with its projecto
    After recording: transcript, summary, to-dos, each editable.
 5. **Read.** Pick a PDF or images, or share a screenshot. Shows page thumbnails, extracted text, and a question field.
 6. **Chat / Journal.** Plain chat with the text model; journal entries are chats marked "journal", searchable.
-7. **Talk.** One big circle: tap to talk, tap to stop. Live transcript under it.
-8. **Models.** Installed models with size, quantisation, verified mark, "in use"; Import, Delete, and Set default per
+7. **Talk.** One big circle that shows listening or speaking; a stop button ends the talk. Live transcript under it.
+8. **Translate.** Type, paste, photograph or speak; pick the target language; the result can be read aloud.
+9. **Models.** Installed models with size, quantisation, verified mark, "in use"; Import, Delete, and Set default per
    mode. Shows storage used and free.
-9. **Privacy.** States the guarantees below and shows proof: "Network permission: not granted" (read from the app's
+10. **Privacy.** States the guarantees below and shows proof: "Network permission: not granted" (read from the app's
    own package info), data size, Export (to a file the owner picks), Delete everything.
-10. **Settings.** Threads, context size, answer length, thinking on/off, thermal behaviour, app lock (biometric).
+11. **Settings.** Threads, context size, answer length, thinking on/off, thermal behaviour, app lock (biometric).
 
-The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not measured.
+The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not measured. The mock-ups are in the
+Shepherdr artifact "LFM3 on Pixel: spec + mock-ups"; Chat, Translate, Settings and Import are not drawn yet.
 
 ### Model management
 
@@ -161,7 +166,7 @@ The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not
 ## 6. Build plan (follow-up tasks)
 
 1. **Phase 0, spike.** A bare app with llama.cpp + `mtmd` on the Pixel: measure decode, prefill, memory and heat for
-   text, VL and Omni at Q4_0, Q4_K_M and Q8_0; test the Vulkan backend on the PowerVR GPU; prove Omni audio in and
+   text, VL, Omni and Audio at Q4_0, Q4_K_M and Q8_0; test the Vulkan backend on the PowerVR GPU and whether LFM3 converts for the Tensor TPU (Tensor ML SDK beta); prove Omni audio in and
    speech out in-process (no sockets); battery drain per answer and per minute of Talk. Output: numbers and a
    go/no-go for Talk and read-aloud.
 2. **Phase 1, core.** App shell, no-`INTERNET` build check, model import and verify, Models screen, chat with Omni and
@@ -173,19 +178,7 @@ The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not
 6. **Phase 5, Talk.** Voice in, speech out, spoken translation (if Phase 0 says go).
 7. **Phase 6, polish.** Thermal handling, app lock, export and wipe, Journal search.
 
-## 7. Open questions for the owner
-
-1. Is "no network permission; you import model files yourself" acceptable, or do you want a separate download
-   helper app (it would have network; this app still would not)?
-2. Default model: Omni only (about 1.4 GB), or Omni, VL and text from the start (about 3.7 GB at Q4)?
-3. Q4 (smaller, faster) or Q8 (likely more accurate; Omni about 2.4 GB and VL about 2.1 GB with projectors) as the default?
-4. Which languages matter to you? Live captions are English only, and voice quality outside English is unknown.
-5. Is live Talk (hands-free voice) a must, or fine to drop if Phase 0 shows it is slow or cannot run in-process?
-   Read-aloud would stay.
-6. Journal: do you want an app lock and a separate encrypted store, or is the phone's own lock enough?
-7. Sideloaded APK only, or should it be ready for the Play Store some day (affects the licence check)?
-
-## Sources
+## 7. Sources
 
 1. Liquid AI, "Introducing LFM3: Every Modality for Specialized Intelligence", 27 Oct 2026 — https://www.liquid.ai/blog/lfm3
 2. LFM3-1.7B model card — https://huggingface.co/LiquidAI/LFM3-1.7B
@@ -207,3 +200,16 @@ The numbers in the mock-ups (speeds, sizes in use, counts) are illustrative, not
 18. Liquid docs, LEAP SDK (deprecated) — https://docs.liquid.ai/deployment/on-device/sdk/overview
 19. Google, "Google Tensor SDK Beta with LiteRT", 19 May 2026 — https://developers.googleblog.com/en/google-tensor-sdk-beta-with-litert/
 20. TechNews, Tensor G5 GPU Vulkan score — https://technews.tw/2025/08/26/googles-tensor-g5-processor-gpu-performance-is-poor/
+21. Software Mansion, ExecuTorch exports of LFM3 — https://huggingface.co/software-mansion/react-native-executorch-lfm-3
+
+## 8. Open questions for the owner
+
+1. Is "no network permission; you import model files yourself" acceptable, or do you want a separate download
+   helper app (it would have network; this app still would not)?
+2. Default model: Omni only (about 1.4 GB), or Omni, VL and text from the start (about 3.7 GB at Q4)?
+3. Q4 (smaller, faster) or Q8 (likely more accurate; Omni about 2.4 GB and VL about 2.1 GB with projectors) as the default?
+4. Which languages matter to you? Live captions are English only, and voice quality outside English is unknown.
+5. Is live Talk (hands-free voice) a must, or fine to drop if Phase 0 shows it is slow or cannot run in-process?
+   Read-aloud would stay.
+6. Journal: do you want an app lock and a separate encrypted store, or is the phone's own lock enough?
+7. Sideloaded APK only, or should it be ready for the Play Store some day (affects the licence check)?
