@@ -1,16 +1,16 @@
 package com.lfmpixel.lfm.llm
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.buffer
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.asCoroutineDispatcher
 
 /** The native side; see app/src/main/cpp/lfm_jni.cpp. */
@@ -37,9 +37,9 @@ object LlamaNative {
     external fun load(path: String, nCtx: Int, nThreads: Int): Long
     external fun loadProjector(handle: Long, path: String): Boolean
     external fun free(handle: Long)
-    external fun countTokens(handle: Long, text: String): Int
-    external fun generate(handle: Long, prompt: String, maxTokens: Int, temp: Float, topP: Float, seed: Int, listener: TokenListener): Int
-    external fun transcribe(handle: Long, pcm: FloatArray, prompt: String, maxTokens: Int, listener: TokenListener): Int
+    external fun countTokens(handle: Long, text: ByteArray): Int
+    external fun generate(handle: Long, prompt: ByteArray, maxTokens: Int, temp: Float, topP: Float, seed: Int, listener: TokenListener): Int
+    external fun transcribe(handle: Long, pcm: FloatArray, prompt: ByteArray, maxTokens: Int, listener: TokenListener): Int
     external fun lastStats(handle: Long): DoubleArray
 }
 
@@ -67,43 +67,51 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
         }
     }
 
-    suspend fun loadProjector(path: String): Boolean = mutex.withLock {
-        withContext(dispatcher) { LlamaNative.loadProjector(handle, path) }
+    /** The session was freed (idle unload, a new import, a settings change): get a new one from ModelManager. */
+    val isClosed get() = closed
+    private var lastStats = GenStats(0.0, 0, 0.0, 0, 0)
+
+    // Every native call holds the mutex and checks [closed], so a freed handle never reaches native code.
+    private suspend fun <T> native(block: () -> T): T = mutex.withLock {
+        withContext(dispatcher) {
+            if (closed) throw LlmException("The model was unloaded; try again")
+            block()
+        }
     }
 
-    suspend fun countTokens(text: String): Int = mutex.withLock {
-        withContext(dispatcher) { LlamaNative.countTokens(handle, text) }
-    }
+    suspend fun loadProjector(path: String): Boolean = native { LlamaNative.loadProjector(handle, path) }
+
+    suspend fun countTokens(text: String): Int = native { LlamaNative.countTokens(handle, text.toByteArray()) }
 
     /** Streams the model's output for a full prompt. Cancelling the flow stops generation. */
-    @OptIn(ExperimentalCoroutinesApi::class)
     fun generate(prompt: String, maxTokens: Int, temp: Float = 0.3f, topP: Float = 0.9f): Flow<String> = callbackFlow {
-        val stop = AtomicBoolean(false)
         mutex.withLock {
-            check(!closed) { "session closed" }
-            val n = LlamaNative.generate(handle, prompt, maxTokens, temp, topP, 42) { bytes ->
-                // A cancelled collector closes the channel, so the send fails and generation stops.
-                trySend(String(bytes, Charsets.UTF_8)).isSuccess && !stop.get()
+            if (closed) throw LlmException("The model was unloaded; try again")
+            val n = LlamaNative.generate(handle, prompt.toByteArray(), maxTokens, temp, topP, 42) { bytes ->
+                // The buffer is unlimited, so a send only fails once the collector has gone: then stop.
+                trySend(String(bytes, Charsets.UTF_8)).isSuccess
             }
+            lastStats = readStats()
             if (n == -2) throw LlmException("The conversation is too long for the context")
             if (n < 0) throw LlmException("Generation failed ($n)")
         }
         close()
-        awaitClose { stop.set(true) }
-    }.flowOn(dispatcher)
+        awaitClose { }
+    }.buffer(Channel.UNLIMITED).flowOn(dispatcher)
 
-    suspend fun transcribe(pcm16k: FloatArray, systemPrompt: String, maxTokens: Int = 512): String = mutex.withLock {
-        withContext(dispatcher) {
-            val out = StringBuilder()
-            val prompt = PromptFormat.system(systemPrompt, emptyList()) +
-                "${PromptFormat.IM_START}user\n<__media__>${PromptFormat.IM_END}\n${PromptFormat.IM_START}assistant\n<think></think>"
-            val n = LlamaNative.transcribe(handle, pcm16k, prompt, maxTokens) { out.append(String(it, Charsets.UTF_8)); true }
-            if (n < 0) throw LlmException("Transcription failed ($n)")
-            out.toString().replace(Regex("<think>.*?</think>", RegexOption.DOT_MATCHES_ALL), "").replace("<|im_end|>", "").trim()
-        }
+    suspend fun transcribe(pcm16k: FloatArray, systemPrompt: String, maxTokens: Int = 512): String = native {
+        val out = java.io.ByteArrayOutputStream()
+        val prompt = PromptFormat.system(systemPrompt, emptyList()) +
+            "${PromptFormat.IM_START}user\n<__media__>${PromptFormat.IM_END}\n${PromptFormat.IM_START}assistant\n<think></think>"
+        val n = LlamaNative.transcribe(handle, pcm16k, prompt.toByteArray(), maxTokens) { out.write(it); true }
+        if (n < 0) throw LlmException("Transcription failed ($n)")
+        out.toString(Charsets.UTF_8).replace(Regex("<think>.*?</think>", RegexOption.DOT_MATCHES_ALL), "").replace("<|im_end|>", "").trim()
     }
 
-    fun stats(): GenStats = LlamaNative.lastStats(handle).let { GenStats(it[0], it[1].toInt(), it[2], it[3].toInt(), it[4].toInt()) }
+    private fun readStats() = LlamaNative.lastStats(handle).let { GenStats(it[0], it[1].toInt(), it[2], it[3].toInt(), it[4].toInt()) }
+
+    /** Numbers from the last generate call, kept here so they stay readable after the session is freed. */
+    fun stats(): GenStats = lastStats
 
     suspend fun close() = mutex.withLock {
         withContext(dispatcher) {

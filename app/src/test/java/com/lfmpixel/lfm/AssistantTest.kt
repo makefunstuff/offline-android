@@ -116,4 +116,27 @@ class AssistantTest {
         assertFalse(result!!.ok)
         assertEquals("Could not do it", result!!.cardLabel)
     }
+
+    @Test fun messagesSentWhileBusyAreQueuedNotDropped() = runBlocking {
+        g.assistant.send("Buy oat milk")
+        g.assistant.send("Buy bread")
+        g.assistant.send("Idea: herb box on the balcony")
+        repeat(100) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(20) }
+        waitIdle()
+        assertEquals(setOf("Buy oat milk", "Buy bread"), g.db.entries().todos().first().map { it.title }.toSet())
+        assertEquals(1, g.db.entries().byKind(EntryKind.Idea).first().size)
+        val users = g.db.messages().threadNow(g.assistant.threadId.value).filter { it.role == Role.User }.map { it.text }
+        assertEquals(listOf("Buy oat milk", "Buy bread", "Idea: herb box on the balcony"), users)
+    }
+
+    @Test fun undoDoesNotDeleteAnEntryTheOwnerChanged() = runBlocking {
+        var result: com.lfmpixel.lfm.tools.ToolResult? = null
+        g.assistant.runDirect(ToolCall("add_todo", mapOf("text" to "Renew passport")), "chat") { result = it }
+        repeat(100) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(10); if (result != null) return@repeat }
+        val e = g.db.entries().todos().first().single()
+        g.db.entries().update(e.copy(title = "Renew passport by Friday", updatedAt = e.createdAt + 60_000))
+        assertFalse(g.assistant.undo(result!!.actionId!!))
+        assertEquals("Renew passport by Friday", g.db.entries().todos().first().single().title)
+        assertEquals(ActionStatus.Done, g.db.actions().get(result!!.actionId!!)!!.status)
+    }
 }

@@ -29,6 +29,7 @@ import com.lfmpixel.lfm.tools.ToolResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -82,16 +83,31 @@ class Assistant(
     val busy = MutableStateFlow(false)
     val pendingConfirm = MutableStateFlow<ConfirmRequest?>(null)
     private var job: Job? = null
+    private data class Input(val text: String, val voiceSeconds: Int, val source: String)
+    // Messages sent while the assistant is busy wait their turn here instead of being dropped.
+    private val inbox = Channel<Input>(Channel.UNLIMITED)
+    private var threadSet = false
 
     init {
-        scope.launch { _thread.value = db.messages().lastThread() }
+        scope.launch {
+            val last = db.messages().lastThread()
+            if (!threadSet) _thread.value = last
+            for (input in inbox) {
+                busy.value = true
+                job = scope.launch { handle(input) }
+                job?.join()
+                busy.value = !inbox.isEmpty
+            }
+        }
     }
 
     fun newChat() {
         stop()
+        threadSet = true
         _thread.value = _thread.value + 1
     }
 
+    /** Stops the turn being worked on; queued messages still run after it. */
     fun stop() {
         job?.cancel()
         pendingConfirm.value?.cancel()
@@ -99,22 +115,23 @@ class Assistant(
 
     fun send(text: String, voiceSeconds: Int = 0, source: String = "typed") {
         val clean = text.trim()
-        if (clean.isEmpty() || busy.value) return
+        if (clean.isEmpty()) return
         busy.value = true
-        job = scope.launch {
-            try {
-                db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = clean, voiceSeconds = voiceSeconds))
-                if (!models.hasText()) sortWithoutModel(clean, source) else converse(source)
-            } catch (e: LlmException) {
-                notice(e.message ?: "The model stopped")
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                notice("Something went wrong: ${e.message}")
-            } finally {
-                streaming.value = null
-                busy.value = false
-            }
+        inbox.trySend(Input(clean, voiceSeconds, source))
+    }
+
+    private suspend fun handle(input: Input) {
+        try {
+            db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = input.text, voiceSeconds = input.voiceSeconds))
+            if (!models.hasText()) sortWithoutModel(input.text, input.source) else converse(input.source)
+        } catch (e: LlmException) {
+            notice(e.message ?: "The model stopped")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            notice("Something went wrong: ${e.message}")
+        } finally {
+            streaming.value = null
         }
     }
 
@@ -159,7 +176,6 @@ class Assistant(
     }
 
     private suspend fun converse(source: String) {
-        val session = models.textSession()
         val prefs = settings.now()
         val tools = registry.specsJson()
         // Thinking gets a budget; past it, the think block is closed and the model must answer.
@@ -170,7 +186,7 @@ class Assistant(
             var history = db.messages().threadNow(_thread.value).mapNotNull(::toPrompt)
             var prompt = PromptFormat.build(systemPrompt(), tools, history, prefs.thinking)
             // Drop the oldest turns until the prompt leaves room for the answer.
-            while (history.size > 1 && session.countTokens(prompt) > prefs.contextTokens - maxTokens - 64) {
+            while (history.size > 1 && models.textSession().countTokens(prompt) > prefs.contextTokens - maxTokens - 64) {
                 history = history.drop(1).dropWhile { it.role != PromptMessage.Role.User }.ifEmpty { history.takeLast(1) }
                 prompt = PromptFormat.build(systemPrompt(), tools, history, prefs.thinking)
             }
@@ -182,14 +198,15 @@ class Assistant(
                 streaming.value = Streaming(partial.answer.substringBefore("<tool_call>").trim(), partial.stillThinking)
             }
             val first = if (prefs.thinking) thinkBudget else answerBudget
+            val session = models.textSession()
             session.generate(prompt, first).collect { onPiece(it) }
             if (prefs.thinking && session.stats().decodeTokens >= first) {
                 // Out of thinking budget: close the think block if it is still open, then let the answer run.
                 if (ModelOutput.parse(raw.toString(), true).stillThinking) raw.append("\n</think>\n")
-                session.generate(prompt + raw, answerBudget).collect { onPiece(it) }
+                models.textSession().generate(prompt + raw, answerBudget).collect { onPiece(it) }
             }
             val out = ModelOutput.parse(raw.toString(), prefs.thinking)
-            val st = session.stats()
+            val st = models.textSession().stats()
             val meta = "LFM3-1.7B · on this phone · %.0f tokens/s".format(Locale.ENGLISH, st.decodeTps)
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
                 raw = PromptFormat.assistantPrefix(prefs.thinking) + raw, meta = meta))
@@ -256,14 +273,22 @@ class Assistant(
         if (rec.status != ActionStatus.Done || rec.undo.isEmpty()) return false
         val (kind, value) = rec.undo.split(':', limit = 2).let { it[0] to it.getOrElse(1) { "" } }
         val ok = when (kind) {
-            "entry" -> { db.entries().delete(value.toLong()); true }
+            "entry" -> {
+                // Only undo what is still as the assistant made it: never delete the owner's later edits.
+                val e = db.entries().get(value.toLong())
+                when {
+                    e == null -> true
+                    e.done || e.updatedAt > e.createdAt + 1_000 -> { notice("Not undone: “${e.title}” was changed since. Delete it in the Library if you want."); return false }
+                    else -> { db.entries().delete(e.id); true }
+                }
+            }
             "reminder" -> {
                 val id = value.toLong()
                 reminders.cancel(id)
                 db.reminders().get(id)?.let { db.reminders().update(it.copy(cancelled = true)) }
                 true
             }
-            "event" -> calendar.delete(value.toLong())
+            "event" -> runCatching { calendar.delete(value.toLong()) }.getOrDefault(false)
             "torch" -> controls.setTorch(value.toBoolean())
             "ringer" -> controls.setRingerMode(value.toInt())
             "dnd" -> controls.setDnd(value.toBoolean())

@@ -53,6 +53,14 @@ std::string jstr(JNIEnv *env, jstring s) {
     return out;
 }
 
+// Strings come from Kotlin as UTF-8 bytes: JNI's own string calls use modified UTF-8, which breaks emoji.
+std::string jbytes(JNIEnv *env, jbyteArray a) {
+    if (!a) return {};
+    std::string out((size_t) env->GetArrayLength(a), '\0');
+    env->GetByteArrayRegion(a, 0, (jsize) out.size(), reinterpret_cast<jbyte *>(out.data()));
+    return out;
+}
+
 std::vector<llama_token> tokenize(const llama_vocab *vocab, const std::string &text, bool add_special) {
     int n = -llama_tokenize(vocab, text.data(), (int32_t) text.size(), nullptr, 0, add_special, true);
     std::vector<llama_token> out(std::max(n, 0));
@@ -223,21 +231,21 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_free(JNIEnv *, jobject, jlong handle) {
 }
 
 JNIEXPORT jint JNICALL
-Java_com_lfmpixel_lfm_llm_LlamaNative_countTokens(JNIEnv *env, jobject, jlong handle, jstring jtext) {
+Java_com_lfmpixel_lfm_llm_LlamaNative_countTokens(JNIEnv *env, jobject, jlong handle, jbyteArray jtext) {
     auto *s = reinterpret_cast<Session *>(handle);
     if (!s) return -1;
-    return (jint) tokenize(s->vocab, jstr(env, jtext), false).size();
+    return (jint) tokenize(s->vocab, jbytes(env, jtext), false).size();
 }
 
 // Generates after a full prompt (already in the chat format). Reuses the part of the
 // context memory that matches the start of the prompt, which is most of it in a chat.
 JNIEXPORT jint JNICALL
-Java_com_lfmpixel_lfm_llm_LlamaNative_generate(JNIEnv *env, jobject, jlong handle, jstring jprompt,
+Java_com_lfmpixel_lfm_llm_LlamaNative_generate(JNIEnv *env, jobject, jlong handle, jbyteArray jprompt,
                                                jint max_tokens, jfloat temp, jfloat top_p, jint seed,
                                                jobject listener) {
     auto *s = reinterpret_cast<Session *>(handle);
     if (!s) return -1;
-    std::vector<llama_token> tokens = tokenize(s->vocab, jstr(env, jprompt), true);
+    std::vector<llama_token> tokens = tokenize(s->vocab, jbytes(env, jprompt), true);
     const int n_ctx = (int) llama_n_ctx(s->ctx);
     if (tokens.empty()) return -1;
     if ((int) tokens.size() + 8 >= n_ctx) return -2; // the caller trims history and tries again
@@ -274,12 +282,12 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_generate(JNIEnv *env, jobject, jlong handl
 // Speech to text with Omni: 16 kHz mono float PCM in, text out through the listener.
 JNIEXPORT jint JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_transcribe(JNIEnv *env, jobject, jlong handle, jfloatArray jpcm,
-                                                 jstring jprompt, jint max_tokens, jobject listener) {
+                                                 jbyteArray jprompt, jint max_tokens, jobject listener) {
     auto *s = reinterpret_cast<Session *>(handle);
     if (!s || !s->mtmd) return -1;
     std::vector<float> pcm(env->GetArrayLength(jpcm));
     env->GetFloatArrayRegion(jpcm, 0, (jsize) pcm.size(), pcm.data());
-    std::string prompt = jstr(env, jprompt);
+    std::string prompt = jbytes(env, jprompt);
 
     mtmd_bitmap *audio = mtmd_bitmap_init_from_audio(pcm.size(), pcm.data());
     mtmd_input_chunks *chunks = mtmd_input_chunks_init();

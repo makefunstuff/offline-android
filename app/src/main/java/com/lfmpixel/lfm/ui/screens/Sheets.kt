@@ -158,7 +158,12 @@ fun EntryEditor(g: AppGraph, sheet: EntrySheet, onClose: () -> Unit) {
         sheet.id?.let { id ->
             g.db.entries().get(id)?.let { e ->
                 entry = e
-                text = if (e.kind == EntryKind.Note) listOf(e.title, e.body).filter { it.isNotBlank() }.distinct().joinToString("\n") else e.body.ifBlank { e.title }
+                text = when {
+                    // Notes from the assistant keep the whole text in the body, and its first line as the title.
+                    e.kind == EntryKind.Note && e.body.startsWith(e.title.removeSuffix("…")) -> e.body
+                    e.kind == EntryKind.Note -> listOf(e.title, e.body).filter { it.isNotBlank() }.joinToString("\n")
+                    else -> e.body.ifBlank { e.title }
+                }
                 due = e.dueAt?.let { TimeArgs.iso(com.lfmpixel.lfm.tools.When(Instant.ofEpochMilli(it).atZone(zone).toLocalDate(),
                     if (e.dueHasTime) Instant.ofEpochMilli(it).atZone(zone).toLocalTime().withSecond(0).withNano(0) else null)) } ?: ""
                 list = e.list
