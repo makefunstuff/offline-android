@@ -60,6 +60,13 @@ class ExternalLauncher(private val context: Context) {
     fun setTimer(seconds: Int, label: String) = start(Intent(AlarmClock.ACTION_SET_TIMER)
         .putExtra(AlarmClock.EXTRA_LENGTH, seconds).putExtra(AlarmClock.EXTRA_MESSAGE, label).putExtra(AlarmClock.EXTRA_SKIP_UI, true))
     fun panel(action: String) = start(Intent(action))
+    /** A search source, in the browser: only from the owner's tap on a sheet that shows the full address. */
+    fun openPage(url: String) = (url.startsWith("https://") || url.startsWith("http://")) && start(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    /** LFM Net's own settings (provider, key, proxy). */
+    fun openApp(intent: Intent) = start(intent)
+    /** The share sheet, for an export the owner asked for. */
+    fun share(subject: String, text: String) = start(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
+        .putExtra(Intent.EXTRA_SUBJECT, subject).putExtra(Intent.EXTRA_TEXT, text), subject))
 }
 
 // --- Reminders: LFM's own notification at an exact time -------------------------------------------
@@ -202,6 +209,16 @@ class LocalCalendar(private val context: Context) {
 data class Contact(val name: String, val numbers: List<String>, val birthday: String?)
 
 class Contacts(private val context: Context) {
+    /** Every contact's name, for the personal-word check on search queries. Empty without the permission. */
+    suspend fun allNames(): List<String> = withContext(Dispatchers.IO) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return@withContext emptyList()
+        val names = mutableListOf<String>()
+        context.contentResolver.query(ContactsContract.Contacts.CONTENT_URI, arrayOf(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY), null, null, null)?.use { c ->
+            while (c.moveToNext()) c.getString(0)?.takeIf { it.isNotBlank() }?.let { names += it }
+        }
+        names
+    }
+
     suspend fun find(query: String, limit: Int = 5): List<Contact> = withContext(Dispatchers.IO) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return@withContext emptyList()
         val r = context.contentResolver

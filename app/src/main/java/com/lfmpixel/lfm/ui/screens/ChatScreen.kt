@@ -36,6 +36,7 @@ import com.lfmpixel.lfm.data.ActionStatus
 import com.lfmpixel.lfm.data.ChatMessage
 import com.lfmpixel.lfm.data.Role
 import com.lfmpixel.lfm.ui.Nav
+import com.lfmpixel.lfm.ui.Route
 import com.lfmpixel.lfm.ui.components.Composer
 import com.lfmpixel.lfm.ui.components.Header
 import com.lfmpixel.lfm.ui.components.IconButtonPlain
@@ -53,14 +54,15 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val messages by g.assistant.messages.collectAsState(emptyList())
     val streaming by g.assistant.streaming.collectAsState()
     val busy by g.assistant.busy.collectAsState()
+    val query by g.web.pending.collectAsState()
     val actions by remember { g.db.actions().recent() }.collectAsState(emptyList())
     val records = actions.associateBy { it.id }
     var draft by remember { mutableStateOf("") }
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val visible = messages.filter { !(it.role == Role.Assistant && it.text.isBlank()) }
-    LaunchedEffect(visible.size, streaming?.text?.length) {
-        val n = visible.size + (if (streaming != null) 1 else 0)
+    LaunchedEffect(visible.size, streaming?.text?.length, query) {
+        val n = visible.size + (if (streaming != null) 1 else 0) + (if (query != null) 1 else 0)
         if (n > 0) list.scrollToItem(n - 1)
     }
 
@@ -83,7 +85,8 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 when (m.role) {
                     Role.User -> UserBubble(m)
                     Role.Assistant -> AssistantText(m.text, m.meta)
-                    Role.Tool -> ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
+                    Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
+                        else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
                     Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
                 }
             }
@@ -93,6 +96,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                     else AssistantText(s.text, "")
                 }
             }
+            query?.let { q -> item(key = "query") { QueryCard(q) } }
         }
         Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)) {
             Composer(draft, { draft = it }, if (busy) "Writing…  tap the mic to speak next" else "Message…", onSend = {
@@ -125,7 +129,7 @@ private fun UserBubble(m: ChatMessage) {
 private fun AssistantText(text: String, meta: String) {
     val c = Lfm.c
     Column {
-        androidx.compose.material3.Text(boldMarkdown(text), style = if (text.length > 220) LfmType.bodyLarge else LfmType.answer, color = c.text)
+        AnswerText(text, if (text.length > 220) LfmType.bodyLarge else LfmType.answer, markKeyFact = false)
         if (meta.isNotEmpty()) Txt(meta, LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
     }
 }
@@ -152,16 +156,5 @@ fun ToolCard(m: ChatMessage, record: ActionRecord?, onUndo: (Long) -> Unit) {
             Txt("Undo", LfmType.button.copy(fontWeight = LfmType.rowTitle.fontWeight), c.text,
                 Modifier.clickable { onUndo(id) }.padding(6.dp), decoration = TextDecoration.Underline)
         }
-    }
-}
-
-/** The model writes **bold** now and then; show it as bold instead of asterisks. Unclosed markers stay as text. */
-fun boldMarkdown(text: String): androidx.compose.ui.text.AnnotatedString = androidx.compose.ui.text.buildAnnotatedString {
-    val parts = text.split("**")
-    if (parts.size % 2 == 0) { append(text); return@buildAnnotatedString }
-    parts.forEachIndexed { i, part ->
-        if (i % 2 == 1) {
-            pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)); append(part); pop()
-        } else append(part)
     }
 }

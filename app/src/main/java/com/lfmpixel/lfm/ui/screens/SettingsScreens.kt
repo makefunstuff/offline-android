@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -76,6 +79,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
     val status by g.engine.status.collectAsState()
     val scope = rememberCoroutineScope()
     val p = prefs ?: return
+    val netLabel by produceState("", p.netEnabled) { value = webSearchLabel(g) }
     val asking = g.tools.all.count { !it.readOnly && (p.toolPolicies[it.name] ?: it.defaultPolicy) == ToolPolicy.Ask }
     val direct = g.tools.all.count { !it.readOnly } - asking
     Column(Modifier.fillMaxSize()) {
@@ -91,14 +95,15 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                         (if (inMem.isNotEmpty()) " · in memory" else "") + " · " + formatBytes(installed.sumOf { it.known.sizeBytes })
                 }, "chip", { nav.go(Route.Models) }) { Chevron() }
                 GroupDivider()
-                ListRow("Web search", "Needs the LFM Net helper (not built yet) · ${p.searchMode.label.lowercase()}", "globe")
+                ListRow("Web search", listOf(netLabel, p.searchMode.label.lowercase()).filter { it.isNotEmpty() }.joinToString(" · "), "globe",
+                    { nav.go(Route.WebSearch) }) { Chevron() }
                 GroupDivider()
                 ListRow("Tools", "$direct run directly · $asking always ask", "sliders", { nav.go(Route.Tools) }) { Chevron() }
                 GroupDivider()
                 ListRow("Action history", "Everything the assistant did, with undo", "history", { nav.go(Route.History) }) { Chevron() }
             }
             Group {
-                ListRow("Privacy", "No network access · what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
+                ListRow("Privacy", "Network log, LFM Net, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
             }
             Group {
                 ListRow("Voice", if (g.engine.hasVoice()) "LFM3-Omni-2B · English" else "Import LFM3-Omni-2B and its projector", "speaker", { nav.go(Route.Models) }) { Chevron() }
@@ -201,7 +206,12 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
     val c = Lfm.c
     val ctx = LocalContext.current
     val hasInternet = ctx.packageManager.checkPermission(Manifest.permission.INTERNET, ctx.packageName) == PackageManager.PERMISSION_GRANTED
+    val prefs by g.settings.prefs.collectAsState(null)
+    val installed = remember { g.net.installed() }
+    val start = remember { java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
+    val log by remember(start) { g.db.netLog().since(start) }.collectAsState(emptyList())
     val scope = rememberCoroutineScope()
+    val time = DateTimeFormatter.ofPattern("HH:mm")
     Column(Modifier.fillMaxSize()) {
         Header("Privacy", onBack = { nav.back() })
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
@@ -212,14 +222,45 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
             Guarantee("check", "No account, no telemetry", "No analytics, crash reports or Play Services in the app")
             Guarantee("check", "Not backed up", "Excluded from cloud backup and phone-to-phone transfer")
             Guarantee("cal", "Events go to “On this phone”", "A local calendar that never syncs to any account")
-            Guarantee("globe", "LFM Net is not installed", "Web search and model downloads come with the helper app (Phase 4)")
+            if (installed) {
+                val on = prefs?.netEnabled ?: true
+                Guarantee("globe", "LFM Net handles search", if (on) "Search words, result addresses, model downloads" else "Off: nothing is searched or downloaded") {
+                    Switch(on) { scope.launch { g.settings.setNetEnabled(it) } }
+                }
+            } else {
+                Guarantee("globe", "LFM Net is not installed", "Without the helper app, LFM is fully offline: no search, no downloads")
+            }
             SectionLabel("Network log · today")
-            Txt("No requests. This app cannot make any.", LfmType.small, c.text2)
+            if (log.isEmpty()) Txt(if (installed) "No requests today." else "No requests. This app cannot make any.", LfmType.small, c.text2)
+            log.forEach { e ->
+                Divider()
+                Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Txt(Instant.ofEpochMilli(e.at).atZone(ZoneId.systemDefault()).format(time), LfmType.meta, c.text2)
+                    Column(Modifier.weight(1f)) {
+                        Txt(e.host, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), maxLines = 1)
+                        Txt(e.label + if (e.ok) "" else " · failed", LfmType.meta, c.text2, maxLines = 1)
+                    }
+                    Txt(formatBytes(e.bytes), LfmType.meta, c.text2)
+                }
+            }
+            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Btn("Export…", {
+                    scope.launch {
+                        val all = g.db.netLog().all()
+                        val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                        g.launcher.share("LFM network log", all.joinToString("\n") { e ->
+                            listOf(Instant.ofEpochMilli(e.at).atZone(ZoneId.systemDefault()).format(fmt), e.host, e.url, e.sent, "${e.bytes} bytes",
+                                if (e.ok) "ok" else "failed").joinToString("\t")
+                        }.ifEmpty { "No requests." })
+                    }
+                }, Modifier.weight(1f))
+                Btn("Delete all", { scope.launch { g.db.netLog().deleteAll() } }, Modifier.weight(1f), icon = "trash")
+            }
             SectionLabel("Kept on this phone")
-            Txt("Chats, notes, ideas, journal, to-dos, reminders and the action history, in the app's private storage. Models in the app's files.",
+            Txt("Chats, notes, ideas, journal, to-dos, reminders, searches, the network log and the action history, in the app's private storage. Models in the app's files.",
                 LfmType.small, c.text2)
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Btn("Clear chats", { scope.launch { g.assistant.newChat(); g.db.messages().deleteAll() } }, Modifier.weight(1f), icon = "trash")
+                Btn("Clear chats", { scope.launch { g.assistant.newChat(); g.db.messages().deleteAll(); g.db.searches().deleteAll() } }, Modifier.weight(1f), icon = "trash")
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -227,7 +268,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
 }
 
 @Composable
-private fun Guarantee(icon: String, title: String?, detail: String, markedTitle: String? = null) {
+private fun Guarantee(icon: String, title: String?, detail: String, markedTitle: String? = null, trailing: @Composable () -> Unit = {}) {
     val c = Lfm.c
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(30.dp).border(1.dp, c.line, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) { LIcon(icon, size = 18.dp) }
@@ -236,7 +277,16 @@ private fun Guarantee(icon: String, title: String?, detail: String, markedTitle:
             else Txt(title ?: "", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             Txt(detail, LfmType.label.copy(fontWeight = null), c.text2)
         }
+        trailing()
     }
+}
+
+/** "Your SearXNG + Wikipedia", or why there is no search. Asks LFM Net about itself; no request goes out. */
+suspend fun webSearchLabel(g: AppGraph): String = when (g.net.state()) {
+    com.lfmpixel.lfm.web.NetClient.State.On -> runCatching { g.net.info() }.fold({ if (it.ready) it.provider.replaceFirstChar { c -> c.uppercase() } else "No provider set up" }, { "LFM Net not answering" })
+    com.lfmpixel.lfm.web.NetClient.State.Off -> "LFM Net off"
+    com.lfmpixel.lfm.web.NetClient.State.NotInstalled -> "Needs the LFM Net helper"
+    com.lfmpixel.lfm.web.NetClient.State.WrongSigner -> "LFM Net signed with another key"
 }
 
 @Composable
@@ -244,6 +294,8 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
     val c = Lfm.c
     val prefs by g.settings.prefs.collectAsState(null)
     val scope = rememberCoroutineScope()
+    val onImportOnly: () -> Unit = { g.scope.launch { g.settings.setFirstRunDone() }; nav.reset(Route.Today); onImport() }
+    val size = formatBytes(com.lfmpixel.lfm.llm.ModelCatalog.essentials.sumOf { it.sizeBytes })
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 18.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -251,29 +303,36 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
                 Box(Modifier.width(28.dp).height(4.dp).background(c.line, RoundedCornerShape(2.dp)))
             }
             Txt("Your assistant,\non this phone", LfmType.title, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp))
-            Txt("Everything it thinks, hears and keeps stays here. No account. It cannot reach the internet.", LfmType.body.copy(fontSize = LfmType.body.fontSize), c.text2)
-            SectionLabel("Step 1 of 2 · Models (2.5 GB)")
-            Option("folder", "Import files", "Copy the GGUF files to the phone over USB, then pick them here. No network needed.", selected = true)
-            Option("download", "Download", "Comes with the LFM Net helper app (not built yet)", selected = false, enabled = false)
-            Txt("You need LFM3-1.7B-QAD-Q4_0.gguf for chat; for voice also LFM3-Omni-2B-Q4_0.gguf and mmproj-LFM3-Omni-2B-Q4_K_M.gguf. Each is checked against its pinned SHA-256.",
-                LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
+            Txt(if (g.net.installed()) "Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web."
+                else "Everything it thinks, hears and keeps stays here. No account. It cannot reach the internet.", LfmType.body, c.text2)
+            SectionLabel("Step 1 of 2 · Models")
+            Txt("For chat get LFM3-1.7B; for voice also Omni-2B ($size for both at Q4). Each is checked against its pinned SHA-256.",
+                LfmType.meta, c.text2, Modifier.padding(bottom = 10.dp))
+            ModelList(g, highlight = false)
+            Btn("Import files instead", onImportOnly, Modifier.fillMaxWidth(), icon = "folder")
+            Txt("Already on this phone or copied over USB; no network needed.", LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             SectionLabel("Step 2 of 2 · Web search (change any time)")
             Segmented(SearchMode.entries.map { it.label }, prefs?.searchMode?.label ?: "Ask first",
                 { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
             Txt("Permissions (calendar, contacts, microphone) are asked only when a tool first needs one.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
         }
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Btn("Import model files", { g.scope.launch { g.settings.setFirstRunDone() }; nav.reset(Route.Today); onImport() }, Modifier.fillMaxWidth(),
-                com.lfmpixel.lfm.ui.components.BtnKind.Primary, icon = "folder")
+            Btn("Continue", {
+                g.scope.launch { g.settings.setFirstRunDone() }
+                nav.reset(Route.Today)
+                // Downloads carry on in the background; Models shows them.
+                if (g.downloads.items.value.isNotEmpty()) nav.go(Route.Models)
+            }, Modifier.fillMaxWidth(), com.lfmpixel.lfm.ui.components.BtnKind.Primary)
             Btn("Later", { g.scope.launch { g.settings.setFirstRunDone() }; nav.reset(Route.Today) }, Modifier.fillMaxWidth())
         }
     }
 }
 
 @Composable
-private fun Option(icon: String, title: String, detail: String, selected: Boolean, enabled: Boolean = true) {
+private fun Option(icon: String, title: String, detail: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     val c = Lfm.c
-    Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, if (selected) c.text else c.control, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 11.dp),
+    Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, if (selected) c.text else c.control, RoundedCornerShape(8.dp))
+        .clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.RadioButton, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         LIcon(icon, tint = if (enabled) c.text else c.text3)
         Column(Modifier.weight(1f)) {

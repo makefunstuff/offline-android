@@ -102,6 +102,7 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(project(":ipc"))
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -109,76 +110,34 @@ dependencies {
     testImplementation(libs.androidx.test.core)
 }
 
-// --- Privacy checks (docs/spec.md section 3) -------------------------------------------------
-
-/** Fails the build if the merged manifest asks for a network permission. */
-abstract class CheckNoNetworkPermission : DefaultTask() {
-    @get:InputFile
-    abstract val manifest: RegularFileProperty
-
-    @get:OutputFile
-    abstract val report: RegularFileProperty
-
-    @TaskAction
-    fun check() {
-        val text = manifest.get().asFile.readText()
-        val banned = listOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
-            "android.permission.CHANGE_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE")
-        val found = banned.filter { Regex("""android:name="${Regex.escape(it)}"""").containsMatchIn(text) }
-        if (found.isNotEmpty()) {
-            throw GradleException("LFM must not ask for network access, but the merged manifest has: $found")
-        }
-        report.get().asFile.writeText("OK: no network permission in ${manifest.get().asFile.name}\n")
-    }
-}
-
-/** Fails the build if a dependency outside the allow-list ends up in the app (no analytics, crash or network SDKs). */
-abstract class CheckDependencyAllowList : DefaultTask() {
-    @get:Input
-    abstract val modules: ListProperty<String>
-
-    @get:OutputFile
-    abstract val report: RegularFileProperty
-
-    @TaskAction
-    fun check() {
-        val allowed = listOf("androidx.", "org.jetbrains.kotlin", "org.jetbrains.kotlinx", "org.jetbrains:annotations",
-            "org.jspecify", "com.google.guava:listenablefuture", "com.google.errorprone:error_prone_annotations",
-            "com.squareup.okio:") // okio is DataStore's file I/O; it has no networking of its own
-        val bad = modules.get().filterNot { m -> allowed.any { m.startsWith(it) } }
-        if (bad.isNotEmpty()) {
-            throw GradleException("Dependencies outside the allow-list: $bad")
-        }
-        report.get().asFile.writeText(modules.get().sorted().joinToString("\n", postfix = "\n"))
-    }
-}
+// --- Privacy checks (docs/spec.md section 3; task classes in buildSrc) ---------------------------
 
 androidComponents {
     onVariants { variant ->
         val name = variant.name.replaceFirstChar { it.uppercase() }
-        val manifestCheck = tasks.register<CheckNoNetworkPermission>("check${name}NoNetwork") {
+        val manifestCheck = tasks.register<CheckManifestPermissions>("check${name}NoNetwork") {
             manifest.set(variant.artifacts.get(SingleArtifact.MERGED_MANIFEST))
+            banned.set(listOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE",
+                "android.permission.CHANGE_NETWORK_STATE", "android.permission.ACCESS_WIFI_STATE"))
+            allowed.set(emptyList())
+            failure.set("LFM must not ask for network access, but the merged manifest has")
             report.set(layout.buildDirectory.file("reports/privacy/${variant.name}-no-network.txt"))
         }
         val runtime = configurations.named("${variant.name}RuntimeClasspath")
         val depsCheck = tasks.register<CheckDependencyAllowList>("check${name}Dependencies") {
-            modules.set(runtime.flatMap { c ->
-                c.incoming.resolutionResult.rootComponent.map { root ->
-                    val seen = mutableSetOf<String>()
-                    fun walk(c: org.gradle.api.artifacts.result.ResolvedComponentResult) {
-                        c.dependencies.filterIsInstance<org.gradle.api.artifacts.result.ResolvedDependencyResult>().forEach {
-                            val id = it.selected.moduleVersion ?: return@forEach
-                            if (seen.add("${id.group}:${id.name}")) walk(it.selected)
-                        }
-                    }
-                    walk(root)
-                    seen.toList()
-                }
-            })
+            modules.set(runtime.flatMap { c -> c.incoming.resolutionResult.rootComponent.map { runtimeModules(it) } })
+            // okio is DataStore's file I/O; it has no networking of its own. offline-android:ipc is the AIDL to LFM Net.
+            allowed.set(baseAllowList + listOf("com.squareup.okio:", "offline-android:ipc"))
             report.set(layout.buildDirectory.file("reports/privacy/${variant.name}-dependencies.txt"))
         }
         tasks.matching { it.name == "assemble$name" || it.name == "check" }.configureEach {
             dependsOn(manifestCheck, depsCheck)
         }
+        // LFM Net goes inside LFM, signed with the same key, for "Install LFM Net" (NetInstaller).
+        val bundle = tasks.register<BundleApk>("bundle${name}LfmNet") {
+            dependsOn(":net:assemble$name")
+            apkDir.set(project(":net").layout.buildDirectory.dir("outputs/apk/${variant.name}"))
+        }
+        variant.sources.assets?.addGeneratedSourceDirectory(bundle, BundleApk::outDir)
     }
 }

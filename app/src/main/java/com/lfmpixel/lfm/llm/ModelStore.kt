@@ -94,6 +94,17 @@ class ModelStore(private val context: Context) {
         result
     }
 
+    /** Puts a downloaded, hash-checked file in place. */
+    fun adopt(model: KnownModel, part: File, sha256: String) {
+        val target = File(dir, model.fileName)
+        target.delete()
+        if (!part.renameTo(target)) throw java.io.IOException("Could not move ${model.fileName} into place")
+        File(dir, model.fileName + ".sha256").writeText(sha256)
+        refresh()
+    }
+
+    fun partFile(model: KnownModel) = File(dir, model.fileName + ".download")
+
     /** Offers to free the space the original took; works where the file's provider lets us delete it. */
     fun deleteOriginal(uri: Uri): Boolean = runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }.getOrDefault(false)
 }

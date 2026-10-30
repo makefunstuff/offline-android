@@ -19,6 +19,8 @@ sealed interface Route {
     data object History : Route
     data object Privacy : Route
     data object FirstRun : Route
+    data class Search(val id: Long) : Route
+    data object WebSearch : Route
 }
 
 /** Where a voice capture goes: to the assistant, or straight into the library. */

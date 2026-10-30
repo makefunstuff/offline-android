@@ -1,6 +1,7 @@
 package com.lfmpixel.lfm.data
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Insert
@@ -62,6 +63,24 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE cancelled = 0 AND at >= :from AND at < :to ORDER BY at") fun between(from: Long, to: Long): Flow<List<Reminder>>
 }
 
+@Dao
+interface NetLogDao {
+    @Insert suspend fun insertAll(e: List<NetLogEntry>)
+    @Query("SELECT * FROM netlog WHERE at >= :from ORDER BY at DESC, id DESC") fun since(from: Long): Flow<List<NetLogEntry>>
+    @Query("SELECT * FROM netlog ORDER BY at DESC, id DESC") suspend fun all(): List<NetLogEntry>
+    @Query("DELETE FROM netlog") suspend fun deleteAll()
+}
+
+@Dao
+interface SearchDao {
+    @Insert suspend fun insert(s: SearchRecord): Long
+    @Update suspend fun update(s: SearchRecord)
+    @Query("SELECT * FROM searches WHERE id = :id") suspend fun get(id: Long): SearchRecord?
+    @Query("SELECT * FROM searches WHERE id = :id") fun watch(id: Long): Flow<SearchRecord?>
+    @Query("SELECT * FROM searches WHERE threadId = :thread") fun inThread(thread: Long): Flow<List<SearchRecord>>
+    @Query("DELETE FROM searches") suspend fun deleteAll()
+}
+
 class Converters {
     @TypeConverter fun kind(k: EntryKind) = k.name
     @TypeConverter fun kind(s: String) = EntryKind.valueOf(s)
@@ -71,13 +90,16 @@ class Converters {
     @TypeConverter fun toStatus(s: String) = ActionStatus.valueOf(s)
 }
 
-@Database(entities = [Entry::class, EntryFts::class, ChatMessage::class, ActionRecord::class, Reminder::class], version = 1, exportSchema = true)
+@Database(entities = [Entry::class, EntryFts::class, ChatMessage::class, ActionRecord::class, Reminder::class, NetLogEntry::class,
+    SearchRecord::class], version = 2, exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2)])
 @TypeConverters(Converters::class)
 abstract class LfmDatabase : RoomDatabase() {
     abstract fun entries(): EntryDao
     abstract fun messages(): MessageDao
     abstract fun actions(): ActionDao
     abstract fun reminders(): ReminderDao
+    abstract fun netLog(): NetLogDao
+    abstract fun searches(): SearchDao
 
     companion object {
         fun open(context: Context): LfmDatabase =

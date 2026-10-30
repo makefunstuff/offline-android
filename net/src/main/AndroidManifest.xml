@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LFM Net: network for search, opening result pages and model downloads; no personal data. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Only to tell Wi-Fi from mobile data, for "download on Wi-Fi only". -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Only apps signed with the same key (LFM) may bind to the service. LFM declares it too, so the order of
+         installs doesn't matter. -->
+    <permission android:name="com.lfmpixel.lfm.permission.LFM_NET" android:protectionLevel="signature"
+        android:label="Use LFM Net" />
+
+    <application
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="LFM Net"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.LfmNet"
+        android:usesCleartextTraffic="true">
+        <!-- Cleartext only so a SearXNG on your own network (over WireGuard) can be plain http. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <service
+            android:name=".NetService"
+            android:exported="true"
+            android:permission="com.lfmpixel.lfm.permission.LFM_NET">
+            <intent-filter><action android:name="com.lfmpixel.lfm.net.BIND" /></intent-filter>
+        </service>
+    </application>
+</manifest>
