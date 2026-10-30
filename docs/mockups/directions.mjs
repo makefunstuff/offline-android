@@ -29,13 +29,13 @@ const aToday = phone("A", `${sb()}<div class="app">
     <div class="a-lab mt">TODAY — 3 THINGS</div>
     <div class="a-row"><span class="a-t">15:30</span><div><b>Design review</b><span>Room 4 · 45 min</span></div></div>
     <div class="a-row hot"><span class="a-t">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
-    <div class="a-row"><span class="a-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div></div>
+    <div class="a-row last"><span class="a-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div></div>
     <div class="a-lab mt">JUST CAPTURED</div>
     <div class="a-cap"><b>Weekend market stall for old prints</b><span>IDEA · 11:20</span></div>
   </div></div>${navd("Today")}${gb}`);
 
 const aChat = phone("A", `${sb()}<div class="app">
-  <div class="a-hdr">${i("back")}<b>ASSISTANT</b>${i("more")}</div>
+  <div class="a-hdr">${i("list")}<b>ASSISTANT</b>${i("more")}</div>
   <div class="pad a-thread">
     <div class="a-me">${i("wave", "s")} 0:06 — Remind me to call the plumber at six, and add oat milk to my list</div>
     <div class="a-tool"><div class="a-tk">${i("check")}</div><div><span class="a-lab">REMINDER SET</span><b>Call the plumber</b><span>Today 18:00</span></div><span class="a-undo">UNDO</span></div>
@@ -57,7 +57,7 @@ const aJournal = phone("A", `${sb()}<div class="app">
 
 /* ---------- B. Bloom: expressive shapes and soft colour blocks ---------- */
 const bToday = phone("B", `${sb()}<div class="app">
-  <div class="b-top"><div><span class="b-sub">Friday 30 October</span><div class="b-h">Hi there</div></div>${blob("av", i("user"))}</div>
+  <div class="b-top"><div><span class="b-sub">Friday 30 October</span><div class="b-h">Hi there</div></div>${blob("bav", i("user"))}</div>
   <div class="pad">
     <div class="b-comp"><span>Ask, capture or do…</span>${i("camera")}${blob("mic", i("mic"))}</div>
     <div class="b-tiles">
@@ -75,18 +75,19 @@ const bChat = phone("B", `${sb()}<div class="app">
     <div class="b-me"><span class="b-wave"><i></i><i></i><i></i><i></i><i></i><i></i></span>Remind me to call the plumber at six, and add oat milk to my list</div>
     <div class="b-tool min">${blob("ok", i("check"))}<div><b>Reminder set</b><span>Call the plumber · 18:00</span></div><span class="b-undo">Undo</span></div>
     <div class="b-tool pea">${blob("ok", i("plus"))}<div><b>Oat milk</b><span>Added to Shopping</span></div><span class="b-undo">Undo</span></div>
-    <div class="b-ai">Done. Anything else before six?</div>
+    <div class="b-ai">Done. Anything else before six?<span class="b-meta">LFM3-1.7B · on this phone</span></div>
     <div class="b-chips"><span>Set a timer</span><span>Show my list</span><span>What's next?</span></div>
   </div>
   <div class="b-comp in"><span>Message…</span>${i("camera")}${blob("mic", i("mic"))}</div></div>${gb}`);
 
 const bJournal = phone("B", `${sb()}<div class="app">
-  <div class="b-top"><div class="b-h">Journal</div>${blob("av sm", i("search"))}</div>
+  <div class="b-top"><div class="b-h">Journal</div>${blob("bav sm", i("search"))}</div>
   <div class="pad">
     <div class="b-prompt"><span>Today's prompt</span><b>What gave you energy this week?</b><div class="b-pa"><span class="pri">${i("mic", "s")}Speak</span><span>${i("edit", "s")}Write</span></div></div>
     <div class="b-week">${["M", "T", "W", "T", "F", "S", "S"].map((d, k) => `<span class="${k === 4 ? "on" : ""} ${[0, 2, 3, 4].includes(k) ? "has" : ""} ${k === 3 ? "wm" : ""}">${d}</span>`).join("")}</div>
     <div class="b-je lil"><div class="b-jh"><b>Friday</b><span class="b-mood">calm</span></div><p>Slept well. Felt calmer after the walk; less worried about the review.</p></div>
     <div class="b-je pea"><div class="b-jh"><b>Thursday</b><span class="b-mood">tired</span></div><p>Long day. Want to say no to the Saturday shift.</p></div>
+    <div class="b-je sky"><div class="b-jh"><b>Thursday</b><span class="b-mood">happy</span></div><p>Lunch with Mia, laughed a lot.</p></div>
   </div></div>${navd("Library")}${gb}`);
 
 /* ---------- C. Paper: warm, personal, a little hand-made ---------- */
@@ -122,7 +123,7 @@ const cJournal = phone("C", `${sb()}<div class="app">
   </div></div>${navd("Library")}${gb}`);
 
 const DIRS = [
-  ["A", "Signal", "Bold type, ink black and one hot tomato colour. Big numbers, square edges, thick lines. Confident and fast to scan.", ["#0a0a0a", "#ff4f1f", "#f5f5f0"], "Motion: snappy, short slides; numbers tick.", [aToday, aChat, aJournal]],
+  ["A", "Signal", "Bold type, ink black and one hot tomato colour. Big numbers, square edges, thick lines. Confident and fast to scan.", ["#0a0a0a", "#ff4f1f", "#ffffff"], "Motion: snappy, short slides; numbers tick.", [aToday, aChat, aJournal]],
   ["B", "Bloom", "Material 3 Expressive: playful shapes (the mic and avatar are soft 'cookies'), colour blocks per kind of thing, big rounded type. Friendly and easy to tap.", ["#6b4eff", "#e9ddff", "#c9f0d8", "#ffdcc7"], "Motion: springy; buttons squish on press, shapes morph.", [bToday, bChat, bJournal]],
   ["C", "Paper", "A warm notebook: dotted paper, serif headings, terracotta and olive, small hand-drawn doodles, entries stamped like a diary. The most personal.", ["#f6efe4", "#c4532d", "#6b7a3a", "#d9a23b"], "Motion: gentle fades; ink draws the squiggles in.", [cToday, cChat, cJournal]],
 ];
@@ -168,7 +169,7 @@ export const css = `
 .a-comp{display:flex;align-items:center;gap:12px;border:2px solid var(--t1);height:52px;padding:0 4px 0 14px;font-size:15px}
 .a-comp>span:first-child{flex:1;color:var(--t2)}.a-comp.in{margin:8px 12px 10px}
 .a-mic{width:42px;height:42px;background:var(--ac);color:#0a0a0a;display:flex;align-items:center;justify-content:center}
-.a-row{display:flex;gap:14px;align-items:center;padding:10px 0;border-top:2px solid var(--t1)}.a-row:last-of-type{border-bottom:2px solid var(--t1)}
+.a-row{display:flex;gap:14px;align-items:center;padding:10px 0;border-top:2px solid var(--t1)}.a-row.last{border-bottom:2px solid var(--t1)}
 .a-row div{display:flex;flex-direction:column}.a-row span{color:var(--t2);font-size:12.5px}.a-row b{font-size:16px}
 .a-t{font-size:26px!important;font-weight:800;letter-spacing:-.03em;width:84px;color:var(--t1)!important}.a-row.hot .a-t{color:var(--ac)!important}
 .a-cap{background:var(--ac);color:#0a0a0a;padding:14px;display:flex;flex-direction:column;gap:6px}.a-cap b{font-size:17px;font-weight:800;line-height:1.15}.a-cap span{font:600 11px ui-monospace,monospace;letter-spacing:.08em}
@@ -180,7 +181,7 @@ export const css = `
 .a-tk{width:40px;height:40px;background:var(--ac);color:#0a0a0a;display:flex;align-items:center;justify-content:center}.a-tool.alt .a-tk{background:var(--t1);color:var(--bg)}
 .a-undo{font:700 12px ui-monospace,monospace!important;letter-spacing:.08em;color:var(--t1)!important;text-decoration:underline;text-underline-offset:3px}
 .a-ai{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:4px}.a-meta{display:block;font:600 10.5px ui-monospace,monospace;letter-spacing:.08em;color:var(--t2);margin-top:8px}
-.a-prompt{background:var(--t1);color:var(--bg);padding:16px;margin-top:12px}.a-prompt .a-lab{color:var(--ac)}.a-prompt b{display:block;font-size:24px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin:8px 0 14px}
+.a-prompt{background:var(--t1);color:var(--bg);padding:16px;margin-top:12px}.a-prompt .a-lab{color:var(--ac)}.dirs.dark .a-prompt .a-lab{color:#c2350b}.a-prompt b{display:block;font-size:24px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin:8px 0 14px}
 .a-pa{display:flex;gap:8px}.a-pa span{display:flex;align-items:center;gap:6px;border:2px solid var(--bg);padding:7px 12px;font:700 11.5px ui-monospace,monospace;letter-spacing:.08em}.a-pa span:first-child{background:var(--ac);border-color:var(--ac);color:#0a0a0a}
 .a-day{display:flex;align-items:baseline;gap:10px;margin:18px 0 4px;border-bottom:2px solid var(--t1)}.a-big{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1}
 .a-je{display:flex;gap:12px;padding:8px 0}.a-je p{margin:0;font-size:15px}.a-mood{width:12px;height:12px;flex:none;margin-top:5px}.a-mood.m1{background:var(--ac)}.a-mood.m2{background:var(--t1)}
@@ -190,7 +191,7 @@ export const css = `
 .dirs.dark .dph.B{--bg:#141218;--t1:#ede7f6;--t2:#b3abc3;--ln:#2b2734;--ac:#b9a6ff;--acb:#3a2e5c;--acf:#e4dbff;--lil:#3a2e5c;--min:#1f3d2c;--pea:#4a2e1f;--sky:#1e3150;--on:#ede7f6}
 .B .dnav{border-top:0}.B .dni span{height:32px;border-radius:16px}
 .blob{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none}.blob>svg{position:absolute;inset:0;width:100%;height:100%}.blob span{position:relative;display:flex}
-.blob.av{width:48px;height:48px}.blob.av path{fill:var(--min)}.blob.av.sm path{fill:var(--lil)}
+.blob.bav{width:48px;height:48px}.blob.bav path{fill:var(--min)}.blob.bav.sm path{fill:var(--lil)}
 .blob.mic{width:46px;height:46px;color:#fff}.blob.mic path{fill:var(--ac)}.dirs.dark .blob.mic{color:#141218}
 .blob.ok{width:40px;height:40px}.blob.ok path{fill:var(--bg)}
 .b-top{display:flex;justify-content:space-between;align-items:flex-end;padding:12px 16px 14px}
@@ -212,17 +213,18 @@ export const css = `
 .b-tool{display:flex;align-items:center;gap:12px;border-radius:24px;padding:10px 14px 10px 10px}.b-tool div{flex:1;display:flex;flex-direction:column}.b-tool span{color:var(--t2);font-size:12.5px}.b-tool b{font-size:16px}
 .b-undo{background:var(--bg);border-radius:16px;padding:6px 12px;font-weight:600;color:var(--t1)!important;font-size:13px!important}
 .b-ai{align-self:flex-start;max-width:84%;background:var(--acb);border-radius:24px 24px 24px 8px;padding:12px 16px;font-size:15px}
+.b-meta{display:block;font-size:11.5px;color:var(--t2);margin-top:4px}
 .b-chips{display:flex;gap:8px;flex-wrap:wrap}.b-chips span{border:1.5px solid var(--ac);color:var(--acf);border-radius:18px;padding:6px 12px;font-size:13px;font-weight:500}
 .b-prompt{background:var(--sky);border-radius:32px 32px 32px 12px;padding:18px}.b-prompt>span{font-size:12.5px;color:var(--t2)}.b-prompt b{display:block;font-size:21px;line-height:1.2;margin:4px 0 14px}
 .b-pa{display:flex;gap:8px}.b-pa span{display:flex;gap:6px;align-items:center;background:var(--bg);border-radius:20px;padding:8px 14px;font-weight:600;font-size:13.5px}.b-pa .pri{background:var(--ac);color:#fff}.dirs.dark .b-pa .pri{color:#141218}
-.b-week{display:flex;justify-content:space-between;margin:18px 0 14px}.b-week span{width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--t2);border:1.5px dashed var(--ln)}
+.b-week{display:flex;justify-content:space-between;margin:18px 0 14px}.b-week span{width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--t2);border:1.5px dashed var(--t2)}
 .b-week .has{background:var(--min);border:0;color:var(--t1)}.b-week .wm{background:var(--pea)}.b-week .on{background:var(--ac);color:#fff;border-radius:12px}.dirs.dark .b-week .on{color:#141218}
 .b-je{border-radius:24px;padding:14px;margin-bottom:10px}.b-je p{margin:6px 0 0}.b-jh{display:flex;justify-content:space-between;align-items:center}
 .b-mood{background:var(--bg);border-radius:12px;padding:2px 10px;font-size:12px;color:var(--t2)}
 
 /* C Paper */
-.dph.C{--bg:#f6efe4;--t1:#2b2118;--t2:#6e5f50;--ln:#e2d6c4;--ac:#c4532d;--ol:#6b7a3a;--oc:#d9a23b;--card:#fbf7f0;--acb:#efd9c9;--acf:#9c3e1e;background-image:${dots("d9cdb8")}}
-.dirs.dark .dph.C{--bg:#1e1915;--t1:#f1e6d6;--t2:#bba893;--ln:#3a3029;--ac:#e07a55;--ol:#a5b46a;--oc:#e3b55b;--card:#28211c;--acb:#3d2a20;--acf:#f0a283;background-image:${dots("2f2822")}}
+.dph.C{--bg:#f6efe4;--t1:#2b2118;--t2:#6e5f50;--ln:#e2d6c4;--ac:#a9431f;--ol:#5d6a2f;--oc:#d9a23b;--oct:#8a5f12;--card:#fbf7f0;--acb:#efd9c9;--acf:#9c3e1e;background-image:${dots("d9cdb8")}}
+.dirs.dark .dph.C{--bg:#1e1915;--t1:#f1e6d6;--t2:#bba893;--ln:#3a3029;--ac:#e07a55;--ol:#a5b46a;--oc:#e3b55b;--oct:#e3b55b;--card:#28211c;--acb:#3d2a20;--acf:#f0a283;background-image:${dots("2f2822")}}
 .C .dnav{background:var(--bg)}
 .c-top{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 18px 10px}
 .c-sub{color:var(--t2);font-size:13px;font-style:italic}.c-h{font:500 31px/1.12 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;letter-spacing:-.01em;margin-top:2px}
@@ -234,7 +236,7 @@ export const css = `
 .c-sec{font:italic 500 17px "Iowan Old Style",Palatino,Georgia,serif;color:var(--ac);margin:18px 0 6px}
 .c-li{display:flex;gap:14px;align-items:center;padding:8px 0;border-bottom:1.5px dashed var(--ln)}.c-li div{display:flex;flex-direction:column}.c-li span{color:var(--t2);font-size:12.5px}
 .c-time{width:58px;text-align:center;font:600 15px "Iowan Old Style",Georgia,serif;color:var(--t1)!important;background:var(--acb);border-radius:10px;padding:6px 0;transform:rotate(-2deg)}
-.c-time.t2{background:var(--oc);color:#2b2118!important;transform:rotate(1.5deg)}.c-time.t3{background:var(--ol);color:#fbf7f0!important;transform:rotate(-1deg)}
+.c-time.t2{background:var(--oc);color:#2b2118!important;transform:rotate(1.5deg)}.c-time.t3{background:var(--ol);color:#fbf7f0!important;transform:rotate(-1deg)}.dirs.dark .c-time.t3{color:#1e1915!important}
 .c-note{background:var(--card);border:1.5px solid var(--t1);border-radius:4px 16px 16px 16px;padding:12px 14px;display:flex;flex-direction:column;transform:rotate(-.6deg)}.c-note b{font:500 17px "Iowan Old Style",Georgia,serif}.c-note span{color:var(--t2);font-size:12.5px;font-style:italic}
 .c-hdr{display:flex;align-items:center;gap:14px;padding:12px 16px}.c-hdr b{flex:1;font:500 21px "Iowan Old Style",Georgia,serif}
 .c-thread{display:flex;flex-direction:column;gap:12px}
@@ -250,5 +252,5 @@ export const css = `
 .c-pa{display:flex;gap:8px}.c-pa span{display:flex;gap:6px;align-items:center;border:1.5px solid var(--t1);border-radius:12px;padding:7px 12px;font-size:13.5px;font-weight:500}.c-pa span:first-child{background:var(--ac);border-color:var(--ac);color:#fff8f0}.dirs.dark .c-pa span:first-child{color:#1e1915}
 .c-entry{display:flex;gap:14px;padding:12px 0;border-bottom:1.5px dashed var(--ln)}.c-entry p{margin:0;font:400 16px/1.4 "Iowan Old Style",Palatino,Georgia,serif}.c-entry p span{display:block;font:italic 12px system-ui,sans-serif;color:var(--t2);margin-top:4px}
 .c-stamp{width:52px;height:52px;flex:none;border:2px solid var(--ac);border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ac);transform:rotate(-8deg);line-height:1}
-.c-stamp b{font:600 19px "Iowan Old Style",Georgia,serif}.c-stamp span{font-size:10px;text-transform:uppercase;letter-spacing:.08em}.c-stamp.s2{border-color:var(--ol);color:var(--ol);transform:rotate(5deg)}.c-stamp.s3{border-color:var(--oc);color:var(--oc);transform:rotate(-3deg)}
+.c-stamp b{font:600 19px "Iowan Old Style",Georgia,serif}.c-stamp span{font-size:10px;text-transform:uppercase;letter-spacing:.08em}.c-stamp.s2{border-color:var(--ol);color:var(--ol);transform:rotate(5deg)}.c-stamp.s3{border-color:var(--oc);color:var(--oct);transform:rotate(-3deg)}
 `;
