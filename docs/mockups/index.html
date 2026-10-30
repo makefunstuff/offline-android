@@ -128,7 +128,250 @@ figure{margin:0}figcaption{text-align:center;color:var(--fg2,#6b6d74);font-size:
 .mh{display:flex;justify-content:space-between;align-items:center}.pill{font-size:11.5px;background:var(--acb);color:var(--ac);border-radius:10px;padding:2px 8px}
 @media (max-width:400px){.phones figure{zoom:.92}}
 .pct{color:var(--ac);font-size:13px;font-weight:500}.get{color:var(--ac)}
-</style></head><body><h1>LFM3 on Pixel: spec (v2)</h1>
+
+.dirs{display:flex;flex-wrap:wrap;gap:28px 20px;justify-content:center;margin:12px 0 8px}
+.dcol{display:flex;flex-direction:column;gap:18px;align-items:center;width:374px}
+.dhead{display:flex;gap:12px;align-self:stretch;min-height:150px}
+.dk{width:34px;height:34px;border-radius:17px;background:var(--fg,#18181b);color:var(--bg,#fff);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.dhead b{font-size:18px}.dhead p{margin:4px 0;font-size:13.5px;color:var(--fg2,#6b6d74)}.dhead .mo{font-style:italic}
+.sws{display:flex;gap:6px;margin:6px 0}.sws i{width:22px;height:22px;border-radius:6px;border:1px solid var(--line,#d4d4d8)}
+.dph{width:360px;height:800px;border:7px solid #1d1e21;border-radius:42px;overflow:hidden;background:var(--bg);color:var(--t1)}
+.dph .app{position:relative}
+.dnav{display:flex;height:70px;flex:none;border-top:1px solid var(--ln)}
+.dni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--t2)}
+.dni span{width:56px;height:30px;border-radius:15px;display:flex;align-items:center;justify-content:center}
+.dni.on{color:var(--t1);font-weight:700}.dni.on span{background:var(--acb);color:var(--acf)}
+
+/* A Signal */
+.dph.A{--bg:#ffffff;--t1:#0a0a0a;--t2:#55565c;--ln:#0a0a0a;--ac:#ff4f1f;--acb:#0a0a0a;--acf:#ffffff;--s2:#f1f1ee}
+.dirs.dark .dph.A{--bg:#0b0b0b;--t1:#f5f5f0;--t2:#a3a39c;--ln:#f5f5f0;--ac:#ff6a3d;--acb:#f5f5f0;--acf:#0b0b0b;--s2:#1b1b1a}
+.A .dnav{border-top:2px solid var(--ln)}
+.a-lab{font:600 11px/1.2 ui-monospace,"Roboto Mono",Menlo,monospace;letter-spacing:.08em;color:var(--t2)}.a-lab.mt{display:block;margin:20px 0 8px}
+.a-top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 0}
+.a-av{width:36px;height:36px;border:2px solid var(--t1);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.a-h{font-size:46px;line-height:.95;font-weight:800;letter-spacing:-.04em;padding:10px 16px 16px}.a-dot{color:var(--ac)}
+.a-comp{display:flex;align-items:center;gap:12px;border:2px solid var(--t1);height:52px;padding:0 4px 0 14px;font-size:15px}
+.a-comp>span:first-child{flex:1;color:var(--t2)}.a-comp.in{margin:8px 12px 10px}
+.a-mic{width:42px;height:42px;background:var(--ac);color:#0a0a0a;display:flex;align-items:center;justify-content:center}
+.a-row{display:flex;gap:14px;align-items:center;padding:10px 0;border-top:2px solid var(--t1)}.a-row:last-of-type{border-bottom:2px solid var(--t1)}
+.a-row div{display:flex;flex-direction:column}.a-row span{color:var(--t2);font-size:12.5px}.a-row b{font-size:16px}
+.a-t{font-size:26px!important;font-weight:800;letter-spacing:-.03em;width:84px;color:var(--t1)!important}.a-row.hot .a-t{color:var(--ac)!important}
+.a-cap{background:var(--ac);color:#0a0a0a;padding:14px;display:flex;flex-direction:column;gap:6px}.a-cap b{font-size:17px;font-weight:800;line-height:1.15}.a-cap span{font:600 11px ui-monospace,monospace;letter-spacing:.08em}
+.a-hdr{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:2px solid var(--t1)}.a-hdr b{flex:1;font:700 13px ui-monospace,monospace;letter-spacing:.1em}
+.a-thread{display:flex;flex-direction:column;gap:12px;padding-top:14px}
+.a-me{align-self:flex-end;max-width:84%;background:var(--t1);color:var(--bg);padding:12px 14px;font-weight:500}
+.a-tool{display:flex;align-items:center;gap:12px;border:2px solid var(--t1);padding:10px}.a-tool div:nth-child(2){flex:1;display:flex;flex-direction:column}
+.a-tool b{font-size:17px;font-weight:800}.a-tool span{color:var(--t2);font-size:12.5px}
+.a-tk{width:40px;height:40px;background:var(--ac);color:#0a0a0a;display:flex;align-items:center;justify-content:center}.a-tool.alt .a-tk{background:var(--t1);color:var(--bg)}
+.a-undo{font:700 12px ui-monospace,monospace!important;letter-spacing:.08em;color:var(--t1)!important;text-decoration:underline;text-underline-offset:3px}
+.a-ai{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-top:4px}.a-meta{display:block;font:600 10.5px ui-monospace,monospace;letter-spacing:.08em;color:var(--t2);margin-top:8px}
+.a-prompt{background:var(--t1);color:var(--bg);padding:16px;margin-top:12px}.a-prompt .a-lab{color:var(--ac)}.a-prompt b{display:block;font-size:24px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin:8px 0 14px}
+.a-pa{display:flex;gap:8px}.a-pa span{display:flex;align-items:center;gap:6px;border:2px solid var(--bg);padding:7px 12px;font:700 11.5px ui-monospace,monospace;letter-spacing:.08em}.a-pa span:first-child{background:var(--ac);border-color:var(--ac);color:#0a0a0a}
+.a-day{display:flex;align-items:baseline;gap:10px;margin:18px 0 4px;border-bottom:2px solid var(--t1)}.a-big{font-size:40px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.a-je{display:flex;gap:12px;padding:8px 0}.a-je p{margin:0;font-size:15px}.a-mood{width:12px;height:12px;flex:none;margin-top:5px}.a-mood.m1{background:var(--ac)}.a-mood.m2{background:var(--t1)}
+
+/* B Bloom */
+.dph.B{--bg:#fbf8ff;--t1:#1b1a21;--t2:#5c5868;--ln:#e7e0f2;--ac:#6b4eff;--acb:#e9ddff;--acf:#3b22c9;--lil:#e9ddff;--min:#c9f0d8;--pea:#ffdcc7;--sky:#d3e4ff;--on:#1b1a21}
+.dirs.dark .dph.B{--bg:#141218;--t1:#ede7f6;--t2:#b3abc3;--ln:#2b2734;--ac:#b9a6ff;--acb:#3a2e5c;--acf:#e4dbff;--lil:#3a2e5c;--min:#1f3d2c;--pea:#4a2e1f;--sky:#1e3150;--on:#ede7f6}
+.B .dnav{border-top:0}.B .dni span{height:32px;border-radius:16px}
+.blob{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none}.blob>svg{position:absolute;inset:0;width:100%;height:100%}.blob span{position:relative;display:flex}
+.blob.av{width:48px;height:48px}.blob.av path{fill:var(--min)}.blob.av.sm path{fill:var(--lil)}
+.blob.mic{width:46px;height:46px;color:#fff}.blob.mic path{fill:var(--ac)}.dirs.dark .blob.mic{color:#141218}
+.blob.ok{width:40px;height:40px}.blob.ok path{fill:var(--bg)}
+.b-top{display:flex;justify-content:space-between;align-items:flex-end;padding:12px 16px 14px}
+.b-sub{color:var(--t2);font-size:13px}.b-h{font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.b-comp{display:flex;align-items:center;gap:12px;background:var(--lil);border-radius:30px;height:56px;padding:0 5px 0 20px;font-size:15px;margin-bottom:14px}
+.b-comp>span:first-child{flex:1;color:var(--t2)}.b-comp.in{margin:8px 12px 10px}
+.b-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.b-tile{border-radius:28px 28px 28px 10px;padding:14px;display:flex;flex-direction:column;gap:2px;min-height:110px}.b-tile b{font-size:16px;line-height:1.2;margin-top:auto}.b-tile span{color:var(--t2);font-size:13px}
+.b-tile.wide{grid-column:span 2;flex-direction:row;align-items:center;gap:12px;min-height:0;border-radius:10px 28px 28px 28px}.b-tile.wide div{flex:1;display:flex;flex-direction:column}.b-tile.wide b{margin:0}
+.lil{background:var(--lil)}.pea{background:var(--pea)}.min{background:var(--min)}.sky{background:var(--sky)}
+.b-ic{width:36px;height:36px;border-radius:12px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--t1)!important}
+.b-count{font-size:34px!important;font-weight:700;color:var(--t1)!important}
+.b-sec{font-size:15px;font-weight:700;margin:20px 0 8px}
+.b-cap{display:flex;gap:12px;align-items:center;border-radius:24px;padding:14px}.b-cap div{display:flex;flex-direction:column}.b-cap span{color:var(--t2);font-size:12.5px}
+.b-hdr{display:flex;align-items:center;gap:14px;padding:10px 16px}.b-hdr b{flex:1;font-size:20px;font-weight:700}
+.b-thread{display:flex;flex-direction:column;gap:10px}
+.b-me{align-self:flex-end;max-width:84%;background:var(--ac);color:#fff;border-radius:24px 24px 8px 24px;padding:12px 16px}.dirs.dark .b-me{color:#141218}
+.b-wave{display:flex;gap:3px;align-items:center;height:16px;margin-bottom:6px}.b-wave i{display:block;width:4px;border-radius:2px;background:currentColor;height:8px}.b-wave i:nth-child(2n){height:14px}.b-wave i:nth-child(3){height:16px}
+.b-tool{display:flex;align-items:center;gap:12px;border-radius:24px;padding:10px 14px 10px 10px}.b-tool div{flex:1;display:flex;flex-direction:column}.b-tool span{color:var(--t2);font-size:12.5px}.b-tool b{font-size:16px}
+.b-undo{background:var(--bg);border-radius:16px;padding:6px 12px;font-weight:600;color:var(--t1)!important;font-size:13px!important}
+.b-ai{align-self:flex-start;max-width:84%;background:var(--acb);border-radius:24px 24px 24px 8px;padding:12px 16px;font-size:15px}
+.b-chips{display:flex;gap:8px;flex-wrap:wrap}.b-chips span{border:1.5px solid var(--ac);color:var(--acf);border-radius:18px;padding:6px 12px;font-size:13px;font-weight:500}
+.b-prompt{background:var(--sky);border-radius:32px 32px 32px 12px;padding:18px}.b-prompt>span{font-size:12.5px;color:var(--t2)}.b-prompt b{display:block;font-size:21px;line-height:1.2;margin:4px 0 14px}
+.b-pa{display:flex;gap:8px}.b-pa span{display:flex;gap:6px;align-items:center;background:var(--bg);border-radius:20px;padding:8px 14px;font-weight:600;font-size:13.5px}.b-pa .pri{background:var(--ac);color:#fff}.dirs.dark .b-pa .pri{color:#141218}
+.b-week{display:flex;justify-content:space-between;margin:18px 0 14px}.b-week span{width:38px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--t2);border:1.5px dashed var(--ln)}
+.b-week .has{background:var(--min);border:0;color:var(--t1)}.b-week .wm{background:var(--pea)}.b-week .on{background:var(--ac);color:#fff;border-radius:12px}.dirs.dark .b-week .on{color:#141218}
+.b-je{border-radius:24px;padding:14px;margin-bottom:10px}.b-je p{margin:6px 0 0}.b-jh{display:flex;justify-content:space-between;align-items:center}
+.b-mood{background:var(--bg);border-radius:12px;padding:2px 10px;font-size:12px;color:var(--t2)}
+
+/* C Paper */
+.dph.C{--bg:#f6efe4;--t1:#2b2118;--t2:#6e5f50;--ln:#e2d6c4;--ac:#c4532d;--ol:#6b7a3a;--oc:#d9a23b;--card:#fbf7f0;--acb:#efd9c9;--acf:#9c3e1e;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='3' cy='3' r='1.1' fill='%23d9cdb8'/%3E%3C/svg%3E")}
+.dirs.dark .dph.C{--bg:#1e1915;--t1:#f1e6d6;--t2:#bba893;--ln:#3a3029;--ac:#e07a55;--ol:#a5b46a;--oc:#e3b55b;--card:#28211c;--acb:#3d2a20;--acf:#f0a283;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18'%3E%3Ccircle cx='3' cy='3' r='1.1' fill='%232f2822'/%3E%3C/svg%3E")}
+.C .dnav{background:var(--bg)}
+.c-top{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 18px 10px}
+.c-sub{color:var(--t2);font-size:13px;font-style:italic}.c-h{font:500 31px/1.12 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;letter-spacing:-.01em;margin-top:2px}
+.sq{display:block;width:120px;height:8px;margin-top:6px}.sq path{fill:none;stroke:var(--ac);stroke-width:2;stroke-linecap:round}
+.doodle{width:64px;height:64px;fill:none;stroke:var(--oc);stroke-width:2.5;stroke-linecap:round}.doodle.sm{stroke:var(--ol)}
+.c-comp{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--t1);border-radius:16px;height:54px;padding:0 6px 0 16px;font-size:15px}
+.c-comp>span:first-child{flex:1;color:var(--t2);font-style:italic}.c-comp.in{margin:8px 12px 10px}
+.c-mic{width:42px;height:42px;border-radius:12px;background:var(--ac);color:#fff8f0;display:flex;align-items:center;justify-content:center}.dirs.dark .c-mic{color:#1e1915}
+.c-sec{font:italic 500 17px "Iowan Old Style",Palatino,Georgia,serif;color:var(--ac);margin:18px 0 6px}
+.c-li{display:flex;gap:14px;align-items:center;padding:8px 0;border-bottom:1.5px dashed var(--ln)}.c-li div{display:flex;flex-direction:column}.c-li span{color:var(--t2);font-size:12.5px}
+.c-time{width:58px;text-align:center;font:600 15px "Iowan Old Style",Georgia,serif;color:var(--t1)!important;background:var(--acb);border-radius:10px;padding:6px 0;transform:rotate(-2deg)}
+.c-time.t2{background:var(--oc);color:#2b2118!important;transform:rotate(1.5deg)}.c-time.t3{background:var(--ol);color:#fbf7f0!important;transform:rotate(-1deg)}
+.c-note{background:var(--card);border:1.5px solid var(--t1);border-radius:4px 16px 16px 16px;padding:12px 14px;display:flex;flex-direction:column;transform:rotate(-.6deg)}.c-note b{font:500 17px "Iowan Old Style",Georgia,serif}.c-note span{color:var(--t2);font-size:12.5px;font-style:italic}
+.c-hdr{display:flex;align-items:center;gap:14px;padding:12px 16px}.c-hdr b{flex:1;font:500 21px "Iowan Old Style",Georgia,serif}
+.c-thread{display:flex;flex-direction:column;gap:12px}
+.c-me{align-self:flex-end;max-width:84%;background:var(--t1);color:var(--bg);border-radius:18px 18px 4px 18px;padding:12px 14px}
+.c-ticket{display:flex;background:var(--card);border:1.5px solid var(--t1);border-radius:14px;overflow:hidden}
+.c-stub{width:70px;flex:none;background:var(--ac);color:#fff8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-right:2px dashed var(--bg);font:600 14px "Iowan Old Style",Georgia,serif}.c-stub.s2{background:var(--ol)}
+.dirs.dark .c-stub{color:#1e1915}
+.c-tb{flex:1;padding:10px 12px;display:flex;flex-direction:column;position:relative}.c-tb span{color:var(--t2);font-size:12.5px}.c-tb b{font-size:15.5px}
+.c-tb em{position:absolute;right:12px;top:50%;margin-top:-10px;font-style:normal;color:var(--acf);font-weight:600;font-size:13px;text-decoration:underline;text-underline-offset:3px}
+.c-ai{align-self:flex-start;max-width:86%;font:500 20px/1.3 "Iowan Old Style",Palatino,Georgia,serif}.c-ai span{display:block;font:italic 12px system-ui,sans-serif;color:var(--t2);margin-top:4px}
+.c-prompt{background:var(--card);border:1.5px solid var(--t1);border-radius:18px;padding:16px;margin-top:6px}.c-prompt>span{font-style:italic;color:var(--ac);font-size:13px}
+.c-prompt b{display:block;font:500 22px/1.2 "Iowan Old Style",Georgia,serif;margin:4px 0 12px}
+.c-pa{display:flex;gap:8px}.c-pa span{display:flex;gap:6px;align-items:center;border:1.5px solid var(--t1);border-radius:12px;padding:7px 12px;font-size:13.5px;font-weight:500}.c-pa span:first-child{background:var(--ac);border-color:var(--ac);color:#fff8f0}.dirs.dark .c-pa span:first-child{color:#1e1915}
+.c-entry{display:flex;gap:14px;padding:12px 0;border-bottom:1.5px dashed var(--ln)}.c-entry p{margin:0;font:400 16px/1.4 "Iowan Old Style",Palatino,Georgia,serif}.c-entry p span{display:block;font:italic 12px system-ui,sans-serif;color:var(--t2);margin-top:4px}
+.c-stamp{width:52px;height:52px;flex:none;border:2px solid var(--ac);border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ac);transform:rotate(-8deg);line-height:1}
+.c-stamp b{font:600 19px "Iowan Old Style",Georgia,serif}.c-stamp span{font-size:10px;text-transform:uppercase;letter-spacing:.08em}.c-stamp.s2{border-color:var(--ol);color:var(--ol);transform:rotate(5deg)}.c-stamp.s3{border-color:var(--oc);color:var(--oc);transform:rotate(-3deg)}
+</style></head><body><h2 id="directions">Visual directions: pick one</h2>
+<p class="cap">Three directions, each on Today, Chat with a tool card, and Journal. All flat (no gradients or glows), dark and light. The chosen one is then used to redraw all 13 screens.</p>
+<div class="themes" id="themesDir" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
+<div class="dirs" id="dirs">
+<section class="dcol"><div class="dhead"><span class="dk">A</span><div><b>Signal</b><p>Bold type, ink black and one hot tomato colour. Big numbers, square edges, thick lines. Confident and fast to scan.</p><div class="sws"><i style="background:#0a0a0a"></i><i style="background:#ff4f1f"></i><i style="background:#f5f5f0"></i></div><p class="mo">Motion: snappy, short slides; numbers tick.</p></div></div>
+<figure><div class="dph A"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="a-top"><span class="a-lab">FRI · 30 OCT</span><span class="a-av"><svg class="i s" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span></div>
+  <div class="a-h">Good<br>afternoon<span class="a-dot">.</span></div>
+  <div class="pad">
+    <div class="a-comp"><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="a-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
+    <div class="a-lab mt">TODAY — 3 THINGS</div>
+    <div class="a-row"><span class="a-t">15:30</span><div><b>Design review</b><span>Room 4 · 45 min</span></div></div>
+    <div class="a-row hot"><span class="a-t">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
+    <div class="a-row"><span class="a-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div></div>
+    <div class="a-lab mt">JUST CAPTURED</div>
+    <div class="a-cap"><b>Weekend market stall for old prints</b><span>IDEA · 11:20</span></div>
+  </div></div><div class="dnav"><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>A1 · Today</figcaption></figure>
+<figure><div class="dph A"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="a-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><b>ASSISTANT</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
+  <div class="pad a-thread">
+    <div class="a-me"><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg> 0:06 — Remind me to call the plumber at six, and add oat milk to my list</div>
+    <div class="a-tool"><div class="a-tk"><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div><div><span class="a-lab">REMINDER SET</span><b>Call the plumber</b><span>Today 18:00</span></div><span class="a-undo">UNDO</span></div>
+    <div class="a-tool alt"><div class="a-tk"><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div><span class="a-lab">ADDED TO SHOPPING</span><b>Oat milk</b></div><span class="a-undo">UNDO</span></div>
+    <div class="a-ai">Done. Anything else before six?<span class="a-meta">LFM3-1.7B · ON THIS PHONE</span></div>
+  </div>
+  <div class="a-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="a-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption>A2 · Chat with a tool card</figcaption></figure>
+<figure><div class="dph A"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="a-top"><span class="a-lab">LIBRARY / JOURNAL</span><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></div>
+  <div class="pad">
+    <div class="a-prompt"><span class="a-lab">TODAY'S PROMPT</span><b>What gave you energy this week?</b><div class="a-pa"><span><svg class="i s" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg> SPEAK</span><span><svg class="i s" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg> WRITE</span></div></div>
+    <div class="a-day"><span class="a-big">30</span><span class="a-lab">FRIDAY</span></div>
+    <div class="a-je"><span class="a-mood m1"></span><p>Slept well. Felt calmer after the walk; less worried about the review.</p></div>
+    <div class="a-day"><span class="a-big">29</span><span class="a-lab">THURSDAY</span></div>
+    <div class="a-je"><span class="a-mood m2"></span><p>Long day. Want to say no to the Saturday shift.</p></div>
+    <div class="a-je"><span class="a-mood m1"></span><p>Lunch with Mia, laughed a lot.</p></div>
+  </div></div><div class="dnav"><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>A3 · Journal</figcaption></figure>
+</section>
+<section class="dcol"><div class="dhead"><span class="dk">B</span><div><b>Bloom</b><p>Material 3 Expressive: playful shapes (the mic and avatar are soft 'cookies'), colour blocks per kind of thing, big rounded type. Friendly and easy to tap.</p><div class="sws"><i style="background:#6b4eff"></i><i style="background:#e9ddff"></i><i style="background:#c9f0d8"></i><i style="background:#ffdcc7"></i></div><p class="mo">Motion: springy; buttons squish on press, shapes morph.</p></div></div>
+<figure><div class="dph B"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="b-top"><div><span class="b-sub">Friday 30 October</span><div class="b-h">Hi there</div></div><span class="blob av"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span></span></div>
+  <div class="pad">
+    <div class="b-comp"><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="blob mic"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></span></div>
+    <div class="b-tiles">
+      <div class="b-tile lil"><span class="b-ic"><svg class="i " viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg></span><b>Design review</b><span>15:30</span></div>
+      <div class="b-tile pea"><span class="b-ic"><svg class="i " viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span><b>Call the plumber</b><span>18:00</span></div>
+      <div class="b-tile min wide"><span class="b-ic"><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span><div><b>3 to-dos due</b><span>Oat milk · passport · invoice</span></div><span class="b-count">3</span></div>
+    </div>
+    <div class="b-sec">Just captured</div>
+    <div class="b-cap sky"><svg class="i " viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><div><b>Weekend market stall for old prints</b><span>Idea · 11:20 · voice</span></div></div>
+  </div></div><div class="dnav"><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>B1 · Today</figcaption></figure>
+<figure><div class="dph B"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="b-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
+  <div class="pad b-thread">
+    <div class="b-me"><span class="b-wave"><i></i><i></i><i></i><i></i><i></i><i></i></span>Remind me to call the plumber at six, and add oat milk to my list</div>
+    <div class="b-tool min"><span class="blob ok"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></span><div><b>Reminder set</b><span>Call the plumber · 18:00</span></div><span class="b-undo">Undo</span></div>
+    <div class="b-tool pea"><span class="blob ok"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></span><div><b>Oat milk</b><span>Added to Shopping</span></div><span class="b-undo">Undo</span></div>
+    <div class="b-ai">Done. Anything else before six?</div>
+    <div class="b-chips"><span>Set a timer</span><span>Show my list</span><span>What's next?</span></div>
+  </div>
+  <div class="b-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="blob mic"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></span></div></div><div class="gb"><span></span></div></div></div><figcaption>B2 · Chat with a tool card</figcaption></figure>
+<figure><div class="dph B"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="b-top"><div class="b-h">Journal</div><span class="blob av sm"><svg viewBox="0 0 100 100"><path d="M100.0,50.0L99.4,53.2L97.8,56.3L95.6,59.1L93.2,61.6L91.2,64.0L89.7,66.5L89.0,69.2L88.8,72.4L88.7,75.8L88.3,79.4L87.2,82.7L85.3,85.3L82.7,87.2L79.4,88.3L75.8,88.7L72.4,88.8L69.2,89.0L66.5,89.7L64.0,91.2L61.6,93.2L59.1,95.6L56.3,97.8L53.2,99.4L50.0,100.0L46.8,99.4L43.7,97.8L40.9,95.6L38.4,93.2L36.0,91.2L33.5,89.7L30.8,89.0L27.6,88.8L24.2,88.7L20.6,88.3L17.3,87.2L14.7,85.3L12.8,82.7L11.7,79.4L11.3,75.8L11.2,72.4L11.0,69.2L10.3,66.5L8.8,64.0L6.8,61.6L4.4,59.1L2.2,56.3L0.6,53.2L0.0,50.0L0.6,46.8L2.2,43.7L4.4,40.9L6.8,38.4L8.8,36.0L10.3,33.5L11.0,30.8L11.2,27.6L11.3,24.2L11.7,20.6L12.8,17.3L14.7,14.7L17.3,12.8L20.6,11.7L24.2,11.3L27.6,11.2L30.8,11.0L33.5,10.3L36.0,8.8L38.4,6.8L40.9,4.4L43.7,2.2L46.8,0.6L50.0,0.0L53.2,0.6L56.3,2.2L59.1,4.4L61.6,6.8L64.0,8.8L66.5,10.3L69.2,11.0L72.4,11.2L75.8,11.3L79.4,11.7L82.7,12.8L85.3,14.7L87.2,17.3L88.3,20.6L88.7,24.2L88.8,27.6L89.0,30.8L89.7,33.5L91.2,36.0L93.2,38.4L95.6,40.9L97.8,43.7L99.4,46.8Z"/></svg><span><svg class="i " viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></span></span></div>
+  <div class="pad">
+    <div class="b-prompt"><span>Today's prompt</span><b>What gave you energy this week?</b><div class="b-pa"><span class="pri"><svg class="i s" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Speak</span><span><svg class="i s" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Write</span></div></div>
+    <div class="b-week"><span class=" has ">M</span><span class="  ">T</span><span class=" has ">W</span><span class=" has wm">T</span><span class="on has ">F</span><span class="  ">S</span><span class="  ">S</span></div>
+    <div class="b-je lil"><div class="b-jh"><b>Friday</b><span class="b-mood">calm</span></div><p>Slept well. Felt calmer after the walk; less worried about the review.</p></div>
+    <div class="b-je pea"><div class="b-jh"><b>Thursday</b><span class="b-mood">tired</span></div><p>Long day. Want to say no to the Saturday shift.</p></div>
+  </div></div><div class="dnav"><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>B3 · Journal</figcaption></figure>
+</section>
+<section class="dcol"><div class="dhead"><span class="dk">C</span><div><b>Paper</b><p>A warm notebook: dotted paper, serif headings, terracotta and olive, small hand-drawn doodles, entries stamped like a diary. The most personal.</p><div class="sws"><i style="background:#f6efe4"></i><i style="background:#c4532d"></i><i style="background:#6b7a3a"></i><i style="background:#d9a23b"></i></div><p class="mo">Motion: gentle fades; ink draws the squiggles in.</p></div></div>
+<figure><div class="dph C"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="c-top"><div><span class="c-sub">Friday, 30 October</span><div class="c-h">Good<br>afternoon</div><svg class="sq" viewBox="0 0 120 8" preserveAspectRatio="none"><path d="M1 5 Q 7 1 13 5 T 25 5 T 37 5 T 49 5 T 61 5 T 73 5 T 85 5 T 97 5 T 109 5 T 119 5"/></svg></div><svg class="doodle" viewBox="0 0 64 64"><circle cx="32" cy="33" r="11"/><path d="M32 8v8M32 50v7M8 33h8M49 33h8M15 16l5 5M44 45l5 5M15 50l5-5M44 21l5-5"/></svg></div>
+  <div class="pad">
+    <div class="c-comp"><span>Ask, capture or do…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="c-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div>
+    <div class="c-sec">On today</div>
+    <div class="c-li"><span class="c-time">15:30</span><div><b>Design review</b><span>Room 4</span></div></div>
+    <div class="c-li"><span class="c-time t2">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
+    <div class="c-li"><span class="c-time t3">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div></div>
+    <div class="c-sec">Caught today</div>
+    <div class="c-note"><b>Weekend market stall for old prints</b><span>an idea, 11:20</span></div>
+  </div></div><div class="dnav"><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>C1 · Today</figcaption></figure>
+<figure><div class="dph C"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="c-hdr"><svg class="i " viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg><b>Assistant</b><svg class="i " viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01" stroke-width="3"/></svg></div>
+  <div class="pad c-thread">
+    <div class="c-me"><svg class="i s" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg> Remind me to call the plumber at six, and add oat milk to my list</div>
+    <div class="c-ticket"><div class="c-stub"><svg class="i " viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span>18:00</span></div><div class="c-tb"><b>Reminder set</b><span>Call the plumber, today</span><em>Undo</em></div></div>
+    <div class="c-ticket"><div class="c-stub s2"><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg><span>list</span></div><div class="c-tb"><b>Oat milk</b><span>added to Shopping</span><em>Undo</em></div></div>
+    <div class="c-ai">Done. Anything else before six?<span>written on this phone</span></div>
+  </div>
+  <div class="c-comp in"><span>Message…</span><svg class="i " viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="c-mic"><svg class="i " viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></div></div><div class="gb"><span></span></div></div></div><figcaption>C2 · Chat with a tool card</figcaption></figure>
+<figure><div class="dph C"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+<svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
+<svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
+<svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
+<b>82%</b></span></div><div class="app">
+  <div class="c-top"><div><div class="c-h">Journal</div><svg class="sq" viewBox="0 0 120 8" preserveAspectRatio="none"><path d="M1 5 Q 7 1 13 5 T 25 5 T 37 5 T 49 5 T 61 5 T 73 5 T 85 5 T 97 5 T 109 5 T 119 5"/></svg></div><svg class="doodle sm" viewBox="0 0 64 64"><path d="M32 58V30M32 38c-10 0-16-7-16-16 10 0 16 7 16 16zM32 32c0-10 7-17 17-17 0 10-7 17-17 17z"/></svg></div>
+  <div class="pad">
+    <div class="c-prompt"><span>Today's prompt</span><b>What gave you energy this week?</b><div class="c-pa"><span><svg class="i s" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Speak</span><span><svg class="i s" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Write</span></div></div>
+    <div class="c-entry"><div class="c-stamp"><b>30</b><span>Fri</span></div><p>Slept well. Felt calmer after the walk; less worried about the review.<span>8:05 in the morning</span></p></div>
+    <div class="c-entry"><div class="c-stamp s2"><b>29</b><span>Thu</span></div><p>Long day. Want to say no to the Saturday shift.<span>late evening, by voice</span></p></div>
+    <div class="c-entry"><div class="c-stamp s3"><b>29</b><span>Thu</span></div><p>Lunch with Mia, laughed a lot.<span>lunchtime</span></p></div>
+  </div></div><div class="dnav"><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>Today</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Chat</div><div class="dni on"><span><svg class="i " viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg></span>Library</div><div class="dni "><span><svg class="i " viewBox="0 0 24 24"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11"/><circle cx="5" cy="18" r="1.3"/></svg></span>To-dos</div></div><div class="gb"><span></span></div></div></div><figcaption>C3 · Journal</figcaption></figure>
+</section>
+</div><h1>LFM3 on Pixel: spec (v2)</h1>
 <p>One personal assistant for the owner&#39;s Pixel 10 Pro, built on Liquid AI&#39;s LFM3 models. It sees, listens, talks,
 answers, searches the web, keeps notes, ideas, a journal and to-dos, and does things on the phone (calendar, alarms,
 reminders, messages, settings). All thinking happens on the phone. This is the design for review; no app code is
@@ -142,7 +385,7 @@ and the use cases, screens, flows and build plan are redone. The mock-ups are re
 light; their source is in <code>docs/mockups/</code>.</p>
 <h2 id="mockups">Mock-ups</h2>
 <p class="cap">Pixel 10 Pro proportions (20:9; frames 360×800). Flat: no gradients, glows or shadows. Numbers and names are illustrative.</p>
-<div class="themes" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
+<div class="themes" id="themes13" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
 <div class="phones" id="phones">
 <figure><div class="ph"><div class="scr"><div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
 <svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
@@ -1002,7 +1245,10 @@ Alarms and timers ask, since undo is unreliable.</li>
 <li>Journal: lock it separately?</li>
 <li>Q4 (smaller, faster) or Q8 (more accurate; Omni about 2.4 GB) as the default?</li>
 </ol>
-<script>(function(){var p=document.getElementById('phones'),b=document.querySelectorAll('.themes button');
+<script>(function(){var p=document.getElementById('phones'),b=document.querySelectorAll('#themes13 button');
 function set(t){p.className='phones '+t;b.forEach(function(x){x.className=x.dataset.t===t?'on':''})}
+b.forEach(function(x){x.addEventListener('click',function(){set(x.dataset.t)})});
+set(document.documentElement.classList.contains('shepherdr-light')?'light':'dark');})();(function(){var p=document.getElementById('dirs'),b=document.querySelectorAll('#themesDir button');
+function set(t){p.className='dirs '+t;b.forEach(function(x){x.className=x.dataset.t===t?'on':''})}
 b.forEach(function(x){x.addEventListener('click',function(){set(x.dataset.t)})});
 set(document.documentElement.classList.contains('shepherdr-light')?'light':'dark');})();</script></body></html>

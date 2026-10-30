@@ -272,12 +272,12 @@ const models = screen(13, "Models and import", `${sb()}
 
 export const html = `<h2 id="mockups">Mock-ups</h2>
 <p class="cap">Pixel 10 Pro proportions (20:9; frames 360×800). Flat: no gradients, glows or shadows. Numbers and names are illustrative.</p>
-<div class="themes" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
+<div class="themes" id="themes13" role="group"><button data-t="dark">Dark</button><button data-t="light">Light</button></div>
 <div class="phones" id="phones">
 ${[today, chat, search, confirm, notes, ideas, journal, todos, camera, talk, settings, privacy, models].join("\n")}
 </div>`;
 
-export const script = `(function(){var p=document.getElementById('phones'),b=document.querySelectorAll('.themes button');
+export const script = `(function(){var p=document.getElementById('phones'),b=document.querySelectorAll('#themes13 button');
 function set(t){p.className='phones '+t;b.forEach(function(x){x.className=x.dataset.t===t?'on':''})}
 b.forEach(function(x){x.addEventListener('click',function(){set(x.dataset.t)})});
 set(document.documentElement.classList.contains('shepherdr-light')?'light':'dark');})();`;
@@ -403,3 +403,5 @@ figure{margin:0}figcaption{text-align:center;color:var(--fg2,#6b6d74);font-size:
 @media (max-width:400px){.phones figure{zoom:.92}}
 .pct{color:var(--ac);font-size:13px;font-weight:500}.get{color:var(--ac)}
 `;
+
+export { i, sb, gb };
