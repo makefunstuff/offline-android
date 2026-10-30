@@ -223,7 +223,7 @@ is *estimate* about 4 GB of the phone's 16 GB.
 The chosen style is **calm Signal with the Ink + highlighter palette**: confident structure, quiet voice.
 
 - **Structure.** Clear rows divided by 1 px lines, big numbers for times and days, square-ish edges (6–8 px
-  corners), plain line icons. No gradients, glows or shadows; layers are told apart by a 1 px line or a light fill.
+  corners; bottom sheets 12 px), plain line icons. No gradients, glows or shadows; layers are told apart by a 1 px line or a light fill.
 - **Type.** The phone's system font (Roboto on the Pixel). Screen titles 28–32 px semi-bold (600) with slightly tight
   spacing; big numbers 24–30 px medium (500), tabular figures; body 14–16 px; labels 12.5 px medium in grey, in
   sentence case (no uppercase or monospace labels).
@@ -234,22 +234,23 @@ The chosen style is **calm Signal with the Ink + highlighter palette**: confiden
   | Background | `#ffffff` | `#09090a` |
   | Text | `#0b0b0c` | `#f2f2f3` |
   | Secondary text | `#5c5c62` | `#9d9da4` |
-  | Faint text, icons | `#8b8b92` | `#6c6c74` |
+  | Faint text, icons | `#6e6e75` | `#86868d` |
   | Lines | `#e4e4e7` | `#27272a` |
   | Light fill (fields, own messages) | `#f4f4f5` | `#161618` |
   | Control edges (inputs, buttons) | `#8b8b92` | `#6a6a72` |
   | Highlighter | `#ffd400`, with `#0b0b0c` on it | `#ffd400`, with `#09090a` on it |
 
 - **The highlighter.** Yellow is used only on the mic and on the one thing that matters most on a screen: the next
-  item on Today, the key figure in a search answer, the date the assistant worked out, the most urgent to-do, the
-  reason a confirmation asks. Settings has none. It is drawn as a marker behind black text, never as yellow text,
+  item on Today, the key figure in a search answer, the date the assistant worked out, the most urgent to-do, what
+  Talk is doing now, the key privacy guarantee, a download in progress, a passed hash check, the personal word in a
+  search query, the reason a confirmation asks. Settings and first run have none. It is drawn as a marker behind black text, never as yellow text,
   and the mic has a 1 px ink edge in light mode so it stands out on white. Primary buttons, toggles and selected
   tabs are plain ink, not yellow.
 - **Themes.** Light and dark follow the phone; Material You colours are off so the look stays stable. Status-bar
   safe areas and the gesture bar are respected.
 
-Earlier style explorations (three directions, then three palettes) are in the artifact's versions 3–5 and in git
-history.
+Earlier style explorations (three directions, then three palettes) are in git history (`docs/mockups/directions.mjs`
+before it was removed).
 
 ### Structure
 
@@ -295,7 +296,7 @@ Send anyway), and **an action suggested by web text** (the confirmation says why
   numbered sources.
 - **Do something risky:** "Add dinner with Ana Friday 8 pm" → confirmation sheet with title, time, calendar → Add
   → event added → "Added. Undo".
-- **First run:** pick search mode (Off is fine) → download or import Omni and text models (2.5 GB, with hash checks)
+- **First run:** download or import Omni and text models (2.5 GB, with hash checks) → pick search mode (Off is fine)
   → grant permissions only when a tool first needs them.
 
 ### Model management

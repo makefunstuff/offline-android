@@ -44,7 +44,7 @@ const P = {
 };
 const i = (n, c = "") => `<svg class="i ${c}" viewBox="0 0 24 24">${P[n]}</svg>`;
 
-const sb = (dark) => `<div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
+const sb = () => `<div class="sb"><span>14:08</span><span class="hole"></span><span class="sbi">
 <svg viewBox="0 0 16 12"><path d="M1 11h2V8H1zM5 11h2V6H5zM9 11h2V3H9zM13 11h2V0h-2z" fill="currentColor"/></svg>
 <svg viewBox="0 0 16 12"><path d="M8 11.5L.5 4a10.6 10.6 0 0 1 15 0z" fill="currentColor"/></svg>
 <svg viewBox="0 0 22 12"><rect x=".5" y=".5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2" y="2" width="13" height="8" rx="1.2" fill="currentColor"/><rect x="19.5" y="4" width="1.8" height="4" rx=".8" fill="currentColor"/></svg>
@@ -73,7 +73,7 @@ const today = screen(1, "Today", `${sb()}<div class="app">
     <div class="f-lab mt">Today · 3 things</div>
     <div class="f-row"><span class="f-t">${hl("15:30")}</span><div><b>Design review</b><span>Room 4 · 45 min</span></div><span class="f-next">Next</span></div>
     <div class="f-row"><span class="f-t">18:00</span><div><b>Call the plumber</b><span>Reminder</span></div></div>
-    <div class="f-row last"><span class="f-t">3</span><div><b>To-dos due</b><span>Oat milk, passport, invoice</span></div>${i("right", "dim")}</div>
+    <div class="f-row last"><span class="f-t">2</span><div><b>To-dos due today</b><span>Passport, invoice</span></div>${i("right", "dim")}</div>
     <div class="f-lab mt">Just captured</div>
     <div class="f-card"><b>Weekend market stall for old prints</b><span>Idea · 11:20 · voice</span></div>
   </div></div>${nav("Today")}${gb}`, "yellow: mic, next item");
@@ -93,7 +93,7 @@ const chat = screen(2, "Chat", `${sb()}<div class="app">
 const search = screen(3, "Search results", `${sb()}<div class="app">
   ${hdr("Search", i("more"))}
   <div class="pad">
-    <div class="f-sent">${i("globe", "s")}<div><span class="f-lab">Sent to your SearXNG · 14:08</span><b>plumber call-out fee Leeds 2026</b></div></div>
+    <div class="f-sent">${i("globe", "s")}<div><span class="f-lab">Sent to your SearXNG · 14:08</span><b>plumber call-out fee Leeds 2026</b></div>${i("edit", "s dim")}</div>
     <p class="f-ans">Most Leeds plumbers charge ${hl("£60–£95 for a call-out")}, which covers the first hour <sup>1</sup><sup>2</sup>. Evenings and weekends often cost 1.5× <sup>3</sup>. Ask for a fixed quote before work starts.</p>
     <span class="f-meta">Written on this phone from 3 pages</span>
     <div class="f-lab mt">Sources</div>
@@ -118,7 +118,7 @@ const sheetScreen = (n, title, warn, note) => screen(n, title, `${sb()}<div clas
     <div class="f-fld"><span>Where</span><b>Ottolenghi</b></div>
     <div class="f-fld"><span>Calendar</span><b>On this phone</b></div>
     <div class="f-btns"><span class="f-btn">Edit</span><span class="f-btn">Cancel</span><span class="f-btn pri">Add</span></div>
-    <div class="f-fine">${warn ? "Actions suggested by web text always ask, even ones set to run directly." : "Calendar changes always ask first. Change in Settings → Tools."}</div>
+    <div class="f-fine">${warn ? "Actions suggested by web text always ask, even ones set to run directly." : "Calendar changes ask first (Settings → Tools)."}</div>
   </div></div>${gb}`, note);
 
 const confirm = sheetScreen(4, "Tool confirmation", false, "yellow: the date it worked out");
@@ -176,12 +176,12 @@ const talk = screen(10, "Talk", `${sb()}<div class="app">
   ${hdr("Talk", '<span class="f-pill">English</span>', i("x"))}
   <div class="pad f-talk">
     <div class="f-orb"><div class="f-bars"><i style="height:22px"></i><i style="height:46px"></i><i style="height:70px"></i><i style="height:40px"></i><i style="height:58px"></i><i style="height:28px"></i><i style="height:18px"></i></div></div>
-    <div class="f-state">Speaking</div>
+    <div class="f-state">${hl("Speaking")}</div>
     <div class="f-tl"><span class="f-lab">You</span>How long should I boil an egg for a runny yolk?</div>
     <div class="f-tl"><span class="f-lab">LFM</span>About six minutes from boiling, then straight into cold water.</div>
     <div class="f-warm">${i("warn", "s")}Phone is warm, answers may be slower</div>
   </div>
-  <div class="f-tctl"><span class="f-round">${i("speaker")}</span><span class="f-stop">${i("stop")}</span><span class="f-round">${i("chat")}</span></div></div>${gb}`, "yellow: the live voice");
+  <div class="f-tctl"><span class="f-round">${i("speaker")}</span><span class="f-stop">${i("stop")}</span><span class="f-round">${i("chat")}</span></div></div>${gb}`, "yellow: what it is doing now");
 
 const sr = (ic, t, d) => `<div class="f-sr">${i(ic)}<div><b>${t}</b><span>${d}</span></div>${i("right", "dim")}</div>`;
 const settings = screen(11, "Settings", `${sb()}<div class="app">
@@ -206,6 +206,7 @@ const privacy = screen(12, "Privacy and network log", `${sb()}<div class="app">
     <div class="f-nlg"><span>14:08</span><div><b>searxng.home.arpa</b><span>“plumber call-out fee Leeds 2026”</span></div><em>4 KB</em></div>
     <div class="f-nlg"><span>14:08</span><div><b>checkatrade.com</b><span>Opened source 1</span></div><em>38 KB</em></div>
     <div class="f-nlg"><span>14:08</span><div><b>which.co.uk</b><span>Opened source 2</span></div><em>51 KB</em></div>
+    <div class="f-nlg"><span>14:08</span><div><b>mybuilder.com</b><span>Opened source 3</span></div><em>44 KB</em></div>
     <div class="f-nlg"><span>13:58</span><div><b>huggingface.co</b><span>Model: LFM3-VL-2B (downloading)</span></div><em>0.8 GB</em></div>
     <div class="f-btns"><span class="f-btn">Export…</span><span class="f-btn">${i("trash", "s")}Delete all</span></div>
   </div></div>${gb}`, "yellow: the key guarantee");
@@ -214,9 +215,9 @@ const models = screen(13, "Models and import", `${sb()}<div class="app">
   ${hdr("Models", i("more"))}
   <div class="pad">
     <div class="f-stor"><div class="f-bar"><span style="width:2%"></span></div><span>3.3 GB used · 198 GB free</span></div>
-    <div class="f-md"><div class="f-mh"><b>LFM3-Omni-2B</b><span class="f-pill">In memory</span></div><span>Q4_K_M · 1.4 GB · ${i("check", "s")}verified</span><span class="dim">Voice, camera, talk</span></div>
-    <div class="f-md"><div class="f-mh"><b>LFM3-1.7B</b><span class="f-pill">In memory</span></div><span>Q4_0 · 1.05 GB · ${i("check", "s")}verified</span><span class="dim">Chat, tools, writing</span></div>
-    <div class="f-md"><div class="f-mh"><b>LFM3-VL-2B</b><span>${hl("64%")}</span></div><span>Downloading through LFM Net · 0.8 of 1.25 GB</span><div class="f-bar"><span style="width:64%"></span></div><span class="dim">Documents · checked against SHA-256 when done · Pause</span></div>
+    <div class="f-md"><div class="f-mh"><b>LFM3-Omni-2B</b><span class="f-pill">In memory</span>${i("trash", "s dim")}</div><span>Q4_K_M · 1.4 GB · ${i("check", "s")}verified</span><span class="dim">Voice, camera, talk</span></div>
+    <div class="f-md"><div class="f-mh"><b>LFM3-1.7B</b><span class="f-pill">In memory</span>${i("trash", "s dim")}</div><span>Q4_0 · 1.05 GB · ${i("check", "s")}verified</span><span class="dim">Chat, tools, writing</span></div>
+    <div class="f-md"><div class="f-mh"><b>LFM3-VL-2B</b><span>${hl("64%")}</span></div><span>Downloading through LFM Net · 0.8 of 1.25 GB</span><div class="f-bar"><span style="width:64%"></span></div><div class="f-mh"><span class="dim">Documents · checked against SHA-256 when done</span><span class="f-btn sm">Pause</span></div></div>
     <div class="f-btns"><span class="f-btn">${i("folder", "s")}Import a file</span><span class="f-btn pri">${i("download", "s")}Download</span></div>
     <div class="f-fine">Downloads come from Hugging Face with no login. Import works fully offline.</div>
   </div></div>${gb}`, "yellow: what is in progress");
@@ -234,7 +235,7 @@ const firstRun = screen("S1", "First run", `${sb()}<div class="app">
     <div class="f-seg3"><span>Off</span><span class="on">Ask first</span><span>Automatic</span></div>
     <div class="f-fine">Permissions (calendar, contacts, microphone) are asked only when a tool first needs one.</div>
   </div>
-  <div class="f-cta"><span class="f-btn go wide">Continue</span></div></div>${gb}`, "yellow: the next step");
+  <div class="f-cta"><span class="f-btn pri wide">Continue</span></div></div>${gb}`, "no yellow: one clear Continue");
 
 const importV = screen("S2", "Import and verify", `${sb()}<div class="app">
   ${hdr("Import model")}
@@ -257,7 +258,7 @@ const piiWarn = screen("S3", "Search query with a personal word", `${sb()}<div c
     <div class="f-ai sm">I'd need the web for reviews.</div>
     <div class="f-qw">
       <div class="f-qh">${i("warn", "s")}<b>This search has a name from your contacts</b></div>
-      <div class="f-qq"><span class="f-lab">Search the web for</span><b>${hl("Ana Pereira")} café Leeds reviews</b></div>
+      <div class="f-qq"><span class="f-lab">Search the web for</span><b>${hl("Ana Pereira")} café reviews</b></div>
       <p>The provider would see this name. Search without it, or send it anyway.</p>
       <div class="f-btns"><span class="f-btn">Edit</span><span class="f-btn">Send anyway</span><span class="f-btn pri">Remove name</span></div>
     </div>
@@ -283,15 +284,15 @@ ${STATES.join("\n")}
 export const script = `(function(){var p=[document.getElementById('fphones'),document.getElementById('fstates')],b=document.querySelectorAll('#themesF button');
 function set(t){p.forEach(function(x){x.className='fphones '+t});b.forEach(function(x){x.className=x.dataset.t===t?'on':''})}
 b.forEach(function(x){x.addEventListener('click',function(){set(x.dataset.t)})});
-set(document.documentElement.classList.contains('shepherdr-light')?'light':'dark');})();`;
+var h=document.documentElement.classList;set(h.contains('shepherdr-light')||(!h.contains('shepherdr-dark')&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark');})();`;
 
 export const css = `
 .themes{display:flex;gap:6px;margin:8px 0 4px}
 .themes button{font:inherit;font-size:13px;padding:6px 14px;border-radius:16px;border:1px solid var(--line,#d4d4d8);background:none;color:var(--fg,#18181b);cursor:pointer}
 .themes button.on{background:var(--fg,#18181b);color:var(--bg,#fff);border-color:var(--fg,#18181b)}
 .fphones{display:flex;flex-wrap:wrap;gap:26px 18px;justify-content:center;margin:12px 0;
- --bg:#ffffff;--t1:#0b0b0c;--t2:#5c5c62;--t3:#8b8b92;--ln:#e4e4e7;--s1:#f4f4f5;--ctl:#8b8b92;--hl:#ffd400;--onhl:#0b0b0c;--scrim:#0b0b0c}
-.fphones.dark{--bg:#09090a;--t1:#f2f2f3;--t2:#9d9da4;--t3:#6c6c74;--ln:#27272a;--s1:#161618;--ctl:#6a6a72;--hl:#ffd400;--onhl:#09090a;--scrim:#000000}
+ --bg:#ffffff;--t1:#0b0b0c;--t2:#5c5c62;--t3:#6e6e75;--ln:#e4e4e7;--s1:#f4f4f5;--ctl:#8b8b92;--hl:#ffd400;--onhl:#0b0b0c;--scrim:#0b0b0c}
+.fphones.dark{--bg:#09090a;--t1:#f2f2f3;--t2:#9d9da4;--t3:#86868d;--ln:#27272a;--s1:#161618;--ctl:#6a6a72;--hl:#ffd400;--onhl:#09090a;--scrim:#000000}
 .fphones figure{margin:0;width:374px}.fphones figcaption{text-align:center;color:var(--fg2,#6b6d74);font-size:13px;margin-top:8px}
 .fphones figcaption b{color:var(--fg,#18181b);font-weight:600;margin-right:4px}.fphones figcaption span{display:block;font-size:12px;font-style:italic}
 @media (max-width:400px){.fphones figure{zoom:.92}}
@@ -309,14 +310,14 @@ export const css = `
 mark.hl{background:var(--hl);color:var(--onhl);padding:0 3px;margin:0 -1px;border-radius:2px}
 .f-lab{font-size:12.5px;font-weight:500;color:var(--t2)}.f-lab.mt{display:block;margin:20px 0 6px}
 .f-top{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 0;color:var(--t2)}
-.f-av{width:34px;height:34px;border:1px solid var(--ln);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.f-av{width:34px;height:34px;border:1px solid var(--ctl);border-radius:6px;display:flex;align-items:center;justify-content:center}
 .f-h{font-size:32px;line-height:1.1;font-weight:600;letter-spacing:-.025em;padding:6px 16px 16px}
 .f-h2{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--t1)}
 .f-comp{display:flex;align-items:center;gap:12px;border:1px solid var(--ctl);background:var(--s1);border-radius:8px;height:52px;padding:0 5px 0 14px;font-size:15px}
 .f-comp>span:first-child{flex:1;color:var(--t2)}.f-comp>.i{color:var(--t2)}.f-comp.in{margin:8px 12px 10px}
 .f-mic{width:42px;height:42px;flex:none;border-radius:6px;background:var(--hl);color:var(--onhl);display:flex;align-items:center;justify-content:center;box-sizing:border-box;border:1px solid var(--t1)}
 .fphones.dark .f-mic{border-color:var(--hl)}
-.f-mic.fab{position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:10px}.f-mic.sm{width:34px;height:34px}
+.f-mic.fab{position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:8px}.f-mic.sm{width:34px;height:34px}
 .f-chips{display:flex;gap:8px;margin-top:10px}.f-chips span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--t2);border:1px solid var(--ln);border-radius:6px;padding:4px 8px}
 .f-row{display:flex;gap:14px;align-items:center;padding:11px 0;border-top:1px solid var(--ln)}.f-row.last{border-bottom:1px solid var(--ln)}
 .f-row div{flex:1;display:flex;flex-direction:column}.f-row span{color:var(--t2);font-size:12.5px}.f-row b{font-size:15.5px}
@@ -326,7 +327,7 @@ mark.hl{background:var(--hl);color:var(--onhl);padding:0 3px;margin:0 -1px;borde
 .f-nav{display:flex;height:70px;flex:none;border-top:1px solid var(--ln)}
 .f-ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--t2)}
 .f-ni span{width:56px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center}
-.f-ni.on{color:var(--t1);font-weight:700}.f-ni.on span{background:var(--s1);border:1px solid var(--ln)}
+.f-ni.on{color:var(--t1);font-weight:600}.f-ni.on span{background:var(--s1);border:1px solid var(--ln)}
 .f-hdr{display:flex;align-items:center;gap:14px;padding:10px 16px 12px;border-bottom:1px solid var(--ln);flex:none}.f-hdr b{flex:1;font-size:18px}.f-hdr .i{color:var(--t2)}
 .f-pill{font-size:12px;color:var(--t2);border:1px solid var(--ln);border-radius:6px;padding:2px 8px}
 .f-thread{display:flex;flex-direction:column;gap:10px;padding-top:14px}
@@ -340,21 +341,20 @@ mark.hl{background:var(--hl);color:var(--onhl);padding:0 3px;margin:0 -1px;borde
 .f-q{display:flex;align-items:center;gap:8px;border:1px solid var(--ctl);border-radius:8px;padding:10px}.f-q>div{flex:1;display:flex;flex-direction:column}.f-q b{font-size:14px}
 .f-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;padding:0 14px;border:1px solid var(--ctl);border-radius:6px;font-weight:500;font-size:14px;flex:1;box-sizing:border-box}
 .f-btn.sm{height:32px;flex:none;padding:0 10px;font-size:13px}.f-btn.pri{background:var(--t1);color:var(--bg);border-color:var(--t1)}.f-btn.wide{width:100%}
-.f-btn.go{background:var(--hl);color:var(--onhl);border-color:var(--t1)}.fphones.dark .f-btn.go{border-color:var(--hl)}
 .f-btns{display:flex;gap:8px;margin-top:14px}
-.f-sent{display:flex;align-items:center;gap:10px;border:1px solid var(--ln);border-radius:8px;padding:10px 12px;margin:14px 0 14px}.f-sent div{display:flex;flex-direction:column}
+.f-sent{display:flex;align-items:center;gap:10px;border:1px solid var(--ln);border-radius:8px;padding:10px 12px;margin:14px 0 14px}.f-sent div{flex:1;display:flex;flex-direction:column}
 .f-ans{margin:0;font-size:16.5px;line-height:1.5}.f-ans sup{font-size:10px;font-weight:600;border:1px solid var(--ctl);border-radius:3px;padding:0 4px;margin-left:2px;vertical-align:3px}
 .f-src{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--ln)}.f-src.last{border-bottom:1px solid var(--ln)}.f-src div{display:flex;flex-direction:column}.f-src span{color:var(--t2);font-size:12.5px}
 .f-src .n{width:22px;height:22px;border:1px solid var(--ctl);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--t1);flex:none}
 .f-note{display:flex;gap:8px;align-items:flex-start;color:var(--t2);font-size:12.5px;margin-top:14px}
 .f-scrim{position:absolute;inset:0;background:var(--scrim);opacity:.45}
-.f-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--ln);border-radius:14px 14px 0 0;padding:8px 20px 18px}
+.f-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--ln);border-radius:12px 12px 0 0;padding:8px 20px 18px}
 .f-grab{width:36px;height:4px;border-radius:2px;background:var(--t3);margin:4px auto 14px}
 .f-sh{display:flex;align-items:center;gap:10px;font-size:19px;margin-bottom:8px}
 .f-warn{display:flex;gap:8px;align-items:flex-start;font-size:13px;border:1px solid var(--ctl);border-radius:6px;padding:8px 10px;margin:4px 0 6px}
 .f-fld{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--ln)}.f-fld span{color:var(--t2)}
 .f-fine{color:var(--t2);font-size:12px;margin-top:12px}.f-fine.c{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:16px}
-.f-tabs{display:flex;gap:6px;margin:12px 0 14px}.f-tabs span{padding:6px 14px;border-radius:6px;border:1px solid var(--ln);font-size:13.5px;color:var(--t2)}
+.f-tabs{display:flex;gap:6px;margin:12px 0 14px}.f-tabs span{padding:6px 14px;border-radius:6px;border:1px solid var(--ctl);font-size:13.5px;color:var(--t2)}
 .f-tabs .on{background:var(--t1);color:var(--bg);border-color:var(--t1);font-weight:500}
 .f-nr{padding:12px 0;border-bottom:1px solid var(--ln)}.f-nh{display:flex;justify-content:space-between}.f-nh span{color:var(--t2);font-size:12px}
 .f-nr p{margin:3px 0 7px;color:var(--t2);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -376,27 +376,27 @@ mark.hl{background:var(--hl);color:var(--onhl);padding:0 3px;margin:0 -1px;borde
 .l3{left:180px;top:120px;width:100px;height:100px;border-radius:0 100% 0 100%;background:#7aa862!important}.pot{left:105px;top:225px;width:130px;height:110px;border-radius:0 0 18px 18px;background:#8c8c8c!important}
 .f-tb{position:absolute;top:10px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center}
 .f-seg{display:flex;background:#000a;border-radius:6px;padding:3px}.f-seg span{padding:5px 12px;border-radius:4px;font-size:13px}.f-seg .on{background:#fff;color:#000}
-.f-cq{display:flex;align-items:center;gap:10px;margin:12px 14px 0;background:#161618;border:1px solid #3a3a3f;border-radius:8px;padding:8px 12px 8px 8px;font-size:14px}
-.f-cam .f-mic{border-color:#ffd400}
+.f-cq{display:flex;align-items:center;gap:10px;margin:12px 14px 0;background:#161618;border:1px solid #6a6a72;border-radius:8px;padding:8px 12px 8px 8px;font-size:14px}
+.f-cam .f-mic{border-color:var(--hl)}
 .f-cb2{display:flex;justify-content:space-around;align-items:center;padding:18px 0 14px}
 .f-shut{width:70px;height:70px;border-radius:50%;background:#fff;border:5px solid #000;outline:2px solid #fff}
-.f-round{width:46px;height:46px;border-radius:8px;border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;color:var(--t2)}
-.f-cam .f-round{border-color:#3a3a3f;color:#fff}
+.f-round{width:46px;height:46px;border-radius:8px;border:1px solid var(--ctl);display:flex;align-items:center;justify-content:center;color:var(--t2)}
+.f-cam .f-round{border-color:#6a6a72;color:#fff}
 .f-talk{display:flex;flex-direction:column;align-items:center}
-.f-orb{width:190px;height:190px;border-radius:24px;background:var(--hl);display:flex;align-items:center;justify-content:center;margin:32px 0 12px}
-.f-bars{display:flex;gap:6px;align-items:center}.f-bars i{display:block;width:8px;border-radius:2px;background:var(--onhl)}
+.f-orb{width:190px;height:190px;border-radius:8px;border:1px solid var(--ctl);background:var(--s1);display:flex;align-items:center;justify-content:center;margin:32px 0 12px}
+.f-bars{display:flex;gap:6px;align-items:center}.f-bars i{display:block;width:8px;border-radius:2px;background:var(--t1)}
 .f-state{font-weight:600;margin-bottom:22px}
 .f-tl{align-self:stretch;padding:10px 0;border-top:1px solid var(--ln)}.f-tl .f-lab{display:block;margin-bottom:2px}
 .f-warm{display:flex;gap:8px;align-items:center;align-self:stretch;margin-top:12px;border:1px solid var(--ctl);border-radius:6px;padding:9px 12px;font-size:13px}
 .f-tctl{display:flex;justify-content:center;align-items:center;gap:28px;padding:10px 0 18px}
-.f-stop{width:64px;height:64px;border-radius:10px;background:var(--t1);color:var(--bg);display:flex;align-items:center;justify-content:center}
+.f-stop{width:64px;height:64px;border-radius:8px;background:var(--t1);color:var(--bg);display:flex;align-items:center;justify-content:center}
 .f-grp{border:1px solid var(--ln);border-radius:8px;margin-top:12px}
 .f-sr,.f-tg2{display:flex;align-items:center;gap:14px;padding:11px 14px;border-top:1px solid var(--ln)}.f-grp>:first-child{border-top:0}
 .f-sr>.i:first-child{color:var(--t2)}.f-sr div,.f-tg2 div{flex:1;display:flex;flex-direction:column}.f-sr span,.f-tg2 span{color:var(--t2);font-size:12.5px}
 .f-tg2{border:1px solid var(--ln);border-radius:8px;margin-top:8px}
 .f-sw{width:40px;height:22px;border-radius:6px;border:1px solid var(--ctl);position:relative;flex:none;box-sizing:border-box}
 .f-sw i{position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:3px;background:var(--t3)}.f-sw.on{background:var(--t1);border-color:var(--t1)}.f-sw.on i{left:21px;background:var(--bg)}
-.f-seg3{display:flex;border:1px solid var(--ln);border-radius:6px;overflow:hidden}.f-seg3 span{flex:1;text-align:center;padding:8px 0;font-size:13px;color:var(--t2);border-left:1px solid var(--ln)}
+.f-seg3{display:flex;border:1px solid var(--ctl);border-radius:6px;overflow:hidden}.f-seg3 span{flex:1;text-align:center;padding:8px 0;font-size:13px;color:var(--t2);border-left:1px solid var(--ctl)}
 .f-seg3 span:first-child{border-left:0}.f-seg3 .on{background:var(--t1);color:var(--bg);font-weight:500}
 .f-big2{font-size:22px;font-weight:600;letter-spacing:-.015em;margin:14px 0 10px}
 .f-pr{display:flex;gap:12px;align-items:center;padding:8px 0}.f-pr div{flex:1;display:flex;flex-direction:column}.f-pr span{color:var(--t2);font-size:12.5px}
@@ -406,12 +406,12 @@ mark.hl{background:var(--hl);color:var(--onhl);padding:0 3px;margin:0 -1px;borde
 .f-stor{margin:14px 0 12px}.f-stor>span{color:var(--t2);font-size:12.5px}
 .f-bar{height:4px;border-radius:2px;background:var(--ln);margin:6px 0}.f-bar span{display:block;height:4px;border-radius:2px;background:var(--t1)}
 .f-md{border:1px solid var(--ln);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;flex-direction:column;gap:2px}
-.f-md>span{color:var(--t2);font-size:12.5px;display:flex;align-items:center;gap:4px}.f-md .dim{color:var(--t3)}
+.f-md>span{color:var(--t2);font-size:12.5px;display:flex;align-items:center;gap:4px}.f-md .dim{color:var(--t2);font-size:12.5px}.f-mh .f-pill{margin-left:auto;margin-right:10px}
 .f-mh{display:flex;justify-content:space-between;align-items:center}
 .f-first{display:flex;flex-direction:column;padding-top:18px}.f-first .f-h{padding:8px 0 10px}
 .f-steps{display:flex;gap:6px}.f-steps span{width:28px;height:4px;border-radius:2px;background:var(--ln)}.f-steps .on{background:var(--t1)}
 .f-lead{margin:0;color:var(--t2);font-size:15px}
-.f-opt{display:flex;gap:12px;align-items:center;border:1px solid var(--ln);border-radius:8px;padding:11px 12px;margin-bottom:8px}.f-opt.on{border-color:var(--t1)}
+.f-opt{display:flex;gap:12px;align-items:center;border:1px solid var(--ctl);border-radius:8px;padding:11px 12px;margin-bottom:8px}.f-opt.on{border-color:var(--t1)}
 .f-opt div{flex:1;display:flex;flex-direction:column}.f-opt span{color:var(--t2);font-size:12.5px}
 .f-radio{width:18px;height:18px;border-radius:50%;border:1px solid var(--ctl);flex:none;box-sizing:border-box}.f-radio.on{border:6px solid var(--t1)}
 .f-cta{padding:10px 16px 14px;flex:none}
