@@ -229,9 +229,9 @@ const firstRun = screen("S1", "First run", `${sb()}<div class="app">
     <div class="f-h">Your assistant,<br>on this phone</div>
     <p class="f-lead">Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web.</p>
     <div class="f-lab mt">Step 1 of 3 · Models (2.5 GB)</div>
-    <div class="f-opt on">${i("download")}<div><b>Download</b><span>Omni-2B and LFM3-1.7B from Hugging Face, checked on arrival</span></div><span class="f-radio on"></span></div>
+    <div class="f-opt on">${i("download")}<div><b>Download</b><span>Omni-2B and LFM3-1.7B from Hugging Face through LFM Net, checked on arrival</span></div><span class="f-radio on"></span></div>
     <div class="f-opt">${i("folder")}<div><b>Import files</b><span>Already on this phone or copied over USB; no network needed</span></div><span class="f-radio"></span></div>
-    <div class="f-lab mt">Web search</div>
+    <div class="f-lab mt">Step 2 of 3 · Web search (change any time)</div>
     <div class="f-seg3"><span>Off</span><span class="on">Ask first</span><span>Automatic</span></div>
     <div class="f-fine">Permissions (calendar, contacts, microphone) are asked only when a tool first needs one.</div>
   </div>
@@ -363,7 +363,7 @@ mark.hl{background:var(--hl);color:var(--onhl);padding:0 3px;margin:0 -1px;borde
 .f-ic span{color:var(--t2);font-size:12px}.f-ic em{font-style:normal;font-weight:500;font-size:13px;display:flex;align-items:center;gap:2px;text-decoration:underline;text-underline-offset:3px}
 .f-prompt{background:var(--s1);border:1px solid var(--ln);border-radius:8px;padding:16px}.f-prompt b{display:block;font-size:21px;line-height:1.2;letter-spacing:-.015em;margin:6px 0 14px}
 .f-pa{display:flex;gap:8px;align-items:center}.f-pa .f-btn{background:var(--bg)}.f-pa em{font-style:normal;font-size:12.5px;color:var(--t2)}
-.f-day{display:flex;align-items:baseline;gap:10px;margin:18px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--ln)}.f-big{font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1}
+.f-day{display:flex;align-items:baseline;gap:10px;margin:18px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--ln)}.f-big{font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
 .f-je{display:flex;gap:12px;padding:8px 0}.f-je p{margin:0;font-size:15px}.f-mood{width:9px;height:9px;flex:none;margin-top:6px;border-radius:2px}.f-mood.m1{background:var(--t1)}.f-mood.m2{border:1px solid var(--t2)}
 .f-td{display:flex;gap:14px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--ln)}.f-td div{display:flex;flex-direction:column}.f-td span{color:var(--t2);font-size:12.5px}
 .f-cb{width:18px;height:18px;border:1px solid var(--ctl);border-radius:4px;flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center}
@@ -381,7 +381,7 @@ mark.hl{background:var(--hl);color:var(--onhl);padding:0 3px;margin:0 -1px;borde
 .f-cb2{display:flex;justify-content:space-around;align-items:center;padding:18px 0 14px}
 .f-shut{width:70px;height:70px;border-radius:50%;background:#fff;border:5px solid #000;outline:2px solid #fff}
 .f-round{width:46px;height:46px;border-radius:8px;border:1px solid var(--ctl);display:flex;align-items:center;justify-content:center;color:var(--t2)}
-.f-cam .f-round{border-color:#6a6a72;color:#fff}
+.f-cam .f-round{border-color:#6a6a72;color:#fff}.f-cam .gb span{background:#fff}
 .f-talk{display:flex;flex-direction:column;align-items:center}
 .f-orb{width:190px;height:190px;border-radius:8px;border:1px solid var(--ctl);background:var(--s1);display:flex;align-items:center;justify-content:center;margin:32px 0 12px}
 .f-bars{display:flex;gap:6px;align-items:center}.f-bars i{display:block;width:8px;border-radius:2px;background:var(--t1)}

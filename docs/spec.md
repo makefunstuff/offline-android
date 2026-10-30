@@ -224,7 +224,7 @@ The chosen style is **calm Signal with the Ink + highlighter palette**: confiden
 
 - **Structure.** Clear rows divided by 1 px lines, big numbers for times and days, square-ish edges (6–8 px
   corners; bottom sheets 12 px), plain line icons. No gradients, glows or shadows; layers are told apart by a 1 px line or a light fill.
-- **Type.** The phone's system font (Roboto on the Pixel). Screen titles 28–32 px semi-bold (600) with slightly tight
+- **Type.** The phone's system font (Roboto on the Pixel). Top-level screen titles 28–32 px semi-bold (600), sub-screen headers 18 px with slightly tight
   spacing; big numbers 24–30 px medium (500), tabular figures; body 14–16 px; labels 12.5 px medium in grey, in
   sentence case (no uppercase or monospace labels).
 - **Colour.** True neutral greys only, no warm or beige tint:
@@ -264,7 +264,7 @@ opens voice from anywhere:
 - **To-dos**: lists, due dates, done.
 - Settings from the avatar on Today.
 
-### Screens (all drawn below, dark and light)
+### Screens (all drawn at the top, dark and light)
 
 1. **Today** — composer, agenda, latest captures, status chips ("On this phone", search mode).
 2. **Chat** — thread with a spoken question, a tool result ("Reminder set, 18:00, Undo"), and a follow-up.
