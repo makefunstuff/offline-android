@@ -9,7 +9,7 @@ let md = readFileSync(spec, "utf8");
 // Link bare source URLs.
 md = md.replace(/ — (https:\/\/\S+)/g, " — [$1]($1)");
 const cut = md.indexOf("## 1.");
-const body = D.html + marked.parse(md.slice(0, cut)) + M.html + marked.parse(md.slice(cut));
+const body = D.html + marked.parse(md.slice(0, cut)) + M.html + D.others + marked.parse(md.slice(cut));
 
 const css = `
 body{font-size:15px;line-height:1.5}
