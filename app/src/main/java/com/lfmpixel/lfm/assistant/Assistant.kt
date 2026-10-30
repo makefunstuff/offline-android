@@ -87,11 +87,13 @@ class Assistant(
     // Messages sent while the assistant is busy wait their turn here instead of being dropped.
     private val inbox = Channel<Input>(Channel.UNLIMITED)
     private var threadSet = false
+    @Volatile private var threadReady = false
 
     init {
         scope.launch {
             val last = db.messages().lastThread()
             if (!threadSet) _thread.value = last
+            threadReady = true
             for (input in inbox) {
                 busy.value = true
                 job = scope.launch { handle(input) }
@@ -120,11 +122,12 @@ class Assistant(
         val clean = text.trim()
         if (clean.isEmpty()) return
         busy.value = true
-        inbox.trySend(Input(clean, voiceSeconds, source, _thread.value))
+        // Before the last chat is known (cold start), -1 means "whichever chat is current".
+        inbox.trySend(Input(clean, voiceSeconds, source, if (threadReady || threadSet) _thread.value else -1))
     }
 
     private suspend fun handle(input: Input) {
-        if (input.thread != _thread.value) return
+        if (input.thread != -1L && input.thread != _thread.value) return
         try {
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = input.text, voiceSeconds = input.voiceSeconds))
             if (!models.hasText()) sortWithoutModel(input.text, input.source) else converse(input.source)
@@ -207,7 +210,7 @@ class Assistant(
             if (prefs.thinking && session.stats().decodeTokens >= first) {
                 // Out of thinking budget: close the think block if it is still open, then let the answer run.
                 if (ModelOutput.parse(raw.toString(), true).stillThinking) raw.append("\n</think>\n")
-                models.textSession().generate(prompt + raw, answerBudget).collect { onPiece(it) }
+                session.generate(prompt + raw, answerBudget).collect { onPiece(it) }
             }
             val out = ModelOutput.parse(raw.toString(), prefs.thinking)
             val st = session.stats()

@@ -219,7 +219,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
             Txt("Chats, notes, ideas, journal, to-dos, reminders and the action history, in the app's private storage. Models in the app's files.",
                 LfmType.small, c.text2)
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Btn("Clear chats", { scope.launch { g.db.messages().deleteAll(); g.assistant.newChat() } }, Modifier.weight(1f), icon = "trash")
+                Btn("Clear chats", { scope.launch { g.assistant.newChat(); g.db.messages().deleteAll() } }, Modifier.weight(1f), icon = "trash")
             }
             Spacer(Modifier.height(24.dp))
         }
