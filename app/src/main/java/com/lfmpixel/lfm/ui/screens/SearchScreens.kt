@@ -181,8 +181,8 @@ private val citation = Regex("""\[(\d{1,2})]""")
 fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: Modifier = Modifier, citations: Boolean = true) {
     val c = Lfm.c
     val citation = if (citations) citation else Regex("(?!)")
-    val numbers = citation.findAll(text).map { it.groupValues[1] }.toSet()
-    val annotated = buildAnnotatedString {
+    val numbers = remember(text, citations) { citation.findAll(text).map { it.groupValues[1] }.toSet() }
+    val annotated = remember(text, citations, markKeyFact, c) { buildAnnotatedString {
         var marked = false
         text.split("**").let { parts -> if (parts.size % 2 == 0) listOf(text) else parts }.forEachIndexed { i, part ->
             val bold = i % 2 == 1
@@ -201,7 +201,7 @@ fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: M
             append(part.substring(last))
             styleFor?.let { pop() }
         }
-    }
+    } }
     val inline = numbers.associate { n ->
         "cite$n" to InlineTextContent(Placeholder(if (n.length > 1) 22.sp else 18.sp, 15.sp, PlaceholderVerticalAlign.TextCenter)) {
             Box(Modifier.fillMaxSize().padding(start = 3.dp).border(1.dp, c.control, RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {

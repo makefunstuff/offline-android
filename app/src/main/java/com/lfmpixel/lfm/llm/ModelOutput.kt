@@ -71,6 +71,12 @@ data class ModelOutput(val thinking: String, val answer: String, val toolCalls: 
             return ModelOutput(thinking, answer, calls, stillThinking)
         }
 
+        /** What a stored answer thought, from its raw text (which starts with the assistant prefix); "" if nothing. */
+        fun thoughtOf(raw: String): String = when {
+            !raw.startsWith("<think>") || raw.startsWith("<think></think>") -> ""
+            else -> parse(raw.removePrefix("<think>"), true).thinking
+        }
+
         private fun unescape(s: String) = s.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
     }
 }

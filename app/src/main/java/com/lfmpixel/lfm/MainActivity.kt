@@ -65,6 +65,7 @@ import com.lfmpixel.lfm.ui.screens.ImportScreen
 import com.lfmpixel.lfm.ui.screens.LibraryScreen
 import com.lfmpixel.lfm.ui.screens.LockScreen
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -320,11 +321,15 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
         }
     }
 
+    // Black behind the camera, fading in and out with its transition, so leaving or opening it never flashes the
+    // other screen's background over the whole window at once.
+    val ground by androidx.compose.animation.animateColorAsState(if (nav.current == Route.Camera) Color.Black else c.bg,
+        LfmMotion.spec(LfmMotion.LONG), label = "ground")
     Box(Modifier.fillMaxSize().background(c.bg)) {
         // Behind the lock nothing is composed at all: no screen, sheet or menu can show or take a tap. The screens'
         // saveable state (drafts, tabs, scroll) is kept by the state holder, and the place in the app by the stack.
         if (!appLocked) Column(Modifier.fillMaxSize()
-            .background(if (nav.current == Route.Camera) Color.Black else c.bg).statusBarsPadding().navigationBarsPadding()) {
+            .drawBehind { drawRect(ground) }.statusBarsPadding().navigationBarsPadding()) {
             // ux-spec section 7: the camera opens along the Z axis, pushed screens (editor, chat, settings) along X;
             // the four places of the bottom bar change at once.
             Box(Modifier.weight(1f)) {

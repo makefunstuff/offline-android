@@ -67,13 +67,18 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     LaunchedEffect(Unit) { while (true) { delay(30_000); now = LocalDateTime.now() } }
     val start = LocalDate.now().atStartOfDay(zone).toInstant().toEpochMilli()
     val end = start + 86_400_000L
-    val reminders by remember(start) { g.db.reminders().between(start, end) }.collectAsState(emptyList())
-    val todos by remember { g.db.entries().todos() }.collectAsState(emptyList())
+    // Null until first read: the agenda shows once it is known, rather than "nothing planned" for a moment first.
+    val remindersRead by remember(start) { g.db.reminders().between(start, end) }.collectAsState(null)
+    val todosRead by remember { g.db.entries().todos() }.collectAsState(null)
     val latestAll by remember { g.db.entries().latest(3) }.collectAsState(emptyList())
+    val reminders = remindersRead ?: emptyList()
+    val todos = todosRead ?: emptyList()
     val hideJournal = journalLocked(g)
     val latest = if (hideJournal) latestAll.filter { it.kind != EntryKind.Journal } else latestAll
     val prefs by g.settings.prefs.collectAsState(null)
-    val events by produceState(emptyList<com.lfmpixel.lfm.tools.CalendarEvent>(), start, reminders) { value = g.calendar.between(start, end) }
+    val eventsRead by produceState<List<com.lfmpixel.lfm.tools.CalendarEvent>?>(null, start, remindersRead) { value = g.calendar.between(start, end) }
+    val events = eventsRead ?: emptyList()
+    val agendaKnown = remindersRead != null && todosRead != null && eventsRead != null
     var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
 
     val dueToday = todos.filter { !it.done && it.dueAt != null && it.dueAt < end }
@@ -115,14 +120,14 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 ModelPill(g) { nav.go(Route.Models) }
                 Pill("Search: ${prefs?.searchMode?.label?.lowercase() ?: "ask first"}", "globe")
             }
-            SectionLabel(if (count == 0) "Today · nothing planned" else "Today · $count ${if (count == 1) "thing" else "things"}")
+            SectionLabel(when { !agendaKnown -> "Today"; count == 0 -> "Today · nothing planned"; else -> "Today · $count ${if (count == 1) "thing" else "things"}" })
             items.forEach { AgendaRow(it, it == next, zone) }
             if (untimed.isNotEmpty()) {
                 AgendaRow(AgendaItem(null, if (untimed.size == 1) "To-do due today" else "To-dos due today",
                     untimed.take(3).joinToString(", ") { it.title }, onClick = { nav.go(Route.Todos) }, count = untimed.size), false, zone)
             }
             if (count > 0) Divider()
-            if (count == 0) Txt("Say or type what's coming up; reminders and events show here.", LfmType.small, c.text2, Modifier.padding(vertical = 8.dp))
+            if (agendaKnown && count == 0) Txt("Say or type what's coming up; reminders and events show here.", LfmType.small, c.text2, Modifier.padding(vertical = 8.dp))
             if (latest.isNotEmpty()) {
                 SectionLabel("Just captured")
                 latest.forEach { e -> CaptureCard(e) { nav.go(Route.Editor(e.id, e.kind)) } ; Spacer(Modifier.height(8.dp)) }
