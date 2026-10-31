@@ -240,6 +240,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     // Ink in the margin (notebook-spec proposal 3): one answer at a time, stopped when the editor goes.
     val margin = remember(route.opened) { MarginRun(g) }
     var inkSheet by remember { mutableStateOf(false) }
+    var stepsSheet by remember { mutableStateOf(false) }
     val marginView = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
     DisposableEffect(margin) { onDispose { margin.stop() } }
     LaunchedEffect(margin.ask) { if (margin.ask != null) { delay(LfmMotion.LONG.toLong()); runCatching { marginView.bringIntoView() } } }
@@ -363,6 +364,15 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                     }
                     Label("List")
                     InputLine(draft.extra, { draft.extra = it; draft.changed() }, "Add to a list, like Shopping", "list", Modifier.padding(top = 6.dp), imeAction = ImeAction.Done)
+                    // The organizer (notebook-spec A.1): how long it takes, and its steps.
+                    if (e.parentId == null) {
+                        Label("About how long", Modifier.padding(top = 14.dp, bottom = 6.dp))
+                        SizeChips(e.minutes, com.lfmpixel.lfm.assistant.Sizes.guess(draft.text.text)) { m -> draft.entry = e.copy(minutes = m); draft.changed() }
+                        draft.id?.let { id ->
+                            Label("Steps", Modifier.padding(top = 14.dp, bottom = 2.dp))
+                            StepsList(g, nav, e.copy(id = id)) { keyboard?.hide(); g.scope.launch { draft.save() }; stepsSheet = true }
+                        }
+                    }
                 }
                 EntryKind.Idea -> {
                     Label("Topic", Modifier.padding(top = 8.dp, bottom = 6.dp))
@@ -402,6 +412,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
             }
         }
     }
+    if (stepsSheet) draft.id?.let { id -> StepsSheet(g, nav, draft.entry.copy(id = id, title = draft.text.text.lineSequence().firstOrNull()?.take(120) ?: draft.entry.title)) { stepsSheet = false } }
     if (inkSheet) MarginSheet(g, nav, onPick = { what, q -> inkSheet = false; margin.start(draft.text.text, what, q) }, onClose = { inkSheet = false })
 }
 

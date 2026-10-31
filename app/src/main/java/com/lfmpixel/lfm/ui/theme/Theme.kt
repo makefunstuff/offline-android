@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
-/** Calm Signal, Ink + highlighter (docs/spec.md section 7). True neutral greys; yellow only as a marker. */
+/** Calm Signal, Ink + highlighter (docs/spec.md section 7). True neutral greys, yellow as a marker, soft tints for the organizer. */
 @Immutable
 data class LfmColors(
     val bg: Color,
@@ -31,6 +31,14 @@ data class LfmColors(
     val onHighlight: Color,
     val scrim: Color,
     val dark: Boolean,
+    /**
+     * The organizer's friendly tints (notebook-spec A.2): soft fills for its cards and the ink that sits on them.
+     * Peach for Now, lavender for the plan, mint for done, sky for Focus. Never red, never loud.
+     */
+    val peach: Color = Color(0xFFFFE9DC), val onPeach: Color = Color(0xFF8A3B12),
+    val lavender: Color = Color(0xFFEEE8FF), val onLavender: Color = Color(0xFF4B3A8C),
+    val mint: Color = Color(0xFFE2F6EC), val onMint: Color = Color(0xFF1F6B47),
+    val sky: Color = Color(0xFFE3F0FF), val onSky: Color = Color(0xFF1F4F8A),
 )
 
 val LightColors = LfmColors(
@@ -43,6 +51,10 @@ val DarkColors = LfmColors(
     bg = Color(0xFF09090A), text = Color(0xFFF2F2F3), text2 = Color(0xFF9D9DA4), text3 = Color(0xFF86868D),
     line = Color(0xFF27272A), fill = Color(0xFF161618), control = Color(0xFF6A6A72),
     highlight = Color(0xFFFFD400), onHighlight = Color(0xFF09090A), scrim = Color(0xFF000000), dark = true,
+    peach = Color(0xFF2E1E17), onPeach = Color(0xFFFFB892),
+    lavender = Color(0xFF221D33), onLavender = Color(0xFFC7B8FF),
+    mint = Color(0xFF15261E), onMint = Color(0xFF8EDDB5),
+    sky = Color(0xFF16212F), onSky = Color(0xFF9CC6FF),
 )
 
 val LocalLfm = staticCompositionLocalOf { LightColors }

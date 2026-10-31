@@ -62,6 +62,8 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Long-press the icon: Write a line, Brain dump, Now (docs/notebook-spec.md, A.1 proposal 3). -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
             <!-- The assistant gesture, for phones that send it to an activity. -->
             <intent-filter>
                 <action android:name="android.intent.action.ASSIST" />
@@ -108,6 +110,7 @@
         </service>
         <receiver android:name=".web.NetInstallReceiver" android:exported="false" />
         <receiver android:name=".tools.ReminderReceiver" android:exported="false" />
+        <receiver android:name=".assistant.FocusReceiver" android:exported="false" />
         <receiver android:name=".tools.BootReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
         </receiver>

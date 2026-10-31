@@ -73,7 +73,8 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     var adding by rememberSaveable { mutableStateOf("") }
     val zone = ZoneId.systemDefault()
     val endOfToday = LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    val all = todos ?: emptyList()
+    // Steps show under their to-do (in its editor and on the Now card), not as to-dos of their own.
+    val all = (todos ?: emptyList()).filter { it.parentId == null }
     val open = all.filter { !it.done && todoTab(it, endOfToday) == tab }
     val done = all.filter { it.done && todoTab(it, endOfToday) == tab && (it.doneAt ?: 0) > System.currentTimeMillis() - 7 * 86_400_000L }
     // The most urgent: overdue or earliest due today.
@@ -162,12 +163,14 @@ private fun detail(e: Entry, endOfToday: Long): String {
         val d = Instant.ofEpochMilli(due).atZone(zone)
         val startOfToday = endOfToday - 86_400_000L
         parts += when {
-            due < startOfToday -> "Overdue · " + d.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH))
+            // Never "overdue" (notebook-spec A.1, proposal 6): only where it came from.
+            due < startOfToday -> "From " + d.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH))
             due < endOfToday -> "Due today" + if (e.dueHasTime) " " + d.format(DateTimeFormatter.ofPattern("HH:mm")) else ""
             else -> "Due " + d.format(DateTimeFormatter.ofPattern(if (e.dueHasTime) "EEE d MMM HH:mm" else "EEE d MMM", Locale.ENGLISH))
         }
     }
     if (e.list.isNotEmpty()) parts += e.list
+    if (e.minutes > 0) parts += com.lfmpixel.lfm.assistant.Sizes.label(e.minutes)
     if (e.source == "voice") parts += "from voice, " + Instant.ofEpochMilli(e.createdAt).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm"))
     else if (e.source == "chat") parts += "from chat"
     return parts.joinToString(" · ").ifEmpty { "No date" }

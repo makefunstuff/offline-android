@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.assistant.InkKind
 import com.lfmpixel.lfm.assistant.InkLine
+import com.lfmpixel.lfm.assistant.Sizes
+import androidx.compose.ui.focus.focusRequester
 import com.lfmpixel.lfm.data.Entry
 import com.lfmpixel.lfm.data.EntryKind
 import com.lfmpixel.lfm.ui.Nav
@@ -159,10 +161,26 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
     val prefs by g.settings.prefs.collectAsState(null)
     val hideJournal = journalLocked(g)
     val actions = remember { EntryActions(g, nav) }
-    val open: (Entry) -> Unit = { nav.go(Route.Editor(it.id, it.kind)) }
+    val open: (Entry) -> Unit = { if (it.isDump()) nav.go(Route.Dump(it.id)) else nav.go(Route.Editor(it.id, it.kind)) }
 
-    val lines = linesRead ?: emptyList()
+    // The organizer (notebook-spec A.1): open to-dos for Now and the plan, and the sheets it opens.
+    val openRead by remember(isToday) { if (isToday) g.db.entries().open() else flowOf(null) }.collectAsState(null)
+    var stepsFor by remember { mutableStateOf<Entry?>(null) }
+    var planning by remember { mutableStateOf(false) }
+    val bounds = remember(now, day) { DayBounds(day, now) }
+
+    // Steps live under their to-do, not on the page.
+    val lines = (linesRead ?: emptyList()).filter { it.parentId == null }
     val nowMs = now.atZone(zone).toInstant().toEpochMilli()
+    fun planned(e: Entry) = e.kind == EntryKind.Todo && e.planOrder > 0 && (e.dueAt ?: -1) in start until end
+    val plan = lines.filter(::planned).sortedBy { it.planOrder }
+    val next = openRead?.let { com.lfmpixel.lfm.assistant.NextAction.pick(it, nowMs, start, end, nav.skipped.toList()) }
+    val stepsLeft = openRead.orEmpty().filter { it.parentId != null }.groupingBy { it.parentId!! }.eachCount()
+    // Where was I: shown once after 20 minutes or more away, until closed.
+    val leftAt = g.focus.leftAt
+    var whereSeen by remember { mutableStateOf(g.focus.seenFor) }
+    val away = System.currentTimeMillis() - leftAt
+    val showWhere = isToday && leftAt > 0 && away >= 20 * 60_000 && whereSeen != leftAt
     // Timed to-dos due this day sit in the timeline; the page keeps the rest.
     fun timed(e: Entry) = e.kind == EntryKind.Todo && !e.done && e.dueHasTime && (e.dueAt ?: 0) in start until end
     val timeline = buildList {
@@ -170,11 +188,11 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
         remindersRead.orEmpty().filter { !isToday || !it.fired }.forEach { add(AgendaItem(it.at, it.text, "Reminder")) }
         lines.filter(::timed).forEach { e -> add(AgendaItem(e.dueAt, e.title, "To-do", onClick = { open(e) })) }
     }.sortedBy { it.at }
-    val page = lines.filterNot(::timed)
+    val page = lines.filterNot(::timed).filterNot(::planned)
     val shownLines = if (hideJournal) page.filter { it.kind != EntryKind.Journal } else page
     val lockedLines = page.size - shownLines.size
-    val next = if (isToday) timeline.indexOfFirst { (it.at ?: 0) >= nowMs - 15 * 60_000 } else -1
-    val known = linesRead != null && remindersRead != null && eventsRead != null
+    val nextTimed = if (isToday) timeline.indexOfFirst { (it.at ?: 0) >= nowMs - 15 * 60_000 } else -1
+    val known = linesRead != null && remindersRead != null && eventsRead != null && (!isToday || openRead != null)
 
     val list = rememberLazyListState()
     // A line just written shows at once, above the Ink line (a to-do moved here from an earlier day doesn't scroll).
@@ -208,6 +226,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                 }
                 IconButtonPlain("back", { turn(day.minusDays(1)) }, desc = "The day before")
                 if (!isToday) IconButtonPlain("right", { turn(day.plusDays(1)) }, desc = "The day after")
+                if (isToday) IconButtonPlain("cloud", { nav.go(Route.Dump()) }, desc = "Brain dump")
                 IconButtonPlain("chat", { nav.go(Route.Chat) }, desc = "Ask Inkling")
                 IconButtonPlain("user", { nav.go(Route.Settings) }, desc = "Settings")
             }
@@ -234,10 +253,17 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                     LfmType.small, c.text2)
             }
         }
+        if (showWhere && known) item(key = "where") {
+            WhereWasI(g, nav, away, lines) { g.focus.seenFor = leftAt; whereSeen = leftAt }
+        }
+        if (isToday && known) {
+            item(key = "now") { NowCard(g, nav, next, plan.isEmpty(), onSteps = { stepsFor = it }, onPlan = { planning = true }) }
+            item(key = "plan") { PlanBlock(g, nav, plan, stepsLeft, bounds) { planning = true } }
+        }
         if (timeline.isNotEmpty()) {
             item(key = "tl-label") { PageLabel(if (isToday) "Today" else "That day") }
             // Two reminders can share a time and words: the place in the list keeps keys apart.
-            itemsIndexed(timeline, key = { i, it -> "tl-$i-${it.at}" }) { i, it -> TimelineRow(it, i == next, zone) }
+            itemsIndexed(timeline, key = { i, it -> "tl-$i-${it.at}" }) { i, it -> TimelineRow(it, i == nextTimed, zone) }
         }
         if (carried.isNotEmpty()) item(key = "carried") { Carried(g, nav, carried, today, zone) }
         item(key = "page-label") { PageLabel("The page") }
@@ -245,7 +271,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
             Txt(if (isToday) "A blank page. Write a line below: it sorts itself into a to-do, an idea, a journal line or a note."
                 else "Nothing was written on this day.", LfmType.small, c.text2, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         }
-        items(shownLines, key = { it.id }) { e -> PageLine(e, open, actions, Modifier.animateItem()) }
+        items(shownLines, key = { it.id }) { e -> PageLine(e, open, actions, Modifier.animateItem(), onSteps = { stepsFor = it }) }
         if (lockedLines > 0) item(key = "locked") {
             Row(Modifier.fillMaxWidth().clickable { nav.go(Route.Library(LibFilter.Journal)) }.heightIn(min = 48.dp).padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -263,6 +289,8 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
         }
         item(key = "end") { Spacer(Modifier.height(16.dp)) }
     }
+    stepsFor?.let { t -> StepsSheet(g, nav, t) { stepsFor = null } }
+    if (planning) PlanSheet(g, nav, openRead.orEmpty()) { planning = false }
 }
 
 @Composable
@@ -305,7 +333,7 @@ private fun Carried(g: AppGraph, nav: Nav, list: List<Entry>, today: LocalDate, 
         updatedAt = System.currentTimeMillis())
     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).fillMaxWidth().clip(shape).border(1.dp, c.line, shape).padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Label("Carried over · ${list.size}", Modifier.weight(1f))
+            Label("Still open · no rush", Modifier.weight(1f))
             if (list.size > 1) Btn("All to today", {
                 g.scope.launch {
                     list.forEach { g.db.entries().update(moveTo(it, today)) }
@@ -330,9 +358,13 @@ private fun Carried(g: AppGraph, nav: Nav, list: List<Entry>, today: LocalDate, 
                     g.scope.launch { g.db.entries().update(moveTo(e, today)); nav.show("Moved to today") { g.db.entries().update(e) } }
                 }, small = true)
                 Spacer(Modifier.width(6.dp))
-                Btn("Later", {
-                    g.scope.launch { g.db.entries().update(moveTo(e, null)); nav.show("Moved to Someday") { g.db.entries().update(e) } }
-                }, small = true)
+                var notToday by remember { mutableStateOf(false) }
+                Box {
+                    Btn("Not today", { notToday = true }, small = true)
+                    NotTodayMenu(notToday, { notToday = false }) { d, label ->
+                        g.scope.launch { g.db.entries().update(moveTo(e, d).copy(planOrder = 0)); nav.show("Moved to $label") { g.db.entries().update(e) } }
+                    }
+                }
             }
         }
         if (list.size > 3) Row(Modifier.fillMaxWidth().clickable { nav.go(Route.Todos) }.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -348,7 +380,7 @@ internal fun Entry.isQuote() = source == "share" && kind != EntryKind.Todo
 /** One line of the page: its glyph, then the words. Tap opens it; long-press for pin, move and delete. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, modifier: Modifier = Modifier) {
+private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, modifier: Modifier = Modifier, onSteps: (Entry) -> Unit = {}) {
     val c = Lfm.c
     var menu by remember { mutableStateOf(false) }
     Box(modifier) {
@@ -356,7 +388,7 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
             .heightIn(min = 48.dp).padding(end = 16.dp, start = 4.dp), verticalAlignment = Alignment.Top) {
             if (e.kind == EntryKind.Todo) CheckBox(e.done) { actions.done(e, it) }
             else Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                LIcon(if (e.isQuote()) "quote" else e.kind.icon(), size = 17.dp, tint = c.text2)
+                LIcon(if (e.isQuote()) "quote" else if (e.isDump()) "cloud" else e.kind.icon(), size = 17.dp, tint = c.text2)
             }
             Column(Modifier.weight(1f).padding(top = 13.dp, bottom = 10.dp)) {
                 // A note keeps its whole text in the body when its title was cut short: the page shows the whole line.
@@ -372,7 +404,8 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
                     e.isQuote() -> com.lfmpixel.lfm.assistant.Quotes.source(e)
                     e.kind == EntryKind.Note -> bodyLines.drop(if (whole) 1 else 0).firstOrNull().orEmpty()
                     e.kind == EntryKind.Idea -> e.topic
-                    e.kind == EntryKind.Todo -> e.list
+                    e.isDump() -> if (e.tags.contains("sorted")) "Brain dump · sorted" else "Brain dump · tap to sort"
+                    e.kind == EntryKind.Todo -> listOf(e.list, if (e.minutes > 0) Sizes.label(e.minutes) else "").filter { it.isNotEmpty() }.joinToString(" · ")
                     else -> ""
                 }
                 if (sub.isNotEmpty()) Txt(sub, LfmType.meta, c.text2, Modifier.padding(top = 2.dp), maxLines = 1)
@@ -380,6 +413,7 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
             if (e.pinned) Box(Modifier.padding(top = 14.dp)) { LIcon("pin", size = 14.dp, tint = c.text2) }
         }
         DropdownMenu(menu, { menu = false }) {
+            if (e.kind == EntryKind.Todo && !e.done) DropdownMenuItem({ Txt("Smaller steps") }, { menu = false; onSteps(e) }, leadingIcon = { LIcon("steps", size = 18.dp) })
             DropdownMenuItem({ Txt(if (e.pinned) "Unpin" else "Pin") }, { menu = false; actions.pin(e) }, leadingIcon = { LIcon("pin", size = 18.dp) })
             EntryKind.entries.filter { it != e.kind }.forEach { k ->
                 DropdownMenuItem({ Txt("Make it ${if (k == EntryKind.Idea) "an idea" else if (k == EntryKind.Journal) "a journal line" else "a " + k.label.lowercase()}") },
@@ -402,6 +436,9 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
     var draft by draftState
     var picked by pickedState
     var kinds by remember { mutableStateOf(false) }
+    // The "Write a line" shortcut puts the caret here, with the keyboard up.
+    val inkFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(nav.inkFocus) { if (nav.inkFocus > 0) { delay(LfmMotion.LONG.toLong()); runCatching { inkFocus.requestFocus() } } }
     // What the mic heard comes here, to be read (and its glyph seen) before it goes on the page.
     LaunchedEffect(nav.heard) { nav.heard?.let { draft = (draft.trimEnd() + " " + it).trim(); nav.heard = null } }
     val guess = remember(draft) { InkLine.guess(draft) }
@@ -458,7 +495,7 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
                 BasicTextField(draft, { draft = it; if (it.isBlank()) picked = null }, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send, capitalization = KeyboardCapitalization.Sentences),
                     keyboardActions = KeyboardActions(onSend = { commit() }), maxLines = 4,
-                    modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocus() }
+                    modifier = Modifier.fillMaxWidth().focusRequester(inkFocus).onFocusChanged { if (it.isFocused) onFocus() }
                         .semantics { contentDescription = "Write a line on today's page" })
             }
             if (draft.isNotBlank()) IconButtonPlain("send", { commit() }, tint = c.text, desc = if (kind == InkKind.Ask) "Ask" else "Add to the page")

@@ -37,6 +37,13 @@ object LfmIcons {
         "bulb" to listOf("M9 18h6M10 21h4", "M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"),
         "book" to listOf("M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z", "M5 17a3 3 0 0 1 3-3h10"),
         "todo" to listOf("M10 6h10M10 12h10M10 18h10", "M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11", c(5f, 18f, 1.3f)),
+        // The organizer (notebook-spec A.1): brain dump, Focus, start, pause, smaller steps, a plan.
+        "cloud" to listOf("M7 18h10a4 4 0 0 0 .5-8A5.5 5.5 0 0 0 7 9.5 4.3 4.3 0 0 0 7 18z"),
+        "timer" to listOf(c(12f, 13f, 7.5f), "M12 13V9M10 3h4"),
+        "play" to listOf("M8 5.5v13l10.5-6.5z"),
+        "pause" to listOf("M9 6v12M15 6v12"),
+        "steps" to listOf("M4 18h5v-5h5V8h6", "M17 5l3 3-3 3"),
+        "sparkle" to listOf("M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z", "M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z"),
         "sun" to listOf(c(12f, 12f, 4f), "M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"),
         "chat" to listOf("M4 5h16v11H9l-5 4z"),
         "sliders" to listOf("M4 7h10M18 7h2M4 17h4M12 17h8", c(16f, 7f, 2f), c(10f, 17f, 2f)),

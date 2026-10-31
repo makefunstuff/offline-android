@@ -165,6 +165,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         graph.launcher.onScreen = false
         graph.lock.onHidden()
+        graph.focus.left(System.currentTimeMillis())
         super.onStop()
     }
 
@@ -205,6 +206,11 @@ class MainActivity : ComponentActivity() {
         const val OPEN_NOTE = "note"
         /** Followed by the id of the quote ShareActivity saved. */
         const val OPEN_SHARED = "shared:"
+        /** The launcher shortcuts and the Focus notification (notebook-spec A.1). */
+        const val OPEN_LINE = "line"
+        const val OPEN_DUMP = "dump"
+        const val OPEN_NOW = "now"
+        const val OPEN_FOCUS = "focus"
         /** The assistant gesture: Talk or voice capture, as set in Settings → Voice. */
         const val OPEN_ASSIST = "assist"
 
@@ -273,6 +279,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     VoiceTarget.Question -> if (nav.current == Route.Camera) cameraQuestion.text = text
                     VoiceTarget.Line -> if (nav.current == Route.Today) nav.heard = text else { g.assistant.send(text, seconds, "voice"); nav.go(Route.Chat) }
                     VoiceTarget.Assistant -> { g.assistant.send(text, seconds, "voice"); nav.go(Route.Chat) }
+                    // Into the dump being written; gone from it, the words still land in a dump of their own.
+                    VoiceTarget.Dump -> if (nav.current is Route.Dump) nav.heard = text else g.scope.launch { com.lfmpixel.lfm.ui.screens.saveDump(g, null, text) }
                     is VoiceTarget.Library -> {
                         val tool = when (target.kind) { EntryKind.Note -> "add_note"; EntryKind.Idea -> "add_idea"; EntryKind.Journal -> "add_journal"; EntryKind.Todo -> "add_todo" }
                         g.assistant.runDirect(ToolCall(tool, mapOf("text" to text)), "voice")
@@ -299,6 +307,17 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             nav.reset(Route.Today)
             nav.daysBack = 0
             nav.show("Saved to today's page") { g.db.entries().delete(id) }
+            return@LaunchedEffect
+        }
+        if (what in setOf(MainActivity.OPEN_LINE, MainActivity.OPEN_DUMP, MainActivity.OPEN_NOW, MainActivity.OPEN_FOCUS)) {
+            if (nav.current == Route.Talk) nav.back()
+            nav.reset(Route.Today)
+            nav.daysBack = 0
+            when (what) {
+                MainActivity.OPEN_LINE -> nav.inkFocus++
+                MainActivity.OPEN_DUMP -> nav.go(Route.Dump())
+                MainActivity.OPEN_FOCUS -> if (g.focus.run.value != null) nav.go(Route.Focus)
+            }
             return@LaunchedEffect
         }
         if (what == MainActivity.OPEN_NOTE) { nav.reset(Route.Today); nav.go(Route.Editor(kind = EntryKind.Note)); return@LaunchedEffect }
@@ -361,7 +380,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     shape = RoundedCornerShape(24.dp * p)
                     clip = true
                 }
-            }, contentKey = { when { it.isTab() -> "places"; it is Route.Editor -> "editor" + it.opened; else -> it } }, transitionSpec = {
+            }, contentKey = { when { it.isTab() -> "places"; it is Route.Editor -> "editor" + it.opened; it is Route.Dump -> "dump" + it.opened; else -> it } }, transitionSpec = {
                 when {
                     targetState == Route.Camera || initialState == Route.Camera -> LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
                     targetState == Route.Talk || initialState == Route.Talk -> LfmMotion.sharedAxisZ(targetState == Route.Talk, reduced)
@@ -369,7 +388,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     else -> LfmMotion.sharedAxisX(nav.forward, reduced)
                 }
             }, label = "screen") { r ->
-                saved.SaveableStateProvider(when (r) { is Route.Library -> "library"; is Route.Editor -> "editor" + r.opened; else -> r.toString() }) { when (r) {
+                saved.SaveableStateProvider(when (r) { is Route.Library -> "library"; is Route.Editor -> "editor" + r.opened; is Route.Dump -> "dump" + r.opened; else -> r.toString() }) { when (r) {
                     Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Line) }, listening)
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Talk -> TalkScreen(g, nav, gate)
@@ -378,6 +397,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     Route.Camera -> CameraScreen(g, nav, gate, pickers, cameraQuestion, { voice(VoiceTarget.Question) }, listening)
                     is Route.Library -> LibraryScreen(g, nav, r.filter, { voice(VoiceTarget.Library(it)) }, listening)
                     is Route.Editor -> EditorScreen(g, nav, r)
+                    Route.Focus -> com.lfmpixel.lfm.ui.screens.FocusScreen(g, nav)
+                    is Route.Dump -> com.lfmpixel.lfm.ui.screens.DumpScreen(g, nav, r, { voice(VoiceTarget.Dump) }, listening)
                     Route.Todos -> TodosScreen(g, nav, { voice(VoiceTarget.Library(EntryKind.Todo)) }, listening)
                     Route.Settings -> SettingsScreen(g, nav)
                     Route.Models -> ModelsScreen(g, nav, startImport)

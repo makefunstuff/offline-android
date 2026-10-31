@@ -43,8 +43,23 @@ interface EntryDao {
     fun day(from: Long, to: Long): Flow<List<Entry>>
 
     /** Open to-dos due before [before]: the Daily Page's "Carried over". */
-    @Query("SELECT * FROM entries WHERE kind = 'Todo' AND done = 0 AND dueAt IS NOT NULL AND dueAt < :before ORDER BY dueAt, createdAt")
+    @Query("SELECT * FROM entries WHERE kind = 'Todo' AND done = 0 AND parentId IS NULL AND dueAt IS NOT NULL AND dueAt < :before ORDER BY dueAt, createdAt")
     fun carried(before: Long): Flow<List<Entry>>
+
+    /** Every open to-do and step: what the Now card and the day plan choose from. */
+    @Query("SELECT * FROM entries WHERE kind = 'Todo' AND done = 0 ORDER BY createdAt, id")
+    fun open(): Flow<List<Entry>>
+
+    /** The steps of a to-do, done or not, in the order they were written. */
+    @Query("SELECT * FROM entries WHERE parentId = :id ORDER BY id")
+    fun steps(id: Long): Flow<List<Entry>>
+    @Query("SELECT * FROM entries WHERE parentId = :id ORDER BY id") suspend fun stepsNow(id: Long): List<Entry>
+    @Query("DELETE FROM entries WHERE parentId = :id") suspend fun deleteSteps(id: Long)
+    /** Takes [ids] out of the plan of the day they were in. */
+    @Query("UPDATE entries SET planOrder = 0 WHERE planOrder > 0 AND id NOT IN (:keep) AND dueAt >= :from AND dueAt < :to")
+    suspend fun unplanOthers(keep: List<Long>, from: Long, to: Long)
+    @Query("SELECT * FROM entries ORDER BY updatedAt DESC LIMIT 1") suspend fun lastEdited(): Entry?
+    @Query("SELECT COUNT(*) FROM entries WHERE createdAt >= :since") suspend fun countSince(since: Long): Int
 
     /** [match] is an FTS4 MATCH expression; see [FtsQuery]. */
     @Query("SELECT entries.* FROM entries JOIN entries_fts ON entries.id = entries_fts.rowid WHERE entries_fts MATCH :match ORDER BY entries.createdAt DESC LIMIT :limit")
@@ -111,8 +126,9 @@ class Converters {
 }
 
 @Database(entities = [Entry::class, EntryFts::class, ChatMessage::class, ActionRecord::class, Reminder::class, NetLogEntry::class,
-    SearchRecord::class], version = 5, exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5)])
+    SearchRecord::class], version = 6, exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6)])
 @TypeConverters(Converters::class)
 abstract class LfmDatabase : RoomDatabase() {
     abstract fun entries(): EntryDao

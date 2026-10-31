@@ -162,6 +162,7 @@ class BootReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 graph.db.reminders().pending().forEach { graph.reminders.schedule(it) }
+                graph.focus.reschedule()
             } finally {
                 done.finish()
             }

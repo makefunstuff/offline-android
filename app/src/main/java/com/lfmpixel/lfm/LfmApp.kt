@@ -40,6 +40,7 @@ class AppGraph(context: Context) {
     val engine = ModelManager(context.applicationInfo.nativeLibraryDir.orEmpty(), models, settings, scope,
         java.io.File(context.cacheDir, "litert").apply { mkdirs() })
     val reminders = Reminders(context)
+    val focus = com.lfmpixel.lfm.assistant.Focus(context)
     val calendar = LocalCalendar(context)
     val contacts = Contacts(context)
     val controls = PhoneControls(context)
@@ -81,6 +82,7 @@ suspend fun AppGraph.wipe(context: Context, models: Boolean) {
     readAloud.stop()
     kotlinx.coroutines.withContext(Dispatchers.IO) {
         db.reminders().pending().forEach { reminders.cancel(it.id) }
+        focus.stop()
         context.getSystemService(android.app.NotificationManager::class.java)?.cancelAll()
         runCatching { calendar.deleteOwnCalendar() }
         db.clearAllTables()
@@ -114,5 +116,6 @@ class LfmApp : Application() {
         graph = AppGraph(this)
         instance = this
         Reminders.createChannel(this)
+        com.lfmpixel.lfm.assistant.Focus.createChannel(this)
     }
 }
