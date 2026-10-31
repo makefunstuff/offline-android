@@ -436,6 +436,24 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_load(JNIEnv *env, jobject, jstring jpath, 
     return reinterpret_cast<jlong>(s);
 }
 
+// Only a GGUF's tokenizer, for counting tokens (LiteRT-LM has no tokenizer call; its LFM3 file has the same one).
+// A few MB and quick; countTokens and free work on it, nothing else does.
+JNIEXPORT jlong JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_loadVocab(JNIEnv *env, jobject, jstring jpath) {
+    std::string path = jstr(env, jpath);
+    auto mparams = llama_model_default_params();
+    mparams.vocab_only = true;
+    ggml_backend_dev_t none[1] = {nullptr};
+    mparams.devices = none;
+    mparams.n_gpu_layers = 0;
+    llama_model *model = llama_model_load_from_file(path.c_str(), mparams);
+    if (!model) return 0;
+    auto *s = new Session();
+    s->model = model;
+    s->vocab = llama_model_get_vocab(model);
+    return reinterpret_cast<jlong>(s);
+}
+
 // Returns what the projector can take in: 1 audio, 2 pictures (both: 3), or -1 if it did not load.
 JNIEXPORT jint JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_loadProjector(JNIEnv *env, jobject, jlong handle, jstring jpath) {

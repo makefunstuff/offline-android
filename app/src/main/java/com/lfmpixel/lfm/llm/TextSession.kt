@@ -72,6 +72,28 @@ suspend fun TextSession.checkAnswers(): List<String> {
 }
 
 /**
+ * Counts tokens with a GGUF's tokenizer alone, loaded without weights: LFM3's, the same one the .litertlm file
+ * carries (its card: the source tokenizer.json byte for byte), so LiteRT-LM chats count exactly.
+ */
+class TokenCounter private constructor(private var handle: Long) {
+    companion object {
+        /** Null if [ggufPath] would not load. */
+        fun open(nativeLibDir: String, ggufPath: String): TokenCounter? = runCatching {
+            LlamaNative.ensureLoaded(nativeLibDir)
+            LlamaNative.loadVocab(ggufPath).takeIf { it != 0L }?.let { TokenCounter(it) }
+        }.getOrNull()
+    }
+
+    /** Tokens in [text], or -1 once closed. */
+    @Synchronized fun count(text: String): Int = if (handle == 0L) -1 else LlamaNative.countTokens(handle, text.toByteArray())
+
+    @Synchronized fun close() {
+        if (handle != 0L) LlamaNative.free(handle)
+        handle = 0L
+    }
+}
+
+/**
  * LFM3-1.7B in LiteRT-LM (the .litertlm file), on the GPU through OpenCL or on the CPU through XNNPACK.
  *
  * It takes raw prompts, built by [PromptFormat] as for llama.cpp. One LiteRT-LM session holds the conversation so
@@ -80,7 +102,7 @@ suspend fun TextSession.checkAnswers(): List<String> {
  * LiteRT-LM carries from one session of an engine into the next (LiteRT-LM issue #3165), which corrupts answers.
  */
 class LiteRtSession private constructor(override val path: String, override val backend: Backend, private val cacheDir: String,
-                                        private var engine: LtEngine?) : TextSession {
+                                        private var engine: LtEngine?, private val counter: TokenCounter?) : TextSession {
     private val mutex = Mutex()
     private var closed = false
     private var session: LtSession? = null
@@ -125,12 +147,15 @@ class LiteRtSession private constructor(override val path: String, override val 
             return e
         }
 
-        /** [cacheDir] keeps the GPU's compiled programs, so the second load is quicker. */
-        suspend fun open(path: String, backend: Backend, cacheDir: String): LiteRtSession = withContext(thread) {
+        /**
+         * [cacheDir] keeps the GPU's compiled programs, so the second load is quicker. [counter] counts prompt tokens
+         * (the session closes it); without one they are estimated.
+         */
+        suspend fun open(path: String, backend: Backend, cacheDir: String, counter: TokenCounter?): LiteRtSession = withContext(thread) {
             require(backend.liteRt)
             val t0 = System.nanoTime()
-            val e = newEngine(path, backend, cacheDir)
-            LiteRtSession(path, backend, cacheDir, e).also {
+            val e = try { newEngine(path, backend, cacheDir) } catch (t: Throwable) { counter?.close(); throw t }
+            LiteRtSession(path, backend, cacheDir, e, counter).also {
                 it.restartMs = (System.nanoTime() - t0) / 1e6
                 it.probe()
                 it.initMs = (System.nanoTime() - t0) / 1e6
@@ -142,16 +167,16 @@ class LiteRtSession private constructor(override val path: String, override val 
         const val BENCH_CHARS_PER_TOKEN = 4.4
 
         /**
-         * About how many tokens [text] is, erring high: LiteRT-LM has no tokenizer call. LFM3's makes about one token
-         * of 4.4 bytes of English; here 3.5, and digits a token each, as in dates, times and tool results they may split.
+         * About how many tokens [text] is, erring high, when no GGUF tokenizer is at hand: LiteRT-LM has no tokenizer call. LFM3's makes about one token
+         * of 4.4 bytes of English; here 3, and digits a token each, as in dates, times and tool results they may split.
          */
         fun estimateTokens(text: String): Int {
             val digits = text.count { it.isDigit() }
-            return digits + ((text.toByteArray().size - digits) / 3.5).toInt() + 1
+            return digits + (text.toByteArray().size - digits) / 3 + 1
         }
     }
 
-    override suspend fun countTokens(text: String): Int = estimateTokens(text)
+    override suspend fun countTokens(text: String): Int = counter?.count(text)?.takeIf { it >= 0 } ?: estimateTokens(text)
 
     /** Lets the session and engine go; neither close may throw past here, so an unload always completes. */
     private fun closeEngine() {
@@ -172,6 +197,7 @@ class LiteRtSession private constructor(override val path: String, override val 
             consumed.append(PromptFormat.IM_START)
         } catch (t: Throwable) {
             closeEngine()
+            counter?.close()
             throw LlmException("LiteRT-LM could not run ${path.substringAfterLast('/')} on the ${if (backend == Backend.LiteRtGpu) "GPU" else "CPU"}: ${t.message}")
         }
     }
@@ -271,6 +297,7 @@ class LiteRtSession private constructor(override val path: String, override val 
             if (!closed) {
                 closed = true
                 closeEngine()
+                counter?.close()
             }
         }
     }

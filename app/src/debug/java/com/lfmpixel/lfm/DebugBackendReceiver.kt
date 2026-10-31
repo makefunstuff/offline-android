@@ -31,6 +31,11 @@ class DebugBackendReceiver : BroadcastReceiver() {
                 g.engine.unloadAll()
                 val s = g.engine.textSession()
                 log("backend ${s.backend} (asked ${choice.name}), ${s.path.substringAfterLast('/')}")
+                // Counted (GGUF tokenizer) against the old estimate, on text denser than English prose.
+                listOf("tools" to g.tools.specsJson().joinToString("\n"), "japanese" to "今日は東京で雨が降っています。明日は晴れるでしょう。".repeat(20),
+                    "digits" to "2026-10-31 14:05:50.595 12393 ".repeat(40)).forEach { (name, t) ->
+                    log("tokens $name: counted ${s.countTokens(t)}, estimate ${com.lfmpixel.lfm.llm.LiteRtSession.estimateTokens(t)}")
+                }
                 val a = mutableListOf(PromptMessage(PromptMessage.Role.User, "My cat is called Pepper. Remember that."))
                 var t0 = System.nanoTime()
                 a += PromptMessage(PromptMessage.Role.Assistant, s.ask(a))

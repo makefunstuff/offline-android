@@ -50,7 +50,7 @@ data class ModelOutput(val thinking: String, val answer: String, val toolCalls: 
                 // ("Tokyo</think>Tokyo"): the part after is the answer, and the part before is dropped (no thought shows).
                 // A tag with nothing after it just goes.
                 val after = text.substring(text.lastIndexOf("</think>") + "</think>".length)
-                text = if (after.isBlank()) text.replace("</think>", "") else after
+                text = if (after.isBlank()) text.substring(0, text.lastIndexOf("</think>")) else after
             }
             val calls = mutableListOf<ToolCall>()
             for (block in callBlock.findAll(text)) {

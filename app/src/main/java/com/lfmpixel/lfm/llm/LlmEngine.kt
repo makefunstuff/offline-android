@@ -66,6 +66,8 @@ object LlamaNative {
     external fun gpuName(): String
     /** Whether the vendor's OpenCL loads here: LiteRT-LM's GPU needs it. */
     external fun hasOpenCl(): Boolean
+    /** Only [path]'s tokenizer, for [countTokens]; 0 if it did not load. Free it with [free]. */
+    external fun loadVocab(path: String): Long
     /** What the projector takes in: [PROJ_AUDIO], [PROJ_VISION] bits, or -1 if it did not load. */
     external fun loadProjector(handle: Long, path: String): Int
     external fun free(handle: Long)

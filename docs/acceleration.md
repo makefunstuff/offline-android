@@ -29,7 +29,8 @@ LiteRT-LM's engine start in half the turns (all of them with thinking on), since
 that hit its length limit, needs a new engine (below). Auto leaves the CPU only for a
 backend that is at least 10% quicker. The owner can also pick one backend by hand. If a backend won't load, Auto marks
 it as not working until the next Benchmark and picks again; a manual pick runs that load on llama.cpp's CPU and
-tries its backend again at the next load. While the Benchmark
+tries its backend again at the next load. Turning thinking on or off can change Auto's pick (it weighs restarts
+more with thinking on), which reloads chat once. While the Benchmark
 runs, chat, Talk and pictures wait, so they neither disturb its numbers nor load a second copy of a model.
 
 ## The options
@@ -81,8 +82,8 @@ How to read the labels:
     conversation gives the same answer as on a freshly loaded model.
   - **Context is the file's 4,096 tokens**, half of llama.cpp's default, so a chat on LiteRT-LM remembers fewer turns.
     Runs on says so when chat is there. The chat trims history to that. LiteRT-LM has no tokenizer call, so
-    tokens are estimated: a digit counts as one token and other text as one token per 3 bytes, which errs on the high
-    side.
+    tokens are counted with the GGUF model's tokenizer, loaded alone (a few MB); the .litertlm carries the same one.
+    Without a GGUF they are estimated high (a digit a token, other text a token per 3 bytes).
   - **Stray `</think>` with thinking off.** The int4 file sometimes writes `</think>` mid-answer with thinking off. So
     does the GGUF file on llama.cpp. The chat now keeps the answer after it.
   - **A stop restarts the engine.** After a stop (by the user, or at the answer's length limit) LiteRT-LM leaves the

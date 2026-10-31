@@ -127,6 +127,16 @@ class ModelManager(
      */
     private val asked = mutableMapOf<Slot, Pair<String?, Backend>>()
 
+    /**
+     * The request a just-loaded session answers. With Auto, a backend that failed while loading is now marked not
+     * ok, so the next call asks for Auto's new pick: if that is what loaded (the CPU after Vulkan failed), keep it.
+     */
+    private suspend fun settledKey(slot: Slot, requested: Pair<String?, Backend>): Pair<String?, Backend> {
+        if (settings.now().backend != BackendChoice.Auto) return requested
+        val b = backendFor(slot)
+        return (if (b.liteRt) store.liteRt()?.file?.path else file(slot)?.file?.path) to b
+    }
+
     /** Set while the Benchmark runs: it loads every model on every backend, and nothing else may load meanwhile. */
     @Volatile var benchmarking = false
 
@@ -157,7 +167,9 @@ class ModelManager(
                 // Vulkan or the CPU); a manual pick goes to llama.cpp's CPU for this load.
                 repeat(2) {
                     val liteFile = store.liteRt()?.takeIf { tryNext.liteRt } ?: return@repeat
-                    try { return@withContext LiteRtSession.open(liteFile.file.path, tryNext, liteRtCache.path) } catch (_: LlmException) {
+                    try {
+                        return@withContext LiteRtSession.open(liteFile.file.path, tryNext, liteRtCache.path, TokenCounter.open(nativeLibDir, m.file.path))
+                    } catch (_: LlmException) {
                         markFailed(Slot.Text, tryNext)
                         tryNext = if (p.backend == BackendChoice.Auto) backendFor(Slot.Text) else Backend.Cpu
                         val next = if (tryNext.liteRt) liteFile.file.path else m.file.path
@@ -169,7 +181,7 @@ class ModelManager(
                 open(Slot.Text, m.file.path, p.contextTokens, if (tryNext.liteRt) Backend.Cpu else tryNext)
             }
             text = s
-            asked[Slot.Text] = key
+            asked[Slot.Text] = settledKey(Slot.Text, key)
             _status.value = _status.value.copy(text = LoadState.Ready, backends = _status.value.backends + (Slot.Text to s.backend))
             s
         } catch (e: Exception) {
@@ -200,7 +212,7 @@ class ModelManager(
             }
             omniSees = caps and LlamaNative.PROJ_VISION != 0
             omni = s
-            asked[Slot.Omni] = m.file.path to omniBackend
+            asked[Slot.Omni] = settledKey(Slot.Omni, m.file.path to omniBackend)
             _status.value = _status.value.copy(omni = LoadState.Ready, backends = _status.value.backends + (Slot.Omni to s.backend))
             s
         } catch (e: Exception) {
@@ -230,7 +242,7 @@ class ModelManager(
                 throw LlmException("VL's projector file could not be loaded")
             }
             vision = s
-            asked[Slot.Vision] = m.file.path to visionBackend
+            asked[Slot.Vision] = settledKey(Slot.Vision, m.file.path to visionBackend)
             _status.value = _status.value.copy(vision = LoadState.Ready, backends = _status.value.backends + (Slot.Vision to s.backend))
             s
         } catch (e: Exception) {
@@ -257,7 +269,7 @@ class ModelManager(
         }
         _status.value = _status.value.copy(backends = _status.value.backends - slot)
         withContext(NonCancellable) {
-            if (backend.liteRt) LiteRtSession.open(m.file.path, backend, liteRtCache.path)
+            if (backend.liteRt) LiteRtSession.open(m.file.path, backend, liteRtCache.path, file(Slot.Text)?.let { TokenCounter.open(nativeLibDir, it.file.path) })
             else LlamaSession.open(nativeLibDir, m.file.path, BENCH_CONTEXT, settings.now().threads, backend)
         }
     }

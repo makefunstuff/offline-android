@@ -70,6 +70,14 @@ class BackendTest {
         assertEquals(Backend.LiteRtGpu, Backends.pick(BackendChoice.Auto, all, speeds + (Backend.LiteRtGpu to BackendSpeed(18.0, 300.0, true, 2.0))))
     }
 
+    @Test fun thinkingWeighsRestartsFully() {
+        // CPU 9/100 tok/s: 20.7 s a turn. LiteRT GPU 18/300 tok/s with a 12 s engine start: 15.7 s with a restart in
+        // half the turns (picked), 21.7 s with one every turn (thinking on: not picked).
+        val speeds = mapOf(Backend.Cpu to cpu, Backend.LiteRtGpu to BackendSpeed(18.0, 300.0, true, 12.0))
+        assertEquals(Backend.LiteRtGpu, Backends.pick(BackendChoice.Auto, all, speeds, BackendSpeed.FRESH_SHARE))
+        assertEquals(Backend.Cpu, Backends.pick(BackendChoice.Auto, all, speeds, BackendSpeed.FRESH_SHARE_THINKING))
+    }
+
     @Test fun checksMatchWholeNumbers() {
         assertFalse(Backends.passes(listOf("Kyoto", "142", "17")))
     }
