@@ -10,6 +10,7 @@ import com.lfmpixel.lfm.data.LfmDatabase
 import com.lfmpixel.lfm.data.Role
 import com.lfmpixel.lfm.llm.Json
 import com.lfmpixel.lfm.llm.LlmException
+import com.lfmpixel.lfm.llm.look
 import com.lfmpixel.lfm.llm.ModelManager
 import com.lfmpixel.lfm.llm.ModelOutput
 import com.lfmpixel.lfm.llm.PromptFormat
@@ -358,7 +359,8 @@ class Assistant(
             var history = thread.mapNotNull(::toPrompt)
             var prompt = PromptFormat.build(systemPrompt(webOn), tools, history, prefs.thinking)
             // Drop the oldest turns until the prompt leaves room for the answer.
-            while (history.size > 1 && models.textSession().countTokens(prompt) > prefs.contextTokens - maxTokens - 64) {
+            // The context is the chat model's: Settings' size for llama.cpp, the file's own for LiteRT-LM.
+            while (history.size > 1 && models.textSession().let { it.countTokens(prompt) > it.contextTokens - maxTokens - 64 }) {
                 history = history.drop(1).dropWhile { it.role != PromptMessage.Role.User }.ifEmpty { history.takeLast(1) }
                 prompt = PromptFormat.build(systemPrompt(webOn), tools, history, prefs.thinking)
             }
@@ -431,7 +433,7 @@ class Assistant(
                 else "Photos and video need LFM3-Omni-2B or LFM3-VL-2B. Get one in Settings → Models.")
         val started = System.nanoTime()
         streaming.value = Streaming("", false, if (req.kind == SeeKind.Document) "Reading…" else "Looking…")
-        var session = when (model) {
+        var session: com.lfmpixel.lfm.llm.TextSession = when (model) {
             SeeModel.Omni -> models.omniSession()
             SeeModel.Vision -> models.visionSession()
             SeeModel.Text -> models.textSession()
@@ -446,7 +448,7 @@ class Assistant(
         val show = Throttle { streaming.value = Streaming(SeeRules.clean(raw.toString()), false) }
         val onPiece: (String) -> Unit = { raw.append(it); show.tick() }
         if (req.pages.isEmpty()) {
-            session.see(req.images, SeeRules.prompt(req.kind, req.question, req.images.size, req.seconds), 512).collect(onPiece)
+            session.look(req.images, SeeRules.prompt(req.kind, req.question, req.images.size, req.seconds), 512).collect(onPiece)
         } else {
             // Pages without a text layer (scans) are read one at a time, then the question is answered over all the text.
             val texts = req.pages.mapIndexed { i, p ->
@@ -459,14 +461,14 @@ class Assistant(
                     streaming.value = Streaming("", false, "Reading page ${i + 1} of ${req.pages.size}…")
                     models.keepAlive()
                     val sb = StringBuilder()
-                    session.see(listOf(p.image), SeeRules.prompt(SeeKind.Document, SeeRules.READ_PAGE, 1), 1024, temp = 0f)
+                    session.look(listOf(p.image), SeeRules.prompt(SeeKind.Document, SeeRules.READ_PAGE, 1), 1024, temp = 0f)
                         .collect { sb.append(it) }
                     SeeRules.clean(sb.toString())
                 }
             }
             streaming.value = Streaming("", false, "Thinking about ${req.pages.size} ${if (req.pages.size == 1) "page" else "pages"}…")
             models.keepAlive()
-            val ctx = if (looker == SeeModel.Vision) ModelManager.VISION_CONTEXT else settings.now().contextTokens
+            val ctx = session.contextTokens
             // About 3 characters a token, leaving room for the answer.
             var text = SeeRules.documentText(texts, (ctx - 1200) * 3)
             var prompt = SeeRules.documentPrompt(text, req.question)

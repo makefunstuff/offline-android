@@ -1,3 +1,9 @@
 [submodule "app/src/main/cpp/llama.cpp"]
 	path = app/src/main/cpp/llama.cpp
 	url = https://github.com/ggml-org/llama.cpp
+[submodule "app/src/main/cpp/third_party/Vulkan-Headers"]
+	path = app/src/main/cpp/third_party/Vulkan-Headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers
+[submodule "app/src/main/cpp/third_party/SPIRV-Headers"]
+	path = app/src/main/cpp/third_party/SPIRV-Headers
+	url = https://github.com/KhronosGroup/SPIRV-Headers

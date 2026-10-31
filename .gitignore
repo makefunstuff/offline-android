@@ -8,6 +8,7 @@ local.properties
 captures/
 # Never commit models, recordings or keys (public repo)
 *.gguf
+*.litertlm
 *.f32
 *.wav
 *.keystore

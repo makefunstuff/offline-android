@@ -204,7 +204,7 @@ fun modelState(g: AppGraph): String {
     val st by g.engine.status.collectAsState()
     val installed by g.models.installed.collectAsState()
     val prefs by g.settings.prefs.collectAsState(null)
-    val chat = installed.firstOrNull { it.file.name == (st.textFile ?: prefs?.chatModel) && it.known.role == com.lfmpixel.lfm.llm.ModelRole.Text }
+    val chat = installed.firstOrNull { it.file.name == (st.textFile ?: prefs?.chatModel) && (it.known.role == com.lfmpixel.lfm.llm.ModelRole.Text || it.known.role == com.lfmpixel.lfm.llm.ModelRole.TextLiteRt) }
         ?: g.models.text()
     val name = chat?.let { "${it.known.family} ${it.known.quant}" } ?: return "No chat model"
     return name + " · " + when (st.text) {

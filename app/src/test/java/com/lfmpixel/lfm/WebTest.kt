@@ -3,6 +3,7 @@ package com.lfmpixel.lfm
 import com.lfmpixel.lfm.data.SearchSource
 import com.lfmpixel.lfm.ipc.PinnedFiles
 import com.lfmpixel.lfm.llm.ModelCatalog
+import com.lfmpixel.lfm.llm.ModelRole
 import com.lfmpixel.lfm.web.ArticleText
 import com.lfmpixel.lfm.web.KnownWords
 import com.lfmpixel.lfm.web.PersonalHit.Kind
@@ -83,6 +84,7 @@ class WebTest {
         // LFM Net's pinned list and LFM's hash list must name the same files, sizes and repos.
         assertEquals(ModelCatalog.all.map { Triple(it.fileName, it.repo, it.sizeBytes) }.toSet(),
             PinnedFiles.all.map { Triple(it.name, it.repo, it.size) }.toSet())
-        assertTrue(ModelCatalog.groups.all { g -> g.variants.size == 2 && g.variants.all { it.family == g.family } })
+        // Q4 and Q8 of each GGUF model; the LiteRT-LM conversion comes in one file.
+        assertTrue(ModelCatalog.groups.all { g -> (g.variants.size == 2 || g.variants.single().role == ModelRole.TextLiteRt) && g.variants.all { it.family == g.family } })
     }
 }

@@ -1,8 +1,9 @@
-// JNI bridge between the app and llama.cpp, in-process, CPU first.
+// JNI bridge between the app and llama.cpp, in-process, on the CPU or (Vulkan) the GPU.
 // One Session holds a model, its context, a sampler and, for Omni, the mtmd projector.
 // Calls on one session must not overlap; the Kotlin side runs them on one thread.
 
 #include <android/log.h>
+#include <dlfcn.h>
 #include <jni.h>
 #include <link.h>
 #include <sched.h>
@@ -40,6 +41,7 @@ struct Session {
     int n_threads = 4;       // generation, one token at a time: bound by memory, not compute
     int n_threads_batch = 4; // reading the prompt in: bound by compute
     int applied_cap = 0;     // the heat cap last applied to this context (0: none)
+    bool gpu = false;        // layers on the GPU (Vulkan); the projector stays on the CPU
     std::string load_notes;  // what llama.cpp said while loading (buffer types, flash attention)
     // stats of the last call
     double prefill_ms = 0, decode_ms = 0, first_ms = 0;
@@ -309,6 +311,16 @@ int sample_loop(JNIEnv *env, Session *s, llama_sampler *smpl, int max_tokens, jo
     return n;
 }
 
+// The first GPU llama.cpp found (Vulkan), or null: an emulator or a phone without a usable driver has none.
+ggml_backend_dev_t first_gpu() {
+    for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
+        ggml_backend_dev_t d = ggml_backend_dev_get(i);
+        auto type = ggml_backend_dev_type(d);
+        if (type == GGML_BACKEND_DEVICE_TYPE_GPU || type == GGML_BACKEND_DEVICE_TYPE_IGPU) return d;
+    }
+    return nullptr;
+}
+
 } // namespace
 
 extern "C" {
@@ -332,6 +344,29 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_fastCores(JNIEnv *, jobject) {
     return (jint) cores().fast.size();
 }
 
+// "Vulkan0: PowerVR D-Series DXT-48-1536 MC1 (… MiB free)" for the GPU llama.cpp would use, or "" for none.
+JNIEXPORT jstring JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_gpuName(JNIEnv *env, jobject) {
+    ggml_backend_dev_t d = first_gpu();
+    if (!d) return env->NewStringUTF("");
+    size_t free = 0, total = 0;
+    ggml_backend_dev_memory(d, &free, &total);
+    char buf[256];
+    snprintf(buf, sizeof(buf), "%s: %s (%zu MiB free)", ggml_backend_dev_name(d), ggml_backend_dev_description(d),
+             free / (1024 * 1024));
+    return env->NewStringUTF(buf);
+}
+
+// Whether the vendor's OpenCL library loads in this app (the manifest asks for it with uses-native-library). LiteRT-LM
+// needs it for the GPU: without it, it falls back to WebGPU and fails at its first answer.
+JNIEXPORT jboolean JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_hasOpenCl(JNIEnv *, jobject) {
+    void *h = dlopen("libOpenCL.so", RTLD_NOW | RTLD_LOCAL);
+    if (!h) return JNI_FALSE;
+    dlclose(h);
+    return JNI_TRUE;
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_systemInfo(JNIEnv *env, jobject) {
     return env->NewStringUTF(llama_print_system_info());
@@ -339,8 +374,16 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_systemInfo(JNIEnv *env, jobject) {
 
 JNIEXPORT jlong JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_load(JNIEnv *env, jobject, jstring jpath, jint n_ctx, jint n_threads,
-                                           jint n_threads_batch) {
+                                           jint n_threads_batch, jboolean use_gpu) {
     std::string path = jstr(env, jpath);
+    // The devices to put layers on, null-terminated: none for the CPU (llama.cpp would otherwise take every GPU it
+    // finds, and also send big prompt batches there), or the first GPU.
+    ggml_backend_dev_t gpu = use_gpu ? first_gpu() : nullptr;
+    if (use_gpu && !gpu) {
+        LOGE("no GPU device for %s", path.c_str());
+        return 0;
+    }
+    ggml_backend_dev_t devices[2] = {gpu, nullptr};
     // Before anything starts OpenMP's threads: they keep the mask they start with, so the first load's mask holds
     // until the app restarts. On G5 every count offered (at most 6) fits the 6 fast cores, so it is the same mask.
     pin_threads(std::max(n_threads, n_threads_batch));
@@ -350,6 +393,8 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_load(JNIEnv *env, jobject, jstring jpath, 
         g_notes = &notes;
     }
     auto mparams = llama_model_default_params(); // mmap on, mlock off, Q4_0 repacked for Arm (KleidiAI) on load
+    mparams.devices = devices;
+    mparams.n_gpu_layers = gpu ? -1 : 0; // -1: every layer
     llama_model *model = llama_model_load_from_file(path.c_str(), mparams);
     llama_context *ctx = nullptr;
     if (model) {
@@ -361,6 +406,7 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_load(JNIEnv *env, jobject, jstring jpath, 
         cparams.n_threads_batch = n_threads_batch;
         cparams.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
         cparams.no_perf = true;
+        cparams.op_offload = gpu != nullptr;
         ctx = llama_init_from_model(model, cparams);
     }
     {
@@ -383,8 +429,28 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_load(JNIEnv *env, jobject, jstring jpath, 
     s->n_threads = n_threads;
     s->n_threads_batch = n_threads_batch;
     s->load_notes = notes;
-    LOGI("loaded %s, n_ctx %d, %d threads (%d for prompts), CPU variant %s, %s", path.c_str(), n_ctx, n_threads,
-         n_threads_batch, cpu_variant().c_str(), describe_cores().c_str());
+    s->gpu = gpu != nullptr;
+    LOGI("loaded %s on %s, n_ctx %d, %d threads (%d for prompts), CPU variant %s, %s", path.c_str(),
+         gpu ? ggml_backend_dev_description(gpu) : "the CPU", n_ctx, n_threads, n_threads_batch, cpu_variant().c_str(),
+         describe_cores().c_str());
+    return reinterpret_cast<jlong>(s);
+}
+
+// Only a GGUF's tokenizer, for counting tokens (LiteRT-LM has no tokenizer call; its LFM3 file has the same one).
+// A few MB and quick; countTokens and free work on it, nothing else does.
+JNIEXPORT jlong JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_loadVocab(JNIEnv *env, jobject, jstring jpath) {
+    std::string path = jstr(env, jpath);
+    auto mparams = llama_model_default_params();
+    mparams.vocab_only = true;
+    ggml_backend_dev_t none[1] = {nullptr};
+    mparams.devices = none;
+    mparams.n_gpu_layers = 0;
+    llama_model *model = llama_model_load_from_file(path.c_str(), mparams);
+    if (!model) return 0;
+    auto *s = new Session();
+    s->model = model;
+    s->vocab = llama_model_get_vocab(model);
     return reinterpret_cast<jlong>(s);
 }
 
@@ -684,6 +750,7 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_runInfo(JNIEnv *env, jobject, jlong handle
     }
     out += "backends: " + devs + "\n";
     if (s) {
+        out += std::string("runs on: ") + (s->gpu ? std::string("GPU, ") + ggml_backend_dev_description(first_gpu()) : "CPU") + "\n";
         char buf[160];
         snprintf(buf, sizeof(buf), "threads: %d generating, %d reading the prompt\ncontext: %d tokens\n", s->n_threads,
                  s->n_threads_batch, (int) llama_n_ctx(s->ctx));

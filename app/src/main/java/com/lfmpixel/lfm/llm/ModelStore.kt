@@ -20,7 +20,7 @@ class ModelStore(private val context: Context) {
     val installed: StateFlow<List<InstalledModel>> = _installed
 
     private fun scan(): List<InstalledModel> = dir.listFiles().orEmpty()
-        .filter { it.isFile && it.name.endsWith(".gguf") }
+        .filter { it.isFile && (it.name.endsWith(".gguf") || it.name.endsWith(".litertlm")) }
         .mapNotNull { f ->
             val known = ModelCatalog.byName(f.name) ?: return@mapNotNull null
             InstalledModel(known, f, verified = File(dir, f.name + ".sha256").let { it.exists() && it.readText().trim() == known.sha256 })
@@ -40,6 +40,7 @@ class ModelStore(private val context: Context) {
     fun omniProjector(): InstalledModel? = newest(ModelRole.OmniProjector)
     fun vision(): InstalledModel? = newest(ModelRole.Vision)
     fun visionProjector(): InstalledModel? = newest(ModelRole.VisionProjector)
+    fun liteRt(): InstalledModel? = newest(ModelRole.TextLiteRt)
 
     fun delete(m: InstalledModel) {
         m.file.delete()

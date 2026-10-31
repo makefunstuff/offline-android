@@ -35,6 +35,10 @@ object LlamaNative {
         if (ready) return
         synchronized(this) {
             if (ready) return
+            // Vulkan on the Pixel 10's PowerVR GPU gives wrong answers with these features on (llama.cpp issue #28502);
+            // read when the Vulkan backend starts, below.
+            for (f in listOf("COOPMAT", "COOPMAT2", "COOPMAT2_DECODE_VECTOR", "INTEGER_DOT_PRODUCT"))
+                android.system.Os.setenv("GGML_VK_DISABLE_$f", "1", true)
             System.loadLibrary("lfm")
             backendInit(nativeLibDir)
             setHeatCap(com.lfmpixel.lfm.device.Heat.threadCap(heat, fastCores()))
@@ -56,7 +60,14 @@ object LlamaNative {
     external fun fastCores(): Int
     /** At most [cap] threads in every session while the phone is hot (0: no cap); applies from the next decode. */
     external fun setHeatCap(cap: Int)
-    external fun load(path: String, nCtx: Int, nThreads: Int, nThreadsBatch: Int): Long
+    /** [gpu]: every layer on the first GPU (Vulkan); fails (0) if there is none. */
+    external fun load(path: String, nCtx: Int, nThreads: Int, nThreadsBatch: Int, gpu: Boolean): Long
+    /** The GPU llama.cpp found, "Vulkan0: <name> (<n> MiB free)", or "" for none (an emulator, a missing driver). */
+    external fun gpuName(): String
+    /** Whether the vendor's OpenCL loads here: LiteRT-LM's GPU needs it. */
+    external fun hasOpenCl(): Boolean
+    /** Only [path]'s tokenizer, for [countTokens]; 0 if it did not load. Free it with [free]. */
+    external fun loadVocab(path: String): Long
     /** What the projector takes in: [PROJ_AUDIO], [PROJ_VISION] bits, or -1 if it did not load. */
     external fun loadProjector(handle: Long, path: String): Int
     external fun free(handle: Long)
@@ -113,8 +124,8 @@ class RgbImage(val width: Int, val height: Int, val rgb: ByteArray)
 class LlmException(message: String) : Exception(message)
 
 /** A loaded model in llama.cpp. All calls run on one thread, one at a time. */
-class LlamaSession private constructor(private val handle: Long, val path: String, private val dispatcher: CoroutineDispatcher,
-                                       val threads: Threads) {
+class LlamaSession private constructor(private val handle: Long, override val path: String, private val dispatcher: CoroutineDispatcher,
+                                       val threads: Threads, override val backend: Backend, override val contextTokens: Int) : TextSession {
     private val mutex = Mutex()
     private var closed = false
 
@@ -123,17 +134,29 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
             .asCoroutineDispatcher()
 
         /** [threadSetting]: the Settings value, 0 for Auto (see [Threads.pick]). */
-        suspend fun open(nativeLibDir: String, path: String, nCtx: Int, threadSetting: Int): LlamaSession = withContext(thread) {
+        suspend fun open(nativeLibDir: String, path: String, nCtx: Int, threadSetting: Int, backend: Backend = Backend.Cpu): LlamaSession = withContext(thread) {
             LlamaNative.ensureLoaded(nativeLibDir)
             val t = Threads.pick(threadSetting, LlamaNative.fastCores())
-            val h = LlamaNative.load(path, nCtx, t.gen, t.batch)
-            if (h == 0L) throw LlmException("Could not load ${path.substringAfterLast('/')}")
-            LlamaSession(h, path, thread, t)
+            require(!backend.liteRt)
+            val h = LlamaNative.load(path, nCtx, t.gen, t.batch, backend == Backend.Vulkan)
+            if (h == 0L) throw LlmException("Could not load ${path.substringAfterLast('/')}" + if (backend == Backend.Vulkan) " on the GPU" else "")
+            LlamaSession(h, path, thread, t, backend, nCtx)
+        }
+
+        suspend fun hasOpenCl(nativeLibDir: String): Boolean = withContext(thread) {
+            LlamaNative.ensureLoaded(nativeLibDir)
+            LlamaNative.hasOpenCl()
+        }
+
+        /** The GPU llama.cpp can use here, or "" for none. */
+        suspend fun gpuName(nativeLibDir: String): String = withContext(thread) {
+            LlamaNative.ensureLoaded(nativeLibDir)
+            LlamaNative.gpuName()
         }
     }
 
     /** The session was freed (idle unload, a new import, a settings change): get a new one from ModelManager. */
-    val isClosed get() = closed
+    override val isClosed get() = closed
     private var lastStats = GenStats(0.0, 0, 0.0, 0, 0)
 
     // Every native call holds the mutex and checks [closed], so a freed handle never reaches native code.
@@ -146,10 +169,10 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
 
     suspend fun loadProjector(path: String): Int = native { LlamaNative.loadProjector(handle, path) }
 
-    suspend fun countTokens(text: String): Int = native { LlamaNative.countTokens(handle, text.toByteArray()) }
+    override suspend fun countTokens(text: String): Int = native { LlamaNative.countTokens(handle, text.toByteArray()) }
 
     /** Streams the model's output for a full prompt. Cancelling the flow stops generation. */
-    fun generate(prompt: String, maxTokens: Int, temp: Float = 0.3f, topP: Float = 0.9f): Flow<String> = callbackFlow {
+    override fun generate(prompt: String, maxTokens: Int, temp: Float, topP: Float): Flow<String> = callbackFlow {
         mutex.withLock {
             if (closed) throw LlmException("The model was unloaded; try again")
             val n = LlamaNative.generate(handle, prompt.toByteArray(), maxTokens, temp, topP, 42) { bytes ->
@@ -229,18 +252,20 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
      * Reads in [nPrompt] tokens, then writes [nGen] with the chat's sampler and no callbacks. Thread counts of 0 keep
      * the session's own. The context is left empty, so the next chat reads its prompt in again.
      */
-    suspend fun bench(nPrompt: Int, nGen: Int, threads: Int = 0, batchThreads: Int = 0): BenchRun = native {
+    override suspend fun bench(nPrompt: Int, nGen: Int): BenchRun = bench(nPrompt, nGen, 0, 0)
+
+    suspend fun bench(nPrompt: Int, nGen: Int, threads: Int, batchThreads: Int): BenchRun = native {
         val v = LlamaNative.bench(handle, nPrompt, nGen, threads, batchThreads)
         if (v.size < 8) throw LlmException("The benchmark could not run")
         BenchRun(v[0], v[1].toInt(), v[2], v[3], v[4].toInt(), v[5], v[6].toInt(), v[7].toInt())
     }
 
-    suspend fun runInfo(): String = native { LlamaNative.runInfo(handle) }
+    override suspend fun runInfo(): String = native { LlamaNative.runInfo(handle) }
 
     /** Numbers from the last generate call, kept here so they stay readable after the session is freed. */
-    fun stats(): GenStats = lastStats
+    override fun stats(): GenStats = lastStats
 
-    suspend fun close() = mutex.withLock {
+    override suspend fun close() = mutex.withLock {
         withContext(dispatcher) {
             if (!closed) {
                 closed = true

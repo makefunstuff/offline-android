@@ -49,6 +49,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Lfm"
         tools:targetApi="36">
+        <!-- LiteRT-LM reaches the GPU through the vendor's OpenCL (docs/acceleration.md); without them it stays on the CPU. -->
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

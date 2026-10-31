@@ -13,14 +13,13 @@ class DebugBenchReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val g = (context.applicationContext as LfmApp).graph
         g.bench.start()
-        val done = goAsync()
+        // Not goAsync: a benchmark of every backend takes minutes, far past a receiver's time limit.
         g.scope.launch {
             when (val s = g.bench.state.first { it is Benchmark.State.Done || it is Benchmark.State.Failed }) {
                 is Benchmark.State.Done -> s.report.text().lines().forEach { Log.i("lfm-bench", it) }
                 is Benchmark.State.Failed -> Log.e("lfm-bench", s.message)
                 else -> {}
             }
-            done.finish()
         }
     }
 }

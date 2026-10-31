@@ -12,6 +12,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import com.lfmpixel.lfm.voice.SpeechLanguage
 import com.lfmpixel.lfm.voice.SpeechVoice
+import com.lfmpixel.lfm.llm.Backend
+import com.lfmpixel.lfm.llm.BackendChoice
+import com.lfmpixel.lfm.llm.BackendSpeed
+import com.lfmpixel.lfm.llm.Backends
 
 enum class SearchMode(val label: String) { Off("Off"), AskFirst("Ask first"), Automatic("Automatic") }
 
@@ -47,6 +51,10 @@ data class Prefs(
     val talkSpoken: Boolean = true,
     val assistOpens: AssistOpens = AssistOpens.Talk,
     val lockMode: LockMode = LockMode.Off,
+    /** CPU, GPU, or Auto: per model, by [backendSpeeds]. */
+    val backend: BackendChoice = BackendChoice.Auto,
+    /** What the benchmark measured, per model file and backend. */
+    val backendSpeeds: Map<String, Map<Backend, BackendSpeed>> = emptyMap(),
 )
 
 private val Context.store by preferencesDataStore("settings")
@@ -74,6 +82,8 @@ class Settings(private val context: Context) {
         val talkSpoken = booleanPreferencesKey("talk_spoken")
         val assistOpens = stringPreferencesKey("assist_opens")
         val lock = stringPreferencesKey("lock_mode")
+        val backend = stringPreferencesKey("backend")
+        val backendSpeeds = stringPreferencesKey("backend_speeds")
     }
 
     val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
@@ -102,6 +112,8 @@ class Settings(private val context: Context) {
         talkSpoken = this[K.talkSpoken] ?: true,
         assistOpens = this[K.assistOpens]?.let { runCatching { AssistOpens.valueOf(it) }.getOrNull() } ?: AssistOpens.Talk,
         lockMode = this[K.lock]?.let { runCatching { LockMode.valueOf(it) }.getOrNull() } ?: LockMode.Off,
+        backend = this[K.backend]?.let { runCatching { BackendChoice.valueOf(it) }.getOrNull() } ?: BackendChoice.Auto,
+        backendSpeeds = Backends.decode(this[K.backendSpeeds] ?: ""),
     )
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
@@ -119,6 +131,11 @@ class Settings(private val context: Context) {
     suspend fun setAssistOpens(o: AssistOpens) = context.store.edit { it[K.assistOpens] = o.name }
     suspend fun setChatModel(fileName: String) = context.store.edit { it[K.chatModel] = fileName }
     suspend fun setLockMode(m: LockMode) = context.store.edit { it[K.lock] = m.name }
+    suspend fun setBackend(b: BackendChoice) = context.store.edit { it[K.backend] = b.name }
+    /** Keeps what the benchmark measured for [file]; other models' measurements stay. */
+    suspend fun setBackendSpeeds(file: String, speeds: Map<Backend, BackendSpeed>) = context.store.edit {
+        it[K.backendSpeeds] = Backends.encode(it.toPrefs().backendSpeeds + (file to speeds))
+    }
     /** Wipe: every setting back to how it was on first run. */
     suspend fun clear() = context.store.edit { it.clear() }
     suspend fun setShowSpeed(on: Boolean) = context.store.edit { it[K.speed] = on }

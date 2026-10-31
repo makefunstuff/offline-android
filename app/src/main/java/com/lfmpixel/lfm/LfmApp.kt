@@ -37,7 +37,8 @@ class AppGraph(context: Context) {
     val db = LfmDatabase.open(context)
     val settings = Settings(context)
     val models = ModelStore(context)
-    val engine = ModelManager(context.applicationInfo.nativeLibraryDir.orEmpty(), models, settings, scope)
+    val engine = ModelManager(context.applicationInfo.nativeLibraryDir.orEmpty(), models, settings, scope,
+        java.io.File(context.cacheDir, "litert").apply { mkdirs() })
     val reminders = Reminders(context)
     val calendar = LocalCalendar(context)
     val contacts = Contacts(context)

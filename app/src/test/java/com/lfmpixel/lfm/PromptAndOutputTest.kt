@@ -79,4 +79,18 @@ class PromptAndOutputTest {
         assertEquals("set_torch", out.toolCalls.single().name)
         assertEquals("true", out.toolCalls.single().args["on"])
     }
+
+    @Test fun strayEndOfThoughtWithThinkingOffKeepsTheAnswerAfterIt() {
+        // Seen from LFM3 on llama.cpp and LiteRT-LM alike with thinking off.
+        val out = ModelOutput.parse("17 + 25 = 42.</think>42", thinkingOn = false)
+        assertEquals("42", out.answer)
+        assertEquals("", out.thinking)
+        // A tool call written before a stray tag is kept.
+        assertEquals(1, ModelOutput.parse("<tool_call>\n<function=f>\n</function>\n</tool_call></think>", thinkingOn = false).toolCalls.size)
+        assertEquals("Tokyo", ModelOutput.parse("Tokyo</think>Tokyo", thinkingOn = false).answer)
+        // A whole answer followed by a stray tag keeps the answer.
+        assertEquals("Paris is the capital.", ModelOutput.parse("Paris is the capital.</think>", thinkingOn = false).answer)
+        // A normal answer is untouched.
+        assertEquals("Paris.", ModelOutput.parse("Paris.", thinkingOn = false).answer)
+    }
 }
