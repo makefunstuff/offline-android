@@ -45,6 +45,8 @@ class AppGraph(context: Context) {
     val netInstaller = NetInstaller(context)
     val assistant = Assistant(context, db, engine, settings, tools, reminders, calendar, controls, launcher, scope, web)
     val voice = VoiceRecorder(OmniTranscriber(engine))
+    val talk = com.lfmpixel.lfm.voice.Talk(context, engine, settings, scope)
+    val readAloud = com.lfmpixel.lfm.voice.ReadAloud(context, engine, settings, scope)
     val prep = MediaPrep(context)
     val bench = com.lfmpixel.lfm.llm.Benchmark(engine, models, settings, scope)
 }

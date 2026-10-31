@@ -18,11 +18,12 @@ mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-androi
   Load and Unload for each model, the chat model when you have more than one, and "Unload when idle" (Never, 1, 5,
   15 or 30 minutes).
 
-This build covers spec Phases 1–5: Today, Chat, Library (notes, ideas, journal), To-dos, Settings; chat with
+This build covers spec Phases 1–6: Today, Chat, Library (notes, ideas, journal), To-dos, Settings; chat with
 LFM3-1.7B through llama.cpp in-process (JNI, CPU); voice capture through LFM3-Omni-2B in-process; tools with a
 confirmation sheet, action history and undo; web search with sources, the network log, and in-app model downloads
-through LFM Net (Phase 4); and, new in Phase 5, **Ask about this**: camera, photos, short videos and documents,
-understood on the phone with no network.
+through LFM Net (Phase 4); **Ask about this**: camera, photos, short videos and documents, understood on the phone
+with no network (Phase 5); and, new in Phase 6, **Talk** and **read-aloud** with Omni's own voice, Inkling as the
+phone's assistant, a Quick Settings tile and a home-screen widget.
 
 ## Build
 
@@ -153,6 +154,42 @@ follow-up ("remind me to pay that rent on the 1st") goes to LFM3-1.7B, which rea
   process. LFM asks for the camera only (no storage permission: the pickers grant one file at a time). A small copy of
   each picture is kept in the app's files for the chat; Settings → Privacy → Clear chats deletes them.
 
+## Talk and read-aloud (Phase 6)
+
+**Talk** is a hands-free conversation with LFM3-Omni-2B, all inside Inkling: Talk on Today, the wave icon in Chat, the
+widget, or the assistant gesture. It listens until you pause (about 0.8 s of quiet), Omni writes down what you said,
+then answers with its text and its voice at once, and listens again once the answer has been heard. The square of
+bars follows your voice while it listens and its own while it speaks; the highlighter marks what it is doing now
+(Getting ready, Listening, Hearing you, Thinking, Speaking). Stop cuts an answer short and listens; while listening it
+pauses. While Talk is open other audio (music, a podcast) pauses, and read-aloud lowers it; a call or an alarm pauses Talk
+and stops read-aloud. After 20 s of quiet it
+pauses by itself, and it pauses whenever Inkling leaves the screen, so the mic is
+never open in the background. The speaker button switches to text-only answers (faster, silent); the chat button
+carries the conversation into Chat, where it can go on in writing and with tools. "Phone is warm" shows when Android
+reports the phone is getting hot.
+
+- How: llama.cpp's own speech-out code for LFM3 (`mtmd_helper_gen_audio`, the same code `llama-tts` and the
+  `/v1/realtime` server use) is called in-process through JNI (`app/src/main/cpp/talk.cpp`). The answer is Omni's
+  mixed mode: blocks of text, then of speech, from one pass. No server, no socket, no network permission.
+- Half duplex: the mic is closed while it speaks, so it never hears itself; you can't talk over it (barge-in), tap
+  Stop instead.
+- Talk does not run tools or search: it is Omni on its own. "Carry on in Chat" hands the conversation to LFM3-1.7B.
+- If the phone makes speech slower than it plays (the emulator does), playback waits for a little audio first and,
+  if it runs dry, for longer stretches, so it speaks in phrases instead of stuttering.
+
+**Read aloud** sits under every answer in Chat: Omni reads it in your chosen voice (female or male) and language,
+without Markdown marks, source numbers or links, in short pieces so it starts soon. Tap again to stop.
+Settings → Voice and Talk holds the voice, the language, "Answer out loud", and the ways in.
+
+**Ways in.** Inkling can be the phone's digital assistant (Settings → Voice and Talk → Phone's assistant, or Android
+Settings → Apps → Default apps → Digital assistant app). Holding the power button or the corner swipe then opens Talk
+or voice capture, as you pick. The **Quick Settings tile** "Capture" opens Inkling already listening for a capture (on
+the lock screen it asks you to unlock first). The **widget** (4×1) has Capture (the mic), Talk and Note. Both can be
+added from Settings → Voice and Talk with one tap. Inkling also names a speech recogniser, as Android requires of an
+assistant, and Android then makes it the phone's recogniser too: so it is a real one. Another app's voice input (a
+keyboard's mic, a search box) is meant to be heard and written down by Omni on the phone (without Omni it says it
+can't); this path is built but was not tried yet, not even in the emulator.
+
 ## How it is put together
 
 - `ipc/`: the AIDL interface between the two apps (`info`, `search`, `fetch`, `download`) and the pinned file list.
@@ -166,14 +203,22 @@ follow-up ("remind me to pay that rent on the 1st") goes to LFM3-1.7B, which rea
   captures when no model is loaded.
 - `tools/`: one small class per tool; reminders, the on-phone calendar, contacts, Messages, dialer, phone settings.
   `ExternalLauncher` is the only code that starts other apps.
-- `voice/`: the `Transcriber` seam; `OmniTranscriber` runs LFM3-Omni-2B in-process.
+- `voice/`: the `Transcriber` seam; `OmniTranscriber` runs LFM3-Omni-2B in-process. `Talk` (the turn loop),
+  `ReadAloud`, `AudioOut` (plays 24 kHz speech as it is made), `SpeechFormat` (TTS prompt, text to speech, the
+  end-of-speech detector `Endpointer`).
+- `assist/`: the assistant service and session, the Quick Settings tile and the widget.
+- `app/src/main/cpp/talk.cpp`: speech out with Omni (read-aloud and Talk's mixed text and voice), plain C++ with no
+  JNI, so it can be built into a small desktop program against llama.cpp to check speech without a phone (that is
+  how the clips below were transcribed back; the program is not in the repo).
 - `see/`: Ask about this. `SeeRules` (which model looks, frame times, sizes, prompts), `MediaPrep` (photos, video
   frames, PDF pages and text layers into RGB for llama.cpp). The camera screen is `ui/screens/CameraScreen.kt` (CameraX).
 - `web/`: LFM's side of LFM Net: `NetClient` (binds to it, logs every request), `WebSearch` (the search flow),
   `PersonalWords`, `ArticleText` (reads pages), `ModelDownloads` + `DownloadService`, `NetInstaller`.
 - `ui/`: Compose screens in the calm Signal, Ink + highlighter style.
 - `app/src/debug/`: debug-only hooks used for emulator testing: feed a recorded clip through the voice path, ask
-  about a file in the app's folder as the pickers do (`DEBUG_SEE`), and add sample library content. They are not in
+  about a file in the app's folder as the pickers do (`DEBUG_SEE`), add sample library content, and play a clip into
+  Talk in place of the mic, at the mic's pace, and keep what Talk and read-aloud say (`DEBUG_TALK`). Send them with
+  `adb shell am broadcast -p com.lfmpixel.lfm -a …`. They are not in
   release builds.
 
 ## Tested so far, and what still needs the real phone
@@ -195,7 +240,17 @@ Tested in an Android 16 emulator (x86_64, Pixel 10 Pro profile, software renderi
   picture (38 s), all answered correctly; a follow-up that set a reminder from what VL read. Light and dark. The
   Phase 4 database (version 2) migrated to version 3 on update with its chats kept.
 
-Still needs the Pixel (spec Phase 0, Phase 4 and Phase 5):
+- Phase 6, in the same emulator (4 threads on a busy desktop CPU): Talk end to end with spoken questions played into
+  the mic path (made by Omni's own voice): Listening → Hearing you → Thinking → Speaking, two turns with the first as
+  context, Stop in the middle of an answer, back to listening, the 20 s pause, "Carry on in Chat". Text-only mode was
+  not tried. What Talk and read-aloud played was saved and transcribed back with Omni on the desktop: it matched the
+  answers word for word. Omni made speech at about a quarter of real time in Talk and half in read-aloud there
+  (first audio about 9 s after the question; a 9 s answer took 34 s to make). Inkling as the digital assistant: the
+  assistant key and the power-button hold opened Talk from the home screen; the mic closed when leaving the app.
+  The Quick Settings tile (added and tapped) and the widget (pinned from settings; Capture, Talk and Note) opened
+  the right place. Light and dark.
+
+Still needs the Pixel (spec Phase 0 and Phases 4–6):
 
 - Speed, memory, heat and battery for the 1.7B model and Omni on the Tensor G5 (arm64 build, KleidiAI, Auto threads):
   run Settings → Models → Benchmark and Copy results.
@@ -215,3 +270,10 @@ Still needs the Pixel (spec Phase 0, Phase 4 and Phase 5):
   Wi-Fi only really never uses mobile data on the Pixel.
 - Search over the owner's own SearXNG through WireGuard, Brave or Mojeek with a real key, and a SOCKS proxy through
   Orbot (none of these were tried).
+- Phase 6 on the Pixel: whether Omni speaks faster than real time on the Tensor G5 (the emulator could not; if not,
+  answers come in phrases with gaps), the time to first audio, battery and heat over a 10-minute Talk; the real
+  microphone and a real voice (the end-of-speech detector was only tested with recorded clips and unit tests, not in a
+  noisy room); speaker volume and Bluetooth headsets; whether the Pixel's power-button hold really goes to a
+  third-party assistant (it did in the emulator) and how the corner swipe behaves; the tile from the lock screen;
+  the widget on the Pixel launcher; speech in languages other than English; the speech recogniser from another app
+  (a keyboard's mic), including whether Android lets it use the mic while Inkling is in the background.

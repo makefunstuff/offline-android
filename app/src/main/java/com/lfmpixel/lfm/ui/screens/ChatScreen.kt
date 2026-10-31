@@ -39,6 +39,7 @@ import com.lfmpixel.lfm.data.ChatMessage
 import com.lfmpixel.lfm.data.Role
 import com.lfmpixel.lfm.ui.Nav
 import com.lfmpixel.lfm.ui.Route
+import androidx.compose.animation.togetherWith
 import com.lfmpixel.lfm.ui.components.Composer
 import com.lfmpixel.lfm.ui.components.Header
 import com.lfmpixel.lfm.ui.components.IconButtonPlain
@@ -83,6 +84,10 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val queued by g.assistant.queue.collectAsState()
     val status by g.engine.status.collectAsState()
     val query by g.web.pending.collectAsState()
+    val reading by g.readAloud.state.collectAsState()
+    reading.error?.let { e -> LaunchedEffect(e) { nav.show(e); g.readAloud.clearError() } }
+    // Reading stops when the chat is left.
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { g.readAloud.stop() } }
     val actions by remember { g.db.actions().recent() }.collectAsState(emptyList())
     val records = actions.associateBy { it.id }
     var draft by rememberSaveable { mutableStateOf("") }
@@ -129,6 +134,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                             LfmType.meta, c.text2, maxLines = 1)
                     }
                 }
+                IconButtonPlain("wave", { nav.go(Route.Talk) }, desc = "Talk")
                 IconButtonPlain("plus", {
                     g.assistant.newChat()
                     if (queued.isNotEmpty()) nav.show("New chat. ${queued.size} queued ${if (queued.size == 1) "message moves" else "messages move"} with you.")
@@ -152,7 +158,8 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 items(visible, key = { it.id }) { m ->
                     Box(Modifier.animateItem(fadeInSpec = null, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
                         Role.User -> UserBubble(m)
-                        Role.Assistant -> AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null)
+                        Role.Assistant -> AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null,
+                            read = if (g.readAloud.available) ReadState(reading.id == m.id, reading.id == m.id && reading.preparing) { g.readAloud.toggle(m.id, m.text) } else null)
                         Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
                             else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
                         Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
@@ -292,12 +299,35 @@ private fun MediaThumb(m: ChatMessage) {
     }
 }
 
+/** Read aloud for one answer: whether it is the one being read, still being prepared, and the tap. */
+private class ReadState(val on: Boolean, val preparing: Boolean, val toggle: () -> Unit)
+
 @Composable
-private fun AssistantText(text: String, meta: String, citations: Boolean = false) {
+private fun AssistantText(text: String, meta: String, citations: Boolean = false, read: ReadState? = null) {
     val c = Lfm.c
     Column {
         AnswerText(text, if (text.length > 220) LfmType.bodyLarge else LfmType.answer, markKeyFact = false, citations = citations)
-        if (meta.isNotEmpty()) Txt(meta, LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
+        if (meta.isNotEmpty() || read != null) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (meta.isNotEmpty()) Txt(meta, LfmType.meta, c.text2, Modifier.weight(1f, fill = false))
+            if (read != null) ReadAloudButton(read)
+        }
+    }
+}
+
+/** A quiet "Read aloud" after an answer; while it reads, "Stop reading" with the voice's bars. */
+@Composable
+private fun ReadAloudButton(r: ReadState) {
+    val c = Lfm.c
+    val label = when { r.preparing -> "Getting the voice ready…"; r.on -> "Stop reading"; else -> "Read aloud" }
+    Row(Modifier.padding(start = 8.dp).clip(RoundedCornerShape(6.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = r.toggle)
+        .padding(horizontal = 6.dp, vertical = 6.dp).semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        val fadeIn = LfmMotion.spec<Float>(LfmMotion.SHORT)
+        val fadeOut = LfmMotion.spec<Float>(90)
+        androidx.compose.animation.AnimatedContent(r.on, transitionSpec = {
+            androidx.compose.animation.fadeIn(fadeIn) togetherWith androidx.compose.animation.fadeOut(fadeOut)
+        }, label = "read") { on -> LIcon(if (on) "stop" else "speaker", size = 15.dp, tint = if (on) c.text else c.text2) }
+        Txt(label, LfmType.meta, if (r.on) c.text else c.text2, maxLines = 1)
     }
 }
 

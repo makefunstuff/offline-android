@@ -20,6 +20,12 @@ object LlamaNative {
         fun onToken(bytes: ByteArray): Boolean
     }
 
+    /** Omni's speech out: 24 kHz mono float PCM as it is made, and for Talk the answer's text. Return false to stop. */
+    interface SpeechListener {
+        fun onAudio(pcm: FloatArray): Boolean
+        fun onText(bytes: ByteArray): Boolean
+    }
+
     const val PROJ_AUDIO = 1
     const val PROJ_VISION = 2
 
@@ -47,8 +53,13 @@ object LlamaNative {
     external fun generate(handle: Long, prompt: ByteArray, maxTokens: Int, temp: Float, topP: Float, seed: Int, listener: TokenListener): Int
     external fun transcribe(handle: Long, pcm: FloatArray, prompt: ByteArray, maxTokens: Int, listener: TokenListener): Int
     external fun see(handle: Long, images: Array<ByteArray>, sizes: IntArray, prompt: ByteArray, maxTokens: Int, temp: Float, listener: TokenListener): Int
+    external fun canSpeak(handle: Long): Boolean
+    external fun speak(handle: Long, prompt: ByteArray, maxFrames: Int, listener: SpeechListener): Int
+    external fun talkReply(handle: Long, history: ByteArray, prefix: ByteArray, maxSteps: Int, temp: Float, spoken: Boolean, listener: SpeechListener): Int
     /** Stops any picture being read in (between pictures). */
     external fun cancelPictures()
+    /** Stops any speech being made (between audio frames). */
+    external fun cancelSpeech()
     external fun lastStats(handle: Long): DoubleArray
     /** See [LlamaSession.bench]; empty on failure. */
     external fun bench(handle: Long, nPrompt: Int, nGen: Int, nThreads: Int, nThreadsBatch: Int): DoubleArray
@@ -170,6 +181,36 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
         close()
         awaitClose { }
     }.buffer(Channel.UNLIMITED).flowOn(dispatcher)
+
+    suspend fun canSpeak(): Boolean = native { LlamaNative.canSpeak(handle) }
+
+    /**
+     * Speaks [prompt] (Omni's TTS template, see SpeechFormat), sending audio to [onAudio] as it is made, on the
+     * model's thread. Returns false if stopped. [onAudio] returning false stops it too.
+     */
+    suspend fun speak(prompt: String, maxFrames: Int, onAudio: (FloatArray) -> Boolean): Boolean = native {
+        val n = LlamaNative.speak(handle, prompt.toByteArray(), maxFrames, object : LlamaNative.SpeechListener {
+            override fun onAudio(pcm: FloatArray) = onAudio(pcm)
+            override fun onText(bytes: ByteArray) = true
+        })
+        if (n == -1) throw LlmException("This Omni projector file has no voice. Get mmproj-LFM3-Omni-2B again.")
+        if (n < 0 && n != -6) throw LlmException("Could not speak ($n)")
+        n >= 0
+    }
+
+    /** One spoken answer for Talk: its text pieces and its audio, interleaved, as Omni makes them. */
+    suspend fun talkReply(history: String, prefix: String, maxSteps: Int, temp: Float, spoken: Boolean,
+                          onText: (String) -> Boolean, onAudio: (FloatArray) -> Boolean): Boolean = native {
+        val n = LlamaNative.talkReply(handle, history.toByteArray(), prefix.toByteArray(), maxSteps, temp, spoken, object : LlamaNative.SpeechListener {
+            override fun onAudio(pcm: FloatArray) = onAudio(pcm)
+            override fun onText(bytes: ByteArray) = onText(String(bytes, Charsets.UTF_8))
+        })
+        if (n == -1) throw LlmException("This Omni projector file has no voice. Get mmproj-LFM3-Omni-2B again.")
+        if (n == -2) throw LlmException("The conversation is too long; start Talk again")
+        if (n < 0 && n != -6) throw LlmException("Could not answer ($n)")
+        n >= 0
+    }
+
 
     private fun readStats() = LlamaNative.lastStats(handle).let { GenStats(it[0], it[1].toInt(), it[2], it[3].toInt(), it[4].toInt(), it[5]) }
 

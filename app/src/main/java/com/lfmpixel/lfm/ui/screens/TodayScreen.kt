@@ -99,6 +99,7 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             }, onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) })
             // One tap to write any kind, keyboard up (ux-spec section 4).
             Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Btn("Talk", { nav.go(Route.Talk) }, small = true, icon = "wave")
                 listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, EntryKind.Todo).forEach { k ->
                     Btn(k.label, { nav.go(Route.Editor(kind = k)) }, small = true, icon = k.icon())
                 }

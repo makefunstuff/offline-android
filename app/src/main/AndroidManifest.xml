@@ -49,12 +49,40 @@
             android:name=".MainActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
+            android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode|density">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- The assistant gesture, for phones that send it to an activity. -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
+        <!-- Being the phone's assistant (Settings → Apps → Default apps → Digital assistant app). -->
+        <service android:name=".assist.AssistService" android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION">
+            <meta-data android:name="android.voice_interaction" android:resource="@xml/assist_service" />
+            <intent-filter><action android:name="android.service.voice.VoiceInteractionService" /></intent-filter>
+        </service>
+        <service android:name=".assist.AssistSessionService" android:exported="true"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+        <service android:name=".assist.AssistRecognitionService" android:exported="true"
+            android:label="Inkling">
+            <intent-filter><action android:name="android.speech.RecognitionService" /></intent-filter>
+            <meta-data android:name="android.speech" android:resource="@xml/recognition_service" />
+        </service>
+        <service android:name=".assist.CaptureTileService" android:exported="true" android:label="@string/tile_capture"
+            android:icon="@drawable/ic_tile_capture" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="false" />
+        </service>
+        <receiver android:name=".assist.CaptureWidget" android:exported="true" android:label="Inkling">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_capture" />
+        </receiver>
         <service android:name=".web.DownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
         <receiver android:name=".web.NetInstallReceiver" android:exported="false" />
         <receiver android:name=".tools.ReminderReceiver" android:exported="false" />

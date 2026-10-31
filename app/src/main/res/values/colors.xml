@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="bg">#FFFFFF</color>
+    <!-- The widget: same ink, lines and highlighter as the app (docs/spec.md section 7). -->
+    <color name="ink">#0B0B0C</color>
+    <color name="ink2">#5C5C62</color>
+    <color name="line">#E4E4E7</color>
+    <color name="fill">#F4F4F5</color>
+    <color name="control">#8B8B92</color>
+    <color name="highlight">#FFD400</color>
+    <color name="on_highlight">#0B0B0C</color>
+    <color name="mic_edge">#0B0B0C</color>
 </resources>

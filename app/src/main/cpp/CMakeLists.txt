@@ -17,7 +17,7 @@ endif()
 set(LLAMA_SRC ${CMAKE_CURRENT_LIST_DIR}/llama.cpp)
 add_subdirectory(${LLAMA_SRC} build-llama)
 
-add_library(lfm SHARED lfm_jni.cpp)
+add_library(lfm SHARED lfm_jni.cpp talk.cpp)
 
 target_include_directories(lfm PRIVATE
         ${LLAMA_SRC}/include

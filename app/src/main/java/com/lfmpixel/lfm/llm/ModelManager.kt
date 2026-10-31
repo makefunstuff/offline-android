@@ -7,6 +7,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -62,7 +64,8 @@ class ModelManager(
         _status.value = _status.value.copy(text = LoadState.Loading, error = null, textFile = m.file.name)
         val p = settings.now()
         try {
-            LlamaSession.open(nativeLibDir, m.file.path, p.contextTokens, p.threads).also {
+            // A load is never cut off half way (leaving the model in memory with nothing pointing at it).
+            withContext(NonCancellable) { LlamaSession.open(nativeLibDir, m.file.path, p.contextTokens, p.threads) }.also {
                 text = it
                 _status.value = _status.value.copy(text = LoadState.Ready)
             }
@@ -82,8 +85,11 @@ class ModelManager(
         _status.value = _status.value.copy(omni = LoadState.Loading, error = null)
         try {
             // 8K context: room for a short clip's frames as well as a voice note.
-            val s = LlamaSession.open(nativeLibDir, m.file.path, 8192, settings.now().threads)
-            val caps = s.loadProjector(proj.file.path)
+            val threads = settings.now().threads
+            val (s, caps) = withContext(NonCancellable) {
+                val s = LlamaSession.open(nativeLibDir, m.file.path, 8192, threads)
+                s to s.loadProjector(proj.file.path)
+            }
             if (caps < 0 || caps and LlamaNative.PROJ_AUDIO == 0) {
                 s.close()
                 throw LlmException(if (caps < 0) "Omni's projector file could not be loaded" else "Omni's projector loaded, but it has no audio input")
@@ -108,8 +114,12 @@ class ModelManager(
         val proj = store.visionProjector() ?: throw LlmException("Documents need VL's projector file (mmproj-LFM3-VL-2B).")
         _status.value = _status.value.copy(vision = LoadState.Loading, error = null)
         try {
-            val s = LlamaSession.open(nativeLibDir, m.file.path, VISION_CONTEXT, settings.now().threads)
-            if (s.loadProjector(proj.file.path).let { it < 0 || it and LlamaNative.PROJ_VISION == 0 }) {
+            val threads = settings.now().threads
+            val (s, caps) = withContext(NonCancellable) {
+                val s = LlamaSession.open(nativeLibDir, m.file.path, VISION_CONTEXT, threads)
+                s to s.loadProjector(proj.file.path)
+            }
+            if (caps.let { it < 0 || it and LlamaNative.PROJ_VISION == 0 }) {
                 s.close()
                 throw LlmException("VL's projector file could not be loaded")
             }
@@ -184,6 +194,9 @@ class ModelManager(
 
     /** Stop, while a picture is being read in: takes effect before the next picture or page. */
     fun cancelPictures() { if (text != null || omni != null || vision != null) runCatching { LlamaNative.cancelPictures() } }
+
+    /** Stop, while Omni speaks (read-aloud or Talk): takes effect before the next audio frame. */
+    fun cancelSpeech() { if (omni != null) runCatching { LlamaNative.cancelSpeech() } }
 
     fun systemInfo(): String = runCatching { LlamaNative.ensureLoaded(nativeLibDir); LlamaNative.systemInfo() }.getOrDefault("")
 }

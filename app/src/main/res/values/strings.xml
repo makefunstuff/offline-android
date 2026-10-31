@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">Capture by voice, Talk, or a new note</string>
+    <string name="tile_capture">Capture</string>
+</resources>

@@ -256,6 +256,16 @@ class Assistant(
         }
     }
 
+    /** A Talk conversation carried into the chat thread, so it can go on in writing (and with tools). */
+    suspend fun addTalk(turns: List<com.lfmpixel.lfm.voice.TalkTurn>) {
+        for (t in turns) {
+            val shown = t.it + if (t.stopped && t.it.isNotBlank()) " …" else ""
+            db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = t.you, voiceSeconds = maxOf(t.seconds, 1)))
+            if (shown.isNotBlank()) db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = shown,
+                raw = "<think></think>${t.it}", meta = "LFM3-Omni-2B · Talk"))
+        }
+    }
+
     private suspend fun notice(text: String) {
         db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Notice, text = text))
     }
