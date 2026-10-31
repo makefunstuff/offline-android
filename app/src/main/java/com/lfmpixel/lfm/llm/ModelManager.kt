@@ -119,13 +119,27 @@ class ModelManager(
     }
 
     /** The chat model on its backend: LiteRT-LM's file when a LiteRT backend is chosen, else the GGUF in llama.cpp. */
+    /**
+     * What each loaded slot was asked for (file, backend). A session that fell back to the CPU still answers that
+     * request, so it is kept rather than tried again on every call.
+     */
+    private val asked = mutableMapOf<Slot, Pair<String?, Backend>>()
+
+    /** Set while the Benchmark runs: it loads every model on every backend, and nothing else may load meanwhile. */
+    @Volatile var benchmarking = false
+
+    private fun notWhileBenchmarking() {
+        if (benchmarking) throw LlmException("The benchmark in Settings → Models is running; try again when it ends.")
+    }
+
     suspend fun textSession(): TextSession = lock.withLock {
+        notWhileBenchmarking()
         touch()
         val m = chatModel()
         val backend = if (m != null) backendFor(Slot.Text) else null
         val lite = if (backend?.liteRt == true) store.liteRt() else null
         val path = (lite ?: m)?.file?.path
-        text?.takeIf { it.path == path && it.backend == backend }?.let { return it }
+        text?.takeIf { !it.isClosed && asked[Slot.Text] == (path to backend) }?.let { return it }
         text?.close()
         text = null
         _status.value = _status.value.copy(text = LoadState.None, textFile = null, backends = _status.value.backends - Slot.Text)
@@ -143,6 +157,7 @@ class ModelManager(
                 open(Slot.Text, m.file.path, p.contextTokens, if (backend.liteRt) Backend.Cpu else backend)
             }
             text = s
+            asked[Slot.Text] = path to backend
             _status.value = _status.value.copy(text = LoadState.Ready, backends = _status.value.backends + (Slot.Text to s.backend))
             s
         } catch (e: Exception) {
@@ -152,9 +167,10 @@ class ModelManager(
     }
 
     suspend fun omniSession(): LlamaSession = lock.withLock {
+        notWhileBenchmarking()
         touch()
         val omniBackend = backendFor(Slot.Omni)
-        omni?.takeIf { it.path == store.omni()?.file?.path && it.backend == omniBackend }?.let { return it }
+        omni?.takeIf { !it.isClosed && asked[Slot.Omni] == (store.omni()?.file?.path to omniBackend) }?.let { return it }
         omni?.close()
         omni = null
         val m = store.omni() ?: throw LlmException("Voice needs LFM3-Omni-2B. Import it in Settings → Models.")
@@ -172,6 +188,7 @@ class ModelManager(
             }
             omniSees = caps and LlamaNative.PROJ_VISION != 0
             omni = s
+            asked[Slot.Omni] = m.file.path to omniBackend
             _status.value = _status.value.copy(omni = LoadState.Ready, backends = _status.value.backends + (Slot.Omni to s.backend))
             s
         } catch (e: Exception) {
@@ -182,9 +199,10 @@ class ModelManager(
 
     /** LFM3-VL-2B for documents. It loads only when one is asked about, then unloads with the others when idle. */
     suspend fun visionSession(): LlamaSession = lock.withLock {
+        notWhileBenchmarking()
         touch()
         val visionBackend = backendFor(Slot.Vision)
-        vision?.takeIf { it.path == store.vision()?.file?.path && it.backend == visionBackend }?.let { return it }
+        vision?.takeIf { !it.isClosed && asked[Slot.Vision] == (store.vision()?.file?.path to visionBackend) }?.let { return it }
         vision?.close()
         vision = null
         val m = store.vision() ?: throw LlmException("Documents need LFM3-VL-2B. Get it in Settings → Models.")
@@ -200,6 +218,7 @@ class ModelManager(
                 throw LlmException("VL's projector file could not be loaded")
             }
             vision = s
+            asked[Slot.Vision] = m.file.path to visionBackend
             _status.value = _status.value.copy(vision = LoadState.Ready, backends = _status.value.backends + (Slot.Vision to s.backend))
             s
         } catch (e: Exception) {
@@ -212,8 +231,9 @@ class ModelManager(
     suspend fun file(slot: Slot): InstalledModel? = when (slot) { Slot.Text -> chatModel(); Slot.Omni -> store.omni(); Slot.Vision -> store.vision() }
 
     /**
-     * For the benchmark: [slot]'s model alone on [backend], without its projector and outside the slots (that slot
-     * is unloaded first, so two copies are never in memory). The caller closes it. Throws if [backend] won't load it.
+     * For the benchmark and the import check: [slot]'s model alone on [backend], without its projector and outside the
+     * slots (that slot is unloaded first; while [benchmarking], no slot loads). The caller closes it. Throws if
+     * [backend] won't load it.
      */
     suspend fun benchSession(slot: Slot, backend: Backend): TextSession = lock.withLock {
         val m = (if (backend.liteRt) store.liteRt() else file(slot)) ?: throw LlmException("${slot.label} is not on this phone")
@@ -253,9 +273,10 @@ class ModelManager(
 
     suspend fun unloadAll() = lock.withLock {
         idleJob?.cancel()
-        text?.close(); text = null
-        omni?.close(); omni = null
-        vision?.close(); vision = null
+        // Each one goes even if another's close fails.
+        runCatching { text?.close() }; text = null
+        runCatching { omni?.close() }; omni = null
+        runCatching { vision?.close() }; vision = null
         _status.value = EngineStatus()
     }
 
@@ -280,7 +301,8 @@ class ModelManager(
      * buffers. An estimate from file sizes, shown with "about".
      */
     suspend fun memoryBytes(slot: Slot): Long = when (slot) {
-        Slot.Text -> (chatModel()?.known?.sizeBytes ?: 0) + settings.now().contextTokens * 8_192L + 120_000_000L
+        Slot.Text -> if (backendFor(Slot.Text).liteRt) (store.liteRt()?.known?.sizeBytes ?: 0) + 300_000_000L
+            else (chatModel()?.known?.sizeBytes ?: 0) + settings.now().contextTokens * 8_192L + 120_000_000L
         Slot.Omni -> (store.omni()?.known?.sizeBytes ?: 0) + (store.omniProjector()?.known?.sizeBytes ?: 0) + 180_000_000L
         Slot.Vision -> (store.vision()?.known?.sizeBytes ?: 0) + (store.visionProjector()?.known?.sizeBytes ?: 0) + 260_000_000L
     }

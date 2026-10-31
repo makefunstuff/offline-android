@@ -13,8 +13,8 @@ import java.util.Locale
 
 /** One model on one backend, as the benchmark measured it. [run] is null if it would not load or run ([note] says why). */
 data class BackendResult(val slot: Slot, val backend: Backend, val run: BenchRun?, val ok: Boolean, val answers: List<String>,
-                         val note: String? = null) {
-    val speed get() = BackendSpeed(run?.genTps ?: 0.0, run?.promptTps ?: 0.0, ok && run != null)
+                         val note: String? = null, val restartMs: Double = 0.0) {
+    val speed get() = BackendSpeed(run?.genTps ?: 0.0, run?.promptTps ?: 0.0, ok && run != null, restartMs / 1000)
 }
 
 /** What the benchmark measured, and the same as plain text for Copy results. */
@@ -121,7 +121,7 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
                     sweep += s.bench(64, SWEEP_TOKENS, t, 0)
                 }
             }
-            return BackendResult(slot, backend, run, Backends.passes(answers), answers)
+            return BackendResult(slot, backend, run, Backends.passes(answers), answers, restartMs = (s as? LiteRtSession)?.restartMs ?: 0.0)
         } catch (e: Exception) {
             return BackendResult(slot, backend, null, false, emptyList(), e.message ?: "did not run")
         } finally {
@@ -134,6 +134,15 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
         val gpu = engine.gpuName()
         val results = mutableListOf<BackendResult>()
         val sweep = mutableListOf<BenchRun>()
+        // Chat, Talk and pictures wait: they would close the model being measured, or load a second copy beside it,
+        // and their work would slow the numbers Auto goes by.
+        engine.unloadAll()
+        engine.benchmarking = true
+        try { measureAll(results, sweep) } finally { engine.benchmarking = false }
+        return report(model, gpu, results, sweep)
+    }
+
+    private suspend fun measureAll(results: MutableList<BackendResult>, sweep: MutableList<BenchRun>) {
         for (slot in Slot.entries) {
             if (engine.file(slot) == null) continue
             val (nPrompt, nGen) = if (slot == Slot.Text) PROMPT_TOKENS to GEN_TOKENS else OTHER_PROMPT_TOKENS to OTHER_GEN_TOKENS
@@ -146,6 +155,9 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
                 if (file != null) settings.setBackendSpeeds(file, settings.now().backendSpeeds[file].orEmpty() + rs.associate { it.backend to it.speed })
             }
         }
+    }
+
+    private suspend fun report(model: InstalledModel, gpu: String, results: List<BackendResult>, sweep: List<BenchRun>): BenchReport {
         val chosen = Slot.entries.filter { engine.file(it) != null }.associateWith { engine.backendFor(it) }
         _state.value = State.Running("Loading ${model.known.fileName} on ${chosen[Slot.Text]?.short}…")
         val t0 = System.nanoTime()

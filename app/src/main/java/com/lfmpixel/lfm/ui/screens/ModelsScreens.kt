@@ -295,9 +295,10 @@ class ImportRun(val uris: List<Uri>) {
                     try {
                         g.engine.unloadAll()
                         val t0 = System.nanoTime()
-                        val s = g.engine.textSession()
+                        // The GGUF itself, on llama.cpp's CPU, whatever backend chat is set to.
+                        val s = g.engine.benchSession(Slot.Text, com.lfmpixel.lfm.llm.Backend.Cpu)
                         val prompt = PromptFormat.build("", emptyList(), listOf(PromptMessage(PromptMessage.Role.User, "Say hello in three words.")), thinking = false)
-                        val out = s.generate(prompt, 16, temp = 0f).toList().joinToString("").trim()
+                        val out = try { s.generate(prompt, 16, temp = 0f).toList().joinToString("").trim() } finally { s.close() }
                         f.test = "“${out.take(40)}” · %.1f s".format((System.nanoTime() - t0) / 1e9)
                     } catch (e: Exception) {
                         f.test = "Failed: ${e.message}"

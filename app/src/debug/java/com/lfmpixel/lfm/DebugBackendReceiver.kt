@@ -25,8 +25,8 @@ class DebugBackendReceiver : BroadcastReceiver() {
             generate(PromptFormat.build("Answer briefly.", emptyList(), history, false), 32, temp = 0f).toList().joinToString("")
                 .substringBefore(PromptFormat.IM_END).trim()
         g.scope.launch {
+            val before = g.settings.now().backend
             try {
-                val before = g.settings.now().backend
                 g.settings.setBackend(choice)
                 g.engine.unloadAll()
                 val s = g.engine.textSession()
@@ -48,10 +48,11 @@ class DebugBackendReceiver : BroadcastReceiver() {
                 log("B fresh: $fresh")
                 log(if (afterChat == fresh) "SAME: no state carried over" else "DIFFERENT: state carried over")
                 log(if (a2.contains("Pepper", ignoreCase = true)) "RECALL OK" else "RECALL FAILED")
-                g.settings.setBackend(before)
-                g.engine.unloadAll()
             } catch (e: Exception) {
                 Log.e("lfm-backend", "failed", e)
+            } finally {
+                g.settings.setBackend(before)
+                g.engine.unloadAll()
             }
         }
     }

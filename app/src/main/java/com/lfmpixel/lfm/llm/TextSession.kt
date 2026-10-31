@@ -80,7 +80,7 @@ suspend fun TextSession.checkAnswers(): List<String> {
  * LiteRT-LM carries from one session of an engine into the next (LiteRT-LM issue #3165), which corrupts answers.
  */
 class LiteRtSession private constructor(override val path: String, override val backend: Backend, private val cacheDir: String,
-                                        private var engine: LtEngine) : TextSession {
+                                        private var engine: LtEngine?) : TextSession {
     private val mutex = Mutex()
     private var closed = false
     private var session: LtSession? = null
@@ -92,6 +92,9 @@ class LiteRtSession private constructor(override val path: String, override val 
     private var lastStats = GenStats(0.0, 0, 0.0, 0, 0)
     private var initMs = 0.0
     private var engines = 1
+    /** How long the last engine took to start: a new conversation pays it again. */
+    var restartMs = 0.0
+        private set
     /** A session was made on [engine]: a new conversation needs a new engine. */
     private var engineUsed = false
 
@@ -102,8 +105,12 @@ class LiteRtSession private constructor(override val path: String, override val 
         /** The cache the file was built with (LFM3-1.7B_mixed_int4_ekv4096). */
         const val MAX_TOKENS = 4096
 
-        /** The chat's sampler (see [generate]); the probe's session uses it so the first chat can carry on from it. */
-        private val CHAT_SAMPLER = SamplerConfig(50, 0.9, 0.3, 42)
+        /** The sampler for [temp] and [topP], built the same way everywhere so equal settings give equal configs. */
+        private fun sampler(temp: Float, topP: Float) =
+            if (temp <= 0f) SamplerConfig(1, 1.0, 0.0, 42) else SamplerConfig(50, topP.toDouble(), temp.toDouble(), 42)
+
+        /** The chat's sampler (TextSession.generate's defaults); the probe's session uses it so the first chat carries on. */
+        private val CHAT_SAMPLER = sampler(0.3f, 0.9f)
 
         private val thread = Executors.newSingleThreadExecutor { r -> Thread(r, "litert").apply { priority = Thread.MAX_PRIORITY } }
             .asCoroutineDispatcher()
@@ -124,6 +131,7 @@ class LiteRtSession private constructor(override val path: String, override val 
             val t0 = System.nanoTime()
             val e = newEngine(path, backend, cacheDir)
             LiteRtSession(path, backend, cacheDir, e).also {
+                it.restartMs = (System.nanoTime() - t0) / 1e6
                 it.probe()
                 it.initMs = (System.nanoTime() - t0) / 1e6
             }
@@ -133,8 +141,14 @@ class LiteRtSession private constructor(override val path: String, override val 
         const val BENCH_SENTENCE = "The quick brown fox jumps over the lazy dog while the old clock on the wall ticks the afternoon away. "
         const val BENCH_CHARS_PER_TOKEN = 4.4
 
-        /** About how many tokens [text] is: LiteRT-LM has no tokenizer call, and LFM3's runs about 4 bytes a token in English. */
-        fun estimateTokens(text: String) = text.toByteArray().size / 3 + 1
+        /**
+         * About how many tokens [text] is, erring high: LiteRT-LM has no tokenizer call. LFM3's makes about one token
+         * of 4 bytes of English; digits are counted a token each, as in dates, times and tool results they may split.
+         */
+        fun estimateTokens(text: String): Int {
+            val digits = text.count { it.isDigit() }
+            return digits + (text.toByteArray().size - digits) / 3 + 1
+        }
     }
 
     override suspend fun countTokens(text: String): Int = estimateTokens(text)
@@ -143,13 +157,21 @@ class LiteRtSession private constructor(override val path: String, override val 
      * Reads in the token every chat prompt starts with, so a GPU that can't run the model (no OpenCL) fails here, at
      * load, where ModelManager falls back to llama.cpp, and not in the middle of an answer.
      */
+    /** Lets the session and engine go; neither close may throw past here, so an unload always completes. */
+    private fun closeEngine() {
+        runCatching { session?.close() }
+        session = null
+        runCatching { engine?.close() }
+        engine = null
+    }
+
     private fun probe() {
         try {
             val s = sessionFor(PromptFormat.IM_START, CHAT_SAMPLER).first
             s.runPrefill(listOf(InputData.Text(PromptFormat.IM_START)))
             consumed.append(PromptFormat.IM_START)
         } catch (t: Throwable) {
-            runCatching { session?.close(); engine.close() }
+            closeEngine()
             throw LlmException("LiteRT-LM could not run ${path.substringAfterLast('/')} on the ${if (backend == Backend.LiteRtGpu) "GPU" else "CPU"}: ${t.message}")
         }
     }
@@ -158,18 +180,22 @@ class LiteRtSession private constructor(override val path: String, override val 
     private fun sessionFor(prompt: String, config: SamplerConfig): Pair<LtSession, String> {
         val current = session
         if (current != null && !dirty && config == sampler && prompt.startsWith(consumed)) return current to prompt.substring(consumed.length)
-        current?.close()
-        session = null
-        if (engineUsed) {
-            // A used engine would carry the old conversation's state into the new one.
-            engine.close()
-            engine = newEngine(path, backend, cacheDir)
-            engines++
-        }
         consumed.setLength(0)
+        if (engineUsed || engine == null) {
+            // A used engine would carry the old conversation's state into the new one.
+            closeEngine()
+            val t0 = System.nanoTime()
+            // If this throws, there is no engine (not a closed one): the next prompt tries again.
+            engine = newEngine(path, backend, cacheDir)
+            restartMs = (System.nanoTime() - t0) / 1e6
+            engines++
+        } else {
+            runCatching { current?.close() }
+            session = null
+        }
         dirty = false
         engineUsed = true
-        val s = engine.createSession(SessionConfig(config))
+        val s = engine!!.createSession(SessionConfig(config))
         session = s
         sampler = config
         return s to prompt
@@ -178,7 +204,7 @@ class LiteRtSession private constructor(override val path: String, override val 
     override fun generate(prompt: String, maxTokens: Int, temp: Float, topP: Float): Flow<String> = callbackFlow {
         mutex.withLock {
             if (closed) throw LlmException("The model was unloaded; try again")
-            val config = if (temp <= 0f) SamplerConfig(1, 1.0, 0.0, 42) else SamplerConfig(50, topP.toDouble(), temp.toDouble(), 42)
+            val config = sampler(temp, topP)
             val (s, input) = sessionFor(prompt, config)
             val started = System.nanoTime()
             var firstAt = 0L
@@ -204,7 +230,10 @@ class LiteRtSession private constructor(override val path: String, override val 
             // Stopped at maxTokens, the last token was sampled but not read back in: start over next time to be safe.
             if (n >= maxTokens) dirty = true
             val firstMs = if (firstAt > 0) (firstAt - started) / 1e6 else 0.0
-            lastStats = GenStats(firstMs, estimateTokens(input), if (firstAt > 0) (end - firstAt) / 1e6 else 0.0, (n - 1).coerceAtLeast(0), 0, firstMs)
+            // Like llama.cpp, decodeTokens counts every token written (the Assistant compares it with its budget). The
+            // first token's time is in firstMs with the prompt, so the time for all n is scaled from the n - 1 after it.
+            val afterFirstMs = if (firstAt > 0) (end - firstAt) / 1e6 else 0.0
+            lastStats = GenStats(firstMs, estimateTokens(input), if (n > 1) afterFirstMs * n / (n - 1) else afterFirstMs, n, 0, firstMs)
             if (err != null && n < maxTokens && !isClosedForSend) { dirty = true; throw LlmException("Generation failed: ${err.message}") }
         }
         close()
@@ -240,9 +269,7 @@ class LiteRtSession private constructor(override val path: String, override val 
         withContext(thread) {
             if (!closed) {
                 closed = true
-                session?.close()
-                session = null
-                engine.close()
+                closeEngine()
             }
         }
     }

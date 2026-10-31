@@ -21,15 +21,21 @@ enum class BackendChoice(val label: String, val backend: Backend?) {
 
 /**
  * One model's measured speed on one backend. [ok] is false when it answered the check questions wrong (a driver
- * that computes garbage) or would not load: Auto never picks it then.
+ * that computes garbage) or would not load: Auto never picks it then. [restartSeconds] is what a new conversation
+ * costs before it starts: LiteRT-LM starts a new engine for one (see LiteRtSession), llama.cpp just clears its cache.
  */
-data class BackendSpeed(val genTps: Double, val promptTps: Double, val ok: Boolean) {
-    /** Seconds for a typical chat turn: [TURN_PROMPT] new prompt tokens read in, [TURN_GEN] written. Lower is better. */
-    val turnSeconds get() = if (!ok || genTps <= 0 || promptTps <= 0) Double.MAX_VALUE else TURN_PROMPT / promptTps + TURN_GEN / genTps
+data class BackendSpeed(val genTps: Double, val promptTps: Double, val ok: Boolean, val restartSeconds: Double = 0.0) {
+    /**
+     * Seconds for a typical chat turn: [TURN_PROMPT] new prompt tokens read in, [TURN_GEN] written, and a restart in
+     * [FRESH_SHARE] of turns (a new chat, a trimmed history, a document, an answer that hit its length). Lower is better.
+     */
+    val turnSeconds get() = if (!ok || genTps <= 0 || promptTps <= 0) Double.MAX_VALUE
+        else TURN_PROMPT / promptTps + TURN_GEN / genTps + FRESH_SHARE * restartSeconds
 
     companion object {
         const val TURN_PROMPT = 400.0
         const val TURN_GEN = 150.0
+        const val FRESH_SHARE = 0.5
     }
 }
 
@@ -60,20 +66,21 @@ object Backends {
 
     /** Whether a backend's answers to [checks] (in order) are good enough to trust it: at least two of three right. */
     fun passes(answers: List<String>): Boolean =
-        checks.zip(answers).count { (q, a) -> a.lowercase(Locale.ROOT).contains(q.second) } >= 2
+        checks.zip(answers).count { (q, a) -> Regex("\\b${q.second}\\b").containsMatchIn(a.lowercase(Locale.ROOT)) } >= 2
 
-    // Stored in Settings as "file|LiteRtGpu=12.30,140.50,1;file|Cpu=…": per model file, so a Q8 is measured apart from a Q4.
+    // Stored in Settings as "file|LiteRtGpu=12.30,140.50,1,3.20;file|Cpu=…": per model file, so a Q8 is measured apart from a Q4.
     fun encode(map: Map<String, Map<Backend, BackendSpeed>>): String = map.flatMap { (file, speeds) ->
-        speeds.map { (b, s) -> "$file|${b.name}=${"%.2f".format(Locale.ENGLISH, s.genTps)},${"%.2f".format(Locale.ENGLISH, s.promptTps)},${if (s.ok) 1 else 0}" }
+        speeds.map { (b, s) -> "$file|${b.name}=${"%.2f".format(Locale.ENGLISH, s.genTps)},${"%.2f".format(Locale.ENGLISH, s.promptTps)},${if (s.ok) 1 else 0}," +
+            "%.2f".format(Locale.ENGLISH, s.restartSeconds) }
     }.joinToString(";")
 
     fun decode(text: String): Map<String, Map<Backend, BackendSpeed>> = text.split(';').mapNotNull { entry ->
         val (key, value) = entry.split('=', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
         val file = key.substringBeforeLast('|', "").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
         val backend = runCatching { Backend.valueOf(key.substringAfterLast('|')) }.getOrNull() ?: return@mapNotNull null
-        val v = value.split(',').takeIf { it.size == 3 } ?: return@mapNotNull null
+        val v = value.split(',').takeIf { it.size == 3 || it.size == 4 } ?: return@mapNotNull null
         val gen = v[0].toDoubleOrNull() ?: return@mapNotNull null
         val prompt = v[1].toDoubleOrNull() ?: return@mapNotNull null
-        Triple(file, backend, BackendSpeed(gen, prompt, v[2] == "1"))
+        Triple(file, backend, BackendSpeed(gen, prompt, v[2] == "1", v.getOrNull(3)?.toDoubleOrNull() ?: 0.0))
     }.groupBy({ it.first }, { it.second to it.third }).mapValues { (_, l) -> l.toMap() }
 }

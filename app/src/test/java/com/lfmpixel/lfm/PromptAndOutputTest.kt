@@ -84,7 +84,9 @@ class PromptAndOutputTest {
         // Seen from LFM3 on llama.cpp and LiteRT-LM alike with thinking off.
         val out = ModelOutput.parse("17 + 25 = 42.</think>42", thinkingOn = false)
         assertEquals("42", out.answer)
-        assertEquals("17 + 25 = 42.", out.thinking)
+        assertEquals("", out.thinking)
+        // A tool call written before a stray tag is kept.
+        assertEquals(1, ModelOutput.parse("<tool_call>\n<function=f>\n</function>\n</tool_call></think>", thinkingOn = false).toolCalls.size)
         assertEquals("Tokyo", ModelOutput.parse("Tokyo</think>Tokyo", thinkingOn = false).answer)
         // A normal answer is untouched.
         assertEquals("Paris.", ModelOutput.parse("Paris.", thinkingOn = false).answer)

@@ -63,6 +63,17 @@ class BackendTest {
         assertEquals(Double.MAX_VALUE, BackendSpeed(0.0, 0.0, true).turnSeconds, 0.0)
     }
 
+    @Test fun engineRestartsCountAgainstABackend() {
+        // As fast as before, but a new conversation costs a 20 s engine start: no longer worth leaving the CPU for.
+        val speeds = mapOf(Backend.Cpu to cpu, Backend.LiteRtGpu to BackendSpeed(18.0, 300.0, true, restartSeconds = 20.0))
+        assertEquals(Backend.Cpu, Backends.pick(BackendChoice.Auto, all, speeds))
+        assertEquals(Backend.LiteRtGpu, Backends.pick(BackendChoice.Auto, all, speeds + (Backend.LiteRtGpu to BackendSpeed(18.0, 300.0, true, 2.0))))
+    }
+
+    @Test fun checksMatchWholeNumbers() {
+        assertFalse(Backends.passes(listOf("Kyoto", "142", "17")))
+    }
+
     @Test fun checksNeedTwoOfThreeRight() {
         assertTrue(Backends.passes(listOf("Tokyo.", "42", "7")))
         assertTrue(Backends.passes(listOf("tokyo", "17 + 25 = 42", "seven")))
@@ -73,12 +84,14 @@ class BackendTest {
     @Test fun speedsSurviveSettings() {
         val map = mapOf(
             "LFM3-1.7B-QAD-Q4_0.gguf" to mapOf(Backend.Cpu to BackendSpeed(9.1, 120.5, true), Backend.Vulkan to BackendSpeed(4.3, 13.4, false)),
-            "LFM3-1.7B_mixed_int4_ekv4096.litertlm" to mapOf(Backend.LiteRtGpu to BackendSpeed(18.25, 310.0, true)),
+            "LFM3-1.7B_mixed_int4_ekv4096.litertlm" to mapOf(Backend.LiteRtGpu to BackendSpeed(18.25, 310.0, true, 3.5)),
         )
         assertEquals(map, Backends.decode(Backends.encode(map)))
         assertEquals(emptyMap<String, Map<Backend, BackendSpeed>>(), Backends.decode(""))
         // Junk and backends from a later version are skipped, not fatal.
         assertEquals(1, Backends.decode("x.gguf|Npu=1,2,1;bad;y.gguf|Cpu=3,4,1").size)
+        // Stored before restarts were measured: three values, no restart cost.
+        assertEquals(0.0, Backends.decode("y.gguf|Cpu=3,4,1")["y.gguf"]!![Backend.Cpu]!!.restartSeconds, 0.0)
     }
 
     @Test fun theLiteRtFileIsPinned() {

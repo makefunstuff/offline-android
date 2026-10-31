@@ -24,9 +24,11 @@ GPU, Google TPU). Inkling has no INTERNET permission and no Play Services, and t
    - ONNX Runtime.
 
 **Auto** (Settings → Models → Runs on) puts each model on the quickest backend the Benchmark measured that also got
-its check questions right. "Quickest" is the time for a typical turn: 400 prompt tokens read, 150 written. Auto leaves
-the CPU only for a backend that is at least 10% quicker. The owner can also pick one backend by hand. If a backend
-won't load, that is recorded and the model falls back to llama.cpp on the CPU.
+its check questions right. "Quickest" is the time for a typical turn: 400 prompt tokens read, 150 written, plus half
+of LiteRT-LM's engine start, since a new conversation needs a new engine (below). Auto leaves the CPU only for a
+backend that is at least 10% quicker. The owner can also pick one backend by hand. If a backend won't load, that is
+recorded, and the model runs on llama.cpp's CPU until the choice changes or the app restarts. While the Benchmark
+runs, chat, Talk and pictures wait, so they neither disturb its numbers nor load a second copy of a model.
 
 ## The options
 
@@ -76,7 +78,8 @@ How to read the labels:
     each prompt extends the last, and starts a fresh engine for any other prompt. The emulator test below shows a new
     conversation gives the same answer as on a freshly loaded model.
   - **Context is the file's 4,096 tokens.** The chat trims history to that. LiteRT-LM has no tokenizer call, so
-    tokens are estimated at 3 bytes each, which errs on the high side.
+    tokens are estimated: a digit counts as one token and other text as one token per 3 bytes, which errs on the high
+    side.
   - **Stray `</think>` with thinking off.** The int4 file sometimes writes `</think>` mid-answer with thinking off. So
     does the GGUF file on llama.cpp. The chat now keeps the answer after it.
   - **Pictures and speech stay on llama.cpp.** Omni and VL run there, because Talk and the camera depend on
