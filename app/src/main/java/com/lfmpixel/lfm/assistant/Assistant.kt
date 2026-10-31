@@ -50,10 +50,11 @@ import java.util.Locale
 
 /**
  * The answer being written right now. [thought] is what it thought so far; [thinkingSince] (elapsed realtime) is when
- * it began to, 0 before its first word; [thoughtMs] is how long it thought, once done.
+ * it began to, 0 before its first word; [thoughtMs] is how long it thought, once done. [done]: the answer is whole and
+ * about to be saved with this text (a stopped or failed one never is).
  */
 data class Streaming(val text: String, val thinking: Boolean, val note: String = "", val thought: String = "",
-                     val thinkingSince: Long = 0, val thoughtMs: Long = 0)
+                     val thinkingSince: Long = 0, val thoughtMs: Long = 0, val done: Boolean = false)
 
 /** A message waiting its turn in the chat. [see] is set for a camera question (those are not kept on disk). */
 data class Queued(val id: Long, val text: String, val voiceSeconds: Int = 0, val source: String = "typed", val see: SeeRequest? = null)
@@ -392,6 +393,9 @@ class Assistant(
             val speed = speedLabel(tps, firstStats.firstTokenMs)
             val meta = "LFM3-1.7B · on this phone · $speed"
             val answerFrom = searchId.takeIf { out.toolCalls.isEmpty() && out.answer.isNotBlank() }
+            // The whole answer, as it is saved: the chat keeps it on screen until the saved one arrives in its place.
+            if (out.toolCalls.isEmpty() && out.answer.isNotBlank()) streaming.value = Streaming(out.answer, false, thought = out.thinking,
+                thinkingSince = thinkFrom, thoughtMs = thinkMs, done = true)
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
                 raw = PromptFormat.assistantPrefix(prefs.thinking) + raw,
                 meta = if (answerFrom != null) "Written on this phone from the web · $speed" else meta,

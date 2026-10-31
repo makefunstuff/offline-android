@@ -1,7 +1,9 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -233,7 +235,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     // the entry is loaded again; the scroll alone would be cut to the empty page's height before the text is in.
     var caretAt by rememberSaveable(route.opened) { mutableStateOf(intArrayOf()) }
     var pageAt by rememberSaveable(route.opened) { mutableIntStateOf(0) }
-    KeepPlaceThroughKeyboard(scroll, page) { draft.text.selection.end }
+    KeepPlaceThroughKeyboard(scroll, page) { draft.text.selection.end.takeIf { writing } }
 
     LaunchedEffect(route.opened) {
         route.id?.let { id -> g.db.entries().get(id)?.let { draft.load(it, caretAt) } ?: nav.back() }
@@ -367,8 +369,10 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
         // While writing, a slim bar rides on the keyboard: how long the text is, and Done to put the keyboard away
         // (the caret stays where it was, so tapping the text carries on there).
         val keyboardUp = WindowInsets.isImeVisible
-        androidx.compose.animation.AnimatedVisibility(keyboardUp && writing, enter = fadeIn(LfmMotion.spec(LfmMotion.SHORT)),
-            exit = fadeOut(LfmMotion.spec(LfmMotion.TINY))) {
+        // Its height comes and goes smoothly too, so the page's edge never jumps (ux-spec section 7: appear, leave).
+        androidx.compose.animation.AnimatedVisibility(keyboardUp && writing,
+            enter = fadeIn(LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate)) + expandVertically(LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate)),
+            exit = fadeOut(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate)) + shrinkVertically(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate))) {
             Column {
                 Divider()
                 Row(Modifier.fillMaxWidth().height(44.dp).padding(start = 16.dp, end = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -428,11 +432,12 @@ private class KeyboardPage {
 /**
  * The keyboard coming up shrinks the page and scrolls the caret into view; going down, the page glides back to where
  * it was before the tap, with the keyboard, frame by frame. Only while the caret would still show there and the owner did
- * not scroll by hand meanwhile; otherwise it stays where it is (the caret line keeps its place on screen).
+ * not scroll by hand meanwhile; otherwise it stays where it is (the caret line keeps its place on screen). [caret] is
+ * the text's caret, or null while another field has the keyboard.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun KeepPlaceThroughKeyboard(scroll: ScrollState, page: KeyboardPage, caret: () -> Int) {
+private fun KeepPlaceThroughKeyboard(scroll: ScrollState, page: KeyboardPage, caret: () -> Int?) {
     val density = LocalDensity.current
     val ime = WindowInsets.ime
     val goal = WindowInsets.imeAnimationTarget
@@ -444,7 +449,9 @@ private fun KeepPlaceThroughKeyboard(scroll: ScrollState, page: KeyboardPage, ca
         var lastIme = 0
         fun keeps(imeHeight: Int): Boolean {
             if (page.dragged) return false
-            val (top, bottom) = page.caret(caretNow(), scroll.value) ?: return false
+            // Another field (tags, list, topic) brought the keyboard: it was in view at the place it goes back to.
+            val offset = caretNow() ?: return true
+            val (top, bottom) = page.caret(offset, scroll.value) ?: return false
             val v = page.viewport ?: return false
             val closed = v.size.height + (imeHeight - bars.getBottom(density)).coerceAtLeast(0)
             return top >= page.resting && bottom <= page.resting + closed

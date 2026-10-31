@@ -69,6 +69,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import com.lfmpixel.lfm.llm.LoadState
 import com.lfmpixel.lfm.ui.components.Btn
 import androidx.compose.ui.graphics.graphicsLayer
@@ -84,7 +85,6 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val messages = loadedMessages ?: emptyList()
     // Only the streaming line reads the streamed text, so a new token redraws that line, not the whole chat.
     val streamingState = g.assistant.streaming.collectAsState()
-    val streamingOn by remember { derivedStateOf { streamingState.value != null } }
     val showSpeed = g.settings.prefs.collectAsState(null).value?.showSpeed ?: true
     val working by g.assistant.working.collectAsState()
     val queued by g.assistant.queue.collectAsState()
@@ -109,34 +109,39 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     // Thoughts opened by hand stay open, per answer, also after leaving the chat. The one being written is LIVE_THOUGHT
     // until its answer is saved, then it carries over to that answer.
     val thoughtsOpen = rememberSaveable(saver = openSaver) { androidx.compose.runtime.mutableStateMapOf<Long, Boolean>() }
-    // A finished answer reaches the database a moment before it reaches this list: until it does, the streamed one
-    // stays on screen as it was, so the answer never blinks out and back in.
-    var held by remember { mutableStateOf<com.lfmpixel.lfm.assistant.Streaming?>(null) }
-    var heldAfter by remember { mutableStateOf<Long?>(null) }
-    val lastId by androidx.compose.runtime.rememberUpdatedState(visible.lastOrNull()?.id)
+    // A whole answer (Streaming.done) reaches this list from the database a moment after the stream ends. Until it is
+    // here, the streamed one stays on screen as it was, so it never blinks out and back in, nor shows twice; its
+    // thought's open or folded state goes with it. A stopped or failed answer was never whole: it goes at once.
+    var finishing by remember { mutableStateOf<Finishing?>(null) }
     LaunchedEffect(Unit) {
-        var last: com.lfmpixel.lfm.assistant.Streaming? = null
         snapshotFlow { streamingState.value }.collect { s ->
-            if (s == null && last?.text?.isNotEmpty() == true) { held = last; heldAfter = lastId } else if (s != null) held = null
-            last = s
+            if (s?.done == true && finishing?.stream != s) finishing = Finishing(s, thoughtsOpen.remove(LIVE_THOUGHT) == true)
         }
     }
-    LaunchedEffect(held) { if (held != null) { kotlinx.coroutines.delay(1500); held = null } }
-    val holding = held != null && visible.lastOrNull()?.id == heldAfter
-    LaunchedEffect(visible.lastOrNull()?.id) {
-        val m = visible.lastOrNull() ?: return@LaunchedEffect
-        if (m.role == Role.Assistant && streamingState.value == null) thoughtsOpen.remove(LIVE_THOUGHT)?.let { if (it) thoughtsOpen[m.id] = true }
+    val saved = finishing?.let { f -> visible.lastOrNull { it.role == Role.Assistant && it.text == f.stream.text } }
+    LaunchedEffect(saved?.id, finishing) {
+        val f = finishing ?: return@LaunchedEffect
+        if (saved != null) { if (f.open) thoughtsOpen[saved.id] = true; finishing = null }
+        else { kotlinx.coroutines.delay(3000); finishing = null }
+    }
+    val live = streamingState.value
+    val stream = when {
+        live != null && !(live.done && saved != null) -> live
+        live == null && saved == null -> finishing?.stream
+        else -> null
     }
     // The list runs bottom up (reverseLayout), as a messenger's does: the newest line is item 0, sitting on the composer.
     // Growing answers, a keyboard coming up and new lines then keep the bottom in place by themselves; nothing scrolls
     // per token.
     val bottomKey: Any? = queued.lastOrNull()?.let { "q${it.id}" } ?: query?.let { "query" }
-        ?: (if (streamingOn || holding) "streaming" else null) ?: visible.lastOrNull()?.id
+        ?: (if (stream != null) "streaming" else null) ?: visible.lastOrNull()?.id
     // Follow the end while the owner is at the end; once they scroll up, offer a way back instead of pulling them down.
     val atEnd by remember { derivedStateOf { !list.canScrollBackward } }
     var follow by remember { mutableStateOf(true) }
+    // "Latest" scrolling down is not the owner scrolling away.
+    var jumping by remember { mutableStateOf(false) }
     // While the owner drags, follow only if they are still at the end; reaching the end again resumes it.
-    LaunchedEffect(list) { snapshotFlow { list.isScrollInProgress to atEnd }.collect { (dragging, end) -> if (dragging || end) follow = end } }
+    LaunchedEffect(list) { snapshotFlow { list.isScrollInProgress to atEnd }.collect { (dragging, end) -> if (!jumping && (dragging || end)) follow = end } }
     // The "unloads in N min" line counts down.
     var tick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(20_000); tick++ } }
@@ -161,7 +166,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         }
     }
     // A new line at the bottom (a sent message, the answer starting, a card): stay on it while following.
-    LaunchedEffect(bottomKey) { if (follow && list.firstVisibleItemIndex <= 1) list.scrollToItem(0) }
+    LaunchedEffect(bottomKey) { if (follow) list.scrollToItem(0) }
     val send: () -> Unit = {
         g.assistant.send(draft); draft = ""; follow = true
         scope.launch { list.scrollToItem(0) }
@@ -203,20 +208,21 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                     }
                 }
                 query?.let { q -> item(key = "query") { QueryCard(q) } }
-                if (streamingOn || holding) {
+                if (stream != null) {
                     item(key = "streaming") {
-                        val live = streamingState.value
-                        val s = live ?: held ?: return@item
-                        // Saved already and on screen below: don't show it twice for the frame in between.
-                        if (live != null && s.text.isNotEmpty() && visible.lastOrNull()?.let { it.role == Role.Assistant && it.text == s.text } == true) return@item
+                        val s = stream
                         val loading = status.text == LoadState.Loading && s.text.isEmpty() && s.thought.isEmpty()
                         val thinks = !loading && s.note.isEmpty() && (s.thinking || s.thought.isNotEmpty())
-                        val text = if (live != null) s.text.take(shown.intValue).let { t -> if (t.lastOrNull()?.isHighSurrogate() == true) t.dropLast(1) else t } else s.text
+                        val text = if (s.done) s.text else s.text.take(shown.intValue).let { t -> if (t.lastOrNull()?.isHighSurrogate() == true) t.dropLast(1) else t }
+                        val open = if (s.done && finishing?.stream == s) finishing?.open == true else thoughtsOpen[LIVE_THOUGHT] == true
                         Column {
-                            if (thinks) ThoughtBlock(s.thought, s.thoughtMs, live = live != null && s.thinking, since = s.thinkingSince,
-                                open = thoughtsOpen[LIVE_THOUGHT] == true) { thoughtsOpen[LIVE_THOUGHT] = thoughtsOpen[LIVE_THOUGHT] != true }
-                            if (text.isNotEmpty()) AssistantText(text, "")
-                            else if (!thinks) Typing(s.note.ifEmpty { if (loading) "Loading ${modelState(g).substringBefore(" ·")}…" else "Writing…" })
+                            if (thinks) ThoughtBlock(s.thought, s.thoughtMs, live = !s.done && s.thinking, since = s.thinkingSince, open = open) {
+                                val f = finishing
+                                if (s.done && f?.stream == s) finishing = f.copy(open = !f.open) else thoughtsOpen[LIVE_THOUGHT] = !open
+                            }
+                            if (text.isNotEmpty()) AssistantText(text, "", writing = !s.done)
+                            // Thought done, nothing to read yet (a tool call being written, say): still visibly at work.
+                            else if (!thinks || !s.thinking) Typing(s.note.ifEmpty { if (loading) "Loading ${modelState(g).substringBefore(" ·")}…" else "Writing…" })
                         }
                     }
                 }
@@ -227,8 +233,9 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                         Role.Assistant -> {
                             val thought = remember(m.raw) { com.lfmpixel.lfm.llm.ModelOutput.thoughtOf(m.raw) }
                             Column {
-                                if (thought.isNotEmpty()) ThoughtBlock(thought, m.thoughtMs, live = false, since = 0, open = thoughtsOpen[m.id] == true) {
-                                    if (thoughtsOpen[m.id] == true) thoughtsOpen.remove(m.id) else thoughtsOpen[m.id] = true
+                                val open = thoughtsOpen[m.id] == true || (m.id == saved?.id && finishing?.open == true)
+                                if (thought.isNotEmpty()) ThoughtBlock(thought, m.thoughtMs, live = false, since = 0, open = open) {
+                                    if (open) { thoughtsOpen.remove(m.id); if (m.id == saved?.id) finishing = finishing?.copy(open = false) } else thoughtsOpen[m.id] = true
                                 }
                                 AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null,
                                     read = if (g.readAloud.available) ReadState(reading.id == m.id, reading.id == m.id && reading.preparing) { g.readAloud.toggle(m.id, m.text) } else null)
@@ -239,7 +246,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                         Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
                     } }
                 }
-                if (loadedMessages != null && visible.isEmpty() && !streamingOn && queued.isEmpty()) item(key = "empty") {
+                if (loadedMessages != null && visible.isEmpty() && stream == null && queued.isEmpty()) item(key = "empty") {
                     Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Txt("Ask, capture or do.", LfmType.answer)
                         listOf("Remind me to call the plumber at six", "Add oat milk to my list", "What did I note about the boiler?").forEach { ex ->
@@ -251,7 +258,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
             }
             if (!atEnd && !follow) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)) {
-                Btn("Latest", { follow = true; scope.launch { list.animateScrollToItem(0) } }, small = true, icon = "down",
+                Btn("Latest", { follow = true; scope.launch { jumping = true; try { list.animateScrollToItem(0) } finally { jumping = false } } }, small = true, icon = "down",
                     kind = com.lfmpixel.lfm.ui.components.BtnKind.Primary)
             }
         }
@@ -319,6 +326,9 @@ private fun TypingDots() {
     }
 }
 
+/** A whole answer on its way to the database, and whether its thought is open. */
+private data class Finishing(val stream: com.lfmpixel.lfm.assistant.Streaming, val open: Boolean)
+
 /** The key of the thought being written, in the chat's map of opened thoughts. */
 private const val LIVE_THOUGHT = -1L
 
@@ -352,9 +362,9 @@ private fun ThoughtBlock(thought: String, ms: Long, live: Boolean, since: Long, 
                 androidx.compose.animation.fadeIn(LfmMotion.spec(LfmMotion.MEDIUM)),
             exit = androidx.compose.animation.shrinkVertically(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate), shrinkTowards = Alignment.Top) +
                 androidx.compose.animation.fadeOut(LfmMotion.spec(LfmMotion.SHORT))) {
-            // A hairline down the left, as a quote: thinking, not the answer. While written, only its newest part.
+            // A hairline down the left, as a quote: thinking, not the answer.
             val line = c.line
-            Txt(if (live && thought.length > 700) "…" + thought.takeLast(700).substringAfter(' ') else thought, LfmType.small, c.text2,
+            Txt(thought, LfmType.small, c.text2,
                 Modifier.padding(start = 9.dp, top = 2.dp, bottom = 8.dp).drawBehind {
                     drawLine(line, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(0f, size.height), 1.dp.toPx())
                 }.padding(start = 12.dp))
@@ -372,7 +382,9 @@ private fun ThinkingFor(since: Long) {
             kotlinx.coroutines.delay(1000 - (android.os.SystemClock.elapsedRealtime() - since) % 1000)
         }
     }
-    Txt(if (since > 0 && seconds > 0) "Thinking · $seconds s" else "Thinking…", LfmType.small, c.text2, maxLines = 1)
+    // TalkBack hears "Thinking" once, not every second of the count.
+    Txt(if (since > 0 && seconds > 0) "Thinking · $seconds s" else "Thinking…", LfmType.small, c.text2,
+        Modifier.clearAndSetSemantics { contentDescription = "Thinking" }, maxLines = 1)
 }
 
 /** "Thought for 3 s" (under a second counts as 1), or "Thought" when its time wasn't kept. */
@@ -484,7 +496,7 @@ private fun MediaThumb(m: ChatMessage) {
 private class ReadState(val on: Boolean, val preparing: Boolean, val toggle: () -> Unit)
 
 @Composable
-private fun AssistantText(text: String, meta: String, citations: Boolean = false, read: ReadState? = null) {
+private fun AssistantText(text: String, meta: String, citations: Boolean = false, read: ReadState? = null, writing: Boolean = false) {
     val c = Lfm.c
     Column {
         // Short answers are set large, long ones in body text. An answer being written crosses that line once: the two
@@ -494,7 +506,7 @@ private fun AssistantText(text: String, meta: String, citations: Boolean = false
             androidx.compose.animation.fadeIn(sizeChange) togetherWith androidx.compose.animation.fadeOut(sizeChange) using
                 androidx.compose.animation.SizeTransform(clip = false)
         }, label = "answer size") { long ->
-            AnswerText(text, if (long) LfmType.bodyLarge else LfmType.answer, markKeyFact = false, citations = citations)
+            AnswerText(text, if (long) LfmType.bodyLarge else LfmType.answer, markKeyFact = false, citations = citations, writing = writing)
         }
         if (meta.isNotEmpty() || read != null) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (meta.isNotEmpty()) Txt(meta, LfmType.meta, c.text2, Modifier.weight(1f, fill = false))
