@@ -115,6 +115,8 @@ data class TalkState(
     val error: String? = null,
     /** The phone is warm: answers may be slower (Android's thermal status). */
     val warm: Boolean = false,
+    /** Who is answering this turn and where ("Qwen3.8-27B on your server"), while it thinks; "" before that is known. */
+    val answering: String = "",
     val spoken: Boolean = true,
 )
 
@@ -242,7 +244,8 @@ class Talk(
         loadPace()
         try {
             // Edge mode needs nothing on the phone; Omni loads only for a turn the server can't take.
-            if (models.edge?.usable() != true) {
+            if (models.edge?.usableNow() != true) {
+                Log.i(TAG, "talk: server not in use (${models.edge?.state?.value ?: "Edge mode off"}): Omni on this phone")
                 val session = models.omniSession()
                 if (!session.canSpeak()) throw LlmException("This Omni projector file has no voice part. Get mmproj-LFM3-Omni-2B again in Settings → Models.")
             }
@@ -253,8 +256,9 @@ class Talk(
                 set(run) { it.copy(phase = TalkPhase.Listening) }
                 val lang = settings.now().speechLanguage
                 // While the owner speaks, Omni reads the conversation so far in, so the answer starts sooner. Not when
-                // the server answers (Edge mode): that would load Omni for nothing.
-                val local = models.edge?.usable() != true
+                // the server answers (Edge mode): that would load Omni for nothing. Asked each turn, an Offline server
+                // again too, so Qwen answers again as soon as the server is back.
+                val local = models.edge?.usableNow() != true
                 val prefix = SpeechFormat.talkPrefix(system(), doneTurns())
                 warm = if (local) scope.launch { runCatching { models.omniSession().talkPrewarm(prefix) } } else null
                 // Heard early: once the owner pauses, transcribe what they said while the silence that ends the turn
@@ -272,10 +276,15 @@ class Talk(
                 }
                 val ended = System.nanoTime()
                 val endedAt = SystemClock.elapsedRealtime()
-                set(run) { it.copy(phase = TalkPhase.Thinking) }
-                if (models.edge?.usable() == true) {
+                // Asked again: the server may have come back (or gone) while the owner spoke.
+                val viaServer = models.edge?.usable() == true
+                set(run) { it.copy(phase = TalkPhase.Thinking, answering = if (viaServer) "" else PHONE_ANSWER) }
+                if (!viaServer) Log.i(TAG, "talk: server not in use (${models.edge?.state?.value ?: "Edge mode off"}): Omni on this phone")
+                if (viaServer) {
                     val heard = try { models.edge!!.voice.transcribe(pcm, lang.asr) } catch (e: NetException) {
                         // The server went away: this turn is heard on the phone, if Omni is there.
+                        Log.w(TAG, "talk: server speech to text failed (${e.message}): Omni on this phone")
+                        set(run) { it.copy(answering = PHONE_ANSWER) }
                         if (!models.hasVoice()) throw LlmException("Your server can't be reached, and Omni isn't on this phone for Talk offline.")
                         null
                     }
@@ -284,6 +293,8 @@ class Talk(
                         val secs = (pcm.size + 8_000) / 16_000
                         if (answerViaServer(run, heard, secs, endedAt, SystemClock.elapsedRealtime() - endedAt)) continue
                         // The server went away before it said anything: the phone answers this turn, if Omni is there.
+                        Log.w(TAG, "talk: server answer failed before any words: " + if (models.hasVoice()) "Omni on this phone" else "no phone model")
+                        set(run) { it.copy(answering = PHONE_ANSWER) }
                         if (!models.hasVoice()) { set(run) { it.copy(error = "Your server stopped answering. Try again in a moment.") }; continue }
                         early?.drop(); early = null
                         answer(run, heard, secs, VoiceTurn(heardMs = pcm.size / 16, endSilenceMs = recorder.endSilenceMs), ended)
@@ -362,6 +373,7 @@ class Talk(
                     firstWord = SystemClock.elapsedRealtime()
                     text.append(direct)
                     model = com.lfmpixel.lfm.edge.EdgeModels.label(com.lfmpixel.lfm.edge.EdgeModels.VISION)
+                    Log.i(TAG, "talk: $model answers about the camera's view")
                     set(run) { st -> st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
                         turns = st.turns.map { if (it.id == id) it.copy(it = direct) else it }) }
                     if (spoken) chunker.feed(direct).forEach { pieces.send(it) }
@@ -371,6 +383,10 @@ class Talk(
                 val session = talkSession ?: com.lfmpixel.lfm.edge.EdgeSession(edge, com.lfmpixel.lfm.edge.EdgeModels.TEXT, null, answers = true)
                     .also { talkSession = it }
                 val big = session.refresh() != null
+                // Which model writes this turn, for the log and the line under "Thinking".
+                val writer = com.lfmpixel.lfm.edge.EdgeModels.label(if (big) edge.answerId else com.lfmpixel.lfm.edge.EdgeModels.TEXT)
+                Log.i(TAG, "talk: $writer answers on your server" + if (big) "" else " (${edge.answerId} not loaded there)")
+                set(run) { it.copy(answering = "$writer on your server") }
                 val toolBox = tools?.takeIf { big }
                 val history = if (toolBox == null) prompt else null
                 val msgs = mutableListOf<com.lfmpixel.lfm.llm.PromptMessage>()
@@ -545,5 +561,8 @@ class Talk(
         set(run) { it.copy(warm = (pm?.currentThermalStatus ?: 0) >= PowerManager.THERMAL_STATUS_MODERATE) }
     }
 
-    companion object { private const val TAG = "lfm-talk" }
+    companion object {
+        private const val TAG = "lfm-talk"
+        const val PHONE_ANSWER = "Omni on this phone"
+    }
 }

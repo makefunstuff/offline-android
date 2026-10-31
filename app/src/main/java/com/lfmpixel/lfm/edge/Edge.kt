@@ -122,6 +122,18 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         return _state.value is EdgeState.Online
     }
 
+    /**
+     * As [usable], but an Offline server is asked again first (at most every 10 s), instead of waiting for the next
+     * retry (up to 2 min): Talk asks before each turn, so Qwen answers again as soon as the server is back.
+     */
+    suspend fun usableNow(): Boolean {
+        if (server() == null) return false
+        if (_state.value is EdgeState.Offline && SystemClock.elapsedRealtime() - checkedAt > 10_000) runCatching { check() }
+        return usable()
+    }
+
+    @Volatile private var checkedAt = 0L
+
     /** The answer model's id: [EdgeModels.ANSWER]; debug builds may name another to test the path (DEBUG_EDGE). */
     @Volatile var answerId: String = EdgeModels.ANSWER
     @Volatile private var served: Map<String, String> = emptyMap()
@@ -176,6 +188,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         // Offline stays shown while it is checked again (no flicker); only a first check shows Checking.
         if (_state.value is EdgeState.Off) _state.value = EdgeState.Checking
         val t0 = SystemClock.elapsedRealtime()
+        checkedAt = t0
         return try {
             request(s, "GET", "/health", null, null, "Your server: check") { true }
             val ms = SystemClock.elapsedRealtime() - t0
