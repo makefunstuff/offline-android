@@ -3,7 +3,6 @@ package com.lfmpixel.lfm
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.lifecycle.lifecycleScope
 import com.lfmpixel.lfm.assistant.Quotes
 import kotlinx.coroutines.launch
 
@@ -19,10 +18,12 @@ class ShareActivity : ComponentActivity() {
             intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString(), intent.getStringExtra(Intent.EXTRA_SUBJECT)) else null
         if (quote == null || savedInstanceState != null) { finish(); return }
         val g = (application as LfmApp).graph
-        lifecycleScope.launch {
+        // Saved in the app's scope, so a rotation meanwhile can't drop it; the app context starts Inkling's own task.
+        val app = applicationContext
+        g.scope.launch {
             val id = g.db.entries().insert(quote)
-            startActivity(MainActivity.intent(this@ShareActivity, MainActivity.OPEN_SHARED + id))
-            finish()
+            app.startActivity(MainActivity.intent(app, MainActivity.OPEN_SHARED + id))
         }
+        finish()
     }
 }

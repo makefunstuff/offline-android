@@ -313,7 +313,8 @@ private fun Carried(g: AppGraph, nav: Nav, list: List<Entry>, today: LocalDate, 
                 }
             }, small = true)
         }
-        list.forEach { e ->
+        // A few at a time: a long backlog is a calm line to Plans, not a wall on the home page.
+        list.take(3).forEach { e ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 CheckBox(false) { EntryActions(g, nav).done(e, true) }
                 Column(Modifier.weight(1f).clickable { nav.go(Route.Editor(e.id, e.kind)) }.padding(vertical = 4.dp)) {
@@ -334,11 +335,15 @@ private fun Carried(g: AppGraph, nav: Nav, list: List<Entry>, today: LocalDate, 
                 }, small = true)
             }
         }
+        if (list.size > 3) Row(Modifier.fillMaxWidth().clickable { nav.go(Route.Todos) }.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+            Txt("${list.size - 3} more in Plans", LfmType.small, c.text2, Modifier.weight(1f).padding(start = 12.dp))
+            LIcon("right", tint = c.text3)
+        }
     }
 }
 
 /** A quote shared in from another app (proposal 5). */
-internal fun Entry.isQuote() = source == "share"
+internal fun Entry.isQuote() = source == "share" && kind != EntryKind.Todo
 
 /** One line of the page: its glyph, then the words. Tap opens it; long-press for pin, move and delete. */
 @OptIn(ExperimentalFoundationApi::class)

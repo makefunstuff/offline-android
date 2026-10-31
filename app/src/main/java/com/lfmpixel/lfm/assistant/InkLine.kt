@@ -25,8 +25,9 @@ object InkLine {
         val t = line.trim()
         if (t.isEmpty()) return InkGuess(InkKind.Note, "")
         askStart.find(t)?.let { return InkGuess(InkKind.Ask, t.substring(it.range.last + 1).trim()) }
-        if (t.endsWith("?") && !t.lowercase().startsWith("idea")) return InkGuess(InkKind.Ask, t)
         val call = CaptureSorter.sort(t)
+        // "What if …?" is an idea, however it ends; other questions go to the assistant.
+        if (t.endsWith("?") && call.name != "add_idea") return InkGuess(InkKind.Ask, t)
         val text = call.args["text"].orEmpty().ifBlank { t }
         return when (call.name) {
             "set_reminder" -> InkGuess(InkKind.Reminder, text, call.args["at"].orEmpty())

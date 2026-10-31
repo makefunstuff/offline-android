@@ -20,6 +20,7 @@ class InkLineTest {
     @Test fun guessesAsYouType() {
         assertEquals(InkKind.Todo, InkLine.guess("buy oat milk").kind)
         assertEquals(InkKind.Idea, InkLine.guess("what if the shed were a studio").kind)
+        assertEquals(InkKind.Idea, InkLine.guess("What if the garden had a pond?").kind)
         assertEquals(InkKind.Journal, InkLine.guess("felt calm after the swim").kind)
         assertEquals(InkKind.Note, InkLine.guess("Garden: tulips by the fence").kind)
         assertEquals(InkKind.Ask, InkLine.guess("best time to plant tulips?").kind)
@@ -116,7 +117,7 @@ class MarginTest {
     @Test fun cleansAndMarksWhatGoesIntoTheNote() {
         assertEquals("A short sum.", Margin.clean("**A short sum.**"))
         assertEquals("Inkling, summed up:\nA short sum.", Margin.forNote(MarginAsk.Sum, "A short sum."))
-        assertEquals("And then it rained.", Margin.forNote(MarginAsk.Continue, " And then it rained. "))
+        assertEquals("Inkling, kept going:\nAnd then it rained.", Margin.forNote(MarginAsk.Continue, " And then it rained. "))
     }
 }
 

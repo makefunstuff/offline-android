@@ -71,5 +71,5 @@ object Margin {
         .filter { it.isNotEmpty() && !it.equals("none", ignoreCase = true) }.take(10)
 
     /** The answer as it goes into the note when the owner taps Add: set apart, and marked as Inkling's. */
-    fun forNote(ask: MarginAsk, answer: String): String = if (ask == MarginAsk.Continue) answer.trim() else "Inkling, ${ask.heading.lowercase()}:\n" + answer.trim()
+    fun forNote(ask: MarginAsk, answer: String): String = "Inkling, ${ask.heading.lowercase()}:\n" + answer.trim()
 }
