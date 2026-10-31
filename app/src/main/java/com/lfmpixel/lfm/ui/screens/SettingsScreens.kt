@@ -73,6 +73,14 @@ fun Group(content: @Composable () -> Unit) {
 @Composable
 private fun GroupDivider() = Divider()
 
+/** "On · answering · 12 ms", "Off · everything on this phone" */
+fun serverLabel(on: Boolean, url: String, state: com.lfmpixel.lfm.edge.EdgeState): String = when {
+    !on || url.isBlank() -> "Off · everything runs on this phone"
+    state is com.lfmpixel.lfm.edge.EdgeState.Online -> "On · answering · ${url.substringAfter("://")}"
+    state is com.lfmpixel.lfm.edge.EdgeState.Offline -> "On · not reached, this phone answers"
+    else -> "On · checking…"
+}
+
 @Composable
 private fun Chevron() = LIcon("right", tint = Lfm.c.text3)
 
@@ -95,6 +103,9 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 val omni = installed.firstOrNull { it.known.role == ModelRole.Omni && it.verified }
                 val inMem = listOfNotNull(if (status.text == LoadState.Ready) "1.7B" else null, if (status.omni == LoadState.Ready) "Omni" else null,
                     if (status.vision == LoadState.Ready) "VL" else null)
+                val edgeState by g.edge.state.collectAsState()
+                ListRow("Your server", serverLabel(p.edgeOn, p.edgeUrl, edgeState), "server", { nav.go(Route.Server) }) { Chevron() }
+                GroupDivider()
                 ListRow("Models", when {
                     text == null && omni == null -> "None yet · import a file"
                     else -> listOfNotNull(omni?.known?.family, text?.known?.family).joinToString(", ") +

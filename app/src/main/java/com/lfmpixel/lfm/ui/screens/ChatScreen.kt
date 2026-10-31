@@ -211,6 +211,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                             LfmType.meta, c.text2, maxLines = 1)
                     }
                 }
+                ServerChip(g, nav)
                 IconButtonPlain("wave", { nav.go(Route.Talk) }, desc = "Talk")
                 IconButtonPlain("plus", {
                     finishing = null
@@ -275,7 +276,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                         listOf("Remind me to call the plumber at six", "Add oat milk to my list", "What did I note about the boiler?").forEach { ex ->
                             Btn(ex, { draft = ex }, small = true)
                         }
-                        Txt(if (g.engine.hasText()) "Runs on this phone." else "No model yet: get LFM3-1.7B in Settings → Models.",
+                        Txt(if (edgeOnNow(g)) "Runs on your server; this phone answers when it can't be reached." else if (g.engine.hasText()) "Runs on this phone." else "No model yet: get LFM3-1.7B in Settings → Models.",
                             LfmType.meta, c.text2)
                     }
                 }
@@ -290,6 +291,13 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         androidx.compose.animation.AnimatedVisibility(heat != com.lfmpixel.lfm.device.Heat.Normal, enter = LfmMotion.appear(), exit = LfmMotion.leave()) {
             HeatLine(heat, Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp))
         }
+        // Edge mode with the server away: said once, calmly, above the composer.
+        val edgeState by g.edge.state.collectAsState()
+        val edgeOn by g.edge.configured.collectAsState()
+        androidx.compose.animation.AnimatedVisibility(edgeOn && edgeState is com.lfmpixel.lfm.edge.EdgeState.Offline, enter = LfmMotion.appear(), exit = LfmMotion.leave()) {
+            Txt("Your server isn't answering · this phone answers until it's back", LfmType.meta, c.text2,
+                Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp).semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite })
+        }
         Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)) {
             Composer(draft, { draft = it }, if (working) "Message… it will wait its turn" else "Message…", onSend = send,
                 onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) },
@@ -303,6 +311,27 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             ?: LaunchedEffect(id) { editing = null }
     }
     if (modelSheet) ModelSheet(g, onModels = { modelSheet = false; nav.go(Route.Models) }) { modelSheet = false }
+}
+
+/** Edge mode's chip in the chat header: where answers come from now. Tap for Settings → Your server. */
+private fun edgeOnNow(g: AppGraph) = g.edge.configured.value
+
+@Composable
+fun ServerChip(g: AppGraph, nav: com.lfmpixel.lfm.ui.Nav) {
+    val on by g.edge.configured.collectAsState()
+    val state by g.edge.state.collectAsState()
+    if (!on) return
+    val label = when (state) {
+        is com.lfmpixel.lfm.edge.EdgeState.Online -> "Server"
+        is com.lfmpixel.lfm.edge.EdgeState.Offline -> "On phone"
+        else -> "Server…"
+    }
+    com.lfmpixel.lfm.ui.components.Pill(label, "server", Modifier.clickable(onClickLabel = "Your server") { nav.go(Route.Server) }
+        .semantics { contentDescription = when (state) {
+            is com.lfmpixel.lfm.edge.EdgeState.Online -> "Answers come from your server"
+            is com.lfmpixel.lfm.edge.EdgeState.Offline -> "Your server isn't answering; this phone answers"
+            else -> "Checking your server"
+        } })
 }
 
 /** "Phone is warm · answers a little slower", with the reason in Android's words for TalkBack. */

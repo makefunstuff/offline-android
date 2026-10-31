@@ -34,6 +34,8 @@ interface TextSession {
     val contextTokens: Int
     /** Freed (idle unload, a new import, a settings change): get a new one from ModelManager. */
     val isClosed: Boolean
+    /** Where it ran the last call, for the line under an answer: "on this phone" or "on your server". */
+    val where: String get() = "on this phone"
 
     suspend fun countTokens(text: String): Int
 
@@ -55,6 +57,7 @@ interface TextSession {
 /** Pictures in, text out: llama.cpp's [LlamaSession.see]; with no pictures, any session just writes. */
 fun TextSession.look(images: List<RgbImage>, prompt: String, maxTokens: Int, temp: Float = 0.1f): Flow<String> = when {
     this is LlamaSession -> see(images, prompt, maxTokens, temp)
+    this is com.lfmpixel.lfm.edge.EdgeSession && images.isNotEmpty() -> see(images, prompt, maxTokens, temp)
     images.isEmpty() -> generate(prompt, maxTokens, temp)
     else -> throw LlmException("Pictures need LFM3-Omni-2B or LFM3-VL-2B")
 }

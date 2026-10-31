@@ -22,7 +22,7 @@ class ReadAloud(context: android.content.Context, private val models: ModelManag
     private val focus = AudioFocus(context, exclusive = false) { stop() }
     private var job: Job? = null
 
-    val available get() = models.hasVoice()
+    val available get() = models.hasVoice() || models.edge?.configured?.value == true
 
     /** Debug builds keep the last thing read here. */
     fun keepLastIn(f: java.io.File?) { out.keepLastIn = f }
@@ -37,6 +37,31 @@ class ReadAloud(context: android.content.Context, private val models: ModelManag
         job = scope.launch {
             try {
                 val p = settings.now()
+                // Edge mode: the server's voice, streamed; the phone's Omni if the server can't be reached.
+                val edge = models.edge?.takeIf { it.usable() }
+                if (edge != null) {
+                    var heard = false
+                    val viaServer = try {
+                        focus.take()
+                        out.start()
+                        for (chunk in SpeechFormat.chunks(speech)) {
+                            val done = edge.speak(chunk, p.speechVoice.name.lowercase()) { pcm ->
+                                heard = true
+                                if (_state.value.preparing) _state.value = _state.value.copy(preparing = false)
+                                out.write(pcm)
+                                _state.value.id == id
+                            }
+                            if (!done || _state.value.id != id) return@launch
+                        }
+                        out.finish()
+                        true
+                    } catch (e: com.lfmpixel.lfm.web.NetException) {
+                        if (heard || !models.hasVoice()) throw e
+                        out.stop()
+                        false
+                    }
+                    if (viaServer) return@launch
+                }
                 val session = models.omniSession()
                 if (!session.canSpeak()) throw LlmException("This Omni projector file has no voice part.")
                 focus.take()

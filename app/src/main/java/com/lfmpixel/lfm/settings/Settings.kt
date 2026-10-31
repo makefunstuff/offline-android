@@ -60,6 +60,14 @@ data class Prefs(
     val backend: BackendChoice = BackendChoice.Auto,
     /** What the benchmark measured, per model file and backend. */
     val backendSpeeds: Map<String, Map<Backend, BackendSpeed>> = emptyMap(),
+    /** Edge mode: chat, pictures and voice run on the owner's own server, through Inkling Net. */
+    val edgeOn: Boolean = false,
+    /** The server's address on the home network or tailnet, like http://100.124.77.61:18448. */
+    val edgeUrl: String = "",
+    /** Its API key, encrypted with a key in Android's keystore (see EdgeKey); empty for none. */
+    val edgeKeySealed: String = "",
+    /** What the server benchmark measured last, "key=value;…" (see EdgeBench). */
+    val edgeBench: String = "",
 )
 
 /** Thinking budgets offered in Settings, in tokens. */
@@ -95,6 +103,10 @@ class Settings(private val context: Context) {
         val lock = stringPreferencesKey("lock_mode")
         val backend = stringPreferencesKey("backend")
         val backendSpeeds = stringPreferencesKey("backend_speeds")
+        val edgeOn = booleanPreferencesKey("edge_on")
+        val edgeUrl = stringPreferencesKey("edge_url")
+        val edgeKey = stringPreferencesKey("edge_key_sealed")
+        val edgeBench = stringPreferencesKey("edge_bench")
     }
 
     val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
@@ -130,6 +142,10 @@ class Settings(private val context: Context) {
         lockMode = this[K.lock]?.let { runCatching { LockMode.valueOf(it) }.getOrNull() } ?: LockMode.Off,
         backend = this[K.backend]?.let { runCatching { BackendChoice.valueOf(it) }.getOrNull() } ?: BackendChoice.Auto,
         backendSpeeds = Backends.decode(this[K.backendSpeeds] ?: ""),
+        edgeOn = this[K.edgeOn] ?: false,
+        edgeUrl = this[K.edgeUrl] ?: "",
+        edgeKeySealed = this[K.edgeKey] ?: "",
+        edgeBench = this[K.edgeBench] ?: "",
     )
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
@@ -160,6 +176,10 @@ class Settings(private val context: Context) {
     }
     /** Chats are cleared: their ids come back, so their Think choices go too. */
     suspend fun clearChatThinking() = context.store.edit { it.remove(K.chatThinking) }
+    suspend fun setEdgeOn(on: Boolean) = context.store.edit { it[K.edgeOn] = on }
+    /** The server's address and its key, already sealed by EdgeKey. */
+    suspend fun setEdgeServer(url: String, keySealed: String) = context.store.edit { it[K.edgeUrl] = url; it[K.edgeKey] = keySealed }
+    suspend fun setEdgeBench(text: String) = context.store.edit { it[K.edgeBench] = text }
     /** Wipe: every setting back to how it was on first run. */
     suspend fun clear() = context.store.edit { it.clear() }
     suspend fun setShowSpeed(on: Boolean) = context.store.edit { it[K.speed] = on }

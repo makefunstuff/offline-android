@@ -281,8 +281,9 @@ class Assistant(
                 media = see?.kind?.name.orEmpty(), mediaPath = see?.thumbPath.orEmpty(), mediaLabel = see?.label.orEmpty()))
             when {
                 see != null -> look(see)
-                !models.hasText() -> sortWithoutModel(input.text, if (input.source == "today") "typed" else input.source)
-                else -> converse(input.source)
+                !models.canChat() -> sortWithoutModel(input.text, if (input.source == "today") "typed" else input.source)
+                // The server went away with a prompt too long for the phone: fitted again, now to the phone's model.
+                else -> try { converse(input.source) } catch (e: com.lfmpixel.lfm.edge.EdgeUnreachable) { converse(input.source) }
             }
         } catch (e: LlmException) {
             notice(e.message ?: "The model stopped")
@@ -403,7 +404,8 @@ class Assistant(
                 raw.append(piece); show.tick()
             }
             val first = if (thinks) budget else answerBudget
-            val session = models.textSession()
+            // The session the prompt was fitted to: the server's window is far larger than the phone's.
+            val session = fitSession
             session.generate(prompt, first).collect { onPiece(it) }
             val firstStats = session.stats()
             if (thinks && firstStats.decodeTokens >= first) {
@@ -418,11 +420,11 @@ class Assistant(
             // Over both calls when thinking ran out of budget; the first token is the first call's.
             val tps = if (st !== firstStats) (firstStats.decodeTokens + st.decodeTokens) * 1000.0 / (firstStats.decodeMs + st.decodeMs).coerceAtLeast(1.0) else st.decodeTps
             val speed = speedLabel(tps, firstStats.firstTokenMs)
-            val meta = "LFM3-1.7B · on this phone · $speed"
+            val meta = "LFM3-1.7B · ${session.where} · $speed"
             val answerFrom = searchId.takeIf { out.toolCalls.isEmpty() && out.answer.isNotBlank() }
             val message = ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
                 raw = PromptFormat.assistantPrefix(thinks) + raw,
-                meta = if (answerFrom != null) "Written on this phone from the web · $speed" else meta,
+                meta = if (answerFrom != null) "Written ${session.where} from the web · $speed" else meta,
                 searchId = answerFrom, thoughtMs = thinkMs)
             // What shows in the chat (an answer, or the thought before a tool call) is handed over to its saved row.
             if (out.answer.isNotBlank() || out.thinking.isNotEmpty()) saveShown(Streaming(out.answer, false, thought = out.thinking,
@@ -451,11 +453,15 @@ class Assistant(
     /** Omni or VL looks at the pictures (or VL reads the pages) and answers in the chat. */
     private suspend fun look(req: SeeRequest) {
         val picturesNeeded = req.images.isNotEmpty() || req.pages.any { it.image != null }
+        // Edge mode: the server's VL looks, whatever is on the phone; if it can't be reached, the phone's models do.
+        models.edgeSession(com.lfmpixel.lfm.llm.Slot.Vision)?.let { s ->
+            try { return lookWith(req, s, "LFM3-VL-2B", s.where) } catch (e: LlmException) {
+                if (models.edge?.state?.value is com.lfmpixel.lfm.edge.EdgeState.Online) throw e
+            }
+        }
         val model = SeeRules.pick(req.kind, models.hasVoice() && models.omniSees, models.hasVision(), models.hasText(), picturesNeeded)
             ?: throw LlmException(if (req.kind == SeeKind.Document) "Documents need LFM3-VL-2B. Get it in Settings → Models."
                 else "Photos and video need LFM3-Omni-2B or LFM3-VL-2B. Get one in Settings → Models.")
-        val started = System.nanoTime()
-        streaming.value = Streaming("", false, if (req.kind == SeeKind.Document) "Reading…" else "Looking…")
         var session: com.lfmpixel.lfm.llm.TextSession = when (model) {
             SeeModel.Omni -> models.omniSession()
             SeeModel.Vision -> models.visionSession()
@@ -467,6 +473,13 @@ class Assistant(
             session = models.visionSession()
         }
         val looker = if (session.path == models.visionPath()) SeeModel.Vision else model
+        lookWith(req, session, looker.label, "on this phone")
+    }
+
+    /** [session] looks at the pictures (or reads the pages) of [req] and answers in the chat. */
+    private suspend fun lookWith(req: SeeRequest, session: com.lfmpixel.lfm.llm.TextSession, label: String, where: String) {
+        val started = System.nanoTime()
+        streaming.value = Streaming("", false, if (req.kind == SeeKind.Document) "Reading…" else "Looking…")
         val raw = StringBuilder()
         val show = Throttle { streaming.value = Streaming(SeeRules.clean(raw.toString()), false) }
         val onPiece: (String) -> Unit = { raw.append(it); show.tick() }
@@ -508,7 +521,7 @@ class Assistant(
         val more = if (req.pagesSkipped > 0) " · first ${req.pages.size} pages" else ""
         saveShown(Streaming(answer, false), ChatMessage(threadId = _thread.value, role = Role.Assistant, text = answer,
             raw = "<think></think>" + answer,
-            meta = "%s · on this phone · %.0f s%s".format(Locale.ENGLISH, looker.label, secs, more)))
+            meta = "%s · %s · %.0f s%s".format(Locale.ENGLISH, label, where, secs, more)))
         streaming.value = null
     }
 

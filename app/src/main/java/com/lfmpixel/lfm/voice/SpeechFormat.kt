@@ -164,3 +164,37 @@ class Endpointer(
         return Event.None
     }
 }
+
+/**
+ * Cuts an answer into pieces to speak while it is still being written: each whole sentence as soon as it ends,
+ * and a long one at a comma, so the voice starts after the first few words and the next piece is ready before
+ * this one has been heard. [first] is how long the first piece may grow before it is cut at a comma or space.
+ */
+class SpeechChunker(private val first: Int = 60, private val max: Int = 220) {
+    private val buf = StringBuilder()
+    private var sent = 0
+
+    /** Adds written text; returns the pieces now complete, ready to speak. */
+    fun feed(text: String): List<String> {
+        buf.append(text)
+        val out = mutableListOf<String>()
+        while (true) {
+            val limit = if (sent == 0) first else max
+            val s = buf.toString()
+            val end = Regex("[.!?…](?=\\s)|[。！？]|\\n").find(s)?.range?.last
+            val cut = when {
+                end != null -> end + 1
+                s.length > limit -> s.substring(0, limit).let { w -> w.lastIndexOf(", ").takeIf { it > limit / 3 }?.plus(1) ?: w.lastIndexOf(' ').takeIf { it > 0 } }
+                else -> null
+            } ?: break
+            // clean() ends every line as a sentence; a piece cut mid-sentence must not fall in pitch as if it ended.
+            val piece = SpeechFormat.clean(s.substring(0, cut)).let { if (end == null) it.removeSuffix(".") else it }
+            buf.delete(0, cut)
+            if (piece.isNotBlank()) { out += piece; sent++ }
+        }
+        return out
+    }
+
+    /** The rest, once the answer is complete. */
+    fun flush(): List<String> = SpeechFormat.clean(buf.toString()).also { buf.clear() }.takeIf { it.isNotBlank() }?.let { listOf(it) } ?: emptyList()
+}

@@ -58,4 +58,8 @@ class NetSettings(context: Context) {
         .putString("wiki_lang", c.wikiLang.trim().lowercase())
         .putString("proxy", c.proxy.trim())
         .apply()
+
+    /** Edge mode: the server saved in Inkling (its address only; the key stays in Inkling). */
+    fun pinEdge(url: String) = prefs.edit().putString("edge_pin", url.trim()).apply()
+    fun pinnedEdge(): String? = prefs.getString("edge_pin", null)?.takeIf { it.isNotBlank() }
 }

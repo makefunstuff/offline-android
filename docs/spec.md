@@ -79,7 +79,8 @@ a driver issue [20]. So the plan starts on the CPU and treats the GPU as a bonus
 ## 3. Network and privacy: two apps
 
 The new promise: **no server of ours, all inference and features on the phone, no telemetry, no accounts. The
-network is used only for web search, opening pages the search found, and model downloads.**
+network is used only for web search, opening pages the search found, and model downloads** — and, only if the owner
+turns on Edge mode, for their own server (below).
 
 v1 made "no network" an operating-system fact by leaving out the `INTERNET` permission. v2 keeps that fact for
 everything personal by splitting the product into two apps, signed with the same key:
@@ -88,7 +89,7 @@ everything personal by splitting the product into two apps, signed with the same
 |---|---|---|
 | Holds | Models, chats, notes, ideas, journal, to-dos, contacts and calendar access, the network log | No personal data: only its settings (provider address, key, proxy) and its latest result addresses, to check `fetch`. Answers go straight back to LFM; a download is streamed to LFM through a file descriptor (a pipe), not stored |
 | `INTERNET` permission | **No.** Android refuses every network socket it opens | Yes |
-| What it can do | Everything except the network | Exactly three calls: `search(query)`, `fetch(url)` (only an address from its own latest search results), `download(model)` (only a pinned model from Hugging Face, which serves files from huggingface.co and its download CDN) |
+| What it can do | Everything except the network | Exactly four calls: `search(query)`, `fetch(url)` (only an address from its own latest search results), `download(model)` (only a pinned model from Hugging Face, which serves files from huggingface.co and its download CDN), and `edge(…)` (only the owner's own server on a private or tailnet address, Edge mode below) |
 | Who can call it | | Only LFM: a bound service guarded by a signature-level permission |
 | Can be removed | | Yes. Uninstall it and LFM is fully offline, as in v1 |
 
@@ -116,6 +117,52 @@ How each guarantee is enforced:
 **Model downloads.** LFM Net can download the GGUF files from Hugging Face (huggingface.co, no login) and hand them
 to LFM, which checks each against a pinned SHA-256 before use. Manual import through the file picker stays, for a
 fully offline phone.
+
+### Edge mode: your own server (LP-32)
+
+On the phone, LFM3-1.7B writes at 15–30 tokens/s and Omni speaks slower than real time, so voice stutters. Edge mode
+moves the models to the owner's own computer (beefy-machine's `local-ai-mode edge`, homelab `roles/local_ai`), reached
+over the home network or the tailnet. The phone keeps the screens, the notes, the chats and every tool; it builds the
+same LFM3 prompts as before and sends them to the server, which only runs the models. It is off until the owner
+turns it on in Settings → Your server, with the server's address and its API key.
+
+**What goes to the server, and only there.** Each chat turn's prompt (the system prompt, the conversation so far, tool
+results, whatever library text the assistant read for it), pictures and pages asked about, Talk's and voice capture's
+recordings, and text to read aloud. That is personal data leaving the phone, which is the trade the owner chose; it
+goes to the address they saved (their own machine) and nowhere else; use its tailnet address so that it is also
+encrypted and can't be impersonated on a strange network (below). Nothing is stored there beyond llama.cpp's prompt cache in memory.
+
+**Why through LFM Net, and LFM still has no `INTERNET` permission.** Two designs were weighed:
+
+- *A direct connection from LFM*, with `INTERNET` and a check that only the server's private address is opened.
+  Android has no per-host permission, so that check would be code in the app that holds every note: one bug or one
+  library, and the journal could go anywhere. It would also undo section 3's main fact.
+- *Through LFM Net* (chosen). LFM keeps no network at all. LFM Net gets one more call, `edge`, which opens only the
+  server's address and only six paths (`/health`, `/v1/models`, `/v1/completions`, `/v1/chat/completions`,
+  `/v1/audio/transcriptions`, `/tts`). It costs one Binder hop per streamed piece, well under a millisecond, against
+  20–300 ms for the request itself, so nothing is lost in speed.
+
+| Guarantee | Enforced by |
+|---|---|
+| LFM itself still can't reach the network | No `INTERNET` permission; `:app:checkDebugNoNetwork` fails the build otherwise |
+| Edge requests go only to the owner's server | LFM Net keeps the address saved in Settings (`edgePin`) and sends prompts, audio and the key only there; any other address is opened only for Settings' Test (`/health`, `/v1/models`). It refuses any address that is not private (`EdgeRules`: 10/8, 172.16/12, 192.168/16, the tailnet's 100.64/10, IPv6 fc00::/7) — a name must resolve only to such addresses, checked on every lookup; no redirects, no proxy; only the six paths above. Unit tests check each refusal |
+| Nobody else on the network reads it | Over the tailnet (100.x or a `.ts.net` name) every request is inside Tailscale's WireGuard tunnel, to the machine Tailscale vouches for. A plain home address (192.168.x over http) is not encrypted and not authenticated: away from home, another network using the same address would receive the requests. Settings says so and recommends the tailnet address; use https on the server for a LAN address |
+| The key is safe on the phone | Sealed with AES-GCM under a key in Android's keystore (hardware-backed on the Pixel); Delete everything drops it |
+| You see every request | Each Edge request is in the network log like a search: time, host, path and how many bytes went and came back (never the content or the key) |
+| It works without the server | When the server can't be reached, chat, pictures and voice fall back to the phone's own models (if they are there) with a calm line in Chat, and switch back when it answers (checked again after 15 s, then up to every 2 min) |
+
+The server's models are the LFM3 family only: `lfm3-1.7b` (thinking off unless the owner turns it on, 32K a slot),
+`lfm3-1.7b-long` (the full 262K window, for a prompt that won't fit in 32K), `lfm3-vl-2b` (pictures, documents) and
+`lfm3-omni-2b` (speech in and out).
+
+**Voice on the server.** Measured from this machine (2026-10-31): speech to text 0.15–0.22 s for 6 s of speech;
+`/tts` streamed starts in 30–40 ms and makes speech about 6× faster than it plays; LFM3-1.7B's first token after
+about 40 ms. So the pipeline is: the phone hears the end of the turn (0.8 s of quiet) → the server writes it down →
+LFM3-1.7B writes the answer, streamed → each sentence goes to the server's voice as soon as it ends → the audio plays
+through LP-30's jitter buffer while the rest is still being written and spoken. On-device streaming ASR (sherpa-onnx
+Zipformer) and Piper could not beat that: the server's transcript is back in under a quarter of a second, and its
+voice starts in tens of milliseconds, faster than any phone model starts. The phone's own Omni stays as the fallback
+for speech in and out.
 
 ## 4. Web search, kept private
 

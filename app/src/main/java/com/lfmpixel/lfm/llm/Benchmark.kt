@@ -163,14 +163,14 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
         val chosen = Slot.entries.filter { engine.file(it) != null }.associateWith { engine.backendFor(it) }
         _state.value = State.Running("Loading ${model.known.fileName} on ${chosen[Slot.Text]?.short}…")
         val t0 = System.nanoTime()
-        var session = engine.textSession()
+        var session = engine.localTextSession()
         val loadMs = (System.nanoTime() - t0) / 1e6
         // An idle unload or a settings change can free the session mid-run: then load it again and carry on.
         suspend fun <T> live(block: suspend (TextSession) -> T): T {
-            if (session.isClosed) session = engine.textSession()
+            if (session.isClosed) session = engine.localTextSession()
             return try { block(session) } catch (e: LlmException) {
                 if (!session.isClosed) throw e
-                session = engine.textSession(); block(session)
+                session = engine.localTextSession(); block(session)
             }
         }
         _state.value = State.Running("Writing through the chat…")

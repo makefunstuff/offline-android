@@ -61,7 +61,7 @@ KEY
 - `:app:checkDebugNoNetwork`: LFM's merged manifest must not ask for `INTERNET` or other network permissions.
 - `:app:checkDebugDependencies`: every library in LFM must be on an allow-list (no analytics, crash, Play Services or
   network SDKs).
-- `:net:checkDebugPermissions`: LFM Net may ask for `INTERNET` and `ACCESS_NETWORK_STATE` (to tell Wi-Fi from mobile
+- `:net:checkDebugPermissions` (Edge mode changed none of these: Inkling still has no network): LFM Net may ask for `INTERNET` and `ACCESS_NETWORK_STATE` (to tell Wi-Fi from mobile
   data) and nothing else: no contacts, files, location or phone state.
 - `:net:checkDebugDependencies`: LFM Net's libraries are AndroidX, Kotlin and OkHttp only.
 
@@ -207,6 +207,27 @@ assistant, and Android then makes it the phone's recogniser too: so it is a real
 keyboard's mic, a search box) is meant to be heard and written down by Omni on the phone (without Omni it says it
 can't); this path is built but was not tried yet, not even in the emulator.
 
+## Edge mode: your own server (LP-32)
+
+Settings → **Your server** moves chat, tools, pictures, documents, Talk, voice capture and read-aloud to the owner's
+own computer running `local-ai-mode edge` (homelab `roles/local_ai`): its address on the home network or tailnet
+(`http://100.124.77.61:18448`, or on the LAN `http://192.168.1.138:18101`, which the emulator reaches too; the
+server doesn't answer on the host's loopback, so not `10.0.2.2`) and its API key (`~/.config/local-ai/edge.key`, kept encrypted with the phone's keystore).
+**Test** checks the key and that the server serves `lfm3-1.7b`, `lfm3-vl-2b` and `lfm3-omni-2b`.
+
+- Inkling still has no `INTERNET` permission: every request goes through Inkling Net's new `edge` call, which opens
+  only a private or tailnet address, only six paths, never a redirect (why: docs/spec.md, section 3, Edge mode).
+  Each request is in Privacy → Network log.
+- Chat sends the same LFM3 prompts the phone would run, to `/v1/completions`, so tools work as before; a prompt past
+  32K tokens goes to `lfm3-1.7b-long` (262K), so long chats are no longer cut. Thinking stays off unless turned on.
+- Talk: the server writes down the turn, LFM3-1.7B answers (streamed), each sentence goes to Omni's `/tts` as it
+  ends, and plays through LP-30's jitter buffer while the rest is still coming.
+- The chat header shows **Server** or **On phone**. When the server can't be reached the phone's own models answer
+  ("Your server isn't answering · this phone answers until it's back"), and it switches back by itself.
+- Settings → Models → **Phone and server**: writing speed, first token and voice first audio, phone next to server.
+  Debug builds: `adb shell am broadcast -p com.lfmpixel.lfm -a com.lfmpixel.lfm.DEBUG_EDGE --es url http://192.168.1.138:18101
+  --es keyfile edge.key --ez on true --ez bench true` (the key file pushed into the app's files first; logcat tag `lfm-edge`).
+
 ## Lock, export, delete, heat (Phase 7)
 
 - **Lock** (Settings → Privacy → Lock): Off, Whole app, or Journal only, opened with the phone's own fingerprint, face
@@ -261,7 +282,8 @@ read out when they change; progress bars report their value; buttons, tabs and r
 
 ## How it is put together
 
-- `ipc/`: the AIDL interface between the two apps (`info`, `search`, `fetch`, `download`) and the pinned file list.
+- `ipc/`: the AIDL interface between the two apps (`info`, `search`, `fetch`, `download`, `edge`), the pinned file
+  list and `EdgeRules` (where Edge mode may go).
 - `net/`: LFM Net. `NetEngine` does the three network calls: `fetch` opens only addresses from its latest results,
   `download` only pinned files from huggingface.co and its CDN over https. No cookies, cache or referrer; the user
   agent of a current Chrome on Android; optional SOCKS proxy (Orbot). `NetService` answers only LFM.
@@ -286,6 +308,8 @@ read out when they change; progress bars report their value; buttons, tabs and r
 - `device/`: `Heat` (Android's thermal status to thread caps and waits) and `AppLock` (the optional lock).
 - `data/Export.kt`: Export all; `wipe` in `LfmApp.kt`: Delete everything. `assistant/WorkService.kt`: an answer keeps
   going in a foreground service when you leave.
+- `edge/`: Edge mode. `Edge` (the server's state, checks, speech in and out), `EdgeSession` (the server's model as a
+  `TextSession`, with the phone's as fallback), `EdgeKey` (the key in the keystore), `EdgeBench`.
 - `ui/`: Compose screens in the calm Signal, Ink + highlighter style; `ui/theme/Motion.kt` holds the motion tokens.
 - `app/src/debug/`: debug-only hooks used for emulator testing: feed a recorded clip through the voice path, ask
   about a file in the app's folder as the pickers do (`DEBUG_SEE`), add sample library content, and play a clip into
