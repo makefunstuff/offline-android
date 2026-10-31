@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -44,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -106,6 +109,8 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val turnNow by rememberUpdatedState(turn)
     val shownNow by rememberUpdatedState(shown)
     val threshold = with(LocalDensity.current) { 80.dp.toPx() }
+    // Bumped when the Ink line is tapped: the page shows its last lines above it, as the keyboard comes up.
+    var toEnd by remember { androidx.compose.runtime.mutableIntStateOf(0) }
 
     Column(Modifier.fillMaxSize()) {
         // A sideways swipe turns the page: to the left for the day after, to the right for the day before.
@@ -119,9 +124,9 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             if (reduced) androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
             else LfmMotion.sharedAxisX(targetState > initialState, false)
         }, label = "day") { day ->
-            DayPage(g, nav, LocalDate.ofEpochDay(day), today, turn)
+            DayPage(g, nav, LocalDate.ofEpochDay(day), today, turn, toEnd)
         }
-        if (shown == today.toEpochDay()) InkLineBar(g, nav, today, onMic, listening)
+        if (shown == today.toEpochDay()) InkLineBar(g, nav, today, onMic, listening) { toEnd++ }
         else Column {
             Divider()
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.Center) {
@@ -131,9 +136,9 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, turn: (LocalDate) -> Unit) {
+private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, turn: (LocalDate) -> Unit, toEnd: Int) {
     val c = Lfm.c
     val zone = ZoneId.systemDefault()
     val isToday = day == today
@@ -168,13 +173,22 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
     val known = linesRead != null && remindersRead != null && eventsRead != null
 
     val list = rememberLazyListState()
-    // A line just written shows at once, above the Ink line.
-    var count by remember(start) { mutableStateOf<Int?>(null) }
-    LaunchedEffect(shownLines.size, known) {
+    // A line just written shows at once, above the Ink line (a to-do moved here from an earlier day doesn't scroll).
+    var newest by remember(start) { mutableStateOf<Long?>(null) }
+    val latest = shownLines.maxOfOrNull { it.createdAt } ?: 0L
+    LaunchedEffect(latest, known) {
         if (!known) return@LaunchedEffect
-        val before = count
-        count = shownLines.size
-        if (isToday && before != null && shownLines.size > before) list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
+        val before = newest
+        newest = latest
+        if (isToday && before != null && latest > before) list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
+    }
+    // The keyboard coming up for the Ink line: the page shows its last lines above it, like a chat.
+    val imeUp = WindowInsets.isImeVisible
+    LaunchedEffect(toEnd, imeUp) {
+        if (!imeUp || !isToday) return@LaunchedEffect
+        // After the keyboard has risen and the page has its new height.
+        delay(LfmMotion.LONG.toLong())
+        list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
     }
 
     LazyColumn(Modifier.fillMaxSize(), state = list) {
@@ -319,7 +333,7 @@ private fun Carried(g: AppGraph, nav: Nav, list: List<Entry>, today: LocalDate, 
 }
 
 /** A quote shared in from another app (proposal 5). */
-internal fun Entry.isQuote() = source == "share" || tags.split(' ').contains("reading")
+internal fun Entry.isQuote() = source == "share"
 
 /** One line of the page: its glyph, then the words. Tap opens it; long-press for pin, move and delete. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -335,14 +349,18 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
                 LIcon(if (e.isQuote()) "quote" else e.kind.icon(), size = 17.dp, tint = c.text2)
             }
             Column(Modifier.weight(1f).padding(top = 13.dp, bottom = 10.dp)) {
+                // A note keeps its whole text in the body when its title was cut short: the page shows the whole line.
+                val bodyLines = e.body.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                val whole = bodyLines.firstOrNull()?.startsWith(e.title.removeSuffix("…").trimEnd(), ignoreCase = true) == true
+                val head = if (e.kind == EntryKind.Note && whole) bodyLines.first() else e.title
                 when {
                     e.isQuote() -> Marked(com.lfmpixel.lfm.assistant.Quotes.words(e), LfmType.body, maxLines = 4)
                     e.kind == EntryKind.Journal -> Txt(e.title, LfmType.body.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic), maxLines = 4)
-                    else -> Txt(e.title, LfmType.body, if (e.done) c.text3 else c.text, maxLines = 3, decoration = if (e.done) TextDecoration.LineThrough else null)
+                    else -> Txt(head, LfmType.body, if (e.done) c.text3 else c.text, maxLines = 3, decoration = if (e.done) TextDecoration.LineThrough else null)
                 }
                 val sub = when {
                     e.isQuote() -> com.lfmpixel.lfm.assistant.Quotes.source(e)
-                    e.kind == EntryKind.Note -> e.body.lineSequence().firstOrNull { it.isNotBlank() && !it.trim().equals(e.title, true) }.orEmpty()
+                    e.kind == EntryKind.Note -> bodyLines.drop(if (whole) 1 else 0).firstOrNull().orEmpty()
                     e.kind == EntryKind.Idea -> e.topic
                     e.kind == EntryKind.Todo -> e.list
                     else -> ""
@@ -367,7 +385,7 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
  * typed, guessed on the phone; a tap on it picks another kind. Enter puts it on the page and keeps the keyboard up.
  */
 @Composable
-private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, onMic: () -> Unit, listening: Boolean) {
+private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, onMic: () -> Unit, listening: Boolean, onFocus: () -> Unit) {
     val c = Lfm.c
     var draft by rememberSaveable { mutableStateOf("") }
     var picked by rememberSaveable { mutableStateOf<String?>(null) }
@@ -398,7 +416,7 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, onMic: () -> Uni
             }
             Txt("$detail  ·  tap the mark to change", LfmType.meta, c.text2, Modifier.padding(start = 16.dp, top = 6.dp))
         }
-        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically,
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val shape = RoundedCornerShape(6.dp)
             Box(Modifier.size(48.dp).clip(shape).clickable(role = Role.Button, onClickLabel = "Change where it goes") {
@@ -417,7 +435,8 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, onMic: () -> Uni
                 BasicTextField(draft, { draft = it; if (it.isBlank()) picked = null }, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send, capitalization = KeyboardCapitalization.Sentences),
                     keyboardActions = KeyboardActions(onSend = { commit() }), maxLines = 4,
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Write a line on today's page" })
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocus() }
+                        .semantics { contentDescription = "Write a line on today's page" })
             }
             if (draft.isNotBlank()) IconButtonPlain("send", { commit() }, tint = c.text, desc = if (kind == InkKind.Ask) "Ask" else "Add to the page")
             else MicButton(onMic, listening = listening)

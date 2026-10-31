@@ -135,7 +135,7 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
                     val shown = when (filter) {
                         LibFilter.Notes -> list.filter { it.kind == EntryKind.Note }
                         LibFilter.Pinned -> list.filter { it.pinned }
-                        LibFilter.Reading -> list.filter { it.isQuote() }
+                        LibFilter.Reading -> list.filter { it.isQuote() || it.tags.split(' ').contains("reading") }
                         else -> list
                     }
                     val state = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -199,13 +199,14 @@ fun LazyItemScope.EntryRow(e: Entry, showKind: Boolean, onClick: () -> Unit, act
         SwipeRow(right, SwipeAction("Delete", "trash") { actions.delete(e) }) {
             Column(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = { menu = true }).padding(horizontal = 16.dp)) {
                 Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (showKind) LIcon(e.kind.icon(), size = 16.dp, tint = c.text2)
+                    if (showKind || e.isQuote()) LIcon(if (e.isQuote()) "quote" else e.kind.icon(), size = 16.dp, tint = c.text2)
                     Txt(e.title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.weight(1f), maxLines = 1,
                         decoration = if (e.done) TextDecoration.LineThrough else null)
                     if (e.pinned) LIcon("pin", size = 14.dp, tint = c.text2)
                     Txt(shortDay(e.createdAt), LfmType.meta, c.text2)
                 }
-                val body = e.body.takeIf { it.isNotEmpty() && it != e.title }
+                // A quote shows where it came from; its words are the title.
+                val body = if (e.isQuote()) com.lfmpixel.lfm.assistant.Quotes.source(e).ifEmpty { null } else e.body.takeIf { it.isNotEmpty() && it != e.title }
                 if (body != null) Txt(body, LfmType.small.copy(fontSize = LfmType.small.fontSize * 0.93f), c.text2, Modifier.padding(top = 3.dp), maxLines = 2)
                 val tags = buildList {
                     if (e.voiceSeconds > 0) add("%d:%02d".format(e.voiceSeconds / 60, e.voiceSeconds % 60) to "wave")

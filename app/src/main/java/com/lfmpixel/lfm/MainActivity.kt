@@ -399,7 +399,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     Route.WebSearch -> WebSearchScreen(g, nav)
                 } }
             }
-            SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter))
+            // On today's page it sits above the Ink line, so it never covers the line being written.
+            SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter).padding(bottom = if (nav.current == Route.Today) 64.dp else 0.dp))
             }
             VoicePanel(g) { g.voice.stop() }
             if (nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) {
