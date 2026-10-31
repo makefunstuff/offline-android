@@ -86,7 +86,8 @@ your card), or Wikipedia alone. Keys stay in LFM Net. SearXNG needs JSON output 
 - **Modes:** Off, Ask first (default: the search words show in the chat with Edit / Send before they go) or
   Automatic. Any search after web pages were read always asks, and so does every tool action.
 - **Personal words:** before a query goes, LFM checks it on the phone for names in your contacts, phone numbers,
-  e-mail addresses, street addresses and postcodes, and names of people and places from your journal and notes. If one
+  e-mail addresses, street addresses and postcodes, and names of people and places from your journal and notes (LFM asks to read contacts at the first search;
+  if you say no, the Search page says contacts weren't checked). If one
   is in it, the card marks it and offers Remove name / Send anyway.
 - **Reading pages:** LFM Net opens the top three results (from different sites) as text; LFM finds the article on the
   phone and gives the model numbered sources. "Read the top result pages" off means snippets only.
