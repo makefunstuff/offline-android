@@ -315,13 +315,13 @@ class Assistant(
             session.generate(prompt, 512, temp = 0.2f).collect(onPiece)
         }
         val answer = SeeRules.clean(raw.toString())
+        streaming.value = null
+        if (answer.isBlank()) { notice("The model gave no answer. Try again, or ask another way."); return }
         val secs = (System.nanoTime() - started) / 1e9
         val more = if (req.pagesSkipped > 0) " · first ${req.pages.size} pages" else ""
         db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = answer,
             raw = "<think></think>" + answer,
             meta = "%s · on this phone · %.0f s%s".format(Locale.ENGLISH, looker.label, secs, more)))
-        streaming.value = null
-        if (answer.isBlank()) notice("The model gave no answer. Try again, or ask another way.")
     }
 
     /** Previews, confirms if needed, runs and logs one call. */

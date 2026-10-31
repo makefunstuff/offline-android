@@ -152,6 +152,8 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
         ctl?.isAppearanceLightNavigationBars = false
         onDispose { status?.let { ctl.isAppearanceLightStatusBars = it }; navBar?.let { ctl.isAppearanceLightNavigationBars = it } }
     }
+    // A question left from an earlier visit is not asked about the next picture.
+    DisposableEffect(Unit) { onDispose { question.text = "" } }
     // Allowed in Android settings and back: turn the camera on.
     LifecycleResumeEffect(Unit) {
         if (!allowed) allowed = ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -161,8 +163,11 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
     LaunchedEffect(Unit) {
         if (!allowed) { allowed = gate.ensure(listOf(Manifest.permission.CAMERA)); asked = true }
     }
-    LaunchedEffect(allowed, back, mode) {
+    // Photo and Document share one use case: only a switch to or from Video rebinds.
+    val video = mode == SeeKind.Video
+    LaunchedEffect(allowed, back, video) {
         if (!allowed) return@LaunchedEffect
+        camera = null
         val provider = runCatching { ProcessCameraProvider.awaitInstance(ctx) }.getOrNull() ?: run { noCamera = true; return@LaunchedEffect }
         val selector = if (back) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
         canFlip = provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) && provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
@@ -174,7 +179,7 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
         provider.unbindAll()
         camera = runCatching {
             // Video takes frames straight from the stream at 2 a second: no file, no encoder.
-            provider.bindToLifecycle(owner, selector, preview, if (mode == SeeKind.Video) analysis else capture)
+            provider.bindToLifecycle(owner, selector, preview, if (video) analysis else capture)
         }.getOrElse { noCamera = true; null }
         noCamera = camera == null
     }
@@ -223,6 +228,8 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
                 synchronized(frames) { frames.clear() }
                 recordedMs = 0
                 recording = true
+                // The activity handles rotation itself, so tell CameraX how the phone is held now.
+                view.display?.rotation?.let { analysis.targetRotation = it }
                 var last = 0L
                 val start = System.currentTimeMillis()
                 analysis.setAnalyzer(executor) { img ->
@@ -245,6 +252,7 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
             }
             else -> {
                 val kind = mode
+                view.display?.rotation?.let { capture.targetRotation = it }
                 send { g.prep.photo(takePicture(capture, executor), asked(), kind) }
             }
         }
@@ -277,8 +285,11 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
                         Color.White, Modifier.background(Color(0xAA000000), RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 5.dp))
                 }
                 val status = busy ?: error
+                // Keeps the last words while the pill fades out, instead of an empty box.
+                var shown by remember { mutableStateOf("") }
+                if (status != null) shown = status
                 AnimatedVisibility(status != null, enter = fadeIn(LfmMotion.spec(LfmMotion.SHORT)), exit = fadeOut(LfmMotion.spec(LfmMotion.SHORT))) {
-                    Txt(status.orEmpty(), LfmType.small, Color.White,
+                    Txt(shown, LfmType.small, Color.White,
                         Modifier.padding(horizontal = 24.dp).background(Color(0xCC000000), RoundedCornerShape(6.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
                         textAlign = TextAlign.Center)
                 }

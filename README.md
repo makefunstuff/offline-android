@@ -111,7 +111,9 @@ follow-up ("remind me to pay that rent on the 1st") goes to LFM3-1.7B, which rea
   The clip's sound is not used yet.
 - **Document:** the shutter shoots a page; the document button opens the system file picker for a PDF or a picture.
   LFM3-VL-2B reads it. PDFs (up to 20 pages) are read from their text layer when they have one (fast) and page by page
-  with VL when they are scans, then VL answers over all the text. VL loads only for documents.
+  with VL when they are scans, then VL answers over all the text. VL loads only for documents (or for photos too
+  when Omni is not on the phone). Keep LFM open while it reads a long scan: it does not run in a foreground service
+  yet, so Android may pause it in the background (the spec's Phase 7 moves long jobs there).
 - If only one of Omni and VL is on the phone, it does both jobs; a PDF with text can also be answered by LFM3-1.7B.
 - Nothing is uploaded: pictures go from the camera or the picker's URI straight into llama.cpp's `mtmd` in this
   process. LFM asks for the camera only (no storage permission: the pickers grant one file at a time). A small copy of
@@ -156,7 +158,8 @@ Tested in an Android 16 emulator (x86_64, Pixel 10 Pro profile, software renderi
 - Phase 5: the camera screen with the emulator's virtual camera (photo, a 5 s recorded clip, document mode); the photo
   picker and the system document picker; Omni on a photo (about 30–60 s on the emulator's CPU) and on a 4 s clip
   (8 frames, about 35 s); VL on a 2-page PDF with a text layer (10 s), a scanned one-page PDF (50 s) and a receipt
-  picture (38 s), all answered correctly; a follow-up that set a reminder from what VL read. Light and dark.
+  picture (38 s), all answered correctly; a follow-up that set a reminder from what VL read. Light and dark. The
+  Phase 4 database (version 2) migrated to version 3 on update with its chats kept.
 
 Still needs the Pixel (spec Phase 0 and Phase 4):
 
@@ -169,7 +172,8 @@ Still needs the Pixel (spec Phase 0 and Phase 4):
 - Whether Android 16 asks for "Allow restricted settings" for this sideloaded app.
 - Phase 5 on the Pixel: the real cameras (front and back, flash and torch, photo sharpness for small print), how long
   Omni and VL take to look at a photo, a 10 s clip and a 20-page scanned PDF on the Tensor G5, and memory with
-  1.7B, Omni and VL loaded together (about 4 GB *estimate*). Quality on real photos and documents (only synthetic ones
+  1.7B, Omni and VL loaded together (about 4 GB *estimate*; Omni's context is now 8K tokens to fit a clip's frames).
+  Photos taken with the phone turned sideways (rotation is set at the shutter; the emulator was only tried upright). Quality on real photos and documents (only synthetic ones
   were tried), and documents in languages other than English.
 - Downloads after a real phone restart, over the owner's Wi-Fi and with the phone locked for a long download; that
   Wi-Fi only really never uses mobile data on the Pixel.
