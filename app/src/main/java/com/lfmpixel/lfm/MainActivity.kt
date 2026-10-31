@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -219,6 +222,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: kotlinx.coroutines.flow.MutableStateFlow<String?>, pickFiles: ((List<android.net.Uri>) -> Unit) -> Unit) {
     val c = Lfm.c
@@ -332,7 +336,9 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             .drawBehind { drawRect(ground) }.statusBarsPadding().navigationBarsPadding()) {
             // ux-spec section 7: the camera opens along the Z axis, pushed screens (editor, chat, settings) along X;
             // the four places of the bottom bar change at once.
-            Box(Modifier.weight(1f)) {
+            // Every screen sits above the keyboard: the inset is taken here once (screens that also ask for it get none
+            // twice), and the bottom bar, which would be under the keyboard anyway, steps aside while it is up.
+            Box(Modifier.weight(1f).imePadding()) {
             AnimatedContent(nav.current, Modifier.fillMaxSize().graphicsLayer {
                 val p = backProgress.value
                 if (p > 0f) {
@@ -374,7 +380,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter))
             }
             VoicePanel(g) { g.voice.stop() }
-            if (nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) BottomBar(nav)
+            if ((nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) && !WindowInsets.isImeVisible) BottomBar(nav)
         }
         if (appLocked) Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) { LockScreen(g) }
     }

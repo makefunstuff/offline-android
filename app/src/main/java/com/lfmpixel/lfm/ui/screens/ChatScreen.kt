@@ -70,6 +70,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.layout.onSizeChanged
 import com.lfmpixel.lfm.llm.LoadState
 import com.lfmpixel.lfm.ui.components.Btn
 import androidx.compose.ui.graphics.graphicsLayer
@@ -105,24 +106,32 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     // New lines appear at once (a streamed answer is already on screen); moves and removals animate.
     val itemFade = if (reduced) null else tween<Float>(LfmMotion.MEDIUM, easing = LfmMotion.standard)
     val itemMove = if (reduced) null else tween<androidx.compose.ui.unit.IntOffset>(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate)
-    val visible = remember(messages) { messages.filter { !(it.role == Role.Assistant && it.text.isBlank()) } }
+    // Assistant rows show when they have words, or a thought (the one before a tool call).
+    val visible = remember(messages) {
+        messages.filter { !(it.role == Role.Assistant && it.text.isBlank() && com.lfmpixel.lfm.llm.ModelOutput.thoughtOf(it.raw).isEmpty()) }
+    }
     // Thoughts opened by hand stay open, per answer, also after leaving the chat. The one being written is LIVE_THOUGHT
     // until its answer is saved, then it carries over to that answer.
     val thoughtsOpen = rememberSaveable(saver = openSaver) { androidx.compose.runtime.mutableStateMapOf<Long, Boolean>() }
-    // A whole answer (Streaming.done) reaches this list from the database a moment after the stream ends. Until it is
-    // here, the streamed one stays on screen as it was, so it never blinks out and back in, nor shows twice; its
-    // thought's open or folded state goes with it. A stopped or failed answer was never whole: it goes at once.
+    // A whole answer (Streaming.done, then with its savedId) reaches this list from the database a moment after the
+    // stream ends. Until its row is here, the streamed one stays on screen as it was, so it never blinks out and back
+    // in, nor shows twice; its thought's open or folded state goes with it. A stopped or failed answer was never
+    // whole: it goes at once.
     var finishing by remember { mutableStateOf<Finishing?>(null) }
     LaunchedEffect(Unit) {
         snapshotFlow { streamingState.value }.collect { s ->
-            if (s?.done == true && finishing?.stream != s) finishing = Finishing(s, thoughtsOpen.remove(LIVE_THOUGHT) == true)
+            when {
+                s?.done == true -> finishing = Finishing(s, finishing?.takeIf { it.stream.copy(savedId = null) == s.copy(savedId = null) }?.open
+                    ?: (thoughtsOpen.remove(LIVE_THOUGHT) == true))
+                s == null -> thoughtsOpen.remove(LIVE_THOUGHT)
+            }
         }
     }
-    val saved = finishing?.let { f -> visible.lastOrNull { it.role == Role.Assistant && it.text == f.stream.text } }
+    val saved = finishing?.stream?.savedId?.let { id -> visible.firstOrNull { it.id == id } }
     LaunchedEffect(saved?.id, finishing) {
         val f = finishing ?: return@LaunchedEffect
         if (saved != null) { if (f.open) thoughtsOpen[saved.id] = true; finishing = null }
-        else { kotlinx.coroutines.delay(3000); finishing = null }
+        else { kotlinx.coroutines.delay(1500); finishing = null }
     }
     val live = streamingState.value
     val stream = when {
@@ -137,7 +146,8 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         ?: (if (stream != null) "streaming" else null) ?: visible.lastOrNull()?.id
     // Follow the end while the owner is at the end; once they scroll up, offer a way back instead of pulling them down.
     val atEnd by remember { derivedStateOf { !list.canScrollBackward } }
-    var follow by remember { mutableStateOf(true) }
+    // Kept while away (a search card, Settings), so coming back doesn't pull the owner down to the end.
+    var follow by rememberSaveable { mutableStateOf(true) }
     // "Latest" scrolling down is not the owner scrolling away.
     var jumping by remember { mutableStateOf(false) }
     // While the owner drags, follow only if they are still at the end; reaching the end again resumes it.
@@ -210,15 +220,24 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 query?.let { q -> item(key = "query") { QueryCard(q) } }
                 if (stream != null) {
                     item(key = "streaming") {
+                        // Bottom up, a growing answer grows upward. While the owner reads further up (not following),
+                        // the list moves by as much, so the line they read stays put.
+                        var height by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
                         val s = stream
                         val loading = status.text == LoadState.Loading && s.text.isEmpty() && s.thought.isEmpty()
                         val thinks = !loading && s.note.isEmpty() && (s.thinking || s.thought.isNotEmpty())
                         val text = if (s.done) s.text else s.text.take(shown.intValue).let { t -> if (t.lastOrNull()?.isHighSurrogate() == true) t.dropLast(1) else t }
-                        val open = if (s.done && finishing?.stream == s) finishing?.open == true else thoughtsOpen[LIVE_THOUGHT] == true
-                        Column {
+                        val f = finishing
+                        val open = if (s.done && f != null && f.stream.copy(savedId = null) == s.copy(savedId = null)) f.open else thoughtsOpen[LIVE_THOUGHT] == true
+                        Column(Modifier.onSizeChanged { size ->
+                            val grew = if (height < 0) 0 else size.height - height
+                            height = size.height
+                            val at = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "streaming" }?.index
+                            if (grew != 0 && !follow && at != null && list.firstVisibleItemIndex <= at &&
+                                (list.firstVisibleItemIndex < at || list.firstVisibleItemScrollOffset > 0)) list.dispatchRawDelta(grew.toFloat())
+                        }) {
                             if (thinks) ThoughtBlock(s.thought, s.thoughtMs, live = !s.done && s.thinking, since = s.thinkingSince, open = open) {
-                                val f = finishing
-                                if (s.done && f?.stream == s) finishing = f.copy(open = !f.open) else thoughtsOpen[LIVE_THOUGHT] = !open
+                                if (s.done && f != null) finishing = f.copy(open = !f.open) else thoughtsOpen[LIVE_THOUGHT] = !open
                             }
                             if (text.isNotEmpty()) AssistantText(text, "", writing = !s.done)
                             // Thought done, nothing to read yet (a tool call being written, say): still visibly at work.
@@ -237,7 +256,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                                 if (thought.isNotEmpty()) ThoughtBlock(thought, m.thoughtMs, live = false, since = 0, open = open) {
                                     if (open) { thoughtsOpen.remove(m.id); if (m.id == saved?.id) finishing = finishing?.copy(open = false) } else thoughtsOpen[m.id] = true
                                 }
-                                AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null,
+                                if (m.text.isNotBlank()) AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null,
                                     read = if (g.readAloud.available) ReadState(reading.id == m.id, reading.id == m.id && reading.preparing) { g.readAloud.toggle(m.id, m.text) } else null)
                             }
                         }
@@ -502,9 +521,10 @@ private fun AssistantText(text: String, meta: String, citations: Boolean = false
         // Short answers are set large, long ones in body text. An answer being written crosses that line once: the two
         // sizes cross-fade and the height eases, instead of the text jumping to its new size.
         val sizeChange = LfmMotion.spec<Float>(LfmMotion.MEDIUM)
+        val heightChange = LfmMotion.spec<androidx.compose.ui.unit.IntSize>(LfmMotion.MEDIUM)
         androidx.compose.animation.AnimatedContent(text.length > 220, transitionSpec = {
             androidx.compose.animation.fadeIn(sizeChange) togetherWith androidx.compose.animation.fadeOut(sizeChange) using
-                androidx.compose.animation.SizeTransform(clip = false)
+                androidx.compose.animation.SizeTransform(clip = false) { _, _ -> heightChange }
         }, label = "answer size") { long ->
             AnswerText(text, if (long) LfmType.bodyLarge else LfmType.answer, markKeyFact = false, citations = citations, writing = writing)
         }
