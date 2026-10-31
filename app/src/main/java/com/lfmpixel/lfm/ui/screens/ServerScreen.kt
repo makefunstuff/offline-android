@@ -89,6 +89,9 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
             SectionLabel("Server")
             ServerField("Address", url, { url = it; result = null }, "http://100.124.77.61:18448", KeyboardType.Uri)
             problem?.let { Txt(it, LfmType.meta, c.text, Modifier.padding(top = 4.dp)) }
+            if (problem == null && url.isNotBlank() && !Edge.isTailnet(url))
+                Txt("Not a tailnet address: requests are not encrypted, and away from home another network could answer at it. " +
+                    "Use the server's 100.x tailnet address unless it is https.", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
             ServerField("API key", key, { key = it; result = null }, if (keySaved) "Saved · type to replace" else "From ~/.config/local-ai/edge.key",
                 KeyboardType.Password, secret = true)
             Txt("The key is kept encrypted with this phone's keystore.", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
@@ -96,7 +99,10 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
                 Btn("Save", {
                     val u = Edge.normalize(url) ?: return@Btn
                     scope.launch {
-                        g.settings.setEdgeServer(u, if (key.isNotEmpty()) EdgeKey.seal(key) else p.edgeKeySealed)
+                        val sealed = if (key.isEmpty()) p.edgeKeySealed else runCatching {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { EdgeKey.seal(key) }
+                        }.getOrElse { result = "Not saved: the phone's keystore said no (${it.message})"; return@launch }
+                        g.settings.setEdgeServer(u, sealed)
                         if (!p.edgeOn) g.settings.setEdgeOn(true)
                         url = u; key = ""
                         result = "Saved"

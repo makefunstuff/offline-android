@@ -23,6 +23,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 
+/** The server could not be reached and the phone could not take the request as it was. */
+class EdgeUnreachable(message: String) : LlmException(message)
+
 /**
  * A model on the owner's server, as a [TextSession]: the same raw LFM3 prompts the phone builds (PromptFormat, tools
  * and all) go to the server's /v1/completions and stream back, so tool calls are parsed exactly as on the phone.
@@ -34,7 +37,7 @@ import java.io.ByteArrayOutputStream
 class EdgeSession(
     private val edge: Edge,
     private val model: String,
-    private val local: (suspend () -> TextSession)?,
+    private val local: (suspend () -> TextSession?)?,
 ) : TextSession {
     override val path = "edge:$model"
     override val backend = Backend.Cpu
@@ -65,9 +68,11 @@ class EdgeSession(
             val text = ev.optJSONArray("choices")?.optJSONObject(0)?.optString("text").orEmpty()
             if (text.isNotEmpty()) { wrote = true; trySend(text).isSuccess } else true
         }
-        if (r != null && !wrote && local != null && edge.fallsBack(r)) {
+        if (r != null && !wrote && edge.fallsBack(r)) {
+            // Fitted to the server's window: if it won't fit the phone's, the caller fits it again (Assistant).
+            val s = local?.invoke()?.takeIf { it.countTokens(prompt) + maxTokens <= it.contextTokens }
+                ?: throw EdgeUnreachable("Your server can't be reached: ${r.message}")
             usedLocal = true
-            val s = local.invoke()
             s.generate(prompt, maxTokens, temp, topP).collect { send(it) }
             lastStats = s.stats()
         } else {

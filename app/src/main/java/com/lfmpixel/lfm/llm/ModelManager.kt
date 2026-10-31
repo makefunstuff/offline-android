@@ -70,7 +70,7 @@ class ModelManager(
         if (benchmarking || !e.usable()) return null
         return when (slot) {
             Slot.Text -> edgeText ?: com.lfmpixel.lfm.edge.EdgeSession(e, com.lfmpixel.lfm.edge.EdgeModels.TEXT,
-                if (hasText()) ({ localTextSession() }) else null).also { edgeText = it }
+                { if (hasText()) localTextSession() else null }).also { edgeText = it }
             else -> edgeVision ?: com.lfmpixel.lfm.edge.EdgeSession(e, com.lfmpixel.lfm.edge.EdgeModels.VISION, null).also { edgeVision = it }
         }
     }

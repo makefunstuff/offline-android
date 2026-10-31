@@ -34,6 +34,10 @@ class EdgeModeTest {
         assertNull("bad port", Edge.normalize("http://10.0.0.1:99999"))
         assertTrue(Edge.whyNot("http://8.8.8.8")!!.contains("home network"))
         assertNull(Edge.whyNot(""))
+        assertTrue(Edge.isTailnet("100.124.77.61:18448"))
+        assertTrue(Edge.isTailnet("https://192.168.1.138:18101"))
+        assertTrue(Edge.isTailnet("http://beefy.tail1234.ts.net:18448"))
+        assertTrue(!Edge.isTailnet("http://192.168.1.138:18101"))
     }
 
     @Test fun eventsAcrossPieces() {

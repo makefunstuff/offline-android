@@ -68,6 +68,8 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
             settings.prefs.distinctUntilChanged { a, b -> a.edgeOn == b.edgeOn && a.edgeUrl == b.edgeUrl && a.edgeKeySealed == b.edgeKeySealed }
                 .collect { p ->
                     configured.value = p.edgeOn && p.edgeUrl.isNotBlank()
+                    // LFM Net opens only this server (Settings' Test excepted).
+                    if (configured.value) runCatching { net.edgePin(p.edgeUrl) }
                     scope.launch(kotlinx.coroutines.Dispatchers.Default) { runCatching { check(p) } }
                 }
         }
@@ -99,7 +101,8 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
     /** Asks the server's /health now; the state follows. Returns how long it took, or throws why it failed. */
     suspend fun check(p: Prefs? = null): Long {
         val s = server(p) ?: run { retry?.cancel(); _state.value = EdgeState.Off; return 0 }
-        if (_state.value !is EdgeState.Online) _state.value = EdgeState.Checking
+        // Offline stays shown while it is checked again (no flicker); only a first check shows Checking.
+        if (_state.value is EdgeState.Off) _state.value = EdgeState.Checking
         val t0 = SystemClock.elapsedRealtime()
         return try {
             request(s, "GET", "/health", null, null, "Your server: check") { true }
@@ -117,7 +120,8 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         val u = normalize(url) ?: throw NetException("That doesn't look like an address (http://100.x.y.z:port)")
         val t0 = SystemClock.elapsedRealtime()
         val out = ByteArrayOutputStream()
-        request(Server(u, key), "GET", "/v1/models", null, null, "Your server: test") { out.write(it); true }
+        // Straight to LFM Net: a mistyped address tested here must not mark the saved server unreachable.
+        net.edge(u, key, "GET", "/v1/models", null, null, "Your server: test") { out.write(it); true }
         val ms = SystemClock.elapsedRealtime() - t0
         val ids = runCatching {
             val data = JSONObject(out.toString(Charsets.UTF_8.name())).getJSONArray("data")
@@ -232,6 +236,18 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
             if (port.isNotEmpty() && port.toIntOrNull()?.takeIf { it in 1..65535 } == null) return null
             if (EdgeRules.refuse(host) != null) return null
             return "$scheme://$rest"
+        }
+
+        /** Encrypted on the way: a tailnet address (100.64/10, a .ts.net name, Tailscale's IPv6) or https. */
+        fun isTailnet(url: String): Boolean {
+            val u = normalize(url) ?: return false
+            if (u.startsWith("https://")) return true
+            val host = u.substringAfter("://").let { if (it.startsWith("[")) it.substringBefore("]").removePrefix("[") else it.substringBeforeLast(':', it) }
+            if (host.endsWith(".ts.net")) return true
+            val a = EdgeRules.literal(host) ?: return false
+            val b = a.address
+            return (b.size == 4 && (b[0].toInt() and 0xff) == 100 && (b[1].toInt() and 0xff) in 64..127) ||
+                (b.size == 16 && (b[0].toInt() and 0xff) == 0xfd && (b[1].toInt() and 0xff) == 0x7a && (b[2].toInt() and 0xff) == 0x11 && (b[3].toInt() and 0xff) == 0x5c)
         }
 
         /** Why [url] can't be used, for the Settings field; null if it can. */

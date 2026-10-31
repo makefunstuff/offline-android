@@ -192,7 +192,11 @@ class Talk(
                     }
                     if (heard != null) {
                         if (heard.isBlank() || interrupted) continue
-                        answerViaServer(run, heard, (pcm.size + 8_000) / 16_000, endedAt, SystemClock.elapsedRealtime() - endedAt)
+                        val secs = (pcm.size + 8_000) / 16_000
+                        if (answerViaServer(run, heard, secs, endedAt, SystemClock.elapsedRealtime() - endedAt)) continue
+                        // The server went away before it said anything: the phone answers this turn, if Omni is there.
+                        if (!models.hasVoice()) { set(run) { it.copy(error = "Your server stopped answering. Try again in a moment.") }; continue }
+                        answer(run, heard, secs, endedAt)
                         continue
                     }
                 }
@@ -215,11 +219,12 @@ class Talk(
     /**
      * Edge mode's turn: LFM3-1.7B on the server writes the answer (streamed), each sentence goes to the server's
      * voice (Omni's /tts, streamed) as soon as it ends, and the audio plays through the jitter buffer while the rest
-     * is still being written and spoken. If the server fails mid-answer, the turn ends there (marked stopped).
+     * is still being written and spoken. If the server fails mid-answer, the turn ends there (marked stopped) and
+     * says so. Returns false if it failed before any answer came: the turn is taken back for the phone to answer.
      */
-    private suspend fun answerViaServer(run: Int, said: String, seconds: Int, endedAt: Long, heardMs: Long) {
+    private suspend fun answerViaServer(run: Int, said: String, seconds: Int, endedAt: Long, heardMs: Long): Boolean {
         val p = settings.now()
-        val edge = models.edge ?: return
+        val edge = models.edge ?: return false
         val id = ++turnId
         val before = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
         set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds), viaServer = true) }
@@ -236,6 +241,7 @@ class Talk(
         if (spoken) out.start()
         val startedOut = SystemClock.elapsedRealtime()
         var finished = false
+        var failure: Exception? = null
         try {
             kotlinx.coroutines.coroutineScope {
                 // The voice: one piece at a time, in order, each streamed into the player as it is made.
@@ -269,12 +275,19 @@ class Talk(
             if (run == epoch && !interrupted) throw e
         } catch (e: Exception) {
             Log.w(TAG, "server answer failed", e)
+            failure = e
         } finally {
             pieces.close()
             synchronized(this) {
                 _state.value = _state.value.copy(turns = _state.value.turns.map { if (it.id == id && !it.done) it.copy(done = true, stopped = true) else it })
             }
         }
+        if (failure != null && text.isEmpty() && firstAudio == 0L) {
+            out.stop()
+            synchronized(this) { _state.value = _state.value.copy(turns = _state.value.turns.filter { it.id != id }) }
+            return false
+        }
+        if (failure != null) set(run) { it.copy(error = "Your server stopped answering mid-way.") }
         if (spoken && finished) out.finish() else out.stop()
         val played = out.last
         val timing = TalkTiming(heardMs, if (firstWord > 0) firstWord - endedAt else 0, if (firstAudio > 0) firstAudio - endedAt else 0,
@@ -282,6 +295,7 @@ class Talk(
         Log.i(TAG, "server answer: $timing: $text")
         val stopped = interrupted || !finished
         set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = stopped) else it }) }
+        return true
     }
 
     private suspend fun answer(run: Int, said: String, seconds: Int, endedAt: Long = SystemClock.elapsedRealtime()) {

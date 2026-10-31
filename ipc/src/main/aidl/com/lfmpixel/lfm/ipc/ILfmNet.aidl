@@ -29,6 +29,15 @@ interface ILfmNet {
      * the Bundle has the HTTP status (NetContract.STATUS) and the log. Only a private or tailnet address is opened
      * (EdgeRules), only the paths in EdgeRules.PATHS, never a redirect, never through the SOCKS proxy.
      */
-    Bundle edge(String baseUrl, String key, String method, String path, String contentType,
+    Bundle edge(String id, String baseUrl, String key, String method, String path, String contentType,
                 in ParcelFileDescriptor body, IEdgeReply reply);
+
+    /** Stops the Edge request [id] at once, even while the server has not answered yet. */
+    void edgeCancel(String id);
+
+    /**
+     * The owner's server, as saved in Settings. Edge requests go only there; any other private address is opened
+     * only for Settings' Test (/health and /v1/models).
+     */
+    void edgePin(String baseUrl);
 }

@@ -111,13 +111,19 @@ class NetClient(private val context: Context, private val settings: Settings, pr
     /**
      * Edge mode: one request to the owner's server through LFM Net. [onData] gets the reply body as it comes, on a
      * Binder thread; returning false (or this coroutine being cancelled) stops it. Returns the HTTP status; throws
-     * [NetException] with [EdgeFailure] details when the server could not be reached or said no.
+     * [NetException] ([EDGE_UNREACHABLE] or [EDGE_REFUSED]) when the server could not be reached or said no.
      */
     suspend fun edge(base: String, key: String, method: String, path: String, contentType: String?, body: ByteArray?,
                      label: String, onData: (ByteArray) -> Boolean): Int {
         val job = kotlinx.coroutines.currentCoroutineContext()[Job]
         val host = base.substringAfter("://").substringBefore('/')
+        val id = java.util.UUID.randomUUID().toString()
         val b = exchange(started(host, "", label, ""), "") { s ->
+            // Stop reaches LFM Net at once, even before the server has sent anything.
+            @OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
+            val onStop = job?.invokeOnCompletion(onCancelling = true, invokeImmediately = true) { cause ->
+                if (cause != null) kotlin.concurrent.thread(name = "edge-cancel") { runCatching { s.edgeCancel(id) } }
+            }
             val pipe = body?.let { ParcelFileDescriptor.createPipe() }
             pipe?.let { (source, sink) ->
                 // The body goes in on its own thread, so a large one can't block the call that reads it.
@@ -127,16 +133,22 @@ class NetClient(private val context: Context, private val settings: Settings, pr
                 source
             }
             try {
-                s.edge(base, key, method, path, contentType, pipe?.get(0), object : IEdgeReply.Stub() {
+                s.edge(id, base, key, method, path, contentType, pipe?.get(0), object : IEdgeReply.Stub() {
                     override fun data(bytes: ByteArray?): Boolean = job?.isActive != false && bytes != null && onData(bytes)
                 })
-            } finally { pipe?.get(0)?.let { runCatching { it.close() } } }
+            } finally {
+                onStop?.dispose()
+                pipe?.get(0)?.let { runCatching { it.close() } }
+            }
         }
         val status = b.getInt(NetContract.STATUS)
         // Stopped is ours: the reader had all it wanted.
         b.failure()?.takeIf { it != "Stopped" }?.let { throw NetException(it, if (status == 0) EDGE_UNREACHABLE else EDGE_REFUSED) }
         return status
     }
+
+    /** Tells LFM Net which server Settings saved: the only one Edge requests may go to. */
+    suspend fun edgePin(base: String) = call { it.edgePin(base) }
 
     /**
      * One network call, logged whatever happens: a placeholder goes in the log before it is asked, and LFM Net's own

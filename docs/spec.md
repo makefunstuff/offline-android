@@ -129,7 +129,8 @@ turns it on in Settings → Your server, with the server's address and its API k
 **What goes to the server, and only there.** Each chat turn's prompt (the system prompt, the conversation so far, tool
 results, whatever library text the assistant read for it), pictures and pages asked about, Talk's and voice capture's
 recordings, and text to read aloud. That is personal data leaving the phone, which is the trade the owner chose; it
-goes to their own machine and nowhere else. Nothing is stored there beyond llama.cpp's prompt cache in memory.
+goes to the address they saved (their own machine) and nowhere else; use its tailnet address so that it is also
+encrypted and can't be impersonated on a strange network (below). Nothing is stored there beyond llama.cpp's prompt cache in memory.
 
 **Why through LFM Net, and LFM still has no `INTERNET` permission.** Two designs were weighed:
 
@@ -144,7 +145,8 @@ goes to their own machine and nowhere else. Nothing is stored there beyond llama
 | Guarantee | Enforced by |
 |---|---|
 | LFM itself still can't reach the network | No `INTERNET` permission; `:app:checkDebugNoNetwork` fails the build otherwise |
-| Edge requests go only to the owner's server | LFM Net's `edge` refuses any address that is not private (`EdgeRules`: 10/8, 172.16/12, 192.168/16, the tailnet's 100.64/10, IPv6 fc00::/7) — a name must resolve only to such addresses, checked on every lookup; no redirects, no proxy; only the six paths above. Unit tests check each refusal |
+| Edge requests go only to the owner's server | LFM Net keeps the address saved in Settings (`edgePin`) and sends prompts, audio and the key only there; any other address is opened only for Settings' Test (`/health`, `/v1/models`). It refuses any address that is not private (`EdgeRules`: 10/8, 172.16/12, 192.168/16, the tailnet's 100.64/10, IPv6 fc00::/7) — a name must resolve only to such addresses, checked on every lookup; no redirects, no proxy; only the six paths above. Unit tests check each refusal |
+| Nobody else on the network reads it | Over the tailnet (100.x or a `.ts.net` name) every request is inside Tailscale's WireGuard tunnel, to the machine Tailscale vouches for. A plain home address (192.168.x over http) is not encrypted and not authenticated: away from home, another network using the same address would receive the requests. Settings says so and recommends the tailnet address; use https on the server for a LAN address |
 | The key is safe on the phone | Sealed with AES-GCM under a key in Android's keystore (hardware-backed on the Pixel); Delete everything drops it |
 | You see every request | Each Edge request is in the network log like a search: time, host, path and how many bytes went and came back (never the content or the key) |
 | It works without the server | When the server can't be reached, chat, pictures and voice fall back to the phone's own models (if they are there) with a calm line in Chat, and switch back when it answers (checked again after 15 s, then up to every 2 min) |

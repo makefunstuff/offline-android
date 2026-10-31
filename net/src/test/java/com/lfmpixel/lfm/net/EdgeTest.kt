@@ -23,7 +23,7 @@ class EdgeTest {
 
     private fun base() = server.url("/").toString().trimEnd('/')
     // The test server is on loopback; the real rules refuse it (see privateAddresses).
-    private fun engine() = NetEngine({ NetConfig(proxy = "127.0.0.1:9") }, edgeAddressAllowed = { it.isLoopbackAddress })
+    private fun engine() = NetEngine({ NetConfig(proxy = "127.0.0.1:9") }, edgeAddressAllowed = { it.isLoopbackAddress }, edgePinned = { base() })
 
     @Test fun privateAddresses() {
         for (ok in listOf("10.0.2.2", "192.168.1.138", "172.16.0.1", "172.31.255.1", "100.124.77.61", "100.64.0.1", "fd7a:115c:a1e0::1"))
@@ -65,6 +65,16 @@ class EdgeTest {
         val r = engine().edge(base(), "k", "GET", "/health", null, null) { true }
         assertNotNull("a redirect is not followed", r.error)
         assertEquals(1, server.requestCount)
+    }
+
+    @Test fun onlyTheSavedServerBeyondATest() {
+        // Another private address: Settings' Test may ask its health and models, nothing more.
+        val other = NetEngine({ NetConfig() }, edgeAddressAllowed = { it.isLoopbackAddress }, edgePinned = { "http://127.0.0.1:1" })
+        val r = other.edge(base(), "k", "POST", "/v1/completions", "application/json", "{}".byteInputStream()) { true }
+        assertEquals("That isn't the server saved in Settings", r.error)
+        assertEquals(0, server.requestCount)
+        server.enqueue(MockResponse.Builder().body("{}").build())
+        assertNull(other.edge(base(), "k", "GET", "/v1/models", null, null) { true }.error)
     }
 
     @Test fun errorsAndStop() {

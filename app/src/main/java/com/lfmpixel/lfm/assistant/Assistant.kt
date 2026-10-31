@@ -282,7 +282,8 @@ class Assistant(
             when {
                 see != null -> look(see)
                 !models.canChat() -> sortWithoutModel(input.text, if (input.source == "today") "typed" else input.source)
-                else -> converse(input.source)
+                // The server went away with a prompt too long for the phone: fitted again, now to the phone's model.
+                else -> try { converse(input.source) } catch (e: com.lfmpixel.lfm.edge.EdgeUnreachable) { converse(input.source) }
             }
         } catch (e: LlmException) {
             notice(e.message ?: "The model stopped")
@@ -403,7 +404,8 @@ class Assistant(
                 raw.append(piece); show.tick()
             }
             val first = if (thinks) budget else answerBudget
-            val session = models.textSession()
+            // The session the prompt was fitted to: the server's window is far larger than the phone's.
+            val session = fitSession
             session.generate(prompt, first).collect { onPiece(it) }
             val firstStats = session.stats()
             if (thinks && firstStats.decodeTokens >= first) {

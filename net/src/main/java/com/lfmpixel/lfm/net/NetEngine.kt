@@ -33,6 +33,8 @@ class NetEngine(
     private val clock: () -> Long = System::currentTimeMillis,
     /** Edge mode: which server addresses may be opened (tests also allow loopback). */
     private val edgeAddressAllowed: (InetAddress) -> Boolean = EdgeRules::isPrivate,
+    /** Edge mode: the server saved in Inkling's Settings, the only one used for more than a test. */
+    private val edgePinned: () -> String? = { null },
 ) {
     data class SearchReply(val provider: String, val hits: List<SearchHit>, val log: List<NetRequest>, val error: String?)
     data class FetchReply(val text: String, val log: List<NetRequest>, val error: String?)
@@ -219,14 +221,18 @@ class NetEngine(
      * as it comes; [out] returning false stops it. A reply that is not 2xx is read (up to 4 KB) into the error.
      */
     fun edge(base: String, key: String, method: String, path: String, contentType: String?, body: InputStream?,
-             out: (ByteArray) -> Boolean): EdgeReply {
+             onCall: (okhttp3.Call) -> Unit = {}, out: (ByteArray) -> Boolean): EdgeReply {
+        // Read first, whatever happens next, so the writer on Inkling's side never waits on a pipe nobody reads.
+        val sentBytes = body?.use { it.readNBytes(MAX_EDGE_BODY + 1) }
         val b = base.trim().trimEnd('/').toHttpUrlOrNull() ?: return EdgeReply(0, 0, emptyList(), "The server address doesn't look right")
+        // Only the saved server, but for Settings' Test, which may try a new address (health and the model list only).
+        val pinned = edgePinned()?.trim()?.trimEnd('/')
+        if (path !in TEST_PATHS && pinned != base.trim().trimEnd('/')) return EdgeReply(0, 0, emptyList(), "That isn't the server saved in Settings")
         if (path !in EdgeRules.PATHS) return EdgeReply(0, 0, emptyList(), "Inkling Net doesn't open $path on the server")
         if (method != "GET" && method != "POST") return EdgeReply(0, 0, emptyList(), "Bad method")
         EdgeRules.literal(b.host)?.let { if (!edgeAddressAllowed(it)) return EdgeReply(0, 0, emptyList(), "${b.host} is not on your home network or tailnet") }
         EdgeRules.refuse(b.host)?.takeIf { EdgeRules.literal(b.host) == null }?.let { return EdgeReply(0, 0, emptyList(), it) }
         val url = b.newBuilder().addPathSegments(path.removePrefix("/")).build()
-        val sentBytes = body?.use { it.readNBytes(MAX_EDGE_BODY + 1) }
         if (sentBytes != null && sentBytes.size > MAX_EDGE_BODY) return EdgeReply(0, 0, emptyList(), "Too much to send in one request")
         val hops = Hops()
         val at = clock()
@@ -238,7 +244,7 @@ class NetEngine(
                 // llama-server closes each connection after its reply (it says so): never reuse one.
                 .header("Connection", "close")
             if (method == "POST") r.post((sentBytes ?: ByteArray(0)).toRequestBody(contentType?.toMediaTypeOrNull())) else r.get()
-            edgeClient().newBuilder().addNetworkInterceptor(hops).build().newCall(r.build()).execute().use { resp ->
+            edgeClient().newBuilder().addNetworkInterceptor(hops).build().newCall(r.build()).also(onCall).execute().use { resp ->
                 status = resp.code
                 val src = resp.body.source()
                 if (!resp.isSuccessful) {
@@ -306,6 +312,8 @@ class NetEngine(
     companion object {
         /** The most one Edge request may send: a long recording or a few pictures. */
         const val MAX_EDGE_BODY = 32 * 1024 * 1024
+        /** What Settings' Test asks of an address not saved yet. */
+        val TEST_PATHS = setOf("/health", "/v1/models")
 
         /** A current Chrome on Android, reduced the way Chrome itself sends it: looks like any phone's. */
         const val USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36"

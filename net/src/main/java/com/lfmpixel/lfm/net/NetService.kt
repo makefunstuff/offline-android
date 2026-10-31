@@ -61,16 +61,26 @@ class NetService : Service() {
             }
         }
 
-        override fun edge(baseUrl: String?, key: String?, method: String?, path: String?, contentType: String?,
+        override fun edge(id: String?, baseUrl: String?, key: String?, method: String?, path: String?, contentType: String?,
                           body: ParcelFileDescriptor?, to: IEdgeReply?): Bundle {
             checkCaller()
             if (to == null) return reply("No reply", emptyList())
-            val r = engine.edge(baseUrl.orEmpty(), key.orEmpty(), method.orEmpty(), path.orEmpty(), contentType,
-                body?.let { ParcelFileDescriptor.AutoCloseInputStream(it) }) { bytes ->
+            val r = try { engine.edge(baseUrl.orEmpty(), key.orEmpty(), method.orEmpty(), path.orEmpty(), contentType,
+                body?.let { ParcelFileDescriptor.AutoCloseInputStream(it) }, onCall = { c -> id?.let { calls[it] = c } }) { bytes ->
                 // LFM gone or done listening: stop.
                 runCatching { to.data(bytes) }.getOrDefault(false)
-            }
+            } } finally { id?.let { calls.remove(it) } }
             return reply(r.error, r.log).apply { putInt(NetContract.STATUS, r.status) }
+        }
+
+        override fun edgeCancel(id: String?) {
+            checkCaller()
+            id?.let { calls.remove(it)?.cancel() }
+        }
+
+        override fun edgePin(baseUrl: String?) {
+            checkCaller()
+            settings.pinEdge(baseUrl.orEmpty())
         }
     }
 
@@ -102,8 +112,10 @@ class NetService : Service() {
     companion object {
         // One engine per process, so the latest results outlive a rebind.
         private var shared: NetEngine? = null
+        /** Edge requests in flight, by Inkling's id, so Stop reaches one still waiting for the server. */
+        private val calls = java.util.concurrent.ConcurrentHashMap<String, okhttp3.Call>()
     }
 
     private val engine: NetEngine
-        get() = synchronized(NetService) { shared ?: NetEngine({ settings.load() }).also { shared = it } }
+        get() = synchronized(NetService) { shared ?: NetEngine({ settings.load() }, edgePinned = { settings.pinnedEdge() }).also { shared = it } }
 }
