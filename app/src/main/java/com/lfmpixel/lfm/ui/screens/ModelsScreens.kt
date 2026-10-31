@@ -26,6 +26,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.llm.Benchmark
@@ -251,8 +253,12 @@ private fun left(s: Long) = when {
 @Composable
 private fun Bar(fraction: Float) {
     val c = Lfm.c
-    Box(Modifier.padding(vertical = 6.dp).fillMaxWidth().height(4.dp).background(c.line, RoundedCornerShape(2.dp))) {
-        Box(Modifier.fillMaxWidth(fraction.coerceIn(0.01f, 1f)).height(4.dp).background(c.text, RoundedCornerShape(2.dp)))
+    // Progress arrives in steps (every chunk read); the bar glides between them instead of jumping.
+    val shown by androidx.compose.animation.core.animateFloatAsState(fraction.coerceIn(0f, 1f),
+        com.lfmpixel.lfm.ui.theme.LfmMotion.spec(com.lfmpixel.lfm.ui.theme.LfmMotion.MEDIUM), label = "bar")
+    Box(Modifier.padding(vertical = 6.dp).fillMaxWidth().height(4.dp).background(c.line, RoundedCornerShape(2.dp))
+        .semantics { progressBarRangeInfo = androidx.compose.ui.semantics.ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f) }) {
+        Box(Modifier.fillMaxWidth(shown.coerceIn(0.01f, 1f)).height(4.dp).background(c.text, RoundedCornerShape(2.dp)))
     }
 }
 

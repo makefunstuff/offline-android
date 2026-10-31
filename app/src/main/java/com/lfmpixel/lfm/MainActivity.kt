@@ -65,6 +65,8 @@ import com.lfmpixel.lfm.ui.screens.ImportScreen
 import com.lfmpixel.lfm.ui.screens.LibraryScreen
 import com.lfmpixel.lfm.ui.screens.LockScreen
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import com.lfmpixel.lfm.ui.screens.ModelsScreen
 import com.lfmpixel.lfm.ui.screens.PrivacyScreen
@@ -134,7 +136,11 @@ class MainActivity : ComponentActivity() {
         graph.assistant.onShown()
         setContent {
             LfmTheme {
-                Root(graph, gate, pickers, opened, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
+                // The mic button's pulse follows the voice being recorded, wherever the mic is.
+                val level = graph.voice.level.collectAsState()
+                androidx.compose.runtime.CompositionLocalProvider(com.lfmpixel.lfm.ui.components.LocalMicLevel provides level) {
+                    Root(graph, gate, pickers, opened, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
+                }
             }
         }
     }
@@ -282,7 +288,24 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
         }
     }
 
-    BackHandler(enabled = nav.stack.size > 1) { nav.back() }
+    // Predictive back (Android 16): while the back swipe is held, the screen shrinks a little toward the far edge
+    // and its corners round, following the finger; letting go goes back with the usual shared-axis slide, and a
+    // cancelled swipe settles back. Sheets handle their own back.
+    val backProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+    var backEdge by remember { androidx.compose.runtime.mutableIntStateOf(androidx.activity.BackEventCompat.EDGE_LEFT) }
+    androidx.activity.compose.PredictiveBackHandler(enabled = nav.stack.size > 1 && !appLocked) { events ->
+        try {
+            events.collect { e ->
+                backEdge = e.swipeEdge
+                if (!reduced) backProgress.snapTo(e.progress)
+            }
+            nav.back()
+            backProgress.snapTo(0f)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            backProgress.animateTo(0f, androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+            throw e
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         // Behind the lock nothing is drawn or read out: the screens stay composed (and keep their state) but hidden.
@@ -291,7 +314,17 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             // ux-spec section 7: the camera opens along the Z axis, pushed screens (editor, chat, settings) along X;
             // the four places of the bottom bar change at once.
             Box(Modifier.weight(1f)) {
-            AnimatedContent(nav.current, Modifier.fillMaxSize(), contentKey = { if (it.isTab()) "places" else it }, transitionSpec = {
+            AnimatedContent(nav.current, Modifier.fillMaxSize().graphicsLayer {
+                val p = backProgress.value
+                if (p > 0f) {
+                    // M3 back preview: down to 90 %, drifting 8 dp away from the edge the swipe came from.
+                    val s = 1f - 0.1f * p
+                    scaleX = s; scaleY = s
+                    translationX = (if (backEdge == androidx.activity.BackEventCompat.EDGE_LEFT) 1f else -1f) * 8.dp.toPx() * p
+                    shape = RoundedCornerShape(24.dp * p)
+                    clip = true
+                }
+            }, contentKey = { if (it.isTab()) "places" else it }, transitionSpec = {
                 when {
                     targetState == Route.Camera || initialState == Route.Camera -> LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
                     targetState == Route.Talk || initialState == Route.Talk -> LfmMotion.sharedAxisZ(targetState == Route.Talk, reduced)

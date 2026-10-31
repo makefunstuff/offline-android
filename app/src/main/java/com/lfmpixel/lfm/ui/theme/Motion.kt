@@ -2,6 +2,14 @@ package com.lfmpixel.lfm.ui.theme
 
 import android.provider.Settings
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -19,29 +27,61 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 
 /**
- * Material 3 motion, kept small: three easings, 100–300 ms, and nothing at all when the phone's
- * "Remove animations" is on (animator duration scale 0). The rules are in docs/ux-spec.md section 7.
+ * The motion tokens, one set for the whole app: Material 3 easings, 100–300 ms, springs without bounce for what
+ * follows a finger, and nothing at all when the phone's "Remove animations" is on (animator duration scale 0).
+ * The rules are in docs/ux-spec.md section 7.
  */
 object LfmMotion {
     val emphasizedDecelerate: Easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
     val emphasizedAccelerate: Easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
     val standard: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+    /** Colour and state changes of small controls: a switch, a tab, a pressed button. */
     const val TINY = 100
+    /** Something leaving; a check filling in. */
     const val SHORT = 150
+    /** Something arriving in place; list moves; progress. */
     const val MEDIUM = 250
+    /** Whole screens; the highlighter drawing in. */
     const val LONG = 300
+    /** How far an arriving thing rises as it fades in. */
+    val rise = 8.dp
 
     /** True when the owner turned animations off in Android's accessibility settings. */
     @Composable
     fun reduced(): Boolean {
         val ctx = LocalContext.current
-        return remember { Settings.Global.getFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
+        return remember { isReduced(ctx) }
     }
+
+    fun isReduced(ctx: android.content.Context) =
+        Settings.Global.getFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
 
     /** A tween with M3 easing, or a snap when animations are off. */
     @Composable
     fun <T> spec(ms: Int = MEDIUM, easing: Easing = standard): FiniteAnimationSpec<T> =
         if (reduced()) snap() else tween(ms, easing = easing)
+
+    /** Following a finger (a swipe, a drag, predictive back): critically damped, so it settles without a bounce. */
+    @Composable
+    fun <T> drag(): FiniteAnimationSpec<T> =
+        if (reduced()) snap() else spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
+
+    /** A quick spring for a level that moves all the time (the mic's pulse); no bounce. */
+    @Composable
+    fun <T> level(): FiniteAnimationSpec<T> =
+        if (reduced()) snap() else spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium)
+
+    /** Something appears in place (a bubble, a row, a notice): fade and an 8 dp rise, emphasized decelerate. */
+    @Composable
+    fun appear(): EnterTransition = if (reduced()) EnterTransition.None else {
+        val px = with(LocalDensity.current) { rise.roundToPx() }
+        fadeIn(tween(MEDIUM, easing = emphasizedDecelerate)) + slideInVertically(tween(MEDIUM, easing = emphasizedDecelerate)) { px }
+    }
+
+    /** Something leaves: fade and fold its height away, emphasized accelerate. */
+    @Composable
+    fun leave(): ExitTransition = if (reduced()) ExitTransition.None else
+        fadeOut(tween(SHORT, easing = emphasizedAccelerate)) + shrinkVertically(tween(SHORT, easing = emphasizedAccelerate))
 
     /**
      * Shared axis Z: the new screen grows in from 92 % as the old one fades, and the reverse going back.

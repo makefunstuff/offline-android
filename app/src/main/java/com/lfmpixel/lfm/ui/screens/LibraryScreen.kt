@@ -32,6 +32,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
@@ -110,7 +112,8 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Txt("Library", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp))
+            Txt("Library", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
+                .semantics { heading() })
             InputLine(query, { query = it }, "Search notes, ideas, journal, to-dos", "search", Modifier.padding(horizontal = 16.dp)) {
                 if (query.isNotEmpty()) IconButtonPlain("x", { query = "" }, desc = "Clear search")
             }
@@ -186,7 +189,10 @@ fun LazyItemScope.EntryRow(e: Entry, showKind: Boolean, onClick: () -> Unit, act
     val reduced = LfmMotion.reduced()
     val right = if (e.kind == EntryKind.Todo) SwipeAction(if (e.done) "Not done" else "Done", "check") { actions.done(e) }
         else SwipeAction(if (e.pinned) "Unpin" else "Pin", "pin") { actions.pin(e) }
-    Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null,
+    Box(Modifier.animateItem(
+        // Rows fade in where they land and fade out as the rest close up (ux-spec section 7).
+        fadeInSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate),
+        fadeOutSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.SHORT, easing = LfmMotion.emphasizedAccelerate),
         placementSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate))) {
         SwipeRow(right, SwipeAction("Delete", "trash") { actions.delete(e) }) {
             Column(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = { menu = true }).padding(horizontal = 16.dp)) {

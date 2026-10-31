@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.data.Entry
@@ -94,7 +95,7 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 LIcon("user", size = 18.dp, tint = c.text2)
             }
         }
-        Txt(greeting(now), LfmType.title, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp))
+        Txt(greeting(now), LfmType.title, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp).semantics { heading() })
         Column(Modifier.padding(horizontal = 16.dp)) {
             Composer(draft, { draft = it }, "Ask, capture or do…", onSend = {
                 g.assistant.send(draft); draft = ""; nav.go(Route.Chat)
@@ -110,6 +111,8 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 Pill("On this phone", "shield")
                 ModelPill(g) { nav.go(Route.Models) }
                 Pill("Search: ${prefs?.searchMode?.label?.lowercase() ?: "ask first"}", "globe")
+                val heat by g.heat.heat.collectAsState()
+                if (heat != com.lfmpixel.lfm.device.Heat.Normal) Pill(heat.label.substringBefore(" ·"), "warn")
             }
             SectionLabel(if (count == 0) "Today · nothing planned" else "Today · $count ${if (count == 1) "thing" else "things"}")
             items.forEach { AgendaRow(it, it == next, zone) }
