@@ -178,13 +178,16 @@ private val citation = Regex("""\[(\d{1,2})]""")
  * the highlighter instead) and [1] shows as a small numbered box.
  */
 @Composable
-fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: Modifier = Modifier, citations: Boolean = true) {
+fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: Modifier = Modifier, citations: Boolean = true,
+               writing: Boolean = false) {
     val c = Lfm.c
     val citation = if (citations) citation else Regex("(?!)")
-    val numbers = citation.findAll(text).map { it.groupValues[1] }.toSet()
-    val annotated = buildAnnotatedString {
+    val numbers = remember(text, citations) { citation.findAll(text).map { it.groupValues[1] }.toSet() }
+    val annotated = remember(text, citations, markKeyFact, c, writing) { buildAnnotatedString {
         var marked = false
-        text.split("**").let { parts -> if (parts.size % 2 == 0) listOf(text) else parts }.forEachIndexed { i, part ->
+        // While an answer is written, a bold whose closing ** is not in yet is bold already, so no stray asterisks show
+        // and the words don't change weight under the reader once it closes. A saved answer with a lone ** keeps it.
+        text.split("**").let { parts -> if (parts.size % 2 == 1) parts else if (writing) parts + "" else listOf(text) }.forEachIndexed { i, part ->
             val bold = i % 2 == 1
             val styleFor = when {
                 bold && markKeyFact && !marked -> { marked = true; SpanStyle(background = c.highlight, color = c.onHighlight, fontWeight = FontWeight.SemiBold) }
@@ -201,7 +204,7 @@ fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: M
             append(part.substring(last))
             styleFor?.let { pop() }
         }
-    }
+    } }
     val inline = numbers.associate { n ->
         "cite$n" to InlineTextContent(Placeholder(if (n.length > 1) 22.sp else 18.sp, 15.sp, PlaceholderVerticalAlign.TextCenter)) {
             Box(Modifier.fillMaxSize().padding(start = 3.dp).border(1.dp, c.control, RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {

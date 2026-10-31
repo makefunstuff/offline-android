@@ -69,6 +69,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.composed
+import androidx.compose.foundation.layout.heightIn
 import com.lfmpixel.lfm.llm.LoadState
 import com.lfmpixel.lfm.ui.components.Btn
 import androidx.compose.ui.graphics.graphicsLayer
@@ -79,10 +83,11 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val c = Lfm.c
-    val messages by g.assistant.messages.collectAsState(emptyList())
+    // Null only for the moment before the thread is first read: then neither the thread nor the empty chat shows.
+    val loadedMessages by g.assistant.messages.collectAsState()
+    val messages = loadedMessages ?: emptyList()
     // Only the streaming line reads the streamed text, so a new token redraws that line, not the whole chat.
     val streamingState = g.assistant.streaming.collectAsState()
-    val streamingOn by remember { derivedStateOf { streamingState.value != null } }
     val showSpeed = g.settings.prefs.collectAsState(null).value?.showSpeed ?: true
     val working by g.assistant.working.collectAsState()
     val queued by g.assistant.queue.collectAsState()
@@ -98,18 +103,62 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     var editing by remember { mutableStateOf<Long?>(null) }
     var modelSheet by remember { mutableStateOf(false) }
     val list = rememberLazyListState()
+    val keeper = remember { PlaceKeeper() }
+    LaunchedEffect(list) {
+        snapshotFlow { keeper.pending }.collect { owed -> if (owed != 0f) { keeper.pending = 0f; list.dispatchRawDelta(owed) } }
+    }
     val scope = rememberCoroutineScope()
     val reduced = LfmMotion.reduced()
     // New lines appear at once (a streamed answer is already on screen); moves and removals animate.
     val itemFade = if (reduced) null else tween<Float>(LfmMotion.MEDIUM, easing = LfmMotion.standard)
     val itemMove = if (reduced) null else tween<androidx.compose.ui.unit.IntOffset>(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate)
-    val visible = remember(messages) { messages.filter { !(it.role == Role.Assistant && it.text.isBlank()) } }
-    val count = visible.size + (if (streamingOn) 1 else 0) + (if (query != null) 1 else 0) + queued.size
+    // Assistant rows show when they have words, or a thought (the one before a tool call).
+    val visible = remember(messages) {
+        messages.filter { !(it.role == Role.Assistant && it.text.isBlank() && com.lfmpixel.lfm.llm.ModelOutput.thoughtOf(it.raw).isEmpty()) }
+    }
+    // Thoughts opened by hand stay open, per answer, also after leaving the chat. The one being written is LIVE_THOUGHT
+    // until its answer is saved, then it carries over to that answer.
+    val thoughtsOpen = rememberSaveable(saver = openSaver) { androidx.compose.runtime.mutableStateMapOf<Long, Boolean>() }
+    // A whole answer (Streaming.done, then its row in lastSaved) reaches this list from the database a moment after the
+    // stream ends. Until its row is here, the streamed one stays on screen as it was, so it never blinks out and back
+    // in, nor shows twice; its thought's open or folded state goes with it. A stopped or failed answer was never
+    // whole: it goes at once.
+    var finishing by remember { mutableStateOf<Finishing?>(null) }
+    val lastSaved by g.assistant.lastSaved.collectAsState()
+    LaunchedEffect(Unit) {
+        snapshotFlow { streamingState.value }.collect { s ->
+            when {
+                s?.done == true && finishing?.stream != s ->
+                    finishing = Finishing(s, thoughtsOpen.remove(LIVE_THOUGHT) == true, before = g.assistant.lastSaved.value)
+                s == null -> thoughtsOpen.remove(LIVE_THOUGHT)
+            }
+        }
+    }
+    val saved = finishing?.let { f -> lastSaved?.takeIf { it != f.before }?.let { id -> visible.firstOrNull { it.id == id } } }
+    LaunchedEffect(saved?.id, finishing) {
+        val f = finishing ?: return@LaunchedEffect
+        if (saved != null) { if (f.open) thoughtsOpen[saved.id] = true; finishing = null }
+        else { kotlinx.coroutines.delay(1500); finishing = null }
+    }
+    val live = streamingState.value
+    val stream = when {
+        live != null && !(live.done && saved != null) -> live
+        live == null && saved == null -> finishing?.stream
+        else -> null
+    }
+    // The list runs bottom up (reverseLayout), as a messenger's does: the newest line is item 0, sitting on the composer.
+    // Growing answers, a keyboard coming up and new lines then keep the bottom in place by themselves; nothing scrolls
+    // per token.
+    val bottomKey: Any? = queued.lastOrNull()?.let { "q${it.id}" } ?: query?.let { "query" }
+        ?: (if (stream != null) "streaming" else null) ?: visible.lastOrNull()?.id
     // Follow the end while the owner is at the end; once they scroll up, offer a way back instead of pulling them down.
-    val atEnd by remember { derivedStateOf { !list.canScrollForward } }
-    var follow by remember { mutableStateOf(true) }
+    val atEnd by remember { derivedStateOf { !list.canScrollBackward } }
+    // Kept while away (a search card, Settings), so coming back doesn't pull the owner down to the end.
+    var follow by rememberSaveable { mutableStateOf(true) }
+    // "Latest" scrolling down is not the owner scrolling away.
+    var jumping by remember { mutableStateOf(false) }
     // While the owner drags, follow only if they are still at the end; reaching the end again resumes it.
-    LaunchedEffect(list) { snapshotFlow { list.isScrollInProgress to atEnd }.collect { (dragging, end) -> if (dragging || end) follow = end } }
+    LaunchedEffect(list) { snapshotFlow { list.isScrollInProgress to atEnd }.collect { (dragging, end) -> if (!jumping && (dragging || end)) follow = end } }
     // The "unloads in N min" line counts down.
     var tick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(20_000); tick++ } }
@@ -133,11 +182,11 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             }
         }
     }
-    LaunchedEffect(count) {
-        snapshotFlow { shown.intValue }.collect { if (follow && count > 0) list.scrollToItem(count - 1, Int.MAX_VALUE / 2) }
-    }
+    // A new line at the bottom (a sent message, the answer starting, a card): stay on it while following.
+    LaunchedEffect(bottomKey) { if (follow) list.scrollToItem(0) }
     val send: () -> Unit = {
         g.assistant.send(draft); draft = ""; follow = true
+        scope.launch { list.scrollToItem(0) }
     }
 
     Column(Modifier.fillMaxSize().imePadding()) {
@@ -160,6 +209,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
                 IconButtonPlain("wave", { nav.go(Route.Talk) }, desc = "Talk")
                 IconButtonPlain("plus", {
+                    finishing = null
                     g.assistant.newChat()
                     if (queued.isNotEmpty()) nav.show("New chat. ${queued.size} queued ${if (queued.size == 1) "message moves" else "messages move"} with you.")
                 }, desc = "New chat")
@@ -167,9 +217,55 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             com.lfmpixel.lfm.ui.components.Divider()
         }
         Box(Modifier.weight(1f)) {
-            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (visible.isEmpty() && !streamingOn && queued.isEmpty()) item {
+            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(16.dp), reverseLayout = true,
+                verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.Bottom)) {
+                // Bottom up: queued messages, the search being asked, the answer being written, then the thread.
+                items(queued.asReversed(), key = { "q${it.id}" }) { q ->
+                    Box(Modifier.animateItem(fadeInSpec = itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)) {
+                        QueuedBubble(q, queued.indexOf(q) + 1, queued.size) { editing = q.id }
+                    }
+                }
+                query?.let { q -> item(key = "query") { QueryCard(q) } }
+                if (stream != null) {
+                    item(key = "streaming") {
+                        val s = stream
+                        val loading = status.text == LoadState.Loading && s.text.isEmpty() && s.thought.isEmpty()
+                        val thinks = !loading && s.note.isEmpty() && (s.thinking || s.thought.isNotEmpty())
+                        val text = if (s.done) s.text else s.text.take(shown.intValue).let { t -> if (t.lastOrNull()?.isHighSurrogate() == true) t.dropLast(1) else t }
+                        val f = finishing
+                        val open = if (s.done && f?.stream == s) f.open else thoughtsOpen[LIVE_THOUGHT] == true
+                        Column(Modifier.keepPlace(list, keeper, "streaming") { !follow }) {
+                            if (thinks) ThoughtBlock(s.thought, s.thoughtMs, live = !s.done && s.thinking, since = s.thinkingSince, open = open) {
+                                if (s.done && f != null) finishing = f.copy(open = !f.open) else thoughtsOpen[LIVE_THOUGHT] = !open
+                            }
+                            if (text.isNotEmpty()) AssistantText(text, "", writing = !s.done)
+                            // Thought done, nothing to read yet (a tool call being written, say): still visibly at work.
+                            else if (!thinks || !s.thinking) Typing(s.note.ifEmpty { if (loading) "Loading ${modelState(g).substringBefore(" ·")}…" else "Writing…" })
+                        }
+                    }
+                }
+                items(visible.asReversed(), key = { it.id }) { m ->
+                    // Your messages, cards and notices fade in; a finished answer takes the streamed one's place as it is.
+                    Box(Modifier.animateItem(fadeInSpec = if (m.role == Role.Assistant) null else itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)
+                        .keepPlace(list, keeper, m.id) { true }) { when (m.role) {
+                        Role.User -> UserBubble(m)
+                        Role.Assistant -> {
+                            val thought = remember(m.raw) { com.lfmpixel.lfm.llm.ModelOutput.thoughtOf(m.raw) }
+                            Column {
+                                val open = thoughtsOpen[m.id] == true || (m.id == saved?.id && finishing?.open == true)
+                                if (thought.isNotEmpty()) ThoughtBlock(thought, m.thoughtMs, live = false, since = 0, open = open) {
+                                    if (open) { thoughtsOpen.remove(m.id); if (m.id == saved?.id) finishing = finishing?.copy(open = false) } else thoughtsOpen[m.id] = true
+                                }
+                                if (m.text.isNotBlank()) AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null,
+                                    read = if (g.readAloud.available) ReadState(reading.id == m.id, reading.id == m.id && reading.preparing) { g.readAloud.toggle(m.id, m.text) } else null)
+                            }
+                        }
+                        Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
+                            else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
+                        Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
+                    } }
+                }
+                if (loadedMessages != null && visible.isEmpty() && stream == null && queued.isEmpty()) item(key = "empty") {
                     Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Txt("Ask, capture or do.", LfmType.answer)
                         listOf("Remind me to call the plumber at six", "Add oat milk to my list", "What did I note about the boiler?").forEach { ex ->
@@ -179,39 +275,9 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                             LfmType.meta, c.text2)
                     }
                 }
-                items(visible, key = { it.id }) { m ->
-                    // Your messages, cards and notices fade in; a finished answer takes the streamed one's place as it is.
-                    Box(Modifier.animateItem(fadeInSpec = if (m.role == Role.Assistant) null else itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
-                        Role.User -> UserBubble(m)
-                        Role.Assistant -> AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null,
-                            read = if (g.readAloud.available) ReadState(reading.id == m.id, reading.id == m.id && reading.preparing) { g.readAloud.toggle(m.id, m.text) } else null)
-                        Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
-                            else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
-                        Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
-                    } }
-                }
-                if (streamingOn) {
-                    item(key = "streaming") {
-                        val s = streamingState.value ?: return@item
-                        if (s.text.isEmpty() || shown.intValue == 0) Typing(s.note.ifEmpty {
-                            when {
-                                status.text == LoadState.Loading -> "Loading ${modelState(g).substringBefore(" ·")}…"
-                                s.thinking -> "Thinking…"
-                                else -> "Writing…"
-                            }
-                        })
-                        else AssistantText(s.text.take(shown.intValue).let { t -> if (t.lastOrNull()?.isHighSurrogate() == true) t.dropLast(1) else t }, "")
-                    }
-                }
-                query?.let { q -> item(key = "query") { QueryCard(q) } }
-                items(queued, key = { "q${it.id}" }) { q ->
-                    Box(Modifier.animateItem(fadeInSpec = itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)) {
-                        QueuedBubble(q, queued.indexOf(q) + 1, queued.size) { editing = q.id }
-                    }
-                }
             }
             if (!atEnd && !follow) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)) {
-                Btn("Latest", { follow = true; scope.launch { if (count > 0) list.animateScrollToItem(count - 1, Int.MAX_VALUE / 2) } }, small = true, icon = "down",
+                Btn("Latest", { follow = true; scope.launch { jumping = true; try { list.animateScrollToItem(0) } finally { jumping = false } } }, small = true, icon = "down",
                     kind = com.lfmpixel.lfm.ui.components.BtnKind.Primary)
             }
         }
@@ -251,25 +317,125 @@ fun HeatLine(heat: com.lfmpixel.lfm.device.Heat, modifier: Modifier = Modifier) 
 @Composable
 private fun Typing(label: String) {
     val c = Lfm.c
+    Row(Modifier.padding(vertical = 4.dp).semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        TypingDots()
+        Txt(label, LfmType.small, c.text2)
+    }
+}
+
+/** The three ink squares of the working indicator, brightening in turn. */
+@Composable
+private fun TypingDots() {
+    val c = Lfm.c
     val reduced = LfmMotion.reduced()
     // Read only while drawing (graphicsLayer), so the dots move without recomposing the row; still with animations off.
     val phase: androidx.compose.runtime.State<Float> = if (reduced) remember { androidx.compose.runtime.mutableFloatStateOf(0.5f) } else
         androidx.compose.animation.core.rememberInfiniteTransition(label = "typing").animateFloat(0f, 3f,
             androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1200, easing = androidx.compose.animation.core.LinearEasing)),
             label = "phase")
-    Row(Modifier.padding(vertical = 4.dp).semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            repeat(3) { i ->
-                // Each square is brightest when the phase passes it, and rests at a third.
-                Box(Modifier.size(6.dp).graphicsLayer {
-                    val d = if (reduced) 1f else (1f - kotlin.math.abs(((phase.value - i + 3f) % 3f) - 0.5f) / 1.5f).coerceIn(0f, 1f)
-                    alpha = 0.3f + 0.7f * d
-                }.background(c.text, RoundedCornerShape(1.5.dp)))
-            }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(3) { i ->
+            // Each square is brightest when the phase passes it, and rests at a third.
+            Box(Modifier.size(6.dp).graphicsLayer {
+                val d = if (reduced) 1f else (1f - kotlin.math.abs(((phase.value - i + 3f) % 3f) - 0.5f) / 1.5f).coerceIn(0f, 1f)
+                alpha = 0.3f + 0.7f * d
+            }.background(c.text, RoundedCornerShape(1.5.dp)))
         }
-        Txt(label, LfmType.small, c.text2)
     }
+}
+
+/** A whole answer on its way to the database, whether its thought is open, and the saved row before it. */
+private data class Finishing(val stream: com.lfmpixel.lfm.assistant.Streaming, val open: Boolean, val before: Long?)
+
+/**
+ * Bottom up, a row that grows (an answer being written, a thought opened) grows upward and pushes what is above it
+ * off the top. Unless it is the newest row resting on the composer, the list moves by as much, so what the owner is
+ * reading stays put and the row opens downward, as a page would. [when] says whether to (the answer being written:
+ * only while the owner reads further up).
+ */
+private fun Modifier.keepPlace(list: androidx.compose.foundation.lazy.LazyListState, keeper: PlaceKeeper, key: Any, `when`: () -> Boolean) = composed {
+    var height by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    onSizeChanged { size ->
+        val grew = if (height < 0) 0 else size.height - height
+        height = size.height
+        if (grew == 0 || !`when`()) return@onSizeChanged
+        val at = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index ?: return@onSizeChanged
+        if (list.firstVisibleItemIndex < at || (list.firstVisibleItemIndex == at && list.firstVisibleItemScrollOffset > 0)) keeper.pending += grew
+    }
+}
+
+/**
+ * What [keepPlace] owes the list. It is measured inside the list's own layout, where scrolling would lay it out again
+ * mid-pass (a crash) and a requested position is overwritten by that pass, so it is paid right after it.
+ */
+private class PlaceKeeper {
+    var pending by androidx.compose.runtime.mutableFloatStateOf(0f)
+}
+
+/** The key of the thought being written, in the chat's map of opened thoughts. */
+private const val LIVE_THOUGHT = -1L
+
+/** Keeps only the opened thoughts (folded is the default). */
+private val openSaver = androidx.compose.runtime.saveable.listSaver<androidx.compose.runtime.snapshots.SnapshotStateMap<Long, Boolean>, Long>(
+    save = { m -> m.filterValues { it }.keys.toList() },
+    restore = { ids -> androidx.compose.runtime.mutableStateMapOf<Long, Boolean>().apply { ids.forEach { put(it, true) } } },
+)
+
+/**
+ * What the model thought, folded to one quiet line above its answer: "Thought for 3 s". A tap opens it (its height
+ * grows smoothly) and folds it again. While it thinks: the working squares and "Thinking · 4 s", and a tap lets you
+ * peek at the newest of it as it is written.
+ */
+@Composable
+private fun ThoughtBlock(thought: String, ms: Long, live: Boolean, since: Long, open: Boolean, onToggle: () -> Unit) {
+    val c = Lfm.c
+    val turn by animateFloatAsState(if (open) 90f else 0f, LfmMotion.spec(LfmMotion.MEDIUM), label = "chevron")
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(6.dp))
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = if (open) "Hide thinking" else "Show thinking", onClick = onToggle)
+            .padding(start = 2.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)
+            .semantics(mergeDescendants = true) { if (live) liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (live) TypingDots() else LIcon("bulb", size = 15.dp, tint = c.text2)
+            if (live) ThinkingFor(since) else Txt(thoughtLabel(ms), LfmType.small, c.text2, maxLines = 1)
+            LIcon("right", Modifier.graphicsLayer { rotationZ = turn }, size = 14.dp, tint = c.text3)
+        }
+        androidx.compose.animation.AnimatedVisibility(open && thought.isNotEmpty(),
+            enter = androidx.compose.animation.expandVertically(LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate), expandFrom = Alignment.Top) +
+                androidx.compose.animation.fadeIn(LfmMotion.spec(LfmMotion.MEDIUM)),
+            exit = androidx.compose.animation.shrinkVertically(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate), shrinkTowards = Alignment.Top) +
+                androidx.compose.animation.fadeOut(LfmMotion.spec(LfmMotion.SHORT))) {
+            // A hairline down the left, as a quote: thinking, not the answer.
+            val line = c.line
+            Txt(thought, LfmType.small, c.text2,
+                Modifier.padding(start = 9.dp, top = 2.dp, bottom = 8.dp).drawBehind {
+                    drawLine(line, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(0f, size.height), 1.dp.toPx())
+                }.padding(start = 12.dp))
+        }
+    }
+}
+
+/** "Thinking · 4 s", counting; only this line redraws each second. */
+@Composable
+private fun ThinkingFor(since: Long) {
+    val c = Lfm.c
+    val seconds by androidx.compose.runtime.produceState(0L, since) {
+        while (since > 0) {
+            value = (android.os.SystemClock.elapsedRealtime() - since) / 1000
+            kotlinx.coroutines.delay(1000 - (android.os.SystemClock.elapsedRealtime() - since) % 1000)
+        }
+    }
+    // TalkBack hears "Thinking" once, not every second of the count.
+    Txt(if (since > 0 && seconds > 0) "Thinking · $seconds s" else "Thinking…", LfmType.small, c.text2,
+        Modifier.clearAndSetSemantics { contentDescription = "Thinking" }, maxLines = 1)
+}
+
+/** "Thought for 3 s" (under a second counts as 1), or "Thought" when its time wasn't kept. */
+internal fun thoughtLabel(ms: Long) = when {
+    ms <= 0 -> "Thought"
+    ms < 60_000 -> "Thought for ${(ms / 1000).coerceAtLeast(1)} s"
+    else -> "Thought for ${ms / 60_000} min ${(ms / 1000) % 60} s"
 }
 
 /** "unloads in 4 min" for the chat header. */
@@ -374,10 +540,19 @@ private fun MediaThumb(m: ChatMessage) {
 private class ReadState(val on: Boolean, val preparing: Boolean, val toggle: () -> Unit)
 
 @Composable
-private fun AssistantText(text: String, meta: String, citations: Boolean = false, read: ReadState? = null) {
+private fun AssistantText(text: String, meta: String, citations: Boolean = false, read: ReadState? = null, writing: Boolean = false) {
     val c = Lfm.c
     Column {
-        AnswerText(text, if (text.length > 220) LfmType.bodyLarge else LfmType.answer, markKeyFact = false, citations = citations)
+        // Short answers are set large, long ones in body text. An answer being written crosses that line once: the two
+        // sizes cross-fade and the height eases, instead of the text jumping to its new size.
+        val sizeChange = LfmMotion.spec<Float>(LfmMotion.MEDIUM)
+        val heightChange = LfmMotion.spec<androidx.compose.ui.unit.IntSize>(LfmMotion.MEDIUM)
+        androidx.compose.animation.AnimatedContent(text.length > 220, transitionSpec = {
+            androidx.compose.animation.fadeIn(sizeChange) togetherWith androidx.compose.animation.fadeOut(sizeChange) using
+                androidx.compose.animation.SizeTransform(clip = false) { _, _ -> heightChange }
+        }, label = "answer size") { long ->
+            AnswerText(text, if (long) LfmType.bodyLarge else LfmType.answer, markKeyFact = false, citations = citations, writing = writing)
+        }
         if (meta.isNotEmpty() || read != null) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (meta.isNotEmpty()) Txt(meta, LfmType.meta, c.text2, Modifier.weight(1f, fill = false))
             if (read != null) ReadAloudButton(read)

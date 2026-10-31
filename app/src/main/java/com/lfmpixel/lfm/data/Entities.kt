@@ -61,6 +61,7 @@ data class ChatMessage(
     @ColumnInfo(defaultValue = "") val media: String = "",      // what the owner showed: Photo, Video, Document (SeeKind)
     @ColumnInfo(defaultValue = "") val mediaPath: String = "",  // its small JPEG in the app's files
     @ColumnInfo(defaultValue = "") val mediaLabel: String = "", // "Video · 0:06", "Lease.pdf · 3 pages"
+    @ColumnInfo(defaultValue = "0") val thoughtMs: Long = 0,    // assistant: how long it thought (its thinking is in raw)
 )
 
 enum class ActionStatus { Done, Undone, Cancelled, Failed, Opened }

@@ -40,14 +40,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import android.os.SystemClock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-/** The answer being written right now. */
-data class Streaming(val text: String, val thinking: Boolean, val note: String = "")
+/**
+ * The answer being written right now. [thought] is what it thought so far; [thinkingSince] (elapsed realtime) is when
+ * it began to, 0 before its first word; [thoughtMs] is how long it thought, once done. [done]: the answer is whole and
+ * being saved as it is (a stopped or failed one never is); its row then shows in [Assistant.lastSaved].
+ */
+data class Streaming(val text: String, val thinking: Boolean, val note: String = "", val thought: String = "",
+                     val thinkingSince: Long = 0, val thoughtMs: Long = 0, val done: Boolean = false)
 
 /** A message waiting its turn in the chat. [see] is set for a camera question (those are not kept on disk). */
 data class Queued(val id: Long, val text: String, val voiceSeconds: Int = 0, val source: String = "typed", val see: SeeRequest? = null)
@@ -124,9 +131,13 @@ class Assistant(
     private val _thread = MutableStateFlow(1L)
     val threadId: StateFlow<Long> = _thread
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val messages: Flow<List<ChatMessage>> = _thread.flatMapLatest { db.messages().thread(it) }
+    /** The current thread, kept warm so opening the chat shows it at once; null only until it is first read. */
+    val messages: StateFlow<List<ChatMessage>?> = _thread.flatMapLatest { db.messages().thread(it) }
+        .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, null)
 
     val streaming = MutableStateFlow<Streaming?>(null)
+    /** The row of the last whole answer saved from [streaming]. */
+    val lastSaved = MutableStateFlow<Long?>(null)
     /** A turn is running or messages are waiting. */
     val busy = MutableStateFlow(false)
     /** A turn is running right now: what Stop ends. */
@@ -353,11 +364,19 @@ class Assistant(
             }
             val raw = StringBuilder()
             streaming.value = Streaming("", prefs.thinking)
+            // How long it thought: from its first word to the end of its think block.
+            var thinkFrom = 0L
+            var thinkMs = 0L
             val show = Throttle {
                 val partial = ModelOutput.parse(raw.toString(), prefs.thinking)
-                streaming.value = Streaming(partial.answer.substringBefore("<tool_call>").trim(), partial.stillThinking)
+                if (prefs.thinking && !partial.stillThinking && thinkMs == 0L && thinkFrom > 0) thinkMs = SystemClock.elapsedRealtime() - thinkFrom
+                streaming.value = Streaming(partial.answer.substringBefore("<tool_call>").trim(), partial.stillThinking,
+                    thought = partial.thinking, thinkingSince = thinkFrom, thoughtMs = thinkMs)
             }
-            val onPiece: (String) -> Unit = { piece -> raw.append(piece); show.tick() }
+            val onPiece: (String) -> Unit = { piece ->
+                if (thinkFrom == 0L) thinkFrom = SystemClock.elapsedRealtime()
+                raw.append(piece); show.tick()
+            }
             val first = if (prefs.thinking) thinkBudget else answerBudget
             val session = models.textSession()
             session.generate(prompt, first).collect { onPiece(it) }
@@ -369,16 +388,21 @@ class Assistant(
             }
             show.flush()
             val out = ModelOutput.parse(raw.toString(), prefs.thinking)
+            if (thinkMs == 0L && thinkFrom > 0 && out.thinking.isNotEmpty()) thinkMs = SystemClock.elapsedRealtime() - thinkFrom
             val st = session.stats()
             // Over both calls when thinking ran out of budget; the first token is the first call's.
             val tps = if (st !== firstStats) (firstStats.decodeTokens + st.decodeTokens) * 1000.0 / (firstStats.decodeMs + st.decodeMs).coerceAtLeast(1.0) else st.decodeTps
             val speed = speedLabel(tps, firstStats.firstTokenMs)
             val meta = "LFM3-1.7B · on this phone · $speed"
             val answerFrom = searchId.takeIf { out.toolCalls.isEmpty() && out.answer.isNotBlank() }
-            db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
+            val message = ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
                 raw = PromptFormat.assistantPrefix(prefs.thinking) + raw,
                 meta = if (answerFrom != null) "Written on this phone from the web · $speed" else meta,
-                searchId = answerFrom))
+                searchId = answerFrom, thoughtMs = thinkMs)
+            // What shows in the chat (an answer, or the thought before a tool call) is handed over to its saved row.
+            if (out.answer.isNotBlank() || out.thinking.isNotEmpty()) saveShown(Streaming(out.answer, false, thought = out.thinking,
+                thinkingSince = thinkFrom, thoughtMs = thinkMs), message)
+            else db.messages().insert(message)
             streaming.value = null
             if (answerFrom != null) db.searches().get(answerFrom)?.let { db.searches().update(it.copy(answer = out.answer)) }
             if (out.toolCalls.isEmpty()) {
@@ -454,13 +478,23 @@ class Assistant(
         }
         show.flush()
         val answer = SeeRules.clean(raw.toString())
-        streaming.value = null
-        if (answer.isBlank()) { notice("The model gave no answer. Try again, or ask another way."); return }
+        if (answer.isBlank()) { streaming.value = null; notice("The model gave no answer. Try again, or ask another way."); return }
         val secs = (System.nanoTime() - started) / 1e9
         val more = if (req.pagesSkipped > 0) " · first ${req.pages.size} pages" else ""
-        db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = answer,
+        saveShown(Streaming(answer, false), ChatMessage(threadId = _thread.value, role = Role.Assistant, text = answer,
             raw = "<think></think>" + answer,
             meta = "%s · on this phone · %.0f s%s".format(Locale.ENGLISH, looker.label, secs, more)))
+        streaming.value = null
+    }
+
+    /**
+     * Saves [m], the answer [shown] in the chat as it is written: marked done first, then with its row, so the chat
+     * keeps it on screen until that row arrives in its place (no blink, never twice).
+     */
+    private suspend fun saveShown(shown: Streaming, m: ChatMessage) {
+        streaming.value = shown.copy(done = true)
+        // Its own flow: the stream is cleared right after, and a StateFlow reader may only ever see that.
+        lastSaved.value = db.messages().insert(m)
     }
 
     /** Previews, confirms if needed, runs and logs one call. */

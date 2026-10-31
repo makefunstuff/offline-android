@@ -103,7 +103,8 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 if (adding.isNotBlank()) IconButtonPlain("send", add, tint = c.text, desc = "Add")
             }
             LazyColumn(Modifier.fillMaxSize().padding(top = 6.dp)) {
-                if (open.isEmpty()) item {
+                // Not before the to-dos are read: "Nothing due today" must not flash before the list.
+                if (todos != null && open.isEmpty()) item(key = "empty") {
                     Box(Modifier.padding(horizontal = 16.dp)) {
                         Empty(when (tab) { TodoTab.Today -> "Nothing due today"; TodoTab.Upcoming -> "Nothing coming up"; TodoTab.Someday -> "Nothing for someday" },
                             "Type above and press Enter, or say “buy oat milk” or “renew passport by Friday”.")
