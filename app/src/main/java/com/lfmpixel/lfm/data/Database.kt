@@ -66,6 +66,8 @@ interface ReminderDao {
 @Dao
 interface NetLogDao {
     @Insert suspend fun insertAll(e: List<NetLogEntry>)
+    @Insert suspend fun insert(e: NetLogEntry): Long
+    @Query("DELETE FROM netlog WHERE id = :id") suspend fun delete(id: Long)
     @Query("SELECT * FROM netlog WHERE at >= :from ORDER BY at DESC, id DESC") fun since(from: Long): Flow<List<NetLogEntry>>
     @Query("SELECT * FROM netlog ORDER BY at DESC, id DESC") suspend fun all(): List<NetLogEntry>
     @Query("DELETE FROM netlog") suspend fun deleteAll()

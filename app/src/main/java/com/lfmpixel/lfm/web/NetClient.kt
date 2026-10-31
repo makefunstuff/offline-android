@@ -69,7 +69,7 @@ class NetClient(private val context: Context, private val settings: Settings, pr
 
     data class Results(val provider: String, val hits: List<SearchHit>)
 
-    suspend fun search(query: String): Results = call { s ->
+    suspend fun search(query: String): Results = call(started("search provider", "", "“$query”", query)) { s ->
         val b = s.search(query)
         log(b, query) { "“$query”" }
         b.failure()?.let { throw NetException(it) }
@@ -77,7 +77,7 @@ class NetClient(private val context: Context, private val settings: Settings, pr
     }
 
     /** One result page's HTML (slimmed by LFM Net), or an error. [label] names it in the network log. */
-    suspend fun fetch(url: String, label: String): String = call { s ->
+    suspend fun fetch(url: String, label: String): String = call(started(url.substringAfter("://").substringBefore('/'), url, label, "")) { s ->
         val b = s.fetch(url)
         log(b, "") { label }
         b.failure()?.let { throw NetException(it) }
@@ -88,7 +88,8 @@ class NetClient(private val context: Context, private val settings: Settings, pr
      * Streams a pinned model file from [offset]. [read] runs on its own thread with the bytes as they come;
      * closing that stream early stops the download.
      */
-    suspend fun download(fileName: String, offset: Long, wifiOnly: Boolean, label: String, read: suspend (InputStream) -> Unit): Long = call { s ->
+    suspend fun download(fileName: String, offset: Long, wifiOnly: Boolean, label: String, read: suspend (InputStream) -> Unit): Long =
+        call(started("huggingface.co", "", label, fileName)) { s ->
         val (source, sink) = ParcelFileDescriptor.createPipe()
         coroutineScopeReading(source, read) {
             val b = try { s.download(fileName, offset, wifiOnly, sink) } finally { sink.close() }
@@ -112,20 +113,37 @@ class NetClient(private val context: Context, private val settings: Settings, pr
     private fun Bundle.failure(): String? = if (getBoolean(NetContract.OK)) null else (getString(NetContract.ERROR) ?: "LFM Net failed")
 
     private suspend fun log(b: Bundle, sent: String, label: () -> String) {
+
         val entries = b.requests().map { r -> NetLogEntry(at = r.at, host = r.host, url = r.url, label = label(), sent = r.sent.ifEmpty { sent }, bytes = r.bytes, ok = r.ok) }
         if (entries.isNotEmpty()) db.netLog().insertAll(entries)
     }
 
-    private suspend fun <T> call(block: suspend (ILfmNet) -> T): T {
+    /**
+     * A request is in the log from the moment it is asked for, so one whose reply never comes (LFM closed mid-download,
+     * LFM Net stopped) is still listed. LFM Net's own entries replace it once the reply arrives.
+     */
+    private fun started(host: String, url: String, label: String, sent: String) =
+        NetLogEntry(at = System.currentTimeMillis(), host = host, url = url, label = "$label · asked, no reply yet", sent = sent, bytes = 0, ok = true)
+
+    private suspend fun <T> call(pending: NetLogEntry? = null, block: suspend (ILfmNet) -> T): T {
         when (state()) {
             State.NotInstalled -> throw NetException("LFM Net is not installed")
             State.WrongSigner -> throw NetException("LFM Net is signed with another key, so LFM won't use it")
             State.Off -> throw NetException("LFM Net is turned off in Privacy")
             State.On -> Unit
         }
-        val s = lock.withLock { calls++; idle?.cancel(); service ?: bind() }
+        val s = lock.withLock {
+            idle?.cancel()
+            service ?: bind()
+        }
+        lock.withLock { calls++ }
+        val pendingId = pending?.let { db.netLog().insert(it) }
         return try {
-            withContext(Dispatchers.IO) { block(s) }
+            withContext(Dispatchers.IO) { block(s) }.also { pendingId?.let { db.netLog().delete(it) } }
+        } catch (e: NetException) {
+            // A reply came (with its own log entries); only the placeholder goes.
+            pendingId?.let { db.netLog().delete(it) }
+            throw e
         } catch (e: android.os.RemoteException) {
             // Only a dead helper is let go; a failed transaction (a reply too big) leaves other calls running.
             if (!s.asBinder().isBinderAlive) lock.withLock { drop() }

@@ -263,8 +263,12 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
                     r.opened == read -> ", then the $read result ${if (read == 1) "page was" else "pages were"} opened"
                     else -> ", then ${r.opened} result pages were asked for ($read answered)"
                 }
-                Txt(if (r.personalSent.isNotEmpty()) "Sent: the search words$pages. You chose to send “${r.personalSent}”. Nothing else from your notes, contacts or chats."
-                    else "Sent: the search words$pages. Nothing from your notes, contacts or chats.", LfmType.label.copy(fontWeight = null), c.text2)
+                val warn = g.settings.prefs.collectAsState(null).value?.warnPersonalWords != false
+                Txt(when {
+                    r.personalSent.isNotEmpty() -> "Sent: the search words$pages. You chose to send “${r.personalSent}”. Nothing else from your notes, contacts or chats."
+                    warn -> "Sent: the search words$pages, checked on this phone for personal words. Nothing from your notes, contacts or chats."
+                    else -> "Sent: the search words$pages. The personal-word check is off, so check the words above."
+                }, LfmType.label.copy(fontWeight = null), c.text2)
             }
             Spacer(Modifier.height(24.dp))
         }

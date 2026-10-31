@@ -129,7 +129,7 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
             Txt(grp.purpose, LfmType.label.copy(fontWeight = null), c.text2)
             (grp.variants + listOfNotNull(grp.projector)).forEach { m ->
                 val have = installed.firstOrNull { it.known == m }
-                val d = downloads[m.fileName]?.takeIf { have == null }
+                val d = downloads[m.fileName]?.takeIf { have == null && it.state != ModelDownloads.State.Done }
                 val inMemory = have != null && ((m.role == ModelRole.Text && status.text == LoadState.Ready && g.models.text()?.file == have.file) ||
                     (m.role in setOf(ModelRole.Omni, ModelRole.OmniProjector) && status.omni == LoadState.Ready))
                 Divider(Modifier.padding(top = 10.dp))
@@ -180,10 +180,10 @@ private fun NetMissingCard(g: AppGraph, st: NetClient.State) {
         Txt(when (st) {
             NetClient.State.NotInstalled -> "Downloads come through LFM Net, a small helper app. It is the only part with network access; LFM itself has none. Without it, import model files instead."
             NetClient.State.Off -> "You turned it off in Privacy, so nothing is downloaded. Import works without it."
-            else -> "LFM only talks to the LFM Net built with it. Install that one instead."
+            else -> "LFM only talks to the LFM Net built with it. Uninstall the LFM Net you have, then come back here to install this one."
         }, LfmType.small, c.text2, Modifier.padding(top = 6.dp))
         val bundled = remember { g.netInstaller.bundled() }
-        if (st != NetClient.State.Off && bundled) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically,
+        if (st == NetClient.State.NotInstalled && bundled) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Btn(if (install == NetInstaller.Status.Working) "Installing…" else "Install LFM Net",
                 { scope.launch { g.netInstaller.install() } }, small = true, kind = BtnKind.Primary, icon = "download",

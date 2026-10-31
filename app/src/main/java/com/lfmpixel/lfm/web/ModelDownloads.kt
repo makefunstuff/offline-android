@@ -189,6 +189,12 @@ class ModelDownloads(
                     if (stopped == null) throw e
                 }
             }
+            // A tap that came while the last bytes arrived still counts.
+            if (stopped == null) when (_items.value[m.fileName]?.state) {
+                State.Pausing -> stopped = State.Paused
+                State.Cancelling -> stopped = State.Cancelling
+                else -> Unit
+            }
             when (stopped) {
                 State.Paused -> { update(m, save = true) { it.copy(state = State.Paused, done = part.length(), speed = 0) }; return }
                 State.Cancelling -> { part.delete(); _items.value = _items.value - m.fileName; save(); return }
@@ -219,7 +225,8 @@ class ModelDownloads(
         val e = engine ?: return
         runCatching {
             when (m.role) {
-                ModelRole.Text -> e.textSession()
+                // Loaded now only if no chat model is in memory; otherwise it takes over at the next message.
+                ModelRole.Text -> if (e.status.value.text != com.lfmpixel.lfm.llm.LoadState.Ready) e.textSession() else return
                 ModelRole.Omni, ModelRole.OmniProjector -> if (e.hasVoice()) e.omniSession() else return
                 else -> return
             }

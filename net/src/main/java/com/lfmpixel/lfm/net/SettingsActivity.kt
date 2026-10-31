@@ -100,6 +100,8 @@ class SettingsActivity : ComponentActivity() {
                     if (cfg.wikipedia) Field(c, "Language", cfg.wikiLang, "en") { set(cfg.copy(wikiLang = it)) }
                     Label(c, "Proxy")
                     Field(c, "SOCKS proxy (optional)", cfg.proxy, "127.0.0.1:9050 for Orbot", KeyboardType.Uri) { set(cfg.copy(proxy = it)) }
+                    if (cfg.proxy.isNotBlank() && NetEngine.proxyOf(cfg.proxy) == null)
+                        Text("Not used: write it as host:port, like 127.0.0.1:9050.", style = small.copy(fontWeight = FontWeight.SemiBold), color = c.text, modifier = Modifier.padding(top = 8.dp))
                     Fine(c, "Hides your IP address from the provider and from opened pages. It can't reach a SearXNG that is only on your VPN.")
                     Spacer(Modifier.height(24.dp))
                 }

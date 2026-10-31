@@ -135,12 +135,11 @@ class NetEngineTest {
 
     @Test fun resumeAsksForTheRestAndPauseStops() {
         val small = PinnedFiles.all.minBy { it.size }
-        server.enqueue(MockResponse.Builder().code(206).setHeader("Content-Length", (small.size - 100).toString())
-            .body("x".repeat(10)).build())
+        server.enqueue(MockResponse.Builder().code(206).chunkedBody("x".repeat(10), 5).build())
         val closed = object : OutputStream() { override fun write(b: Int) = throw IOException("EPIPE") }
         val r = engine().download(small.name, 100, closed)
         assertEquals("bytes=100-", server.takeRequest().headers["Range"])
-        assertTrue(r.error == "Stopped" || r.error!!.isNotEmpty())
+        assertEquals("Stopped", r.error)
     }
 
     @Test fun downloadRefusesOtherHosts() {

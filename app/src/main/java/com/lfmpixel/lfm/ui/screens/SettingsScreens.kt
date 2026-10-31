@@ -207,7 +207,9 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
     val ctx = LocalContext.current
     val hasInternet = ctx.packageManager.checkPermission(Manifest.permission.INTERNET, ctx.packageName) == PackageManager.PERMISSION_GRANTED
     val prefs by g.settings.prefs.collectAsState(null)
-    val installed = remember { g.net.installed() }
+    val netState by g.net.current.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { g.net.refresh() }
+    val installed = netState != null && netState != com.lfmpixel.lfm.web.NetClient.State.NotInstalled
     val start = remember { java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
     val log by remember(start) { g.db.netLog().since(start) }.collectAsState(emptyList())
     val scope = rememberCoroutineScope()
@@ -225,7 +227,11 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
             if (installed) {
                 val on = prefs?.netEnabled ?: true
                 Guarantee("globe", "LFM Net handles search", if (on) "Search words, result addresses, model downloads" else "Off: nothing is searched or downloaded") {
-                    Switch(on) { scope.launch { g.settings.setNetEnabled(it) } }
+                    Switch(on) {
+                        // Off means off: downloads in progress pause too (they resume when it is back on).
+                        if (!it) g.downloads.pauseAll()
+                        scope.launch { g.settings.setNetEnabled(it); g.net.refresh() }
+                    }
                 }
             } else {
                 Guarantee("globe", "LFM Net is not installed", "Without the helper app, LFM is fully offline: no search, no downloads")

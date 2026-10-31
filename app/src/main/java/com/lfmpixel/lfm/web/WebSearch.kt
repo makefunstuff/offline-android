@@ -70,7 +70,7 @@ class WebSearch(
         val info = try { net.info() } catch (e: NetException) { return off(e.message ?: "LFM Net did not answer") }
         if (!info.ready) return off("No search provider is set up. Set one in LFM Net.")
 
-        val personal = if (prefs.warnPersonalWords) PersonalWords.find(q, known()) else emptyList()
+        val personal = if (prefs.warnPersonalWords) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { PersonalWords.find(q, known()) } else emptyList()
         var sendQuery = q
         var personalSent = emptyList<String>()
         // Any query written after reading web text always asks (spec section 3).
@@ -87,7 +87,7 @@ class WebSearch(
                 if (sendQuery.isBlank()) return SearchOutcome("The owner removed every search word, so nothing was sent.", null, "Search cancelled", q, "Nothing was sent")
                 // Words typed in an edit are checked again; ones already shown and sent anyway are not asked twice.
                 if (sendQuery == shown || !prefs.warnPersonalWords) break
-                hits = PersonalWords.find(sendQuery, known()).filter { h -> personalSent.none { it.equals(h.word, ignoreCase = true) } }
+                hits = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { PersonalWords.find(sendQuery, known()) }.filter { h -> personalSent.none { it.equals(h.word, ignoreCase = true) } }
                 if (hits.isEmpty()) break
                 shown = sendQuery
             }
