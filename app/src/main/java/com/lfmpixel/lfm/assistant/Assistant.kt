@@ -199,6 +199,8 @@ class Assistant(
 
     /** Stop from outside the app: ends the answer and holds the queue until Inkling is opened again. */
     fun stopAll() {
+        // On screen, Stop is just Stop: the owner is here to see the queue go on.
+        if (launcher.onScreen) { stop(); return }
         waitForScreen = true
         busy.value = working.value
         stop()

@@ -74,7 +74,7 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val latest = if (hideJournal) latestAll.filter { it.kind != EntryKind.Journal } else latestAll
     val prefs by g.settings.prefs.collectAsState(null)
     val events by produceState(emptyList<com.lfmpixel.lfm.tools.CalendarEvent>(), start, reminders) { value = g.calendar.between(start, end) }
-    var draft by remember { mutableStateOf("") }
+    var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
 
     val dueToday = todos.filter { !it.done && it.dueAt != null && it.dueAt < end }
     val nowMs = now.atZone(zone).toInstant().toEpochMilli()

@@ -18,6 +18,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -36,18 +37,21 @@ class WorkService : Service() {
         startForeground(ID, note("Inkling is answering", ""), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         val g = (application as LfmApp).graph
         scope.launch {
-            combine(g.assistant.busy, g.assistant.streaming, g.assistant.queue, g.heat.heat) { busy, s, q, heat -> Triple(busy, s, q.size to heat) }
-                .collectLatest { (busy, s, more) ->
-                    if (!busy) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return@collectLatest }
-                    val (waiting, heat) = more
+            // Only the words of the notice, so a streamed token doesn't post it again.
+            combine(g.assistant.busy, g.assistant.streaming, g.assistant.queue, g.heat.heat) { busy, s, q, heat ->
+                if (!busy) null else {
                     val title = when {
                         heat.holdsEverything -> "Waiting for the phone to cool"
                         s?.note?.isNotEmpty() == true -> s.note.removeSuffix("…")
                         s != null && s.text.isEmpty() -> "Inkling is thinking"
                         else -> "Inkling is answering"
                     }
-                    nm.notify(ID, note(title, if (waiting > 0) "$waiting more waiting" else "On this phone"))
+                    title to (if (q.isNotEmpty()) "${q.size} more waiting" else "On this phone")
                 }
+            }.distinctUntilChanged().collectLatest { words ->
+                if (words == null) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return@collectLatest }
+                nm.notify(ID, note(words.first, words.second))
+            }
         }
     }
 

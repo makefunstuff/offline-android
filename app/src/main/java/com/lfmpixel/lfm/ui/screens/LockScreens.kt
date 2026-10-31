@@ -55,6 +55,9 @@ fun Locked(g: AppGraph, title: String, body: String, prompt: String, modifier: M
             Txt(title, LfmType.header, modifier = Modifier.padding(top = 6.dp).semantics { heading() }, textAlign = TextAlign.Center)
             Txt(body, LfmType.small, c.text2, textAlign = TextAlign.Center)
             Btn("Unlock", { scope.launch { g.lock.unlock(prompt) } }, Modifier.padding(top = 8.dp), BtnKind.Primary, icon = "lock")
+            // The lock opens with the phone's own lock: if that was removed, say how to get back in.
+            if (!g.lock.canLock()) Txt("This phone has no screen lock now. Set one in Android Settings → Security, then tap Unlock.",
+                LfmType.meta, c.text2, Modifier.padding(top = 6.dp), textAlign = TextAlign.Center)
         }
     }
 }

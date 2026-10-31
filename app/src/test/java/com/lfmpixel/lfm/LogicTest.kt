@@ -63,6 +63,10 @@ class TimeArgsTest {
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(21, 0)), parse("9"))
         assertEquals(When(LocalDate.of(2026, 10, 31), LocalTime.of(14, 0)), parse("at 14"))
         assertEquals(When(LocalDate.of(2026, 10, 31), LocalTime.of(6, 0)), parse("tomorrow at 6"))
+        // "tonight at 8" is the evening; "today at 6" at 14:08 is the coming 18:00, "today at 3" 15:00.
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(20, 0)), parse("tonight at 8"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(18, 0)), parse("today at 6"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(15, 0)), parse("today 3"))
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(14, 18)), parse("in 10 minutes"))
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(16, 38)), parse("in 2 and a half hours"))
     }

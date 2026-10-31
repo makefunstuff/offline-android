@@ -67,7 +67,12 @@ object TimeArgs {
             dayOfWeek(first) != null -> date = now.toLocalDate().with(TemporalAdjusters.next(dayOfWeek(first)!!))
         }
         if (date != null) rest = words.drop(1).joinToString(" ").removePrefix("at ").trim()
-        val time = clock(rest)
+        var time = clock(rest)
+        // A bare hour with "tonight" is the evening; with "today", the next time the clock shows it.
+        bareHour.find(rest)?.groupValues?.get(1)?.toInt()?.takeIf { it in 1..12 }?.let { h ->
+            if (first == "tonight" && h < 12) time = LocalTime.of(h + 12, 0)
+            else if (first == "today" && !LocalTime.of(h, 0).isAfter(now.toLocalTime()) && h < 12) time = LocalTime.of(h + 12, 0)
+        }
         if (date == null && time == null) return null
         if (date == null) {
             // A bare time means the next time the clock shows it.

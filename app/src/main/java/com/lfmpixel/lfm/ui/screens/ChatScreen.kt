@@ -307,8 +307,10 @@ private fun QueuedSheet(g: AppGraph, q: com.lfmpixel.lfm.assistant.Queued, index
     val c = Lfm.c
     var text by remember(q.id) { mutableStateOf(q.text) }
     // While the sheet is open this message (and those after it) waits, so an edit is never overtaken by its turn.
-    androidx.compose.runtime.DisposableEffect(q.id) { g.assistant.hold(q.id); onDispose { g.assistant.hold(null) } }
     val save = { if (text.trim() != q.text) g.assistant.editQueued(q.id, text) }
+    // Closed any way (a lock, leaving the chat): the edit is kept before the message may run.
+    val saveNow by androidx.compose.runtime.rememberUpdatedState(save)
+    androidx.compose.runtime.DisposableEffect(q.id) { g.assistant.hold(q.id); onDispose { saveNow(); g.assistant.hold(null) } }
     FlatSheet(onDismiss = { save(); onClose() }) {
         Txt("Queued message", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
         Txt(if (size == 1) "Runs once the current answer ends." else "Number ${index + 1} of $size. They run in this order.", LfmType.small, c.text2,

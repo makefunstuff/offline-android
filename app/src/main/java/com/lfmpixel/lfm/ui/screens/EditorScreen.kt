@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -182,6 +183,10 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     // Keyed by when the editor was opened, not by the route: a new entry's route takes its id once saved (below),
     // and the same draft carries on.
     val draft = remember(route.opened) { Draft(g, route.id, route.kind) }
+    // For the journal lock: whether this was an existing entry, and how often the lock had closed when it opened.
+    val startedWith = remember(route.opened) { route.id }
+    val closingsAtStart = remember(route.opened) { g.lock.closings.value }
+    val closings by g.lock.closings.collectAsState()
     var loaded by remember(route.opened) { mutableStateOf(route.id == null) }
     val focus = remember { FocusRequester() }
     val zone = ZoneId.systemDefault()
@@ -215,9 +220,9 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     }
 
     val e = draft.entry
-    // A journal entry behind the lock (Journal only) shows only once unlocked: whatever route it came by, and also
-    // when it was written here and the lock closed meanwhile. A new, unsaved line can always be written.
-    if (e.kind == EntryKind.Journal && draft.id != null && journalLocked(g)) {
+    // A journal entry behind the lock (Journal only) shows only once unlocked: an existing one opened while locked,
+    // or one being written when the lock closed (a minute away). A new line can always be written, locked or not.
+    if (e.kind == EntryKind.Journal && draft.id != null && journalLocked(g) && (startedWith != null || closings != closingsAtStart)) {
         Column(Modifier.fillMaxSize()) {
             Header("Journal", onBack = { nav.back() })
             Locked(g, "This entry is locked", "Unlock with your fingerprint, face or screen lock to read it.", "Unlock your journal", ask = true)

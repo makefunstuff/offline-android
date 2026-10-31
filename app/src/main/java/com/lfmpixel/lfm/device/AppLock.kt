@@ -19,6 +19,9 @@ class AppLock(private val context: Context) {
     private val _open = MutableStateFlow(false)
     /** Opened since Inkling last came on screen (always true with the lock off). */
     val open: StateFlow<Boolean> = _open
+    private val _closings = MutableStateFlow(0)
+    /** Counts each time the lock closed after a time away, even if it was not open: "it locked while you were here". */
+    val closings: StateFlow<Int> = _closings
     @Volatile private var hiddenAt = 0L
     @Volatile private var hidden = false
     /** Asks the owner to unlock (BiometricPrompt, in the visible activity); null when Inkling is not on screen. */
@@ -42,7 +45,7 @@ class AppLock(private val context: Context) {
     /** Inkling is on screen again: closed if it was away too long (or never opened since start). */
     fun onShown(now: Long = System.currentTimeMillis()) {
         hidden = false
-        if (shouldClose(mode, hiddenAt, now)) _open.value = false
+        if (shouldClose(mode, hiddenAt, now)) { _open.value = false; _closings.value++ }
     }
 
     /** Called when the app starts: a locked mode starts closed. */

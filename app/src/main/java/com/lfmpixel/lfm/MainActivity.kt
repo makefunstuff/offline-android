@@ -150,6 +150,8 @@ class MainActivity : ComponentActivity() {
         graph.launcher.onScreen = true
         graph.lock.onShown()
         graph.assistant.onShown()
+        // Back on screen: the "keeps going" notice is not needed; it starts again if Inkling is left while busy.
+        stopService(android.content.Intent(this, com.lfmpixel.lfm.assistant.WorkService::class.java))
     }
 
     override fun onPause() {
