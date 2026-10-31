@@ -41,8 +41,9 @@ Ranked by how much daily use they unlock per unit of effort. 1–6 are built in 
   brief ("3 events · 2 to-dos · 1 carried over"), and today's timed things (events, reminders, timed to-dos) as a
   slim timeline. Below: **everything you wrote today, in order, as lines on the page**: a to-do is a line with a box,
   an idea a line with a spark, a quote a highlighted line, a journal line in a softer weight. Tap a line to open it;
-  tick a box in place; swipe a line left to delete (Undo), right to pin. **Swipe the page left or right** (or tap the
-  arrows by the date) to turn to yesterday and back; past days show what you wrote and finished that day.
+  tick a box in place; long-press a line to pin it, make it another kind or delete it (Undo). **Swipe the page left or
+  right** (or tap the arrows by the date) to turn to yesterday and back; past days show what you wrote and finished
+  that day. (Lines don't take sideways swipes, so a swipe anywhere on the page turns it.)
 - **Why it beats the generic UI.** One place answers "what's today" and "what was I thinking". The page fills up as
   the day goes, which is the habit loop journals rely on. No chips, pills or kind pickers on the way in.
 - **Borrowed.** Daily notes as home: Logseq, Roam, Obsidian Daily Notes, Reflect. Day-by-day pages: Day One, Bullet
@@ -137,10 +138,12 @@ gains the Reading filter), To-dos is renamed Plans. The app now reads as a noteb
 - **Timeline.** Today only: events, reminders and timed to-dos, slim rows (time · title), the next one marked.
 - **Carried over.** Today only, when not empty (4).
 - **The page.** Lines of the day, oldest first, so the page reads top to bottom like a journal; the newest is
-  nearest the Ink line. Each line: glyph, title, one muted line of body if any. Quotes: marker under the text, source
+  nearest the Ink line. A line belongs to a day when it was written that day, a to-do also when it is due or was
+  ticked off that day. Each line: glyph, title, one muted line of body if any. Quotes: marker under the text, source
   muted. Done to-dos: struck through, muted. Empty page: "A blank page. Write a line below — it sorts itself."
 - **Ink line.** Pinned at the bottom (today only; past days show "Back to today" there). Glyph button, text field,
-  mic, send. Keyboard rules from ux-spec section 6; the page keeps the last line in view as lines are added.
+  mic, send. While typing, a hint above it says where the line goes ("To-do · today", "Reminder · today 18:00"). The
+  mic fills the line with what it heard, to be read before it goes on the page. A to-do written here is due today. Keyboard rules from ux-spec section 6; the page keeps the last line in view as lines are added.
 - **Day swipe.** Horizontal swipe past a third of the width turns the page; the new day slides in on the shared X
   axis (ux-spec section 7, 300 ms). Days with nothing still open (a blank page).
 - **States.** No model: the Ink line still works (the sorter is rule-based); "?" lines go to Chat, which says how to
