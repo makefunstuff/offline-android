@@ -43,6 +43,8 @@ object LfmIcons {
         "back" to listOf("M15 5l-7 7 7 7"),
         "globe" to listOf(c(12f, 12f, 9f), "M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"),
         "lock" to listOf(rr(5f, 11f, 14f, 10f, 2f), "M8 11V8a4 4 0 0 1 8 0v3"),
+        "quote" to listOf("M5 18c2.5-1 3.5-3 3.5-6H5V6h5.5v5.5c0 4-2 6.5-5.5 7.5", "M13.5 18c2.5-1 3.5-3 3.5-6h-3.5V6H19v5.5c0 4-2 6.5-5.5 7.5"),
+        "ink" to listOf("M14.5 3.5l6 6-8.5 8.5H6v-6z", "M11 7l6 6", "M3 21h10"),
         "shield" to listOf("M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"),
         "download" to listOf("M12 4v11M7 10l5 5 5-5M5 20h14"),
         "user" to listOf(c(12f, 8f, 4f), "M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"),

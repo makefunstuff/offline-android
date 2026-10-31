@@ -69,7 +69,7 @@ import java.util.Locale
 /** The Library's filter chips; [kind] is what + and the mic make there. */
 enum class LibFilter(val label: String, val kind: EntryKind) {
     All("All", EntryKind.Note), Notes("Notes", EntryKind.Note), Ideas("Ideas", EntryKind.Idea),
-    Journal("Journal", EntryKind.Journal), Pinned("Pinned", EntryKind.Note)
+    Journal("Journal", EntryKind.Journal), Reading("Reading", EntryKind.Note), Pinned("Pinned", EntryKind.Note)
 }
 
 /** Library actions shared by swipes, the long-press menu and TalkBack: each one says what it did and can be undone. */
@@ -112,9 +112,9 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Txt("Library", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
+            Txt("Notebook", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
                 .semantics { heading() })
-            InputLine(query, { query = it }, "Search notes, ideas, journal, to-dos", "search", Modifier.padding(horizontal = 16.dp)) {
+            InputLine(query, { query = it }, "Search notes, ideas, quotes, journal, to-dos", "search", Modifier.padding(horizontal = 16.dp)) {
                 if (query.isNotEmpty()) IconButtonPlain("x", { query = "" }, desc = "Clear search")
             }
             val r = results
@@ -135,6 +135,7 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
                     val shown = when (filter) {
                         LibFilter.Notes -> list.filter { it.kind == EntryKind.Note }
                         LibFilter.Pinned -> list.filter { it.pinned }
+                        LibFilter.Reading -> list.filter { it.isQuote() }
                         else -> list
                     }
                     val state = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -146,6 +147,7 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
                             Box(Modifier.padding(horizontal = 16.dp)) {
                                 when (filter) {
                                     LibFilter.Pinned -> Empty("Nothing pinned", "Swipe a note right to pin it; pinned ones stay on top.")
+                                    LibFilter.Reading -> Empty("No quotes yet", "Select text in any app, tap Share, then Inkling: it lands on today's page as a highlight, and here.")
                                     else -> Empty("No notes yet", "Tap + to write, or the mic to talk. Notes, ideas and journal lines all land here.")
                                 }
                             }

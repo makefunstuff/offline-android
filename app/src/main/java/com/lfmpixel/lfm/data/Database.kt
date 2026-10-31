@@ -34,6 +34,18 @@ interface EntryDao {
     @Query("SELECT * FROM entries WHERE kind = 'Todo' ORDER BY done, CASE WHEN dueAt IS NULL THEN 1 ELSE 0 END, dueAt, createdAt DESC")
     fun todos(): Flow<List<Entry>>
 
+    /**
+     * One day of the Daily Page, oldest first: what was written that day, to-dos ticked off that day, and to-dos moved
+     * to that day (notebook-spec section 2).
+     */
+    @Query("SELECT * FROM entries WHERE (createdAt >= :from AND createdAt < :to) OR (kind = 'Todo' AND done = 1 AND doneAt >= :from AND doneAt < :to) " +
+        "OR (kind = 'Todo' AND done = 0 AND dueAt >= :from AND dueAt < :to) ORDER BY createdAt")
+    fun day(from: Long, to: Long): Flow<List<Entry>>
+
+    /** Open to-dos due before [before]: the Daily Page's "Carried over". */
+    @Query("SELECT * FROM entries WHERE kind = 'Todo' AND done = 0 AND dueAt IS NOT NULL AND dueAt < :before ORDER BY dueAt, createdAt")
+    fun carried(before: Long): Flow<List<Entry>>
+
     /** [match] is an FTS4 MATCH expression; see [FtsQuery]. */
     @Query("SELECT entries.* FROM entries JOIN entries_fts ON entries.id = entries_fts.rowid WHERE entries_fts MATCH :match ORDER BY entries.createdAt DESC LIMIT :limit")
     suspend fun search(match: String, limit: Int = 50): List<Entry>

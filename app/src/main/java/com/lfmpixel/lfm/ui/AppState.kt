@@ -34,6 +34,8 @@ sealed interface VoiceTarget {
     data class Library(val kind: EntryKind) : VoiceTarget
     /** The camera's question field. */
     data object Question : VoiceTarget
+    /** The Ink line on today's page: the words are put in the line, to be read before they go on the page. */
+    data object Line : VoiceTarget
 }
 
 /** A short message at the bottom with an optional Undo, shown for a few seconds (ux-spec section 6). */
@@ -48,6 +50,8 @@ class Nav(start: Route) {
     val current get() = stack.last()
     var voiceInfo by mutableStateOf<String?>(null)
     var snack by mutableStateOf<Snack?>(null)
+    /** What the mic heard for the Ink line, until the line takes it. */
+    var heard by mutableStateOf<String?>(null)
     /** True while the last change of screen went forward (a push), for the direction of the transition. */
     var forward by mutableStateOf(true)
         private set

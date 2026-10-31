@@ -62,6 +62,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Share any text to Inkling: it lands on today's page as a quote (docs/notebook-spec.md, proposal 5). -->
+            <intent-filter android:label="Inkling">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
             <!-- The assistant gesture, for phones that send it to an activity. -->
             <intent-filter>
                 <action android:name="android.intent.action.ASSIST" />
