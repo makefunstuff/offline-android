@@ -53,7 +53,7 @@ data class ModelOutput(val thinking: String, val answer: String, val toolCalls: 
                 text = text.substring(end + "</think>".length)
                 // A stray tag after that (LFM3 writes them now and then, and may close a thought twice when its
                 // budget ran out) just goes: the words around it stay in the answer, never hidden in the trace.
-                text = text.replace("</think>", "").replace("<think>", "")
+                text = text.replace("</think>", "\n").replace("<think>", "\n")
             } else if (text.startsWith("<think>")) {
                 val end = text.indexOf("</think>")
                 if (end < 0) return ModelOutput(text.removePrefix("<think>").trim(), "", emptyList(), true)

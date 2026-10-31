@@ -57,7 +57,7 @@ class ThinkingTraceTest {
         // Closed for it, the model may close the block again itself: the tag goes, every word stays in the answer.
         val out = ModelOutput.parse("First part" + ModelOutput.OUT_OF_BUDGET + "1. Salmon</think> 2. Stir-fry", thinkingOn = true)
         assertEquals("First part", out.thinking)
-        assertEquals("1. Salmon 2. Stir-fry", out.answer)
+        assertEquals("1. Salmon\n 2. Stir-fry", out.answer)
         assertEquals("Done.", ModelOutput.parse("First" + ModelOutput.OUT_OF_BUDGET + "<think>Done.", true).answer)
     }
 
@@ -69,7 +69,7 @@ class ThinkingTraceTest {
         // Without a budget close, a tag mid-answer just goes and the words stay.
         val mid = ModelOutput.parse("Thought</think>Here are three: 1. Salmon</think> 2. Stir-fry", thinkingOn = true)
         assertEquals("Thought", mid.thinking)
-        assertEquals("Here are three: 1. Salmon 2. Stir-fry", mid.answer)
+        assertEquals("Here are three: 1. Salmon\n 2. Stir-fry", mid.answer)
     }
 
     @Test fun aReopenedThinkTagIsNotShown() {
@@ -98,8 +98,9 @@ class ThinkingTraceTest {
         assertTrue(p.thinking)
         assertEquals(DEFAULT_THINK_BUDGET, p.thinkBudget)
         assertTrue(thinksFor(p, 1, "typed"))
-        // Spoken captures stay quick.
+        // Spoken captures and Today's quick box stay quick.
         assertFalse(thinksFor(p, 1, "voice"))
+        assertFalse(thinksFor(p, 1, "today"))
     }
 
     @Test fun aChatsOwnThinkWinsOverTheDefault() {

@@ -58,11 +58,11 @@ data class Streaming(val text: String, val thinking: Boolean, val note: String =
                      val thinkingSince: Long = 0, val thoughtMs: Long = 0, val done: Boolean = false)
 
 /**
- * Whether a turn thinks first: the chat's own Think when set, else Settings. Spoken captures never do: they want a
- * quick tool call, and voice is where waiting hurts most.
+ * Whether a turn thinks first: the chat's own Think when set, else Settings. Spoken captures and Today's quick box
+ * never do: they mostly want a quick tool call, and that is where waiting hurts most (Today has no Think to see).
  */
 fun thinksFor(prefs: com.lfmpixel.lfm.settings.Prefs, thread: Long, source: String): Boolean =
-    source != "voice" && (prefs.chatThinking[thread] ?: prefs.thinking)
+    source != "voice" && source != "today" && (prefs.chatThinking[thread] ?: prefs.thinking)
 
 /** A message waiting its turn in the chat. [see] is set for a camera question (those are not kept on disk). */
 data class Queued(val id: Long, val text: String, val voiceSeconds: Int = 0, val source: String = "typed", val see: SeeRequest? = null)
@@ -281,7 +281,7 @@ class Assistant(
                 media = see?.kind?.name.orEmpty(), mediaPath = see?.thumbPath.orEmpty(), mediaLabel = see?.label.orEmpty()))
             when {
                 see != null -> look(see)
-                !models.hasText() -> sortWithoutModel(input.text, input.source)
+                !models.hasText() -> sortWithoutModel(input.text, if (input.source == "today") "typed" else input.source)
                 else -> converse(input.source)
             }
         } catch (e: LlmException) {
@@ -350,9 +350,11 @@ class Assistant(
         Role.Notice -> null
     }
 
-    private suspend fun converse(source: String) {
+    private suspend fun converse(from: String) {
         val prefs = settings.now()
-        val thinking = thinksFor(prefs, _thread.value, source)
+        val thinking = thinksFor(prefs, _thread.value, from)
+        // What it writes from Today's box is typed, like the rest.
+        val source = if (from == "today") "typed" else from
         val webOn = web?.available() == true
         val tools = registry.specsJson() + listOfNotNull(if (webOn) WebSearch.spec.toJson() else null)
         var searchId: Long? = null
@@ -380,7 +382,10 @@ class Assistant(
             // Still too long (web results in LiteRT-LM's short context, say): this round thinks less, or not at all,
             // rather than run past the end of the context.
             val budget = minOf(thinkBudget, fitSession.contextTokens - fitSession.countTokens(prompt) - answerBudget - 64)
-            val thinks = thinking && budget >= 128
+            // After an action ran, the model only confirms it in a few words: no second thought for that. After a
+            // web search it thinks again, as it writes its answer from the pages.
+            val afterAction = thread.lastOrNull()?.let { it.role == Role.Tool && it.searchId == null } == true
+            val thinks = thinking && !afterAction && budget >= 128
             if (thinks != thinking) prompt = PromptFormat.build(systemPrompt(webOn), tools, history, false)
             val raw = StringBuilder()
             streaming.value = Streaming("", thinks)
