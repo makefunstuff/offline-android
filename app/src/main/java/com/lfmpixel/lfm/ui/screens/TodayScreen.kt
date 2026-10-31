@@ -60,6 +60,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
+import com.lfmpixel.lfm.assistant.InkGuess
 import com.lfmpixel.lfm.assistant.InkKind
 import com.lfmpixel.lfm.assistant.InkLine
 import com.lfmpixel.lfm.assistant.Sizes
@@ -442,7 +443,14 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
     LaunchedEffect(nav.inkFocus) { if (nav.inkFocus > 0) { delay(LfmMotion.LONG.toLong()); runCatching { inkFocus.requestFocus() } } }
     // What the mic heard comes here, to be read (and its glyph seen) before it goes on the page.
     LaunchedEffect(nav.heard) { nav.heard?.let { draft = (draft.trimEnd() + " " + it).trim(); nav.heard = null } }
-    val guess = remember(draft) { InkLine.guess(draft) }
+    // The phone's rules guess at once; in Edge mode the small model's label follows a moment after typing stops.
+    var labelled by remember { mutableStateOf<Pair<String, InkGuess>?>(null) }
+    LaunchedEffect(draft) {
+        if (draft.isBlank()) return@LaunchedEffect
+        kotlinx.coroutines.delay(450)
+        g.labels.capture(draft.trim())?.let { labelled = draft to InkLine.withLabel(draft, it) }
+    }
+    val guess = labelled?.takeIf { it.first == draft }?.second ?: remember(draft) { InkLine.guess(draft) }
     val kind = picked?.let { InkKind.valueOf(it) }?.takeIf { it in InkLine.cycle(guess.kind) } ?: guess.kind
     fun commit() {
         val line = draft.trim()
@@ -453,7 +461,7 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
             if (!g.engine.canChat()) { draft = line; nav.show("Asking needs a chat model: Settings → Models"); return }
             g.assistant.send(InkLine.question(line), source = "today"); nav.go(Route.Chat); return
         }
-        InkLine.call(line, kind, today)?.let { call ->
+        InkLine.call(line, kind, today, guess)?.let { call ->
             g.assistant.runDirect(call, "typed") { r ->
                 if (!r.ok) { draft = line; nav.show(listOf(r.cardLabel, r.cardDetail).filter { it.isNotEmpty() }.joinToString(": ").ifEmpty { "Not added" }) }
                 else if (kind == InkKind.Reminder) nav.show("${r.cardLabel} · ${r.cardDetail}".trim(' ', '·'))

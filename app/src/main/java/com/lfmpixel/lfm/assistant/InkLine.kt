@@ -38,6 +38,34 @@ object InkLine {
         }
     }
 
+    /**
+     * The guess with the small model's label ([com.lfmpixel.lfm.edge.Labels.capture], on the server): its kind wins over
+     * the rules', except for a question or an "ask:" line, which stay with the rules. Words that say when, if the phone
+     * can read them as a time (TimeArgs), make a to-do or event a reminder at that time.
+     */
+    fun withLabel(line: String, label: com.lfmpixel.lfm.edge.CaptureLabel, now: java.time.LocalDateTime = java.time.LocalDateTime.now()): InkGuess {
+        val rules = guess(line)
+        if (rules.kind == InkKind.Ask) return rules
+        val words = label.whenWords.takeIf { it.isNotEmpty() && line.contains(it, ignoreCase = true) }
+        val timed = words?.let { com.lfmpixel.lfm.tools.TimeArgs.parse(it, now) }?.takeIf { it.time != null }
+        val kind = when (label.kind) {
+            "todo" -> if (timed != null) InkKind.Reminder else InkKind.Todo
+            "event" -> if (timed != null) InkKind.Reminder else InkKind.Note
+            "idea" -> InkKind.Idea
+            "journal" -> InkKind.Journal
+            "note" -> InkKind.Note
+            else -> return rules
+        }
+        if (kind == rules.kind) return rules
+        if (kind == InkKind.Reminder) {
+            val i = line.indexOf(words!!, ignoreCase = true)
+            val what = (line.substring(0, i) + line.substring(i + words.length)).replace(Regex("""\s+"""), " ")
+                .trim(' ', ',', '.', '-').removeSuffix(" at").removeSuffix(" on").trim()
+            return InkGuess(InkKind.Reminder, what.ifEmpty { line.trim() }, words)
+        }
+        return InkGuess(kind, line.trim())
+    }
+
     /** The kinds a tap on the glyph steps through: a reminder only when the line names a time. */
     fun cycle(guessed: InkKind): List<InkKind> =
         listOf(InkKind.Note, InkKind.Todo, InkKind.Idea, InkKind.Journal) + listOfNotNull(InkKind.Reminder.takeIf { guessed == it }) + InkKind.Ask
@@ -50,8 +78,7 @@ object InkLine {
      * guess took off ("idea:", "to-do") stay off only when the kind is the guessed one; a to-do written here is due
      * [today], so an open one is carried over tomorrow.
      */
-    fun call(line: String, kind: InkKind, today: LocalDate): ToolCall? {
-        val g = guess(line)
+    fun call(line: String, kind: InkKind, today: LocalDate, g: InkGuess = guess(line)): ToolCall? {
         val text = if (kind == g.kind) g.text else line.trim()
         return when (kind) {
             InkKind.Ask -> null

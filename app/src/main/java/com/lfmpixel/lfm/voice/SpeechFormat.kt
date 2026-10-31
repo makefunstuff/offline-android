@@ -40,6 +40,20 @@ object SpeechFormat {
             "Answer in ${language.ttsName}, in one to three short spoken sentences, without lists, Markdown or web links. " +
             "If you do not know, say so. Today is $today."
 
+    /**
+     * Talk with the answer model and the app's tools (Edge mode, Qwen): it may add, remind, note and plan by calling a
+     * tool, then says so in a few words. [seeing] is what the camera sees now (Look), if it is on.
+     */
+    fun talkToolSystem(language: SpeechLanguage, seeing: String?, now: java.time.ZonedDateTime = java.time.ZonedDateTime.now()) =
+        "You are Inkling, the owner's private assistant and notebook. You are talking out loud with the owner. " +
+            "Answer in ${language.ttsName}, in one to three short spoken sentences, without lists, Markdown or web links. " +
+            "When they ask you to remember, note, add, remind, plan, set or change something, call a tool; \"remind me\" is " +
+            "set_reminder. Write dates and times as local ISO time like 2026-10-30T18:00. After a tool runs, say what was " +
+            "done in a few words. Never claim something was done unless a tool did it. If you do not know, say so: do not guess. " +
+            "Now: " + now.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", java.util.Locale.ENGLISH)) +
+            ", time zone ${now.zone.id}." +
+            (seeing?.let { " The camera is on; it sees: $it" } ?: "")
+
     /** The conversation so far for Talk, ending with the new user turn. */
     fun talkHistory(system: String, turns: List<Pair<String, String>>, user: String): String =
         talkPrefix(system, turns) + "${PromptFormat.IM_START}user\n$user${PromptFormat.IM_END}\n"

@@ -134,6 +134,10 @@ class Assistant(
     private val heat: StateFlow<com.lfmpixel.lfm.device.Heat> = MutableStateFlow(com.lfmpixel.lfm.device.Heat.Normal),
 ) {
     var permissionGate: PermissionGate? = null
+    /** What the camera sees now (Look), for the answer; set by AppGraph. */
+    @Volatile var seeing: (() -> String?)? = null
+    /** The server's small classifiers (photo filing); set by AppGraph. */
+    @Volatile var labels: com.lfmpixel.lfm.edge.Labels? = null
     private val zone get() = ZoneId.systemDefault()
 
     private val _thread = MutableStateFlow(1L)
@@ -337,7 +341,10 @@ class Assistant(
             "Answer briefly and plainly. When the owner asks you to remember, note, remind, add, set, text, call or change " +
             "something, call a tool. \"Remind me\" means set_reminder; use set_alarm only when they say alarm. Things to buy " +
             "are to-dos on the Shopping list. Work out dates and times from the time given with each message and write them " +
-            "as local ISO time like 2026-10-30T18:00. After a tool runs, confirm in a few words. Time zone: $tz."
+            "as local ISO time like 2026-10-30T18:00. After a tool runs, confirm in a few words. Never say something was " +
+            "done unless a tool did it. If you do not know, or a question is about the owner's notes and you have not looked, " +
+            "say so or search the library: do not guess. Time zone: $tz." +
+            (seeing?.invoke()?.let { " The camera is on; it sees: $it" } ?: "")
     }
 
     private val stamp = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH)
@@ -361,7 +368,7 @@ class Assistant(
         var searchId: Long? = null
         // Thinking gets a budget (Settings); past it, the think block is closed and the model must answer. At most a
         // quarter of the context, so the prompt and tools still fit in LiteRT-LM's 4096 tokens.
-        val thinkBudget = minOf(prefs.thinkBudget, models.textSession().contextTokens / 4)
+        val thinkBudget = minOf(prefs.thinkBudget, models.answerSession().contextTokens / 4)
         val answerBudget = 512
         val maxTokens = if (thinking) thinkBudget + answerBudget else answerBudget
         repeat(4) { round ->
@@ -372,7 +379,7 @@ class Assistant(
             // The prompt must leave room for the answer, in the chat model's context: Settings' size for llama.cpp,
             // the file's own for LiteRT-LM. Too long, earlier answers first lose what they thought, then the oldest
             // turns go; the last thing the owner said always stays.
-            val fitSession = models.textSession()
+            val fitSession = models.answerSession()
             suspend fun fits(h: List<PromptMessage>) =
                 fitSession.countTokens(PromptFormat.build(systemPrompt(webOn), tools, h, thinking)) <= fitSession.contextTokens - maxTokens - 64
             if (!fits(history)) history = PromptFormat.withoutOldThoughts(history)
@@ -420,7 +427,7 @@ class Assistant(
             // Over both calls when thinking ran out of budget; the first token is the first call's.
             val tps = if (st !== firstStats) (firstStats.decodeTokens + st.decodeTokens) * 1000.0 / (firstStats.decodeMs + st.decodeMs).coerceAtLeast(1.0) else st.decodeTps
             val speed = speedLabel(tps, firstStats.firstTokenMs)
-            val meta = "LFM3-1.7B · ${session.where} · $speed"
+            val meta = "${answeredBy(session)} · ${session.where} · $speed"
             val answerFrom = searchId.takeIf { out.toolCalls.isEmpty() && out.answer.isNotBlank() }
             val message = ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
                 raw = PromptFormat.assistantPrefix(thinks) + raw,
@@ -450,12 +457,36 @@ class Assistant(
         }
     }
 
+    /** Which model wrote the last answer of [session], for the line under it: the server's answer model in Edge mode. */
+    private fun answeredBy(session: com.lfmpixel.lfm.llm.TextSession): String =
+        (session as? com.lfmpixel.lfm.edge.EdgeSession)?.answeredBy?.takeIf { it.isNotEmpty() }?.let(com.lfmpixel.lfm.edge.EdgeModels::label) ?: "LFM3-1.7B"
+
     /** Omni or VL looks at the pictures (or VL reads the pages) and answers in the chat. */
-    private suspend fun look(req: SeeRequest) {
+    private suspend fun look(asked: SeeRequest) {
+        var req = asked
         val picturesNeeded = req.images.isNotEmpty() || req.pages.any { it.image != null }
         // Edge mode: the server's VL looks, whatever is on the phone; if it can't be reached, the phone's models do.
         models.edgeSession(com.lfmpixel.lfm.llm.Slot.Vision)?.let { s ->
-            try { return lookWith(req, s, "LFM3-VL-2B", s.where) } catch (e: LlmException) {
+            // A plain photo is labelled first: a receipt, a whiteboard or a page is read for what matters and filed.
+            var filed: Pair<com.lfmpixel.lfm.edge.PhotoLabel, String>? = null
+            if (req.kind == SeeKind.Photo && req.images.size == 1 && req.question == SeeRules.defaultQuestion(SeeKind.Photo)) {
+                streaming.value = Streaming("", false, "Looking…")
+                labels?.photo(com.lfmpixel.lfm.edge.EdgeSession.jpegDataUrl(req.images[0]))?.let { l ->
+                    SeeRules.filing(l.kind)?.let { (q, tag) ->
+                        filed = l to tag
+                        req = SeeRequest(req.kind, q, req.images, req.pages, req.seconds, req.thumbPath, req.label, req.pagesSkipped)
+                    }
+                }
+            }
+            try {
+                val label = filed?.let { "LFM3-VL-2B · " + it.first.kind.replaceFirstChar { c -> c.uppercase() } } ?: "LFM3-VL-2B"
+                val answer = lookWith(req, s, label, s.where)
+                filed?.let { (l, tag) ->
+                    if (!answer.isNullOrBlank()) toolCard(execute(ToolCall("add_note", mapOf("title" to l.title.ifBlank { l.kind.replaceFirstChar { it.uppercase() } },
+                        "text" to answer, "tags" to tag)), "camera", afterWebText = false))
+                }
+                return
+            } catch (e: LlmException) {
                 if (models.edge?.state?.value is com.lfmpixel.lfm.edge.EdgeState.Online) throw e
             }
         }
@@ -477,12 +508,13 @@ class Assistant(
     }
 
     /** [session] looks at the pictures (or reads the pages) of [req] and answers in the chat. */
-    private suspend fun lookWith(req: SeeRequest, session: com.lfmpixel.lfm.llm.TextSession, label: String, where: String) {
+    private suspend fun lookWith(req: SeeRequest, session: com.lfmpixel.lfm.llm.TextSession, label: String, where: String): String? {
         val started = System.nanoTime()
         streaming.value = Streaming("", false, if (req.kind == SeeKind.Document) "Reading…" else "Looking…")
         val raw = StringBuilder()
         val show = Throttle { streaming.value = Streaming(SeeRules.clean(raw.toString()), false) }
-        val onPiece: (String) -> Unit = { raw.append(it); show.tick() }
+        var firstAt = 0L
+        val onPiece: (String) -> Unit = { if (firstAt == 0L) firstAt = System.nanoTime(); raw.append(it); show.tick() }
         if (req.pages.isEmpty()) {
             session.look(req.images, SeeRules.prompt(req.kind, req.question, req.images.size, req.seconds), 512).collect(onPiece)
         } else {
@@ -516,13 +548,16 @@ class Assistant(
         }
         show.flush()
         val answer = SeeRules.clean(raw.toString())
-        if (answer.isBlank()) { streaming.value = null; notice("The model gave no answer. Try again, or ask another way."); return }
+        if (answer.isBlank()) { streaming.value = null; notice("The model gave no answer. Try again, or ask another way."); return null }
         val secs = (System.nanoTime() - started) / 1e9
+        android.util.Log.i("lfm-see", "look: $label $where, first text %.0f ms, all %.0f ms".format(Locale.ENGLISH,
+            if (firstAt > 0) (firstAt - started) / 1e6 else 0.0, secs * 1000))
         val more = if (req.pagesSkipped > 0) " · first ${req.pages.size} pages" else ""
         saveShown(Streaming(answer, false), ChatMessage(threadId = _thread.value, role = Role.Assistant, text = answer,
             raw = "<think></think>" + answer,
-            meta = "%s · %s · %.0f s%s".format(Locale.ENGLISH, label, where, secs, more)))
+            meta = "%s · %s · %.1f s%s".format(Locale.ENGLISH, label, where, secs, more)))
         streaming.value = null
+        return answer
     }
 
     /**

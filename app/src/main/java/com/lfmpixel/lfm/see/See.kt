@@ -64,6 +64,17 @@ object SeeRules {
         else -> null
     }
 
+    /**
+     * A photo the VL model labelled (edge Labels.photo) that is worth keeping: the question asked of it instead of the
+     * plain one, and the tag its note gets. Null for the rest (people, food, places…): those are just answered.
+     */
+    fun filing(kind: String): Pair<String, String>? = when (kind) {
+        "receipt" -> "Read this receipt: the shop, the date, the total, and each item with its price, one a line." to "receipt"
+        "whiteboard" -> "Write out what is on this whiteboard, line by line, as it is written." to "whiteboard"
+        "document" -> "Sum this page up in two sentences, then list any dates, amounts and names in it." to "document"
+        else -> null
+    }
+
     fun defaultQuestion(kind: SeeKind) = when (kind) {
         SeeKind.Photo -> "What is this?"
         SeeKind.Video -> "What happens in this video?"

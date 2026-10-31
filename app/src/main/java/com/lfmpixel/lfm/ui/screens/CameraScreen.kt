@@ -203,7 +203,9 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
         error = null
         scope.launch {
             try {
+                val t0 = android.os.SystemClock.elapsedRealtime()
                 val req = make()
+                android.util.Log.i("lfm-see", "camera: ${req.kind} ready in ${android.os.SystemClock.elapsedRealtime() - t0} ms, ${req.images.size} pictures")
                 g.assistant.ask(req)
                 question.text = ""
                 nav.back()

@@ -39,6 +39,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,9 +100,15 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
         if (state.phase != TalkPhase.Off && state.phase != TalkPhase.Paused) g.talk.pause()
     }
 
+    var looking by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     val close = { nav.back() }
     Column(Modifier.fillMaxSize()) {
+        // Look (Edge mode): the camera's view, described live, so Talk can answer about what it sees.
+        val edgeOn by g.edge.configured.collectAsState()
         Header("Talk", onBack = { close() }, leftIcon = "x") {
+            if (edgeOn && available) com.lfmpixel.lfm.ui.components.IconButtonPlain("camera", {
+                if (looking) looking = false else scope.launch { if (gate.ensure(listOf(Manifest.permission.CAMERA))) looking = true }
+            }, tint = if (looking) c.text else c.text2, desc = if (looking) "Look is on. Turn it off" else "Look: let Talk see the camera")
             prefs?.let { Pill(it.speechLanguage.label, modifier = Modifier.padding(end = 10.dp)) }
         }
         if (!available) {
@@ -109,7 +116,8 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
             return@Column
         }
         Column(Modifier.weight(1f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            VoiceBox(g, state.phase, Modifier.padding(top = 24.dp, bottom = 14.dp))
+            if (looking && edgeOn) LookTile(g, prefs?.showSpeed == true, Modifier.padding(top = 12.dp, bottom = 10.dp))
+            else VoiceBox(g, state.phase, Modifier.padding(top = 24.dp, bottom = 14.dp))
             PhaseLine(state.phase, state.spoken)
             AnimatedVisibility(state.error != null, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),
                 exit = fadeOut(LfmMotion.spec()) + shrinkVertically(LfmMotion.spec())) {
@@ -119,7 +127,10 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
             // Where the last answer came from, and how soon it was heard (Settings → Show speed).
             val showSpeed = prefs?.showSpeed == true
             state.timing?.takeIf { showSpeed && it.firstSoundMs > 0 }?.let { t ->
-                Txt((if (t.viaServer) "Your server" else "This phone") + " · first sound %.1f s after your turn".format(java.util.Locale.ENGLISH, t.firstSoundMs / 1000.0),
+                Txt((if (t.viaServer) "Your server" else "This phone") + (if (t.model.isNotEmpty()) " · ${t.model}" else "") +
+                    (if (t.tools > 0) " · ${t.tools} ${if (t.tools == 1) "action" else "actions"}" else "") +
+                    (if (t.firstWordMs > 0) " · first word %.1f s".format(java.util.Locale.ENGLISH, t.firstWordMs / 1000.0) else "") +
+                    " · first sound %.1f s".format(java.util.Locale.ENGLISH, t.firstSoundMs / 1000.0),
                     LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             }
             AnimatedVisibility(state.warm, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),

@@ -171,6 +171,61 @@ server when LP-32 (Edge mode) is there:
   `EXTRA_OPEN`.
 - **No new permissions; no network.** The alarm uses the existing exact-alarm permission.
 
+## B. Smart answers, Look and small classifiers (LP-45)
+
+The owner, on Edge mode: server voice is fast but "the model hallucinates"; pictures from the camera lag; use LFM3's
+classifier ideas where they make the organizer better. Their split (31 Oct 2026): **Omni only listens and speaks;
+Qwen3.8-27B writes the answers and the tool calls** in chat and Talk; LFM3-1.7B and LFM3-VL-2B do the small jobs.
+
+### B.1 Which model does what (Edge mode)
+
+| Job | Model | Why |
+| --- | --- | --- |
+| Chat, Talk and a note's margin: answers and tool calls | `qwen3.8-27b` (HOM-11), native tool calling on `/v1/chat/completions` | Trustworthy answers; the 1.7B model invents |
+| Same, when Qwen isn't loaded or fails before writing | `lfm3-1.7b` on the server, then the phone | Never stuck: the old path, unchanged |
+| Speech in and out | `lfm3-omni-2b` (`/v1/audio/transcriptions`, `/tts`), behind `ServerVoice` | HOM-11's shared voice service can replace it there |
+| Pictures, Look | `lfm3-vl-2b` | 100-250 ms a frame on the server |
+| Classifiers, organizer jobs | `lfm3-1.7b`, JSON schema output, thinking off | 150-200 ms each |
+
+The phone keeps building LFM3 prompts; `edge/ChatPrompt.kt` turns them into chat messages and tools for Qwen and
+turns its streamed reply (thought, words, `tool_calls`) back into LFM3 raw text, so the Assistant's loop, the saved
+answers and the phone's fallback stay as they were. Inkling asks `/v1/models` (every 30 s at most) whether Qwen is
+`loaded`; asleep, it is woken in the background and LFM3 answers meanwhile. Each answer says which model wrote it.
+
+### B.2 Classifiers, ranked
+
+From Liquid AI's LFM3 cookbook (intent classification with d1, receipt extraction with LFM3-VL, structured
+extraction with LFM3-1.7B, the Discord moderator, live video captioning, photo triage) and this app's day:
+
+1. **Sort a line as you write it** *(built)*. The Ink line's glyph follows the phone's rules at once; 450 ms after
+   typing stops, LFM3-1.7B labels the line (todo, event, idea, note, journal) and copies the words that say when
+   ("tuesday at 3"). The phone reads those words itself (TimeArgs): a todo or event with a time becomes a reminder.
+   The model never writes the date, so it can't get it wrong (in tests it wrote 6 October for "Tuesday"). Why first:
+   every capture goes through it, and a wrong glyph is the most common correction.
+2. **Photo filing** *(built)*. A photo asked about plainly is labelled first by LFM3-VL-2B (receipt, document,
+   whiteboard, screen, person, food, place, other, plus a title). A receipt is read for shop, date, total and items,
+   a whiteboard line by line, a page summed up with its dates and amounts, and the answer is filed as a note tagged
+   `receipt`, `whiteboard` or `document` (a normal tool card, with undo). Others are answered as before.
+3. **What Talk is asked, with the camera on** *(built)*. With Look on, LFM3-1.7B labels each turn look, act or chat.
+   "What am I holding?" goes straight to the VL model on the newest frame; everything else goes to Qwen, which is
+   told what the camera saw last.
+4. **Urgency and energy** *(labelled, not stored)*. The same call returns now/soon/later and low/high. Storing them
+   needs a schema change and a place to show them (A.1 follow-up "Energy"): next.
+5. **Sensitive content** *(labelled, not stored)*. Health, money, passwords: could suggest the journal lock or a
+   "private" tag. Next, with care: a wrong "sensitive" tag is noise, a missed one is false comfort.
+
+Rules: one short instruction, no history, temperature 0, output held to a JSON schema by the server's grammar
+(LP-37's "never JSON" rule was for free-form JSON; a grammar can't be broken), 2.5 s at most, and the phone's rules
+decide whenever the server doesn't answer.
+
+### B.3 Look (live camera)
+
+In Talk, the camera button (Edge mode) swaps the voice box for the camera's view with one line under it: what
+LFM3-VL-2B sees. Frames come from CameraX's analysis stream (about 640×480, never a full photo), at most 4 a second,
+are shrunk to 512 px and sent as JPEG 75 (about 12 KB) only when the view has changed and settled (a 12×9 grey
+thumbnail), or on a tap. One request at a time; a newer frame replaces one waiting, which is dropped, never sent late.
+Measured on the server: 512 px reads a receipt as well as 768, in half the bytes and prompt tokens.
+
 ## 0. What is generic today
 
 Walking the current build:
