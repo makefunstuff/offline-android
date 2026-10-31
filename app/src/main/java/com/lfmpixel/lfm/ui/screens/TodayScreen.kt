@@ -1,7 +1,14 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,180 +17,454 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
+import com.lfmpixel.lfm.assistant.InkKind
+import com.lfmpixel.lfm.assistant.InkLine
 import com.lfmpixel.lfm.data.Entry
 import com.lfmpixel.lfm.data.EntryKind
-import androidx.compose.foundation.horizontalScroll
-import com.lfmpixel.lfm.ui.components.Btn
 import com.lfmpixel.lfm.ui.Nav
 import com.lfmpixel.lfm.ui.Route
+import com.lfmpixel.lfm.ui.components.Btn
 import com.lfmpixel.lfm.ui.components.Card
-import com.lfmpixel.lfm.ui.components.Composer
+import com.lfmpixel.lfm.ui.components.CheckBox
 import com.lfmpixel.lfm.ui.components.Divider
+import com.lfmpixel.lfm.ui.components.IconButtonPlain
 import com.lfmpixel.lfm.ui.components.LIcon
 import com.lfmpixel.lfm.ui.components.Label
 import com.lfmpixel.lfm.ui.components.Marked
+import com.lfmpixel.lfm.ui.components.MicButton
 import com.lfmpixel.lfm.ui.components.Pill
-import com.lfmpixel.lfm.ui.components.SectionLabel
 import com.lfmpixel.lfm.ui.components.Txt
 import com.lfmpixel.lfm.ui.theme.Lfm
+import com.lfmpixel.lfm.ui.theme.LfmMotion
 import com.lfmpixel.lfm.ui.theme.LfmType
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
-/** One line of today's agenda. */
+/** One line of a day's timeline. */
 data class AgendaItem(val at: Long?, val title: String, val detail: String, val onClick: (() -> Unit)? = null, val count: Int? = null)
 
+/**
+ * Home: the Daily Page (notebook-spec proposal 1). Today's page, its timeline, yesterday's open to-dos and every line
+ * written today; swipe sideways to turn to another day. The Ink line at the bottom writes on today's page.
+ */
 @Composable
 fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
+    var today by remember { mutableStateOf(LocalDate.now()) }
+    LaunchedEffect(Unit) { while (true) { delay(30_000); today = LocalDate.now() } }
+    // The page shown, as days before today (kept by Nav, so a share can turn back to today): today's page turns with
+    // midnight, and a cold start opens on today.
+    val shown = today.toEpochDay() - nav.daysBack.coerceAtLeast(0)
+    // The Ink line's text and picked kind live here, so turning to another day and back keeps a half-written line.
+    val draft = rememberSaveable { mutableStateOf("") }
+    val picked = rememberSaveable { mutableStateOf<String?>(null) }
+    val reduced = LfmMotion.reduced()
+    val turn: (LocalDate) -> Unit = { d -> if (!d.isAfter(today)) nav.daysBack = today.toEpochDay() - d.toEpochDay() }
+    val turnNow by rememberUpdatedState(turn)
+    val shownNow by rememberUpdatedState(shown)
+    val threshold = with(LocalDensity.current) { 80.dp.toPx() }
+    // Bumped when the Ink line is tapped: the page shows its last lines above it, as the keyboard comes up.
+    var toEnd by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+
+    Column(Modifier.fillMaxSize()) {
+        // A sideways swipe turns the page: to the left for the day after, to the right for the day before.
+        AnimatedContent(shown, Modifier.weight(1f).pointerInput(Unit) {
+            var total = 0f
+            detectHorizontalDragGestures(onDragStart = { total = 0f }, onDragEnd = {
+                val d = LocalDate.ofEpochDay(shownNow)
+                if (total < -threshold) turnNow(d.plusDays(1)) else if (total > threshold) turnNow(d.minusDays(1))
+            }) { change, drag -> total += drag; change.consume() }
+        }, transitionSpec = {
+            if (reduced) androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+            else LfmMotion.sharedAxisX(targetState > initialState, false)
+        }, label = "day") { day ->
+            DayPage(g, nav, LocalDate.ofEpochDay(day), today, turn, toEnd)
+        }
+        if (shown == today.toEpochDay()) InkLineBar(g, nav, today, draft, picked, onMic, listening) { toEnd++ }
+        else Column {
+            Divider()
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.Center) {
+                Btn("Back to today", { turn(today) }, icon = "sun")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, turn: (LocalDate) -> Unit, toEnd: Int) {
     val c = Lfm.c
     val zone = ZoneId.systemDefault()
+    val isToday = day == today
+    val start = day.atStartOfDay(zone).toInstant().toEpochMilli()
+    val end = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
     var now by remember { mutableStateOf(LocalDateTime.now()) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); now = LocalDateTime.now() } }
-    val start = LocalDate.now().atStartOfDay(zone).toInstant().toEpochMilli()
-    val end = start + 86_400_000L
-    // Null until first read: the agenda shows once it is known, rather than "nothing planned" for a moment first.
+    // Null until first read, so the page shows once known rather than "blank" for a moment first.
+    val linesRead by remember(start) { g.db.entries().day(start, end) }.collectAsState(null)
     val remindersRead by remember(start) { g.db.reminders().between(start, end) }.collectAsState(null)
-    val todosRead by remember { g.db.entries().todos() }.collectAsState(null)
-    val latestAll by remember { g.db.entries().latest(3) }.collectAsState(emptyList())
-    val reminders = remindersRead ?: emptyList()
-    val todos = todosRead ?: emptyList()
-    val hideJournal = journalLocked(g)
-    val latest = if (hideJournal) latestAll.filter { it.kind != EntryKind.Journal } else latestAll
-    val prefs by g.settings.prefs.collectAsState(null)
+    val carried by remember(start, isToday) { if (isToday) g.db.entries().carried(start) else flowOf(emptyList()) }.collectAsState(emptyList())
     val eventsRead by produceState<List<com.lfmpixel.lfm.tools.CalendarEvent>?>(null, start, remindersRead) { value = g.calendar.between(start, end) }
-    val events = eventsRead ?: emptyList()
-    val agendaKnown = remindersRead != null && todosRead != null && eventsRead != null
-    var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    val sent by remember(start) { g.db.netLog().since(start) }.collectAsState(emptyList())
+    val prefs by g.settings.prefs.collectAsState(null)
+    val hideJournal = journalLocked(g)
+    val actions = remember { EntryActions(g, nav) }
+    val open: (Entry) -> Unit = { nav.go(Route.Editor(it.id, it.kind)) }
 
-    val dueToday = todos.filter { !it.done && it.dueAt != null && it.dueAt < end }
+    val lines = linesRead ?: emptyList()
     val nowMs = now.atZone(zone).toInstant().toEpochMilli()
-    val items = buildList {
-        events.forEach { add(AgendaItem(it.start, it.title, listOf(it.location, minutes(it.end - it.start)).filter { s -> s.isNotEmpty() }.joinToString(" · "))) }
-        reminders.filter { !it.fired }.forEach { add(AgendaItem(it.at, it.text, "Reminder")) }
-        dueToday.filter { it.dueHasTime && it.dueAt!! >= start }.forEach { add(AgendaItem(it.dueAt, it.title, "To-do")) }
+    // Timed to-dos due this day sit in the timeline; the page keeps the rest.
+    fun timed(e: Entry) = e.kind == EntryKind.Todo && !e.done && e.dueHasTime && (e.dueAt ?: 0) in start until end
+    val timeline = buildList {
+        eventsRead.orEmpty().forEach { add(AgendaItem(it.start, it.title, listOf(it.location, minutes(it.end - it.start)).filter { s -> s.isNotEmpty() }.joinToString(" · "))) }
+        remindersRead.orEmpty().filter { !isToday || !it.fired }.forEach { add(AgendaItem(it.at, it.text, "Reminder")) }
+        lines.filter(::timed).forEach { e -> add(AgendaItem(e.dueAt, e.title, "To-do", onClick = { open(e) })) }
     }.sortedBy { it.at }
-    val untimed = dueToday.filter { !it.dueHasTime || it.dueAt!! < start }
-    val next = items.firstOrNull { (it.at ?: 0) >= nowMs - 15 * 60_000 }
-    val count = items.size + if (untimed.isNotEmpty()) 1 else 0
+    val page = lines.filterNot(::timed)
+    val shownLines = if (hideJournal) page.filter { it.kind != EntryKind.Journal } else page
+    val lockedLines = page.size - shownLines.size
+    val next = if (isToday) timeline.indexOfFirst { (it.at ?: 0) >= nowMs - 15 * 60_000 } else -1
+    val known = linesRead != null && remindersRead != null && eventsRead != null
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Label(now.format(DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH)), Modifier.weight(1f))
-            Box(Modifier.size(36.dp).border(1.dp, c.control, RoundedCornerShape(6.dp)).clickable { nav.go(Route.Settings) }
-                .semantics { contentDescription = "Settings" }, contentAlignment = Alignment.Center) {
-                LIcon("user", size = 18.dp, tint = c.text2)
+    val list = rememberLazyListState()
+    // A line just written shows at once, above the Ink line (a to-do moved here from an earlier day doesn't scroll).
+    var newest by remember(start) { mutableStateOf<Long?>(null) }
+    val latest = shownLines.maxOfOrNull { it.createdAt } ?: 0L
+    LaunchedEffect(latest, known) {
+        if (!known) return@LaunchedEffect
+        val before = newest
+        newest = latest
+        if (isToday && before != null && latest > before) list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
+    }
+    // The keyboard coming up for the Ink line: the page shows its last lines above it, like a chat.
+    val imeUp = WindowInsets.isImeVisible
+    LaunchedEffect(toEnd, imeUp) {
+        if (!imeUp || !isToday) return@LaunchedEffect
+        // After the keyboard has risen and the page has its new height.
+        delay(LfmMotion.LONG.toLong())
+        list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1)
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), state = list) {
+        item(key = "head") {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).semantics(mergeDescendants = true) { heading() }) {
+                    Label(when (day) {
+                        today -> "Today · " + day.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH))
+                        today.minusDays(1) -> "Yesterday · " + day.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH))
+                        else -> day.format(DateTimeFormatter.ofPattern(if (day.year == today.year) "MMMM" else "MMMM yyyy", Locale.ENGLISH))
+                    })
+                    Txt(day.format(DateTimeFormatter.ofPattern("EEEE d", Locale.ENGLISH)), LfmType.title2)
+                }
+                IconButtonPlain("back", { turn(day.minusDays(1)) }, desc = "The day before")
+                if (!isToday) IconButtonPlain("right", { turn(day.plusDays(1)) }, desc = "The day after")
+                IconButtonPlain("chat", { nav.go(Route.Chat) }, desc = "Ask Inkling")
+                IconButtonPlain("user", { nav.go(Route.Settings) }, desc = "Settings")
             }
         }
-        Txt(greeting(now), LfmType.title, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp).semantics { heading() })
-        Column(Modifier.padding(horizontal = 16.dp)) {
-            Composer(draft, { draft = it }, "Ask, capture or do…", onSend = {
-                g.assistant.send(draft, source = "today"); draft = ""; nav.go(Route.Chat)
-            }, onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) })
-            // One tap to write any kind, keyboard up (ux-spec section 4).
-            Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Btn("Talk", { nav.go(Route.Talk) }, small = true, icon = "wave")
-                listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, EntryKind.Todo).forEach { k ->
-                    Btn(k.label, { nav.go(Route.Editor(kind = k)) }, small = true, icon = k.icon())
+        item(key = "seal") {
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                // The seal (proposal 6): what left the phone that day, counted from Inkling Net's log.
+                val left = sent.count { it.at < end }
+                val lockOn = prefs?.lockMode == com.lfmpixel.lfm.settings.LockMode.Journal
+                val seal = "Sealed · " + when {
+                    left == 0 && isToday -> "nothing left this phone today"
+                    left == 0 -> "nothing left this phone that day"
+                    left == 1 -> "1 web request ${if (isToday) "today" else "that day"}"
+                    else -> "$left web requests ${if (isToday) "today" else "that day"}"
+                } + if (lockOn && hideJournal) " · journal locked" else ""
+                Row(Modifier.fillMaxWidth().heightIn(min = 32.dp).clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button, onClickLabel = "See what left the phone") { nav.go(Route.Privacy) },
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LIcon("shield", size = 15.dp, tint = c.text2)
+                    Txt(seal, LfmType.meta, c.text2, Modifier.weight(1f), maxLines = 1)
+                    val heat by g.heat.heat.collectAsState()
+                    if (heat != com.lfmpixel.lfm.device.Heat.Normal) Pill(heat.label.substringBefore(" ·"), "warn")
                 }
+                if (known) Txt(brief(timeline.size, page.count { it.kind == EntryKind.Todo && !it.done }, carried.size, page.size, isToday),
+                    LfmType.small, c.text2)
             }
-            Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                // A hot phone comes first, where it is seen: answers are slower on purpose.
-                val heat by g.heat.heat.collectAsState()
-                if (heat != com.lfmpixel.lfm.device.Heat.Normal) Pill(heat.label.substringBefore(" ·"), "warn")
-                Pill("On this phone", "shield")
-                ModelPill(g) { nav.go(Route.Models) }
-                Pill("Search: ${prefs?.searchMode?.label?.lowercase() ?: "ask first"}", "globe")
-            }
-            SectionLabel(when { !agendaKnown -> "Today"; count == 0 -> "Today · nothing planned"; else -> "Today · $count ${if (count == 1) "thing" else "things"}" })
-            items.forEach { AgendaRow(it, it == next, zone) }
-            if (untimed.isNotEmpty()) {
-                AgendaRow(AgendaItem(null, if (untimed.size == 1) "To-do due today" else "To-dos due today",
-                    untimed.take(3).joinToString(", ") { it.title }, onClick = { nav.go(Route.Todos) }, count = untimed.size), false, zone)
-            }
-            if (count > 0) Divider()
-            if (agendaKnown && count == 0) Txt("Say or type what's coming up; reminders and events show here.", LfmType.small, c.text2, Modifier.padding(vertical = 8.dp))
-            if (latest.isNotEmpty()) {
-                SectionLabel("Just captured")
-                latest.forEach { e -> CaptureCard(e) { nav.go(Route.Editor(e.id, e.kind)) } ; Spacer(Modifier.height(8.dp)) }
-            }
-            if (!g.engine.hasText()) {
-                Spacer(Modifier.height(8.dp))
-                Card(onClick = { nav.go(Route.Models) }) {
-                    Column {
-                        Txt("No model yet", LfmType.rowTitle)
-                        Txt("Get LFM3-1.7B to chat and let it sort what you capture. Until then, simple rules sort it.", LfmType.small, c.text2)
-                    }
-                }
-            }
-            Spacer(Modifier.height(24.dp))
         }
+        if (timeline.isNotEmpty()) {
+            item(key = "tl-label") { PageLabel(if (isToday) "Today" else "That day") }
+            // Two reminders can share a time and words: the place in the list keeps keys apart.
+            itemsIndexed(timeline, key = { i, it -> "tl-$i-${it.at}" }) { i, it -> TimelineRow(it, i == next, zone) }
+        }
+        if (carried.isNotEmpty()) item(key = "carried") { Carried(g, nav, carried, today, zone) }
+        item(key = "page-label") { PageLabel("The page") }
+        if (known && shownLines.isEmpty() && lockedLines == 0) item(key = "empty") {
+            Txt(if (isToday) "A blank page. Write a line below: it sorts itself into a to-do, an idea, a journal line or a note."
+                else "Nothing was written on this day.", LfmType.small, c.text2, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        }
+        items(shownLines, key = { it.id }) { e -> PageLine(e, open, actions, Modifier.animateItem()) }
+        if (lockedLines > 0) item(key = "locked") {
+            Row(Modifier.fillMaxWidth().clickable { nav.go(Route.Library(LibFilter.Journal)) }.heightIn(min = 48.dp).padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                LIcon("lock", size = 16.dp, tint = c.text2)
+                Txt(if (lockedLines == 1) "1 journal line, locked" else "$lockedLines journal lines, locked", LfmType.small, c.text2)
+            }
+        }
+        if (isToday && !g.engine.hasText()) item(key = "nomodel") {
+            Card(Modifier.padding(16.dp).fillMaxWidth(), onClick = { nav.go(Route.Models) }) {
+                Column {
+                    Txt("No model yet", LfmType.rowTitle)
+                    Txt("The page works without one. Get LFM3-1.7B to ask questions and use Ink in the margin.", LfmType.small, c.text2)
+                }
+            }
+        }
+        item(key = "end") { Spacer(Modifier.height(16.dp)) }
     }
 }
 
 @Composable
-private fun AgendaRow(item: AgendaItem, isNext: Boolean, zone: ZoneId) {
+private fun PageLabel(text: String) = Label(text, Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 4.dp))
+
+/** "2 events · 3 to-dos · 1 carried over": the day in a line. */
+internal fun brief(timed: Int, openTodos: Int, carried: Int, lines: Int, isToday: Boolean): String {
+    val parts = buildList {
+        if (timed > 0) add(if (timed == 1) "1 thing at a set time" else "$timed things at set times")
+        if (openTodos > 0) add(if (openTodos == 1) "1 to-do" else "$openTodos to-dos")
+        if (carried > 0) add("$carried carried over")
+        if (!isToday && lines > 0) add(if (lines == 1) "1 line written" else "$lines lines written")
+    }
+    return parts.joinToString(" · ").ifEmpty { if (isToday) "Nothing planned" else "A quiet day" }
+}
+
+@Composable
+private fun TimelineRow(item: AgendaItem, isNext: Boolean, zone: ZoneId) {
     val c = Lfm.c
+    Row(Modifier.fillMaxWidth().let { m -> item.onClick?.let { m.clickable(onClick = it) } ?: m }.heightIn(min = 44.dp).padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.width(56.dp)) {
+            val t = item.at?.let { Instant.ofEpochMilli(it).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm")) } ?: ""
+            if (isNext) Marked(t, LfmType.rowTitle.copy(fontFeatureSettings = "tnum")) else Txt(t, LfmType.rowTitle.copy(fontFeatureSettings = "tnum"))
+        }
+        Column(Modifier.weight(1f)) {
+            Txt(item.title, LfmType.body, maxLines = 1)
+            val detail = listOfNotNull("Next".takeIf { isNext }, item.detail.ifEmpty { null }).joinToString(" · ")
+            if (detail.isNotEmpty()) Txt(detail, LfmType.meta, c.text2, maxLines = 1)
+        }
+    }
+}
+
+/** Open to-dos from earlier days (proposal 4): tick, Today or Later each, or all to today. */
+@Composable
+private fun Carried(g: AppGraph, nav: Nav, list: List<Entry>, today: LocalDate, zone: ZoneId) {
+    val c = Lfm.c
+    val shape = RoundedCornerShape(8.dp)
+    fun moveTo(e: Entry, d: LocalDate?) = e.copy(dueAt = d?.atTime(9, 0)?.atZone(zone)?.toInstant()?.toEpochMilli(), dueHasTime = false,
+        updatedAt = System.currentTimeMillis())
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).fillMaxWidth().clip(shape).border(1.dp, c.line, shape).padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Label("Carried over · ${list.size}", Modifier.weight(1f))
+            if (list.size > 1) Btn("All to today", {
+                g.scope.launch {
+                    list.forEach { g.db.entries().update(moveTo(it, today)) }
+                    nav.show("${list.size} to-dos moved to today") { list.forEach { g.db.entries().update(it) } }
+                }
+            }, small = true)
+        }
+        // A few at a time: a long backlog is a calm line to Plans, not a wall on the home page.
+        list.take(3).forEach { e ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                CheckBox(false) { EntryActions(g, nav).done(e, true) }
+                Column(Modifier.weight(1f).clickable { nav.go(Route.Editor(e.id, e.kind)) }.padding(vertical = 4.dp)) {
+                    Txt(e.title, LfmType.body, maxLines = 2)
+                    val from = Instant.ofEpochMilli(e.dueAt ?: e.createdAt).atZone(zone).toLocalDate()
+                    Txt("from " + when (ChronoUnit.DAYS.between(from, today)) {
+                        1L -> "yesterday"
+                        in 2L..6L -> from.format(DateTimeFormatter.ofPattern("EEEE", Locale.ENGLISH))
+                        else -> from.format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH))
+                    } + if (e.list.isNotEmpty()) " · ${e.list}" else "", LfmType.meta, c.text2)
+                }
+                Btn("Today", {
+                    g.scope.launch { g.db.entries().update(moveTo(e, today)); nav.show("Moved to today") { g.db.entries().update(e) } }
+                }, small = true)
+                Spacer(Modifier.width(6.dp))
+                Btn("Later", {
+                    g.scope.launch { g.db.entries().update(moveTo(e, null)); nav.show("Moved to Someday") { g.db.entries().update(e) } }
+                }, small = true)
+            }
+        }
+        if (list.size > 3) Row(Modifier.fillMaxWidth().clickable { nav.go(Route.Todos) }.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+            Txt("${list.size - 3} more in Plans", LfmType.small, c.text2, Modifier.weight(1f).padding(start = 12.dp))
+            LIcon("right", tint = c.text3)
+        }
+    }
+}
+
+/** A quote shared in from another app (proposal 5). */
+internal fun Entry.isQuote() = source == "share" && kind != EntryKind.Todo
+
+/** One line of the page: its glyph, then the words. Tap opens it; long-press for pin, move and delete. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, modifier: Modifier = Modifier) {
+    val c = Lfm.c
+    var menu by remember { mutableStateOf(false) }
+    Box(modifier) {
+        Row(Modifier.fillMaxWidth().combinedClickable(onClick = { open(e) }, onLongClick = { menu = true }, onLongClickLabel = "More")
+            .heightIn(min = 48.dp).padding(end = 16.dp, start = 4.dp), verticalAlignment = Alignment.Top) {
+            if (e.kind == EntryKind.Todo) CheckBox(e.done) { actions.done(e, it) }
+            else Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                LIcon(if (e.isQuote()) "quote" else e.kind.icon(), size = 17.dp, tint = c.text2)
+            }
+            Column(Modifier.weight(1f).padding(top = 13.dp, bottom = 10.dp)) {
+                // A note keeps its whole text in the body when its title was cut short: the page shows the whole line.
+                val bodyLines = e.body.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                val whole = bodyLines.firstOrNull()?.startsWith(e.title.removeSuffix("…").trimEnd(), ignoreCase = true) == true
+                val head = if (e.kind == EntryKind.Note && whole) bodyLines.first() else e.title
+                when {
+                    e.isQuote() -> Marked(com.lfmpixel.lfm.assistant.Quotes.words(e), LfmType.body, maxLines = 4)
+                    e.kind == EntryKind.Journal -> Txt(e.title, LfmType.body.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic), maxLines = 4)
+                    else -> Txt(head, LfmType.body, if (e.done) c.text3 else c.text, maxLines = 3, decoration = if (e.done) TextDecoration.LineThrough else null)
+                }
+                val sub = when {
+                    e.isQuote() -> com.lfmpixel.lfm.assistant.Quotes.source(e)
+                    e.kind == EntryKind.Note -> bodyLines.drop(if (whole) 1 else 0).firstOrNull().orEmpty()
+                    e.kind == EntryKind.Idea -> e.topic
+                    e.kind == EntryKind.Todo -> e.list
+                    else -> ""
+                }
+                if (sub.isNotEmpty()) Txt(sub, LfmType.meta, c.text2, Modifier.padding(top = 2.dp), maxLines = 1)
+            }
+            if (e.pinned) Box(Modifier.padding(top = 14.dp)) { LIcon("pin", size = 14.dp, tint = c.text2) }
+        }
+        DropdownMenu(menu, { menu = false }) {
+            DropdownMenuItem({ Txt(if (e.pinned) "Unpin" else "Pin") }, { menu = false; actions.pin(e) }, leadingIcon = { LIcon("pin", size = 18.dp) })
+            EntryKind.entries.filter { it != e.kind }.forEach { k ->
+                DropdownMenuItem({ Txt("Make it ${if (k == EntryKind.Idea) "an idea" else if (k == EntryKind.Journal) "a journal line" else "a " + k.label.lowercase()}") },
+                    { menu = false; actions.move(e, k) }, leadingIcon = { LIcon(k.icon(), size = 18.dp) })
+            }
+            DropdownMenuItem({ Txt("Delete") }, { menu = false; actions.delete(e) }, leadingIcon = { LIcon("trash", size = 18.dp) })
+        }
+    }
+}
+
+/**
+ * The Ink line (proposal 2): one line at the bottom of today's page. The glyph shows where the line goes as it is
+ * typed, guessed on the phone; a tap on it picks another kind. Enter puts it on the page and keeps the keyboard up.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: androidx.compose.runtime.MutableState<String>,
+                       pickedState: androidx.compose.runtime.MutableState<String?>, onMic: () -> Unit, listening: Boolean, onFocus: () -> Unit) {
+    val c = Lfm.c
+    var draft by draftState
+    var picked by pickedState
+    var kinds by remember { mutableStateOf(false) }
+    // What the mic heard comes here, to be read (and its glyph seen) before it goes on the page.
+    LaunchedEffect(nav.heard) { nav.heard?.let { draft = (draft.trimEnd() + " " + it).trim(); nav.heard = null } }
+    val guess = remember(draft) { InkLine.guess(draft) }
+    val kind = picked?.let { InkKind.valueOf(it) }?.takeIf { it in InkLine.cycle(guess.kind) } ?: guess.kind
+    fun commit() {
+        val line = draft.trim()
+        if (line.isEmpty()) return
+        draft = ""; picked = null
+        if (kind == InkKind.Ask) {
+            // Without a model a question would be sorted into the notebook: it waits in the line instead.
+            if (!g.engine.hasText()) { draft = line; nav.show("Asking needs a chat model: Settings → Models"); return }
+            g.assistant.send(InkLine.question(line), source = "today"); nav.go(Route.Chat); return
+        }
+        InkLine.call(line, kind, today)?.let { call ->
+            g.assistant.runDirect(call, "typed") { r ->
+                if (!r.ok) { draft = line; nav.show(listOf(r.cardLabel, r.cardDetail).filter { it.isNotEmpty() }.joinToString(": ").ifEmpty { "Not added" }) }
+                else if (kind == InkKind.Reminder) nav.show("${r.cardLabel} · ${r.cardDetail}".trim(' ', '·'))
+            }
+        }
+    }
     Column {
         Divider()
-        Row(Modifier.fillMaxWidth().let { m -> item.onClick?.let { m.clickable(onClick = it) } ?: m }.padding(vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(Modifier.width(76.dp)) {
-                val t = item.count?.toString() ?: item.at?.let { Instant.ofEpochMilli(it).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm")) } ?: ""
-                if (isNext) Marked(t, LfmType.big) else Txt(t, LfmType.big)
+        AnimatedVisibility(draft.isNotBlank(), enter = LfmMotion.appear(), exit = LfmMotion.leave()) {
+            val detail = when (kind) {
+                InkKind.Todo -> "To-do · today"
+                InkKind.Reminder -> "Reminder · " + InkLine.whenLabel(guess.reminderAt)
+                InkKind.Ask -> "Ask Inkling · opens the chat"
+                else -> kind.label
             }
-            Column(Modifier.weight(1f)) {
-                Txt(item.title, LfmType.rowTitle, maxLines = 1)
-                if (item.detail.isNotEmpty()) Txt(item.detail, LfmType.label.copy(fontWeight = null), c.text2, maxLines = 1)
+            Txt("$detail  ·  tap the mark to change, hold to pick", LfmType.meta, c.text2, Modifier.padding(start = 16.dp, top = 6.dp))
+        }
+        Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val shape = RoundedCornerShape(6.dp)
+            Box(Modifier.size(48.dp).clip(shape).combinedClickable(role = Role.Button, onClickLabel = "Change where it goes",
+                    onLongClickLabel = "Pick where it goes", onLongClick = { kinds = true }) {
+                    picked = InkLine.next(kind, guess.kind).name
+                }.semantics { contentDescription = "Goes to: ${kind.label}" }, contentAlignment = Alignment.Center) {
+                DropdownMenu(kinds, { kinds = false }) {
+                    InkLine.cycle(guess.kind).forEach { k ->
+                        DropdownMenuItem({ Txt(k.label) }, { kinds = false; picked = k.name }, leadingIcon = { LIcon(k.icon, size = 18.dp) })
+                    }
+                }
+                Box(Modifier.size(34.dp).clip(shape).background(c.fill).border(1.dp, c.line, shape), contentAlignment = Alignment.Center) {
+                    AnimatedContent(kind, transitionSpec = {
+                        androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(LfmMotion.SHORT)) togetherWith androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(LfmMotion.TINY))
+                    }, label = "glyph") { k -> LIcon(k.icon, size = 18.dp, tint = c.text) }
+                }
             }
-            if (isNext) Txt("Next", LfmType.meta.copy(fontWeight = LfmType.label.fontWeight), c.text2)
-            if (item.onClick != null) LIcon("right", tint = c.text3)
+            val fieldShape = RoundedCornerShape(8.dp)
+            Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(fieldShape).border(1.dp, c.control, fieldShape).padding(horizontal = 12.dp, vertical = 10.dp),
+                contentAlignment = Alignment.CenterStart) {
+                if (draft.isEmpty()) Txt("Write a line…", LfmType.body, c.text2, maxLines = 1)
+                BasicTextField(draft, { draft = it; if (it.isBlank()) picked = null }, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send, capitalization = KeyboardCapitalization.Sentences),
+                    keyboardActions = KeyboardActions(onSend = { commit() }), maxLines = 4,
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocus() }
+                        .semantics { contentDescription = "Write a line on today's page" })
+            }
+            if (draft.isNotBlank()) IconButtonPlain("send", { commit() }, tint = c.text, desc = if (kind == InkKind.Ask) "Ask" else "Add to the page")
+            else MicButton(onMic, listening = listening)
         }
     }
-}
-
-@Composable
-fun CaptureCard(e: Entry, onClick: () -> Unit) {
-    val c = Lfm.c
-    Card(Modifier.fillMaxWidth(), onClick = onClick) {
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Txt(e.title, LfmType.bodyLarge.copy(fontWeight = LfmType.rowTitle.fontWeight), maxLines = 2)
-            val time = Instant.ofEpochMilli(e.createdAt).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("HH:mm"))
-            Txt(listOfNotNull(e.kind.label, time, e.source.takeIf { it == "voice" }, e.list.takeIf { it.isNotEmpty() }).joinToString(" · "),
-                LfmType.label.copy(fontWeight = null), c.text2)
-        }
-    }
-}
-
-private fun greeting(now: LocalDateTime) = when (now.hour) {
-    in 5..11 -> "Good morning"
-    in 12..17 -> "Good afternoon"
-    else -> "Good evening"
 }
 
 private fun minutes(ms: Long): String {
@@ -198,7 +479,7 @@ private fun minutes(ms: Long): String {
 
 fun EntryKind.icon() = when (this) { EntryKind.Note -> "note"; EntryKind.Idea -> "bulb"; EntryKind.Journal -> "book"; EntryKind.Todo -> "todo" }
 
-/** The chat model's state in a word, for Today and the chat header: "ready", "loading…", "not loaded". */
+/** The chat model's state in a word, for the chat header: "ready", "loading…", "not loaded". */
 @Composable
 fun modelState(g: AppGraph): String {
     val st by g.engine.status.collectAsState()
@@ -213,9 +494,4 @@ fun modelState(g: AppGraph): String {
         com.lfmpixel.lfm.llm.LoadState.Failed -> "failed to load"
         com.lfmpixel.lfm.llm.LoadState.None -> "not loaded"
     }
-}
-
-@Composable
-private fun ModelPill(g: AppGraph, onClick: () -> Unit) {
-    Box(Modifier.clickable(onClick = onClick)) { Pill(modelState(g), "chip") }
 }

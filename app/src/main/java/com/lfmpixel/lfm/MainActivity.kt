@@ -203,6 +203,8 @@ class MainActivity : ComponentActivity() {
         const val OPEN_TALK = "talk"
         const val OPEN_CAPTURE = "capture"
         const val OPEN_NOTE = "note"
+        /** Followed by the id of the quote ShareActivity saved. */
+        const val OPEN_SHARED = "shared:"
         /** The assistant gesture: Talk or voice capture, as set in Settings → Voice. */
         const val OPEN_ASSIST = "assist"
 
@@ -269,6 +271,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                 when (target) {
                     // Only while the camera is still open: a late transcript is not kept for the next visit.
                     VoiceTarget.Question -> if (nav.current == Route.Camera) cameraQuestion.text = text
+                    VoiceTarget.Line -> if (nav.current == Route.Today) nav.heard = text else { g.assistant.send(text, seconds, "voice"); nav.go(Route.Chat) }
                     VoiceTarget.Assistant -> { g.assistant.send(text, seconds, "voice"); nav.go(Route.Chat) }
                     is VoiceTarget.Library -> {
                         val tool = when (target.kind) { EntryKind.Note -> "add_note"; EntryKind.Idea -> "add_idea"; EntryKind.Journal -> "add_journal"; EntryKind.Todo -> "add_todo" }
@@ -289,6 +292,15 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
         if (appLocked) return@LaunchedEffect
         opened.value = null
         if (!p.firstRunDone) return@LaunchedEffect
+        // A quote ShareActivity already saved: show it on today's page, with Undo.
+        if (what.startsWith(MainActivity.OPEN_SHARED)) {
+            val id = what.removePrefix(MainActivity.OPEN_SHARED).toLongOrNull() ?: return@LaunchedEffect
+            if (nav.current == Route.Talk) nav.back()
+            nav.reset(Route.Today)
+            nav.daysBack = 0
+            nav.show("Saved to today's page") { g.db.entries().delete(id) }
+            return@LaunchedEffect
+        }
         if (what == MainActivity.OPEN_NOTE) { nav.reset(Route.Today); nav.go(Route.Editor(kind = EntryKind.Note)); return@LaunchedEffect }
         val talk = what == MainActivity.OPEN_TALK || (what == MainActivity.OPEN_ASSIST && p.assistOpens == com.lfmpixel.lfm.settings.AssistOpens.Talk)
         if (talk) {
@@ -358,7 +370,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                 }
             }, label = "screen") { r ->
                 saved.SaveableStateProvider(when (r) { is Route.Library -> "library"; is Route.Editor -> "editor" + r.opened; else -> r.toString() }) { when (r) {
-                    Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
+                    Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Line) }, listening)
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Talk -> TalkScreen(g, nav, gate)
                     Route.Voice -> VoiceSettingsScreen(g, nav)
@@ -377,7 +389,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     Route.WebSearch -> WebSearchScreen(g, nav)
                 } }
             }
-            SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter))
+            // On today's page it sits above the Ink line, so it never covers the line being written.
+            SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter).padding(bottom = if (nav.current == Route.Today) 64.dp else 0.dp))
             }
             VoicePanel(g) { g.voice.stop() }
             if (nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) {
@@ -398,8 +411,9 @@ private fun BottomBar(nav: Nav) {
     Column {
         Divider()
         Row(Modifier.fillMaxWidth().height(70.dp)) {
-            listOf(Triple("sun", "Today", Route.Today), Triple("chat", "Chat", Route.Chat), Triple("book", "Library", Route.Library()),
-                Triple("todo", "To-dos", Route.Todos)).forEach { (icon, label, route) ->
+            // A notebook first (notebook-spec proposal 7): the chat is a button on the page, not a place of its own.
+            listOf(Triple("sun", "Today", Route.Today), Triple("book", "Notebook", Route.Library()),
+                Triple("todo", "Plans", Route.Todos)).forEach { (icon, label, route) ->
                 val on = when (route) { is Route.Library -> nav.current is Route.Library; else -> nav.current == route }
                 Column(Modifier.weight(1f).height(70.dp).clickable(role = Role.Tab) {
                     if (route is Route.Library && nav.current is Route.Library) return@clickable

@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.geometry.Offset
@@ -236,6 +237,12 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     var caretAt by rememberSaveable(route.opened) { mutableStateOf(intArrayOf()) }
     var pageAt by rememberSaveable(route.opened) { mutableIntStateOf(0) }
     KeepPlaceThroughKeyboard(scroll, page) { draft.text.selection.end.takeIf { writing } }
+    // Ink in the margin (notebook-spec proposal 3): one answer at a time, stopped when the editor goes.
+    val margin = remember(route.opened) { MarginRun(g) }
+    var inkSheet by remember { mutableStateOf(false) }
+    val marginView = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    DisposableEffect(margin) { onDispose { margin.stop() } }
+    LaunchedEffect(margin.ask) { if (margin.ask != null) { delay(LfmMotion.LONG.toLong()); runCatching { marginView.bringIntoView() } } }
 
     LaunchedEffect(route.opened) {
         route.id?.let { id -> g.db.entries().get(id)?.let { draft.load(it, caretAt) } ?: nav.back() }
@@ -282,6 +289,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
         Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             IconButtonPlain("back", { nav.back() }, desc = "Back")
             Txt(if (draft.saved) (if (draft.id == null) "" else "Saved") else "Saving…", LfmType.meta, c.text2, Modifier.weight(1f).padding(start = 4.dp))
+            if (draft.text.text.isNotBlank()) IconButtonPlain("ink", { keyboard?.hide(); inkSheet = true }, tint = c.text, desc = "Ink in the margin")
             IconButtonPlain("pin", { draft.entry = e.copy(pinned = !e.pinned); draft.changed() }, tint = if (e.pinned) c.text else c.text3,
                 desc = if (e.pinned) "Unpin" else "Pin")
             IconButtonPlain("trash", {
@@ -317,6 +325,15 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                         inner()
                     }
                 })
+            androidx.compose.animation.AnimatedVisibility(margin.ask != null, enter = LfmMotion.appear() + expandVertically(LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate)),
+                exit = LfmMotion.leave() + shrinkVertically(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate))) {
+                MarginBlock(margin, nav, onAddToNote = { add ->
+                    val old = draft.text.text.trimEnd()
+                    val next = if (old.isEmpty()) add else old + "\n\n" + add
+                    draft.text = TextFieldValue(next, TextRange(next.length))
+                    draft.changed()
+                }, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp).bringIntoViewRequester(marginView))
+            }
             when (e.kind) {
                 EntryKind.Todo -> {
                     Label("Due", Modifier.padding(top = 8.dp))
@@ -385,6 +402,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
             }
         }
     }
+    if (inkSheet) MarginSheet(g, nav, onPick = { what, q -> inkSheet = false; margin.start(draft.text.text, what, q) }, onClose = { inkSheet = false })
 }
 
 /** Words in the text, as the keyboard bar counts them. */

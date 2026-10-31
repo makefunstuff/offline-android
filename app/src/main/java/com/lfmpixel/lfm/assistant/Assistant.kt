@@ -586,7 +586,7 @@ class Assistant(
                 val e = db.entries().get(value.toLong())
                 when {
                     e == null -> true
-                    e.done || e.updatedAt > e.createdAt + 1_000 -> { notice("Not undone: “${e.title}” was changed since. Delete it in the Library if you want."); return false }
+                    e.done || e.updatedAt > e.createdAt + 1_000 -> { notice("Not undone: “${e.title}” was changed since. Delete it in the Notebook if you want."); return false }
                     else -> { db.entries().delete(e.id); true }
                 }
             }

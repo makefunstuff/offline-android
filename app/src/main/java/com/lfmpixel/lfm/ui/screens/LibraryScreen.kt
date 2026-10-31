@@ -49,6 +49,7 @@ import com.lfmpixel.lfm.ui.components.IconButtonPlain
 import com.lfmpixel.lfm.ui.components.InputLine
 import com.lfmpixel.lfm.ui.components.LIcon
 import com.lfmpixel.lfm.ui.components.Label
+import com.lfmpixel.lfm.ui.components.Marked
 import com.lfmpixel.lfm.ui.components.MicButton
 import com.lfmpixel.lfm.ui.components.SwipeAction
 import com.lfmpixel.lfm.ui.components.SwipeRow
@@ -69,7 +70,7 @@ import java.util.Locale
 /** The Library's filter chips; [kind] is what + and the mic make there. */
 enum class LibFilter(val label: String, val kind: EntryKind) {
     All("All", EntryKind.Note), Notes("Notes", EntryKind.Note), Ideas("Ideas", EntryKind.Idea),
-    Journal("Journal", EntryKind.Journal), Pinned("Pinned", EntryKind.Note)
+    Journal("Journal", EntryKind.Journal), Reading("Reading", EntryKind.Note), Pinned("Pinned", EntryKind.Note)
 }
 
 /** Library actions shared by swipes, the long-press menu and TalkBack: each one says what it did and can be undone. */
@@ -112,9 +113,9 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Txt("Library", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
+            Txt("Notebook", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
                 .semantics { heading() })
-            InputLine(query, { query = it }, "Search notes, ideas, journal, to-dos", "search", Modifier.padding(horizontal = 16.dp)) {
+            InputLine(query, { query = it }, "Search notes, ideas, quotes, journal, to-dos", "search", Modifier.padding(horizontal = 16.dp)) {
                 if (query.isNotEmpty()) IconButtonPlain("x", { query = "" }, desc = "Clear search")
             }
             val r = results
@@ -135,6 +136,7 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
                     val shown = when (filter) {
                         LibFilter.Notes -> list.filter { it.kind == EntryKind.Note }
                         LibFilter.Pinned -> list.filter { it.pinned }
+                        LibFilter.Reading -> list.filter { it.isQuote() || it.tags.split(' ').contains("reading") }
                         else -> list
                     }
                     val state = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -146,6 +148,7 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
                             Box(Modifier.padding(horizontal = 16.dp)) {
                                 when (filter) {
                                     LibFilter.Pinned -> Empty("Nothing pinned", "Swipe a note right to pin it; pinned ones stay on top.")
+                                    LibFilter.Reading -> Empty("No quotes yet", "Select text in any app, tap Share, then Inkling: it lands on today's page as a highlight, and here.")
                                     else -> Empty("No notes yet", "Tap + to write, or the mic to talk. Notes, ideas and journal lines all land here.")
                                 }
                             }
@@ -197,13 +200,16 @@ fun LazyItemScope.EntryRow(e: Entry, showKind: Boolean, onClick: () -> Unit, act
         SwipeRow(right, SwipeAction("Delete", "trash") { actions.delete(e) }) {
             Column(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = { menu = true }).padding(horizontal = 16.dp)) {
                 Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (showKind) LIcon(e.kind.icon(), size = 16.dp, tint = c.text2)
-                    Txt(e.title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.weight(1f), maxLines = 1,
+                    if (showKind || e.isQuote()) LIcon(if (e.isQuote()) "quote" else e.kind.icon(), size = 16.dp, tint = c.text2)
+                    // A quote keeps its highlighter here too.
+                    if (e.isQuote()) Marked(com.lfmpixel.lfm.assistant.Quotes.words(e), LfmType.body, Modifier.weight(1f), maxLines = 2)
+                    else Txt(e.title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.weight(1f), maxLines = 1,
                         decoration = if (e.done) TextDecoration.LineThrough else null)
                     if (e.pinned) LIcon("pin", size = 14.dp, tint = c.text2)
                     Txt(shortDay(e.createdAt), LfmType.meta, c.text2)
                 }
-                val body = e.body.takeIf { it.isNotEmpty() && it != e.title }
+                // A quote shows where it came from; its words are the title.
+                val body = if (e.isQuote()) com.lfmpixel.lfm.assistant.Quotes.source(e).ifEmpty { null } else e.body.takeIf { it.isNotEmpty() && it != e.title }
                 if (body != null) Txt(body, LfmType.small.copy(fontSize = LfmType.small.fontSize * 0.93f), c.text2, Modifier.padding(top = 3.dp), maxLines = 2)
                 val tags = buildList {
                     if (e.voiceSeconds > 0) add("%d:%02d".format(e.voiceSeconds / 60, e.voiceSeconds % 60) to "wave")

@@ -93,7 +93,7 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Txt("To-dos", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).semantics { heading() })
+            Txt("Plans", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).semantics { heading() })
             val counts = TodoTab.entries.associateWith { t -> all.count { !it.done && todoTab(it, endOfToday) == t } }
             Tabs(TodoTab.entries.map { t -> counts[t].takeIf { it != 0 }?.let { "${t.label} $it" } ?: t.label },
                 TodoTab.entries.first { it == tab }.let { t -> counts[t].takeIf { it != 0 }?.let { "${t.label} $it" } ?: t.label },

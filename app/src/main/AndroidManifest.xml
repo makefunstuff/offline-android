@@ -68,6 +68,17 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <!-- Share any text to Inkling: it lands on today's page as a quote (docs/notebook-spec.md, proposal 5). No screen of
+             its own and its own empty task, so Inkling itself always opens in its own task. -->
+        <activity android:name=".ShareActivity" android:exported="true" android:label="Inkling"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true"
+            android:taskAffinity="" android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
         <!-- Being the phone's assistant (Settings → Apps → Default apps → Digital assistant app). -->
         <service android:name=".assist.AssistService" android:exported="true"
             android:permission="android.permission.BIND_VOICE_INTERACTION">
