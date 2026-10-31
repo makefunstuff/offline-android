@@ -1,5 +1,37 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationTarget
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextLayoutResult
+import com.lfmpixel.lfm.ui.theme.LfmMotion
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.roundToInt
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,7 +114,7 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
     private val lock = Mutex()
 
     /** Body text as the owner wrote it, rebuilt from title and body the way they were stored. */
-    fun load(e: Entry) {
+    fun load(e: Entry, caret: IntArray = intArrayOf()) {
         entry = e
         val full = when {
             e.body.isBlank() -> e.title
@@ -90,7 +122,8 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
             e.kind == EntryKind.Note -> e.title + "\n" + e.body
             else -> e.body
         }
-        text = TextFieldValue(full, TextRange(full.length))
+        // The caret goes back where it was when this editor was last on screen, else to the end.
+        text = TextFieldValue(full, if (caret.size == 2 && caret.all { it in 0..full.length }) TextRange(caret[0], caret[1]) else TextRange(full.length))
         extra = when (e.kind) { EntryKind.Idea -> e.topic; EntryKind.Todo -> e.list; else -> e.tags }
     }
 
@@ -177,6 +210,7 @@ private fun bodyIsWhole(title: String, body: String) = body.isNotEmpty() && body
 private val kinds = listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, EntryKind.Todo)
 
 /** Full-screen editor for all four kinds (ux-spec section 5): no Save button; Back, leaving the app and a pause save. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     val c = Lfm.c
@@ -191,11 +225,22 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     val focus = remember { FocusRequester() }
     val zone = ZoneId.systemDefault()
     val ctx = LocalContext.current
+    val scroll = rememberScrollState()
+    val page = remember { KeyboardPage() }
+    var writing by remember { mutableStateOf(false) }
+    val keyboard = LocalSoftwareKeyboardController.current
+    // The caret and the place on the page outlive the screen leaving composition (a lock, say), and are put back once
+    // the entry is loaded again; the scroll alone would be cut to the empty page's height before the text is in.
+    var caretAt by rememberSaveable(route.opened) { mutableStateOf(intArrayOf()) }
+    var pageAt by rememberSaveable(route.opened) { mutableIntStateOf(0) }
+    KeepPlaceThroughKeyboard(scroll, page) { draft.text.selection.end }
 
     LaunchedEffect(route.opened) {
-        route.id?.let { id -> g.db.entries().get(id)?.let { draft.load(it) } ?: nav.back() }
+        route.id?.let { id -> g.db.entries().get(id)?.let { draft.load(it, caretAt) } ?: nav.back() }
         loaded = true
         if (route.id == null) runCatching { focus.requestFocus() }
+        if (pageAt > 0) withTimeoutOrNull(1000) { snapshotFlow { scroll.maxValue }.first { it >= pageAt } }?.let { scroll.scrollTo(pageAt) }
+        snapshotFlow { scroll.value }.collect { pageAt = it }
     }
     // Autosave half a second after the last change.
     LaunchedEffect(draft.text.text, draft.extra, draft.entry) {
@@ -229,6 +274,8 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
         }
         return
     }
+    // The page sits above the keyboard (edge to edge, so the window itself never resizes): the header stays put,
+    // only the page's height follows the keyboard, frame by frame, and the caret stays in view.
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             IconButtonPlain("back", { nav.back() }, desc = "Back")
@@ -247,17 +294,20 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
             }, Modifier.padding(top = 0.dp))
         }
         Divider()
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+        Column(Modifier.weight(1f).onPlaced { page.viewport = it }.then(with(page) { Modifier.watchFingers(scroll) }).verticalScroll(scroll).padding(horizontal = 16.dp)) {
             if (loaded) BasicTextField(draft.text, { v ->
                     // A tap or a cursor move is not a change; only the text is.
                     val edited = v.text != draft.text.text
                     draft.text = v
+                    caretAt = intArrayOf(v.selection.start, v.selection.end)
                     if (edited) draft.changed()
                 },
                 textStyle = (if (e.kind == EntryKind.Todo) LfmType.answer else LfmType.bodyLarge).copy(color = c.text),
                 cursorBrush = SolidColor(c.text),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp).padding(top = 14.dp, bottom = 8.dp).focusRequester(focus)
+                onTextLayout = { page.layout = it },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp).padding(top = 14.dp, bottom = 8.dp).onPlaced { page.field = it }
+                    .focusRequester(focus).onFocusChanged { writing = it.isFocused }
                     .semantics { contentDescription = "${e.kind.label} text" },
                 decorationBox = { inner ->
                     Box {
@@ -313,6 +363,109 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
             if (draft.id != null) Txt("Created " + Instant.ofEpochMilli(e.createdAt).atZone(zone).format(DateTimeFormatter.ofPattern("EEE d MMM, HH:mm", Locale.ENGLISH)) +
                 (if (e.source == "voice") " · from voice" else if (e.source == "chat") " · from chat" else ""), LfmType.meta, c.text2)
             Spacer(Modifier.width(1.dp).height(24.dp))
+        }
+        // While writing, a slim bar rides on the keyboard: how long the text is, and Done to put the keyboard away
+        // (the caret stays where it was, so tapping the text carries on there).
+        val keyboardUp = WindowInsets.isImeVisible
+        androidx.compose.animation.AnimatedVisibility(keyboardUp && writing, enter = fadeIn(LfmMotion.spec(LfmMotion.SHORT)),
+            exit = fadeOut(LfmMotion.spec(LfmMotion.TINY))) {
+            Column {
+                Divider()
+                Row(Modifier.fillMaxWidth().height(44.dp).padding(start = 16.dp, end = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    val words by remember { derivedStateOf { wordCount(draft.text.text) } }
+                    Txt(if (words == 1) "1 word" else "$words words", LfmType.meta, c.text2, Modifier.weight(1f))
+                    Txt("Done", LfmType.button, c.text, Modifier.clip(RoundedCornerShape(6.dp))
+                        .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Hide the keyboard") { keyboard?.hide() }
+                        .padding(horizontal = 12.dp, vertical = 10.dp))
+                }
+            }
+        }
+    }
+}
+
+/** Words in the text, as the keyboard bar counts them. */
+internal fun wordCount(text: String) = text.split(Regex("\\s+")).count { it.isNotEmpty() }
+
+/** Where the editor's page and caret are, to put the page back when the keyboard goes. */
+private class KeyboardPage {
+    var viewport: LayoutCoordinates? = null
+    var field: LayoutCoordinates? = null
+    var layout: TextLayoutResult? = null
+    /** The page's place when a finger last went down with the keyboard away: where it goes back to. */
+    var resting = 0
+    var keyboardUp = false
+    /** Set when the owner scrolls the page by hand while the keyboard is up: then the page stays where they left it. */
+    var dragged = false
+
+    /**
+     * Watches fingers on the page without taking them. A tap that brings the keyboard notes the place first: the text
+     * field scrolls the caret into view before the keyboard even starts to rise, so the place can't be read later.
+     */
+    fun Modifier.watchFingers(scroll: ScrollState) = pointerInput(scroll) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (!keyboardUp) resting = scroll.value
+            while (true) {
+                val e = awaitPointerEvent(PointerEventPass.Initial)
+                val c = e.changes.firstOrNull { it.id == down.id } ?: break
+                if (!c.pressed) break
+                if (keyboardUp && (c.position - down.position).getDistance() > viewConfiguration.touchSlop) dragged = true
+            }
+        }
+    }
+
+    /** The caret's top and bottom on the page (0 at the top of the scrolled content), once laid out. */
+    fun caret(offset: Int, scrolled: Int): Pair<Float, Float>? {
+        val v = viewport?.takeIf { it.isAttached } ?: return null
+        val f = field?.takeIf { it.isAttached } ?: return null
+        val l = layout ?: return null
+        val r = l.getCursorRect(offset.coerceIn(0, l.layoutInput.text.length))
+        val top = v.localPositionOf(f, Offset(0f, r.top)).y + scrolled
+        return top to top + r.height
+    }
+}
+
+/**
+ * The keyboard coming up shrinks the page and scrolls the caret into view; going down, the page glides back to where
+ * it was before the tap, with the keyboard, frame by frame. Only while the caret would still show there and the owner did
+ * not scroll by hand meanwhile; otherwise it stays where it is (the caret line keeps its place on screen).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun KeepPlaceThroughKeyboard(scroll: ScrollState, page: KeyboardPage, caret: () -> Int) {
+    val density = LocalDensity.current
+    val ime = WindowInsets.ime
+    val goal = WindowInsets.imeAnimationTarget
+    val bars = WindowInsets.navigationBars
+    val caretNow by rememberUpdatedState(caret)
+    LaunchedEffect(scroll, page) {
+        var from = -1               // closing: the place it started from, or -2 when the page stays
+        var fromIme = 0
+        var lastIme = 0
+        fun keeps(imeHeight: Int): Boolean {
+            if (page.dragged) return false
+            val (top, bottom) = page.caret(caretNow(), scroll.value) ?: return false
+            val v = page.viewport ?: return false
+            val closed = v.size.height + (imeHeight - bars.getBottom(density)).coerceAtLeast(0)
+            return top >= page.resting && bottom <= page.resting + closed
+        }
+        snapshotFlow { ime.getBottom(density) to goal.getBottom(density) }.collect { (now, target) ->
+            when {
+                target == 0 && page.keyboardUp -> {
+                    val value = scroll.value
+                    if (from == -1) {
+                        fromIme = maxOf(lastIme, now)
+                        from = if (keeps(fromIme)) value else -2
+                    }
+                    if (from >= 0) {
+                        val to = if (fromIme == 0) page.resting else page.resting + ((from - page.resting) * now / fromIme.toFloat()).roundToInt()
+                        if (to != value) scroll.scrollTo(to)
+                    }
+                    if (now == 0) { page.keyboardUp = false; page.dragged = false; from = -1 }
+                }
+                target > 0 || now > 0 -> { page.keyboardUp = true; from = -1 }
+            }
+            lastIme = now
         }
     }
 }
