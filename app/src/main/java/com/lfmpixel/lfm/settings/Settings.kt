@@ -10,10 +10,15 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import com.lfmpixel.lfm.voice.SpeechLanguage
+import com.lfmpixel.lfm.voice.SpeechVoice
 
 enum class SearchMode(val label: String) { Off("Off"), AskFirst("Ask first"), Automatic("Automatic") }
 
 enum class ToolPolicy { Ask, Do }
+
+/** What the assistant gesture (power-button hold, corner swipe) opens. */
+enum class AssistOpens(val label: String) { Talk("Talk"), Capture("Voice capture") }
 
 data class Prefs(
     val firstRunDone: Boolean = false,
@@ -33,6 +38,11 @@ data class Prefs(
     val downloadWifiOnly: Boolean = true,
     /** A small "28 tokens/s · first token 0.4 s" line under each answer. */
     val showSpeed: Boolean = true,
+    val speechLanguage: SpeechLanguage = SpeechLanguage.EnglishUK,
+    val speechVoice: SpeechVoice = SpeechVoice.Female,
+    /** Talk answers out loud; off, it answers in text only (faster, silent). */
+    val talkSpoken: Boolean = true,
+    val assistOpens: AssistOpens = AssistOpens.Talk,
 )
 
 private val Context.store by preferencesDataStore("settings")
@@ -55,6 +65,10 @@ class Settings(private val context: Context) {
         val wifiOnly = booleanPreferencesKey("download_wifi_only")
         val chatModel = stringPreferencesKey("chat_model")
         val speed = booleanPreferencesKey("show_speed")
+        val speechLanguage = stringPreferencesKey("speech_language")
+        val speechVoice = stringPreferencesKey("speech_voice")
+        val talkSpoken = booleanPreferencesKey("talk_spoken")
+        val assistOpens = stringPreferencesKey("assist_opens")
     }
 
     val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
@@ -78,6 +92,10 @@ class Settings(private val context: Context) {
         downloadWifiOnly = this[K.wifiOnly] ?: true,
         chatModel = this[K.chatModel] ?: "",
         showSpeed = this[K.speed] ?: true,
+        speechLanguage = this[K.speechLanguage]?.let { runCatching { SpeechLanguage.valueOf(it) }.getOrNull() } ?: SpeechLanguage.EnglishUK,
+        speechVoice = this[K.speechVoice]?.let { runCatching { SpeechVoice.valueOf(it) }.getOrNull() } ?: SpeechVoice.Female,
+        talkSpoken = this[K.talkSpoken] ?: true,
+        assistOpens = this[K.assistOpens]?.let { runCatching { AssistOpens.valueOf(it) }.getOrNull() } ?: AssistOpens.Talk,
     )
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
@@ -89,6 +107,10 @@ class Settings(private val context: Context) {
     suspend fun setNetEnabled(on: Boolean) = context.store.edit { it[K.net] = on }
     suspend fun setSnippetsOnly(on: Boolean) = context.store.edit { it[K.snippets] = on }
     suspend fun setDownloadWifiOnly(on: Boolean) = context.store.edit { it[K.wifiOnly] = on }
+    suspend fun setSpeechLanguage(l: SpeechLanguage) = context.store.edit { it[K.speechLanguage] = l.name }
+    suspend fun setSpeechVoice(v: SpeechVoice) = context.store.edit { it[K.speechVoice] = v.name }
+    suspend fun setTalkSpoken(on: Boolean) = context.store.edit { it[K.talkSpoken] = on }
+    suspend fun setAssistOpens(o: AssistOpens) = context.store.edit { it[K.assistOpens] = o.name }
     suspend fun setChatModel(fileName: String) = context.store.edit { it[K.chatModel] = fileName }
     suspend fun setShowSpeed(on: Boolean) = context.store.edit { it[K.speed] = on }
     suspend fun setToolPolicy(tool: String, policy: ToolPolicy) = context.store.edit {

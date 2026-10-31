@@ -69,6 +69,8 @@ import com.lfmpixel.lfm.ui.screens.SearchScreen
 import com.lfmpixel.lfm.ui.screens.SettingsScreen
 import com.lfmpixel.lfm.ui.screens.WebSearchScreen
 import com.lfmpixel.lfm.ui.screens.TodayScreen
+import com.lfmpixel.lfm.ui.screens.TalkScreen
+import com.lfmpixel.lfm.ui.screens.VoiceSettingsScreen
 import com.lfmpixel.lfm.ui.screens.TodosScreen
 import com.lfmpixel.lfm.ui.screens.ToolsScreen
 import com.lfmpixel.lfm.ui.screens.VoiceInfoSheet
@@ -77,6 +79,7 @@ import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmTheme
 import com.lfmpixel.lfm.ui.theme.LfmType
 import com.lfmpixel.lfm.voice.VoiceState
+import com.lfmpixel.lfm.voice.TalkPhase as VoiceTalkPhase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 
@@ -106,8 +109,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** What the assistant gesture, the Quick Settings tile or the widget asked for: "talk" or "capture". */
+    private val opened = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
+    private fun take(intent: android.content.Intent?) {
+        val what = intent?.getStringExtra(EXTRA_OPEN) ?: if (intent?.action == android.content.Intent.ACTION_ASSIST) "assist" else null
+        if (what != null) opened.value = what
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        take(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) take(intent)
         enableEdgeToEdge()
         graph.assistant.permissionGate = gate
         graph.web.permissionGate = gate
@@ -115,7 +132,7 @@ class MainActivity : ComponentActivity() {
         graph.assistant.onShown()
         setContent {
             LfmTheme {
-                Root(graph, gate, pickers, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
+                Root(graph, gate, pickers, opened, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
             }
         }
     }
@@ -129,6 +146,21 @@ class MainActivity : ComponentActivity() {
         if (graph.netInstaller.status.value == com.lfmpixel.lfm.web.NetInstaller.Status.Working) graph.netInstaller.status.value = com.lfmpixel.lfm.web.NetInstaller.Status.Idle
     }
 
+    companion object {
+        const val EXTRA_OPEN = "com.lfmpixel.lfm.OPEN"
+        const val OPEN_TALK = "talk"
+        const val OPEN_CAPTURE = "capture"
+        const val OPEN_NOTE = "note"
+        /** The assistant gesture: Talk or voice capture, as set in Settings → Voice. */
+        const val OPEN_ASSIST = "assist"
+
+        fun intent(context: android.content.Context, what: String) = android.content.Intent(context, MainActivity::class.java)
+            .putExtra(EXTRA_OPEN, what)
+            // CLEAR_TOP with SINGLE_TOP: the running app gets onNewIntent even when its task is only brought forward.
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    }
+
     override fun onDestroy() {
         if (graph.launcher.activity === this) graph.launcher.activity = null
         super.onDestroy()
@@ -136,7 +168,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles: ((List<android.net.Uri>) -> Unit) -> Unit) {
+private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: kotlinx.coroutines.flow.MutableStateFlow<String?>, pickFiles: ((List<android.net.Uri>) -> Unit) -> Unit) {
     val c = Lfm.c
     val prefs by g.settings.prefs.collectAsState(null)
     val p = prefs ?: return Box(Modifier.fillMaxSize().background(c.bg))
@@ -186,6 +218,28 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
         }
     }
 
+    // The assistant gesture, the tile and the widget land here.
+    val open by opened.collectAsState()
+    LaunchedEffect(open, p.firstRunDone) {
+        val what = open ?: return@LaunchedEffect
+        opened.value = null
+        if (!p.firstRunDone) return@LaunchedEffect
+        if (what == MainActivity.OPEN_NOTE) { nav.reset(Route.Today); nav.go(Route.Editor(kind = EntryKind.Note)); return@LaunchedEffect }
+        val talk = what == MainActivity.OPEN_TALK || (what == MainActivity.OPEN_ASSIST && p.assistOpens == com.lfmpixel.lfm.settings.AssistOpens.Talk)
+        if (talk) {
+            if (nav.current != Route.Talk) nav.go(Route.Talk)
+            // Already open (paused or stopped): the gesture means "listen".
+            else if (g.talk.state.value.phase.let { it == VoiceTalkPhase.Paused || it == VoiceTalkPhase.Failed }) {
+                if (gate.ensure(listOf(Manifest.permission.RECORD_AUDIO))) g.talk.start()
+            }
+        }
+        else {
+            if (nav.current == Route.Talk) nav.back()
+            if (nav.current != Route.Today && nav.current != Route.Chat) nav.reset(Route.Today)
+            if (voiceState == VoiceState.Idle) voice(VoiceTarget.Assistant)
+        }
+    }
+
     BackHandler(enabled = nav.stack.size > 1) { nav.back() }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
@@ -196,6 +250,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
             AnimatedContent(nav.current, Modifier.fillMaxSize(), contentKey = { if (it.isTab()) "places" else it }, transitionSpec = {
                 when {
                     targetState == Route.Camera || initialState == Route.Camera -> LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
+                    targetState == Route.Talk || initialState == Route.Talk -> LfmMotion.sharedAxisZ(targetState == Route.Talk, reduced)
                     targetState.isTab() && initialState.isTab() -> EnterTransition.None togetherWith ExitTransition.None
                     else -> LfmMotion.sharedAxisX(nav.forward, reduced)
                 }
@@ -203,6 +258,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
                 saved.SaveableStateProvider(if (r is Route.Library) "library" else r.toString()) { when (r) {
                     Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
+                    Route.Talk -> TalkScreen(g, nav, gate)
+                    Route.Voice -> VoiceSettingsScreen(g, nav)
                     Route.Camera -> CameraScreen(g, nav, gate, pickers, cameraQuestion, { voice(VoiceTarget.Question) }, listening)
                     is Route.Library -> LibraryScreen(g, nav, r.filter, { voice(VoiceTarget.Library(it)) }, listening)
                     is Route.Editor -> EditorScreen(g, nav, r)

@@ -108,7 +108,8 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 ListRow("Privacy", "Network log, Inkling Net, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
             }
             Group {
-                ListRow("Voice", if (g.engine.hasVoice()) "LFM3-Omni-2B · English" else "Import LFM3-Omni-2B and its projector", "speaker", { nav.go(Route.Models) }) { Chevron() }
+                ListRow("Voice and Talk", if (g.engine.hasVoice()) "${p.speechVoice.label} · ${p.speechLanguage.label} · assistant opens ${p.assistOpens.label.lowercase()}"
+                    else "Import LFM3-Omni-2B and its projector", "speaker", { nav.go(Route.Voice) }) { Chevron() }
                 GroupDivider()
                 ListRow("Battery & heat", "${if (p.threads == 0) "Auto" else p.threads} threads · " + if (p.unloadAfterMinutes == 0) "models stay loaded" else "unload after ${p.unloadAfterMinutes} min idle",
                     "flash", { nav.go(Route.Models) }) { Chevron() }

@@ -23,6 +23,7 @@
 #include "llama.h"
 #include "mtmd.h"
 #include "mtmd-helper.h"
+#include "talk.h"
 
 #define TAG "lfm-native"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -50,6 +51,8 @@ using clock_type = std::chrono::steady_clock;
 // Bumped by Stop. Reading pictures in checks it between pictures; no session handle is touched, so it is safe
 // to call at any time, even while a session is being freed.
 std::atomic<int> g_cancel{0};
+// The same for speech (read-aloud and Talk), checked between audio frames: stopping speech never stops a picture.
+std::atomic<int> g_speech_cancel{0};
 
 double ms_since(clock_type::time_point t) {
     return std::chrono::duration<double, std::milli>(clock_type::now() - t).count();
@@ -565,6 +568,11 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_cancelPictures(JNIEnv *, jobject) {
     g_cancel.fetch_add(1);
 }
 
+JNIEXPORT void JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_cancelSpeech(JNIEnv *, jobject) {
+    g_speech_cancel.fetch_add(1);
+}
+
 // [prefill ms, prefill tokens, decode ms, decode tokens, reused tokens, first token ms]
 JNIEXPORT jdoubleArray JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_lastStats(JNIEnv *env, jobject, jlong handle) {
@@ -673,6 +681,82 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_runInfo(JNIEnv *env, jobject, jlong handle
     }
     out += std::string("system: ") + llama_print_system_info() + "\n";
     return env->NewStringUTF(out.c_str());
+}
+
+// True if the loaded projector has Omni's speech-out part.
+JNIEXPORT jboolean JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_canSpeak(JNIEnv *, jobject, jlong handle) {
+    auto *s = reinterpret_cast<Session *>(handle);
+    return s && talk::can_speak(s->mtmd);
+}
+
+namespace {
+
+// listener.onAudio(float[]) and listener.onText(byte[]), see LlamaNative.SpeechListener.
+struct speech_listener {
+    JNIEnv *env;
+    jobject obj;
+    jmethodID on_audio, on_text;
+    speech_listener(JNIEnv *e, jobject o) : env(e), obj(o) {
+        jclass cls = env->GetObjectClass(obj);
+        on_audio = env->GetMethodID(cls, "onAudio", "([F)Z");
+        on_text = env->GetMethodID(cls, "onText", "([B)Z");
+    }
+    bool audio(const float *pcm, size_t n) {
+        jfloatArray arr = env->NewFloatArray((jsize) n);
+        env->SetFloatArrayRegion(arr, 0, (jsize) n, pcm);
+        bool go = env->CallBooleanMethod(obj, on_audio, arr);
+        env->DeleteLocalRef(arr);
+        return go && !env->ExceptionCheck();
+    }
+    bool text(const std::string &piece) {
+        jbyteArray arr = env->NewByteArray((jsize) piece.size());
+        env->SetByteArrayRegion(arr, 0, (jsize) piece.size(), reinterpret_cast<const jbyte *>(piece.data()));
+        bool go = env->CallBooleanMethod(obj, on_text, arr);
+        env->DeleteLocalRef(arr);
+        return go && !env->ExceptionCheck();
+    }
+};
+
+void after_speech(Session *s, const talk::result &r) {
+    LOGI("speech: rc %d, %d frames, %d text tokens, prompt %.0f ms, generation %.0f ms", r.rc, r.n_frames, r.n_text,
+         r.prompt_ms, r.gen_ms);
+    s->cached.clear(); // speech clears the context
+}
+
+} // namespace
+
+// Text to speech with Omni: 24 kHz float PCM out through listener.onAudio as it is made.
+// Returns the number of audio frames, or a negative error (-6: stopped).
+JNIEXPORT jint JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_speak(JNIEnv *env, jobject, jlong handle, jbyteArray jprompt, jint max_frames,
+                                            jobject listener) {
+    auto *s = reinterpret_cast<Session *>(handle);
+    if (!s || !s->mtmd) return -1;
+    speech_listener l(env, listener);
+    const int gen = g_speech_cancel.load();
+    talk::result r = talk::speak(s->ctx, s->mtmd, jbytes(env, jprompt), max_frames,
+                                 [&](const float *p, size_t n) { return l.audio(p, n); },
+                                 [&] { return g_speech_cancel.load() != gen; });
+    after_speech(s, r);
+    return r.rc < 0 ? r.rc : r.n_frames;
+}
+
+// One Talk turn: the answer's text through onText and its speech through onAudio, interleaved, as Omni makes them.
+// With spoken false, text only. Returns the number of steps, or a negative error.
+JNIEXPORT jint JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_talkReply(JNIEnv *env, jobject, jlong handle, jbyteArray jhistory, jbyteArray jprefix,
+                                                jint max_steps, jfloat temp, jboolean spoken, jobject listener) {
+    auto *s = reinterpret_cast<Session *>(handle);
+    if (!s || !s->mtmd) return -1;
+    speech_listener l(env, listener);
+    const int gen = g_speech_cancel.load();
+    talk::result r = talk::reply(s->ctx, s->mtmd, jbytes(env, jhistory), jbytes(env, jprefix), max_steps, temp, spoken,
+                                 [&](const std::string &p) { return l.text(p); },
+                                 [&](const float *p, size_t n) { return l.audio(p, n); },
+                                 [&] { return g_speech_cancel.load() != gen; });
+    after_speech(s, r);
+    return r.rc < 0 ? r.rc : r.n_frames + r.n_text;
 }
 
 } // extern "C"
