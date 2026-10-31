@@ -17,6 +17,9 @@ enum class SearchMode(val label: String) { Off("Off"), AskFirst("Ask first"), Au
 
 enum class ToolPolicy { Ask, Do }
 
+/** What the lock covers: nothing, the whole app, or only the journal (spec section 3, "Optional lock"). */
+enum class LockMode(val label: String) { Off("Off"), App("Whole app"), Journal("Journal only") }
+
 /** What the assistant gesture (power-button hold, corner swipe) opens. */
 enum class AssistOpens(val label: String) { Talk("Talk"), Capture("Voice capture") }
 
@@ -43,6 +46,7 @@ data class Prefs(
     /** Talk answers out loud; off, it answers in text only (faster, silent). */
     val talkSpoken: Boolean = true,
     val assistOpens: AssistOpens = AssistOpens.Talk,
+    val lockMode: LockMode = LockMode.Off,
 )
 
 private val Context.store by preferencesDataStore("settings")
@@ -69,6 +73,7 @@ class Settings(private val context: Context) {
         val speechVoice = stringPreferencesKey("speech_voice")
         val talkSpoken = booleanPreferencesKey("talk_spoken")
         val assistOpens = stringPreferencesKey("assist_opens")
+        val lock = stringPreferencesKey("lock_mode")
     }
 
     val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
@@ -96,6 +101,7 @@ class Settings(private val context: Context) {
         speechVoice = this[K.speechVoice]?.let { runCatching { SpeechVoice.valueOf(it) }.getOrNull() } ?: SpeechVoice.Female,
         talkSpoken = this[K.talkSpoken] ?: true,
         assistOpens = this[K.assistOpens]?.let { runCatching { AssistOpens.valueOf(it) }.getOrNull() } ?: AssistOpens.Talk,
+        lockMode = this[K.lock]?.let { runCatching { LockMode.valueOf(it) }.getOrNull() } ?: LockMode.Off,
     )
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
@@ -112,6 +118,9 @@ class Settings(private val context: Context) {
     suspend fun setTalkSpoken(on: Boolean) = context.store.edit { it[K.talkSpoken] = on }
     suspend fun setAssistOpens(o: AssistOpens) = context.store.edit { it[K.assistOpens] = o.name }
     suspend fun setChatModel(fileName: String) = context.store.edit { it[K.chatModel] = fileName }
+    suspend fun setLockMode(m: LockMode) = context.store.edit { it[K.lock] = m.name }
+    /** Wipe: every setting back to how it was on first run. */
+    suspend fun clear() = context.store.edit { it.clear() }
     suspend fun setShowSpeed(on: Boolean) = context.store.edit { it[K.speed] = on }
     suspend fun setToolPolicy(tool: String, policy: ToolPolicy) = context.store.edit {
         val map = it.toPrefs().toolPolicies + (tool to policy)

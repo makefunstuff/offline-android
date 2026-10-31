@@ -56,6 +56,16 @@ class TimeArgsTest {
         assertEquals(Duration.ofSeconds(45), TimeArgs.parseDuration("PT45S"))
     }
 
+    @Test fun bareHours() {
+        // "at 6" in the afternoon is the coming 18:00; "at 9" at 14:08 is 21:00 today, not 09:00 tomorrow.
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(18, 0)), parse("at 6"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(21, 0)), parse("9"))
+        assertEquals(When(LocalDate.of(2026, 10, 31), LocalTime.of(14, 0)), parse("at 14"))
+        assertEquals(When(LocalDate.of(2026, 10, 31), LocalTime.of(6, 0)), parse("tomorrow at 6"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(14, 18)), parse("in 10 minutes"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(16, 38)), parse("in 2 and a half hours"))
+    }
+
     @Test fun labels() {
         val today = now.toLocalDate()
         assertEquals("Today 18:00", TimeArgs.label(When(today, LocalTime.of(18, 0)), today))
@@ -114,6 +124,18 @@ class CaptureSorterTest {
         CaptureSorter.sort("Idea: weekend market stall for old prints").let { assertEquals("add_idea", it.name); assertEquals("Weekend market stall for old prints", it.args["text"]) }
         CaptureSorter.sort("I feel calmer after the walk").let { assertEquals("add_journal", it.name) }
         CaptureSorter.sort("Boiler pressure drops below 1 bar overnight").let { assertEquals("add_note", it.name) }
+    }
+
+    /** Reminders said the way people say them must turn into a time the reminder tool can read. */
+    @Test fun remindersWithRelativeAndBareTimes() {
+        val now = LocalDateTime.of(2026, 10, 30, 14, 8)
+        fun at(s: String) = CaptureSorter.sort(s).also { assertEquals("set_reminder", it.name) }.let { TimeArgs.parse(it.args["at"]!!, now) }
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(14, 18)), at("Remind me to check the oven in 10 minutes"))
+        assertEquals("check the oven", CaptureSorter.sort("Remind me to check the oven in 10 minutes").args["text"])
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(18, 0)), at("remind me to call mum at 6"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(15, 8)), at("remind me to stretch in an hour"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(14, 38)), at("remind me to move the car in half an hour"))
+        assertEquals(When(LocalDate.of(2026, 10, 31), LocalTime.of(7, 30)), at("remind me to water the herbs tomorrow at 7:30"))
     }
 }
 

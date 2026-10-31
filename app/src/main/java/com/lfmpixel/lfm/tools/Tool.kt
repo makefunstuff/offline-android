@@ -45,6 +45,8 @@ interface Tool {
     val permissions: List<String> get() = emptyList()
     /** Reading tools never ask: they change nothing. */
     val readOnly: Boolean get() = false
+    /** It hands off to another app (Clock, Messages, dialer, a settings panel), which Android allows only on screen. */
+    val opensApp: Boolean get() = false
 
     /** Turn the model's arguments into a preview, or throw [ToolArgsException] if they make no sense. */
     suspend fun preview(args: Map<String, String>): Preview

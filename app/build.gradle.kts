@@ -52,6 +52,15 @@ android {
         }
     }
 
+    releaseKey()?.let { key ->
+        signingConfigs.create("release") {
+            storeFile = key.storeFile
+            storePassword = key.storePassword
+            keyAlias = key.keyAlias
+            keyPassword = key.keyPassword
+        }
+    }
+
     buildTypes {
         debug {
             // Native code is always built optimised: a debug llama.cpp is far too slow to chat with.
@@ -59,7 +68,8 @@ android {
         }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            // The owner's key from keystore.properties (ReleaseKey.kt); unsigned without it, never the debug key.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

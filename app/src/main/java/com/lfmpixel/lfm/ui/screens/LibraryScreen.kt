@@ -104,6 +104,9 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
     LaunchedEffect(query, all, todos) { results = FtsQuery.from(query)?.let { g.db.entries().search(it) } }
     val actions = remember { EntryActions(g, nav) }
     val open: (Entry) -> Unit = { nav.go(Route.Editor(it.id, it.kind)) }
+    // Journal only lock: its entries are left out of every list and search until it is unlocked.
+    val hideJournal = journalLocked(g)
+    fun List<Entry>.visible() = if (hideJournal) filter { it.kind != EntryKind.Journal } else this
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -113,16 +116,18 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
             }
             val r = results
             if (query.isNotBlank() && r != null) {
-                SearchResults(r, query, open, actions)
+                SearchResults(r.visible(), query, open, actions, hiddenJournal = hideJournal)
                 return@Column
             }
             Box(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
                 Tabs(LibFilter.entries.map { it.label }, filter.label, { l -> nav.go(Route.Library(LibFilter.entries.first { it.label == l })) })
             }
-            val list = all ?: return@Column
+            val list = all?.visible() ?: return@Column
             when (filter) {
                 LibFilter.Ideas -> IdeasList(g, nav, list.filter { it.kind == EntryKind.Idea }, open, actions)
-                LibFilter.Journal -> JournalList(list.filter { it.kind == EntryKind.Journal }, nav, onMic, listening, open, actions)
+                LibFilter.Journal -> if (hideJournal) Locked(g, "Your journal is locked", "Unlock with your fingerprint, face or screen lock to read and write it.",
+                    "Unlock your journal")
+                    else JournalList(list.filter { it.kind == EntryKind.Journal }, nav, onMic, listening, open, actions)
                 else -> {
                     val shown = when (filter) {
                         LibFilter.Notes -> list.filter { it.kind == EntryKind.Note }
@@ -156,10 +161,13 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
 }
 
 @Composable
-private fun SearchResults(found: List<Entry>, query: String, open: (Entry) -> Unit, actions: EntryActions) {
+private fun SearchResults(found: List<Entry>, query: String, open: (Entry) -> Unit, actions: EntryActions, hiddenJournal: Boolean) {
     val c = Lfm.c
     LazyColumn(Modifier.fillMaxSize()) {
-        item { Label(if (found.isEmpty()) "" else "${found.size} found", Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) }
+        item {
+            Label((if (found.isEmpty()) "" else "${found.size} found") + (if (hiddenJournal) (if (found.isEmpty()) "" else " · ") + "the journal is locked and not searched" else ""),
+                Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
+        }
         items(found, key = { it.id }) { e -> EntryRow(e, showKind = true, onClick = { open(e) }, actions = actions) }
         if (found.isEmpty()) item {
             Txt("Nothing matches “$query”. Search looks at whole words and word starts.", LfmType.small, c.text2, Modifier.padding(horizontal = 16.dp))

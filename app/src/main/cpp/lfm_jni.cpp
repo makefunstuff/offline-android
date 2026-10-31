@@ -39,6 +39,7 @@ struct Session {
     std::vector<llama_token> cached; // tokens now in the context's memory, in order
     int n_threads = 4;       // generation, one token at a time: bound by memory, not compute
     int n_threads_batch = 4; // reading the prompt in: bound by compute
+    int applied_cap = 0;     // the heat cap last applied to this context (0: none)
     std::string load_notes;  // what llama.cpp said while loading (buffer types, flash attention)
     // stats of the last call
     double prefill_ms = 0, decode_ms = 0, first_ms = 0;
@@ -53,6 +54,19 @@ using clock_type = std::chrono::steady_clock;
 std::atomic<int> g_cancel{0};
 // The same for speech (read-aloud and Talk), checked between audio frames: stopping speech never stops a picture.
 std::atomic<int> g_speech_cancel{0};
+
+// At most this many threads while the phone is hot (0: no cap). Set from Android's thermal status (HeatWatch.kt);
+// read before each decode, on the model's own thread, so a hot phone slows down within a token or a batch.
+std::atomic<int> g_heat_cap{0};
+
+void apply_heat(Session *s) {
+    const int cap = g_heat_cap.load();
+    if (cap == s->applied_cap) return;
+    s->applied_cap = cap;
+    const int nt = cap > 0 ? std::min(s->n_threads, cap) : s->n_threads;
+    const int ntb = cap > 0 ? std::min(s->n_threads_batch, cap) : s->n_threads_batch;
+    llama_set_n_threads(s->ctx, nt, ntb);
+}
 
 double ms_since(clock_type::time_point t) {
     return std::chrono::duration<double, std::milli>(clock_type::now() - t).count();
@@ -251,6 +265,7 @@ bool decode_all(Session *s, const llama_token *tokens, int n) {
     for (int i = 0; i < n; i += n_batch) {
         int len = std::min(n_batch, n - i);
         llama_batch batch = llama_batch_get_one(const_cast<llama_token *>(tokens + i), len);
+        apply_heat(s);
         if (llama_decode(s->ctx, batch) != 0) return false;
         s->cached.insert(s->cached.end(), tokens + i, tokens + i + len);
     }
@@ -284,6 +299,7 @@ int sample_loop(JNIEnv *env, Session *s, llama_sampler *smpl, int max_tokens, jo
             pending.erase(0, len);
         }
         llama_batch batch = llama_batch_get_one(&id, 1);
+        apply_heat(s);
         if (llama_decode(s->ctx, batch) != 0) { n = -3; break; }
         s->cached.push_back(id);
         if (!keep_going) { n++; break; }
@@ -303,6 +319,11 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_backendInit(JNIEnv *env, jobject, jstring 
     std::string dir = jstr(env, lib_dir);
     ggml_backend_load_all_from_path(dir.c_str());
     llama_backend_init();
+}
+
+JNIEXPORT void JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_setHeatCap(JNIEnv *, jobject, jint cap) {
+    g_heat_cap.store(std::max(0, (int) cap));
 }
 
 // Cores that are not little: the most threads worth using.
@@ -410,6 +431,7 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_generate(JNIEnv *env, jobject, jlong handl
                                                jint max_tokens, jfloat temp, jfloat top_p, jint seed,
                                                jobject listener) {
     auto *s = reinterpret_cast<Session *>(handle);
+    if (s) apply_heat(s);
     if (!s) return -1;
     s->started = clock_type::now();
     s->first_ms = 0;
@@ -452,6 +474,7 @@ JNIEXPORT jint JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_transcribe(JNIEnv *env, jobject, jlong handle, jfloatArray jpcm,
                                                  jbyteArray jprompt, jint max_tokens, jobject listener) {
     auto *s = reinterpret_cast<Session *>(handle);
+    if (s) apply_heat(s);
     if (!s || !s->mtmd) return -1;
     s->started = clock_type::now();
     s->first_ms = 0;
@@ -495,6 +518,7 @@ JNIEXPORT jint JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_see(JNIEnv *env, jobject, jlong handle, jobjectArray jimages, jintArray jsizes,
                                           jbyteArray jprompt, jint max_tokens, jfloat temp, jobject listener) {
     auto *s = reinterpret_cast<Session *>(handle);
+    if (s) apply_heat(s);
     if (!s || !s->mtmd || !mtmd_support_vision(s->mtmd)) return -1;
     s->started = clock_type::now();
     s->first_ms = 0;
@@ -637,6 +661,8 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_bench(JNIEnv *env, jobject, jlong handle, 
     llama_memory_clear(mem, true);
     s->cached.clear();
     llama_set_n_threads(s->ctx, s->n_threads, s->n_threads_batch);
+    s->applied_cap = 0;
+    apply_heat(s);
     if (!ok) return out;
     env->DeleteLocalRef(out);
     out = env->NewDoubleArray(8);
@@ -732,6 +758,7 @@ JNIEXPORT jint JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_speak(JNIEnv *env, jobject, jlong handle, jbyteArray jprompt, jint max_frames,
                                             jobject listener) {
     auto *s = reinterpret_cast<Session *>(handle);
+    if (s) apply_heat(s);
     if (!s || !s->mtmd) return -1;
     speech_listener l(env, listener);
     const int gen = g_speech_cancel.load();
@@ -748,6 +775,7 @@ JNIEXPORT jint JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_talkReply(JNIEnv *env, jobject, jlong handle, jbyteArray jhistory, jbyteArray jprefix,
                                                 jint max_steps, jfloat temp, jboolean spoken, jobject listener) {
     auto *s = reinterpret_cast<Session *>(handle);
+    if (s) apply_heat(s);
     if (!s || !s->mtmd) return -1;
     speech_listener l(env, listener);
     const int gen = g_speech_cancel.load();

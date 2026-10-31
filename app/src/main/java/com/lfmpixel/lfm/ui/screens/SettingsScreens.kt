@@ -55,6 +55,10 @@ import com.lfmpixel.lfm.ui.components.Switch
 import com.lfmpixel.lfm.ui.components.Txt
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
+import com.lfmpixel.lfm.wipe
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -218,7 +222,7 @@ fun HistoryScreen(g: AppGraph, nav: Nav) {
 }
 
 @Composable
-fun PrivacyScreen(g: AppGraph, nav: Nav) {
+fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
     val c = Lfm.c
     val ctx = LocalContext.current
     val hasInternet = ctx.packageManager.checkPermission(Manifest.permission.INTERNET, ctx.packageName) == PackageManager.PERMISSION_GRANTED
@@ -260,6 +264,8 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
                     Txt(Instant.ofEpochMilli(e.at).atZone(ZoneId.systemDefault()).format(time), LfmType.meta, c.text2)
                     Column(Modifier.weight(1f)) {
                         Txt(e.host, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), maxLines = 1)
+                        // The whole address, query and all: exactly what went out.
+                        Txt(e.url, LfmType.meta, c.text, Modifier.padding(top = 2.dp))
                         Txt(e.label + if (e.ok) "" else " · failed", LfmType.meta, c.text2, maxLines = 1)
                     }
                     Txt(formatBytes(e.bytes), LfmType.meta, c.text2)
@@ -278,13 +284,84 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
                 }, Modifier.weight(1f))
                 Btn("Delete all", { scope.launch { g.db.netLog().deleteAll() } }, Modifier.weight(1f), icon = "trash")
             }
+            SectionLabel("Lock")
+            val mode = prefs?.lockMode ?: com.lfmpixel.lfm.settings.LockMode.Off
+            Segmented(com.lfmpixel.lfm.settings.LockMode.entries.map { it.label }, mode.label, { l ->
+                val to = com.lfmpixel.lfm.settings.LockMode.entries.first { it.label == l }
+                if (to == mode) return@Segmented
+                scope.launch {
+                    when {
+                        to != com.lfmpixel.lfm.settings.LockMode.Off && !g.lock.canLock() ->
+                            nav.show("Set a screen lock on the phone first: Android Settings → Security")
+                        // On, off or changed: only the phone's owner may, so it asks for the phone's lock first.
+                        g.lock.confirm(if (to == com.lfmpixel.lfm.settings.LockMode.Off) "Turn the lock off" else "Lock ${to.label.lowercase()}") ->
+                            g.settings.setLockMode(to)
+                    }
+                }
+            })
+            Txt(when (mode) {
+                com.lfmpixel.lfm.settings.LockMode.Off -> "Lock the whole app, or only the journal, with your fingerprint, face or screen lock."
+                com.lfmpixel.lfm.settings.LockMode.App -> "Inkling opens with your fingerprint, face or screen lock, and locks again a minute after you leave it."
+                com.lfmpixel.lfm.settings.LockMode.Journal -> "The journal opens with your fingerprint, face or screen lock; it is left out of lists, search and the assistant until then. It locks again a minute after you leave Inkling."
+            }, LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             SectionLabel("Kept on this phone")
             Txt("Chats, notes, ideas, journal, to-dos, reminders, searches, the network log and the action history, in the app's private storage. Models in the app's files.",
                 LfmType.small, c.text2)
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Btn("Export all…", {
+                    scope.launch {
+                        if (mode != com.lfmpixel.lfm.settings.LockMode.Off && !g.lock.confirm("Export your data")) return@launch
+                        val name = "inkling-export-" + java.time.LocalDate.now() + ".zip"
+                        pickers.save(name) { uri ->
+                            g.scope.launch {
+                                val ok = runCatching {
+                                    ctx.contentResolver.openOutputStream(uri)!!.use { com.lfmpixel.lfm.data.Export.write(g.db, it) }
+                                }.isSuccess
+                                nav.show(if (ok) "Exported: notes, journal, to-dos, chats and logs" else "Export failed. Try another place.")
+                            }
+                        }
+                    }
+                }, Modifier.weight(1f), icon = "down")
                 Btn("Clear chats", { scope.launch { g.assistant.clearQueue(); g.assistant.newChat(); g.db.messages().deleteAll(); g.db.searches().deleteAll(); g.prep.deleteAll() } }, Modifier.weight(1f), icon = "trash")
             }
+            var wipe by remember { mutableStateOf(false) }
+            Btn("Delete everything…", { wipe = true }, Modifier.padding(top = 8.dp).fillMaxWidth(), icon = "trash")
+            if (wipe) WipeSheet(g, onClose = { wipe = false }) { models ->
+                g.scope.launch {
+                    if (mode != com.lfmpixel.lfm.settings.LockMode.Off && !g.lock.confirm("Delete everything")) return@launch
+                    wipe = false
+                    g.wipe(ctx.applicationContext, models)
+                    nav.reset(Route.FirstRun)
+                    nav.show(if (models) "Everything was deleted, models too" else "Everything was deleted. The models are still here.")
+                }
+            }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/** What Delete everything takes, said plainly, with the models as a separate choice (they are big to get again). */
+@Composable
+private fun WipeSheet(g: AppGraph, onClose: () -> Unit, onDelete: (models: Boolean) -> Unit) {
+    val c = Lfm.c
+    var models by remember { mutableStateOf(false) }
+    val size = formatBytes(g.models.usedBytes())
+    FlatSheet(onDismiss = onClose) {
+        Txt("Delete everything?", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.semantics { heading() })
+        Txt("Notes, ideas, journal, to-dos, chats, reminders, searches, the network log, the action history, pictures, " +
+            "Inkling's calendar and every setting. It can't be undone; export first if you want a copy.", LfmType.small, c.text2,
+            Modifier.padding(top = 6.dp))
+        Row(Modifier.padding(top = 10.dp).fillMaxWidth().toggleable(models, role = androidx.compose.ui.semantics.Role.Checkbox) { models = it },
+            verticalAlignment = Alignment.CenterVertically) {
+            com.lfmpixel.lfm.ui.components.CheckBox(models, null)
+            Column(Modifier.weight(1f)) {
+                Txt("Also delete the models", LfmType.body)
+                Txt("$size. You'd download or import them again.", LfmType.meta, c.text2)
+            }
+        }
+        Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Btn("Cancel", onClose, Modifier.weight(1f))
+            Btn("Delete everything", { onDelete(models) }, Modifier.weight(1f), com.lfmpixel.lfm.ui.components.BtnKind.Primary, icon = "trash")
         }
     }
 }

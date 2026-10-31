@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -152,7 +153,8 @@ fun Divider(modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth().height(
 @Composable
 fun Pill(text: String, icon: String? = null, modifier: Modifier = Modifier) {
     val c = Lfm.c
-    Row(modifier.border(1.dp, c.line, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
+    // The control grey, not the line grey: the edge has to show (3:1 against the page) in both themes.
+    Row(modifier.border(1.dp, c.control, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         icon?.let { LIcon(it, size = 16.dp, tint = c.text2) }
         Txt(text, LfmType.meta, c.text2, maxLines = 1)
@@ -214,10 +216,12 @@ fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
 }
 
 @Composable
-fun CheckBox(checked: Boolean, onChange: (Boolean) -> Unit) {
+fun CheckBox(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
     val c = Lfm.c
     val shape = RoundedCornerShape(4.dp)
-    Box(Modifier.size(48.dp).clickable(role = Role.Checkbox) { onChange(!checked) }, contentAlignment = Alignment.Center) {
+    // With no onChange the row around it takes the tap (and says the state); the box only draws.
+    Box(Modifier.size(48.dp).let { m -> onChange?.let { m.toggleable(checked, role = Role.Checkbox, onValueChange = it) } ?: m },
+        contentAlignment = Alignment.Center) {
         Box(Modifier.size(18.dp).clip(shape).background(if (checked) c.text else Color.Transparent).border(1.dp, if (checked) c.text else c.control, shape),
             contentAlignment = Alignment.Center) {
             if (checked) LIcon("check", size = 13.dp, tint = c.bg, stroke = 2.5f)

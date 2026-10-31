@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import com.lfmpixel.lfm.ui.components.Header
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -177,6 +178,19 @@ private val kinds = listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, En
 /** Full-screen editor for all four kinds (ux-spec section 5): no Save button; Back, leaving the app and a pause save. */
 @Composable
 fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
+    // A journal entry behind the lock opens only once unlocked; a new one can always be written.
+    if (route.id != null && route.kind == EntryKind.Journal && journalLocked(g)) {
+        Column(Modifier.fillMaxSize()) {
+            Header("Journal", onBack = { nav.back() })
+            Locked(g, "This entry is locked", "Unlock with your fingerprint, face or screen lock to read it.", "Unlock your journal", ask = true)
+        }
+        return
+    }
+    EditorContent(g, nav, route)
+}
+
+@Composable
+private fun EditorContent(g: AppGraph, nav: Nav, route: Route.Editor) {
     val c = Lfm.c
     val draft = remember(route) { Draft(g, route.id, route.kind) }
     var loaded by remember(route) { mutableStateOf(route.id == null) }

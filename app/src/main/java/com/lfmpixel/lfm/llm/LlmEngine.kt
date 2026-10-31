@@ -37,14 +37,25 @@ object LlamaNative {
             if (ready) return
             System.loadLibrary("lfm")
             backendInit(nativeLibDir)
+            setHeatCap(com.lfmpixel.lfm.device.Heat.threadCap(heat, fastCores()))
             ready = true
         }
+    }
+
+    /** How hot the phone is; kept here so the thread cap holds from the first load. */
+    @Volatile private var heat = com.lfmpixel.lfm.device.Heat.Normal
+
+    fun heat(h: com.lfmpixel.lfm.device.Heat) = synchronized(this) {
+        heat = h
+        if (ready) setHeatCap(com.lfmpixel.lfm.device.Heat.threadCap(h, fastCores()))
     }
 
     external fun backendInit(nativeLibDir: String)
     external fun systemInfo(): String
     /** Cores that are not little (Tensor G5: 6 of 8); threads go only there. */
     external fun fastCores(): Int
+    /** At most [cap] threads in every session while the phone is hot (0: no cap); applies from the next decode. */
+    external fun setHeatCap(cap: Int)
     external fun load(path: String, nCtx: Int, nThreads: Int, nThreadsBatch: Int): Long
     /** What the projector takes in: [PROJ_AUDIO], [PROJ_VISION] bits, or -1 if it did not load. */
     external fun loadProjector(handle: Long, path: String): Int

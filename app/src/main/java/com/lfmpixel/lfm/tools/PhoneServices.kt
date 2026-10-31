@@ -37,14 +37,45 @@ interface PermissionGate {
 }
 
 /**
+ * Android shows one permission request at a time: a second one launched meanwhile replaces the first, whose caller
+ * then waits for ever. So requests queue here, and each looks again once its turn comes (the one before may have
+ * asked for the same thing).
+ */
+class SerialPermissionGate(
+    private val granted: (List<String>) -> Boolean,
+    private val launch: (List<String>, kotlinx.coroutines.CompletableDeferred<Boolean>) -> Unit,
+) : PermissionGate {
+    private val one = kotlinx.coroutines.sync.Mutex()
+
+    override suspend fun ensure(permissions: List<String>): Boolean {
+        if (granted(permissions)) return true
+        one.lock()
+        try {
+            if (granted(permissions)) return true
+            val answer = kotlinx.coroutines.CompletableDeferred<Boolean>()
+            launch(permissions, answer)
+            return answer.await()
+        } finally {
+            one.unlock()
+        }
+    }
+}
+
+/**
  * The only code that starts other apps (Messages, dialer, Clock, system panels). Each start comes from the
  * owner's tap on a confirmation sheet or card, never silently (spec section 3, "links and maps never leak").
  */
 class ExternalLauncher(private val context: Context) {
     var activity: android.app.Activity? = null
+    /**
+     * Inkling is on screen. Android blocks an app in the background from opening another one, without an error:
+     * startActivity returns as if it worked. So a hand-off is only tried while this is true.
+     */
+    @Volatile var onScreen = false
 
     fun start(intent: Intent): Boolean {
         val host = activity
+        if (!onScreen) return false
         return runCatching {
             if (host != null) host.startActivity(intent)
             else context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -173,6 +204,17 @@ class LocalCalendar(private val context: Context) {
         ContentUris.parseId(resolver.insert(uri, v)!!)
     }
 
+    /** Wipe: removes Inkling's own calendar and every event in it (only with the calendar permission). */
+    suspend fun deleteOwnCalendar(): Boolean = withContext(Dispatchers.IO) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) return@withContext false
+        val uri = CalendarContract.Calendars.CONTENT_URI.buildUpon()
+            .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, ACCOUNT)
+            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.ACCOUNT_TYPE_LOCAL).build()
+        resolver.delete(uri, "${CalendarContract.Calendars.ACCOUNT_NAME}=? AND ${CalendarContract.Calendars.ACCOUNT_TYPE}=?",
+            arrayOf(ACCOUNT, CalendarContract.ACCOUNT_TYPE_LOCAL)) > 0
+    }
+
     suspend fun add(title: String, start: Long, end: Long, location: String): Long = withContext(Dispatchers.IO) {
         val v = ContentValues().apply {
             put(CalendarContract.Events.CALENDAR_ID, calendarId())
@@ -275,6 +317,19 @@ class PhoneControls(private val context: Context) {
 
     /** RINGER_MODE_SILENT needs Do Not Disturb access on current Android. */
     fun setRingerMode(mode: Int): Boolean = runCatching { audio.ringerMode = mode; true }.getOrDefault(false)
+
+    /** A stream's volume as a share of its range, 0..100. */
+    fun volumePercent(stream: Int): Int {
+        val min = audio.getStreamMinVolume(stream); val max = audio.getStreamMaxVolume(stream)
+        return if (max <= min) 0 else ((audio.getStreamVolume(stream) - min) * 100 + (max - min) / 2) / (max - min)
+    }
+
+    /** Sets a stream to [percent] of its range; the nearest step Android has. Muting the ringer needs DND access. */
+    fun setVolumePercent(stream: Int, percent: Int): Boolean = runCatching {
+        val min = audio.getStreamMinVolume(stream); val max = audio.getStreamMaxVolume(stream)
+        audio.setStreamVolume(stream, min + ((max - min) * percent.coerceIn(0, 100) + 50) / 100, 0)
+        true
+    }.getOrDefault(false)
 
     val dndOn get() = notifications.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
     fun setDnd(on: Boolean): Boolean = runCatching {

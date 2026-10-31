@@ -16,7 +16,9 @@ object CaptureSorter {
     fun sort(text: String): ToolCall {
         val t = text.trim().trimEnd('.')
         remind.find(t)?.let { m ->
-            val whenText = (if (m.groupValues[2].lowercase() in setOf("tomorrow", "tonight", "today")) m.groupValues[2] + " " else "") + m.groupValues[3]
+            // "in 10 minutes" keeps its "in"; "at 6" and "on Friday" lose theirs; "tomorrow 9:00" keeps the day.
+            val word = m.groupValues[2].lowercase()
+            val whenText = (if (word in setOf("tomorrow", "tonight", "today", "in")) "$word " else "") + m.groupValues[3]
             return ToolCall("set_reminder", mapOf("text" to m.groupValues[1], "at" to whenText.trim()))
         }
         note.find(t)?.let { return ToolCall("add_note", mapOf("text" to it.groupValues[1].ifBlank { t })) }

@@ -68,7 +68,9 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val end = start + 86_400_000L
     val reminders by remember(start) { g.db.reminders().between(start, end) }.collectAsState(emptyList())
     val todos by remember { g.db.entries().todos() }.collectAsState(emptyList())
-    val latest by remember { g.db.entries().latest(3) }.collectAsState(emptyList())
+    val latestAll by remember { g.db.entries().latest(3) }.collectAsState(emptyList())
+    val hideJournal = journalLocked(g)
+    val latest = if (hideJournal) latestAll.filter { it.kind != EntryKind.Journal } else latestAll
     val prefs by g.settings.prefs.collectAsState(null)
     val events by produceState(emptyList<com.lfmpixel.lfm.tools.CalendarEvent>(), start, reminders) { value = g.calendar.between(start, end) }
     var draft by remember { mutableStateOf("") }

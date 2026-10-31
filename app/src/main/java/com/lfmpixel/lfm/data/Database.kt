@@ -37,6 +37,7 @@ interface EntryDao {
     /** [match] is an FTS4 MATCH expression; see [FtsQuery]. */
     @Query("SELECT entries.* FROM entries JOIN entries_fts ON entries.id = entries_fts.rowid WHERE entries_fts MATCH :match ORDER BY entries.createdAt DESC LIMIT :limit")
     suspend fun search(match: String, limit: Int = 50): List<Entry>
+    @Query("SELECT * FROM entries ORDER BY createdAt") suspend fun all(): List<Entry>
 }
 
 @Dao
@@ -47,6 +48,7 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE threadId = :thread ORDER BY id") suspend fun threadNow(thread: Long): List<ChatMessage>
     @Query("SELECT COALESCE(MAX(threadId), 1) FROM messages") suspend fun lastThread(): Long
     @Query("DELETE FROM messages") suspend fun deleteAll()
+    @Query("SELECT * FROM messages ORDER BY threadId, id") suspend fun all(): List<ChatMessage>
 }
 
 @Dao

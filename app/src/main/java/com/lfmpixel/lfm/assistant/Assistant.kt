@@ -38,6 +38,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -115,6 +116,7 @@ class Assistant(
     private val launcher: ExternalLauncher,
     private val scope: CoroutineScope,
     val web: WebSearch? = null,
+    private val heat: StateFlow<com.lfmpixel.lfm.device.Heat> = MutableStateFlow(com.lfmpixel.lfm.device.Heat.Normal),
 ) {
     var permissionGate: PermissionGate? = null
     private val zone get() = ZoneId.systemDefault()
@@ -144,6 +146,8 @@ class Assistant(
     // The queue only runs once the app is on screen: messages kept from an earlier run never run unattended
     // (a reminder or a reboot can start the process with no one looking).
     private val shown = CompletableDeferred<Unit>()
+    /** Stop from the notification: the queue waits until the app is on screen again. */
+    @Volatile private var waitForScreen = false
     /** A queued message being edited: it and those after it wait until the edit is done. */
     @Volatile private var held: Long? = null
 
@@ -154,8 +158,13 @@ class Assistant(
             if (!threadSet) _thread.value = last
             shown.await()
             while (true) {
+                // Too hot: nothing new starts until the phone cools (the chat says so); then the queue goes on.
+                if (heat.value.holdsEverything && queue.value.isNotEmpty()) {
+                    busy.value = true
+                    heat.first { !it.holdsEverything }
+                }
                 var taken: Queued? = null
-                mutate(wakeWorker = false) { list -> taken = list.firstOrNull()?.takeIf { it.id != held }; if (taken != null) list.drop(1) else list }
+                if (!waitForScreen) mutate(wakeWorker = false) { list -> taken = list.firstOrNull()?.takeIf { it.id != held }; if (taken != null) list.drop(1) else list }
                 val next = taken
                 if (next == null) {
                     busy.value = queue.value.isNotEmpty()
@@ -182,7 +191,16 @@ class Assistant(
     }
 
     /** The app is on screen: queued messages may run. */
-    fun onShown() { shown.complete(Unit) }
+    fun onShown() {
+        shown.complete(Unit)
+        if (waitForScreen) { waitForScreen = false; wake.trySend(Unit) }
+    }
+
+    /** Stop from outside the app: ends the answer and holds the queue until Inkling is opened again. */
+    fun stopAll() {
+        waitForScreen = true
+        stop()
+    }
 
     /** Holds a queued message while the owner edits it; null lets the queue go on. */
     fun hold(id: Long?) { held = id; wake.trySend(Unit) }
@@ -405,6 +423,11 @@ class Assistant(
             // Pages without a text layer (scans) are read one at a time, then the question is answered over all the text.
             val texts = req.pages.mapIndexed { i, p ->
                 if (p.image == null) p.text else {
+                    // A long scan is a long job: on a hot phone it waits between pages for it to cool.
+                    if (heat.value.holdsLongJobs) {
+                        streaming.value = Streaming("", false, "Phone is hot. Page ${i + 1} of ${req.pages.size} waits for it to cool…")
+                        heat.first { !it.holdsLongJobs }
+                    }
                     streaming.value = Streaming("", false, "Reading page ${i + 1} of ${req.pages.size}…")
                     models.keepAlive()
                     val sb = StringBuilder()
@@ -466,6 +489,12 @@ class Assistant(
             }
             finalArgs = answer + ("_source" to source)
         }
+        // Android silently blocks a hand-off from the background, so it is never logged as opened when it wasn't.
+        if (tool.opensApp && !launcher.onScreen) {
+            return log(tool, finalArgs, ToolResult(false, "Not done: Inkling was not on screen, so Android would not let it open another app. " +
+                "Tell the owner to open Inkling and ask again.", "Not opened", preview.title.removeSuffix("?"),
+                "Inkling was in the background. Open it and ask again."), ActionStatus.Failed, ask)
+        }
         val result = try { tool.run(finalArgs) } catch (e: ToolArgsException) { ToolResult.error(e.message ?: "Bad arguments") }
         val status = when { !result.ok -> ActionStatus.Failed; result.opened -> ActionStatus.Opened; else -> ActionStatus.Done }
         return log(tool, finalArgs, result, status, ask)
@@ -507,6 +536,7 @@ class Assistant(
             "event" -> runCatching { calendar.delete(value.toLong()) }.getOrDefault(false)
             "torch" -> controls.setTorch(value.toBoolean())
             "ringer" -> controls.setRingerMode(value.toInt())
+            "volume" -> value.split(':').let { (stream, level) -> controls.setVolumePercent(stream.toInt(), level.toInt()) }
             "dnd" -> controls.setDnd(value.toBoolean())
             else -> false
         }
