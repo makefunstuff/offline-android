@@ -79,7 +79,7 @@ the wrong size or the wrong hash is not kept. The text model then answers a test
 ## Web search
 
 Search goes through LFM Net and a provider you set in LFM Net's own screen (Settings → Web search → the provider row):
-your own **SearXNG** (recommended, with **Wikipedia**: no account with anyone), Brave or Mojeek (an API key, tied to
+your own **SearXNG** (recommended, with **Wikipedia**, which is off until you turn it on: no account with anyone), Brave or Mojeek (an API key, tied to
 your card), or Wikipedia alone. Keys stay in LFM Net. SearXNG needs JSON output on in its `settings.yml`
 (`search: formats: [html, json]`); reach it over your WireGuard VPN, or over https with a user and password.
 

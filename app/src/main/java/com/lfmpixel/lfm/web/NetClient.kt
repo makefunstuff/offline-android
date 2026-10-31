@@ -127,7 +127,8 @@ class NetClient(private val context: Context, private val settings: Settings, pr
         return try {
             withContext(Dispatchers.IO) { block(s) }
         } catch (e: android.os.RemoteException) {
-            lock.withLock { drop() }
+            // Only a dead helper is let go; a failed transaction (a reply too big) leaves other calls running.
+            if (!s.asBinder().isBinderAlive) lock.withLock { drop() }
             throw NetException("LFM Net stopped: ${e.message ?: "try again"}")
         } catch (e: SecurityException) {
             throw NetException("LFM Net refused: ${e.message}")
@@ -141,6 +142,7 @@ class NetClient(private val context: Context, private val settings: Settings, pr
     }
 
     private suspend fun bind(): ILfmNet {
+        drop() // a connection left from a helper that restarted
         val ready = CompletableDeferred<ILfmNet>()
         val conn = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, binder: IBinder) { ILfmNet.Stub.asInterface(binder).let { service = it; ready.complete(it) } }

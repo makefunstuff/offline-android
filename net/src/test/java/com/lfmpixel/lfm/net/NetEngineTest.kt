@@ -104,6 +104,12 @@ class NetEngineTest {
         assertFalse(Providers.redact(url).contains("SECRET123"))
     }
 
+    @Test fun brokenEntitiesAndPasswordsDontBreakOrLeak() {
+        assertEquals("a &#x110000; b", Html.text("a &#x110000; b"))
+        assertFalse(Providers.redact("https://me:secret@searx.lan/search?q=x".toHttpUrl()).contains("secret"))
+        assertFalse("Wikipedia stays off until chosen", NetConfig().ready)
+    }
+
     @Test fun providerJsonIsRead() {
         val brave = Providers.parseBrave("""{"web":{"results":[{"title":"T <strong>x</strong>","url":"https://a.example/1","description":"D"}]}}""")
         assertEquals("T x", brave.single().title)

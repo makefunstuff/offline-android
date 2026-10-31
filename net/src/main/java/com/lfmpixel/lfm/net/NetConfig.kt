@@ -15,7 +15,7 @@ data class NetConfig(
     val searxngPassword: String = "",
     val braveKey: String = "",
     val mojeekKey: String = "",
-    val wikipedia: Boolean = true,
+    val wikipedia: Boolean = false,         // off until the owner picks it: no search goes anywhere unasked
     val wikiLang: String = "en",
     val proxy: String = "",          // SOCKS, "host:port"; empty for none
 ) {
@@ -42,7 +42,7 @@ class NetSettings(context: Context) {
         searxngPassword = prefs.getString("searxng_password", "")!!,
         braveKey = prefs.getString("brave_key", "")!!,
         mojeekKey = prefs.getString("mojeek_key", "")!!,
-        wikipedia = prefs.getBoolean("wikipedia", true),
+        wikipedia = prefs.getBoolean("wikipedia", false),
         wikiLang = prefs.getString("wiki_lang", "en")!!,
         proxy = prefs.getString("proxy", "")!!,
     )

@@ -49,6 +49,13 @@ class DownloadService : Service() {
             .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(open).build()
     }
 
+    /** Android 15+ stops a data-sync service after 6 hours a day: pause the downloads (they resume later) and stop. */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        (application as LfmApp).graph.downloads.pauseAll()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_NOT_STICKY
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onDestroy() { scope.cancel(); super.onDestroy() }

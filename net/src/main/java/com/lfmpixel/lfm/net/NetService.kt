@@ -53,7 +53,11 @@ class NetService : Service() {
                 reply("Waiting for Wi-Fi", emptyList()).apply { putString(NetContract.CODE, NetContract.NO_WIFI) }
             } else null
             val r = ParcelFileDescriptor.AutoCloseOutputStream(sink).use { out -> engine.download(fileName.orEmpty(), offset, out, via) }
-            return reply(r.error, r.log).apply { putLong(NetContract.BYTES, r.bytes) }
+            return reply(r.error, r.log).apply {
+                putLong(NetContract.BYTES, r.bytes)
+                // Wi-Fi went away mid-download: say so, so LFM waits for it instead of giving up.
+                if (wifiOnly && r.error != null && r.error != "Stopped" && unmetered() == null) putString(NetContract.CODE, NetContract.NO_WIFI)
+            }
         }
     }
 

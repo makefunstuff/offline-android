@@ -84,7 +84,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             items(visible, key = { it.id }) { m ->
                 when (m.role) {
                     Role.User -> UserBubble(m)
-                    Role.Assistant -> AssistantText(m.text, m.meta)
+                    Role.Assistant -> AssistantText(m.text, m.meta, citations = m.searchId != null)
                     Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
                         else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
                     Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
@@ -126,10 +126,10 @@ private fun UserBubble(m: ChatMessage) {
 }
 
 @Composable
-private fun AssistantText(text: String, meta: String) {
+private fun AssistantText(text: String, meta: String, citations: Boolean = false) {
     val c = Lfm.c
     Column {
-        AnswerText(text, if (text.length > 220) LfmType.bodyLarge else LfmType.answer, markKeyFact = false)
+        AnswerText(text, if (text.length > 220) LfmType.bodyLarge else LfmType.answer, markKeyFact = false, citations = citations)
         if (meta.isNotEmpty()) Txt(meta, LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
     }
 }

@@ -85,22 +85,21 @@ class NetEngine(
                 val r = request(url).header("Accept", "application/json")
                 if (cfg.provider == WebProvider.SearXNG && cfg.searxngUser.isNotEmpty()) r.header("Authorization", Credentials.basic(cfg.searxngUser, cfg.searxngPassword))
                 if (cfg.provider == WebProvider.Brave) r.header("X-Subscription-Token", cfg.braveKey)
-                runCatching { get(cfg, r.build(), q, log, 2_000_000) }.onSuccess { body ->
-                    web += when (cfg.provider) {
+                runCatching {
+                    val body = get(cfg, r.build(), q, log, 2_000_000)
+                    when (cfg.provider) {
                         WebProvider.SearXNG -> Providers.parseSearxng(body)
                         WebProvider.Brave -> Providers.parseBrave(body)
                         else -> Providers.parseMojeek(body)
                     }
-                }.onFailure { errors += "${cfg.provider.label}: ${it.message ?: "failed"}" }
+                }.onSuccess { web += it }.onFailure { errors += "${cfg.provider.label}: ${it.message ?: "failed"}" }
             }
         }
         if (cfg.wikipedia) {
             val base = wikipediaBase(cfg.wikiLang.ifBlank { "en" })
-            runCatching { get(cfg, request(Providers.wikipedia(base, q)).build(), q, log, 1_000_000) }
-                .onSuccess { body ->
-                    // Keep articles whose title shares a word with the query; the rest are usually far off.
-                    wiki += Providers.parseWikipedia(body, base).filter { h -> Providers.related(h.title, q) }
-                }
+            // Keep articles whose title shares a word with the query; the rest are usually far off.
+            runCatching { Providers.parseWikipedia(get(cfg, request(Providers.wikipedia(base, q)).build(), q, log, 1_000_000), base).filter { Providers.related(it.title, q) } }
+                .onSuccess { wiki += it }
                 .onFailure { errors += "Wikipedia: ${it.message ?: "failed"}" }
         }
         // Wikipedia matches words, not meaning: one article next to web results, more only on its own.

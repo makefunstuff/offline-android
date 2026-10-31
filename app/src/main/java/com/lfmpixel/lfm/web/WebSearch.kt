@@ -26,6 +26,8 @@ class SearchRequest(
     /** Sends [q] (as written or edited). */
     fun send(q: String = query) = answer.complete(q.trim().ifEmpty { query } to personal.map { it.word }.filter { q.contains(it, ignoreCase = true) })
     fun removePersonal() = answer.complete(PersonalWords.remove(query, personal) to emptyList())
+    /** Removing the words would leave nothing to search for. */
+    val onlyPersonal get() = PersonalWords.remove(query, personal).isBlank()
     fun cancel() = answer.complete(null)
 }
 
@@ -73,12 +75,22 @@ class WebSearch(
         var personalSent = emptyList<String>()
         // Any query written after reading web text always asks (spec section 3).
         if (prefs.searchMode == SearchMode.AskFirst || personal.isNotEmpty() || afterWebText) {
-            val req = SearchRequest(q, info.provider, personal, afterWebText, CompletableDeferred())
-            pending.value = req
-            val answer = try { req.answer.await() } finally { pending.value = null }
-                ?: return SearchOutcome("The owner chose not to search.", null, "Search cancelled", q, "Nothing was sent")
-            sendQuery = answer.first
-            personalSent = answer.second
+            var shown = q
+            var hits = personal
+            while (true) {
+                val req = SearchRequest(shown, info.provider, hits, afterWebText, CompletableDeferred())
+                pending.value = req
+                val answer = try { req.answer.await() } finally { pending.value = null }
+                    ?: return SearchOutcome("The owner chose not to search.", null, "Search cancelled", q, "Nothing was sent")
+                sendQuery = answer.first
+                personalSent = answer.second
+                if (sendQuery.isBlank()) return SearchOutcome("The owner removed every search word, so nothing was sent.", null, "Search cancelled", q, "Nothing was sent")
+                // Words typed in an edit are checked again; ones already shown and sent anyway are not asked twice.
+                if (sendQuery == shown || !prefs.warnPersonalWords) break
+                hits = PersonalWords.find(sendQuery, known()).filter { h -> personalSent.none { it.equals(h.word, ignoreCase = true) } }
+                if (hits.isEmpty()) break
+                shown = sendQuery
+            }
         }
 
         val results = try { net.search(sendQuery) } catch (e: NetException) {
@@ -90,7 +102,8 @@ class WebSearch(
             hits.withIndex().distinctBy { it.value.host() }.take(3).map { (i, h) ->
                 async {
                     h.url to runCatching {
-                        ArticleText.excerpt(ArticleText.extract(net.fetch(h.url, "Opened source ${i + 1}")), sendQuery, 1400)
+                        val html = net.fetch(h.url, "Opened source ${i + 1}")
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { ArticleText.excerpt(ArticleText.extract(html), sendQuery, 1400) }
                     }.getOrNull()?.takeIf { it.length >= 80 }
                 }
             }.awaitAll().toMap()

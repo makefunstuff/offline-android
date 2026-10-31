@@ -71,7 +71,7 @@ object Providers {
 
     /** The address for the network log: never an API key. */
     fun redact(url: HttpUrl): String {
-        val b = url.newBuilder()
+        val b = url.newBuilder().username("").password("")
         listOf("api_key", "key", "token", "apikey").forEach { if (url.queryParameter(it) != null) b.setQueryParameter(it, "…") }
         return b.build().toString()
     }
@@ -86,8 +86,8 @@ object Html {
     fun decode(s: String): String = entity.replace(s) { m ->
         val e = m.groupValues[1]
         when {
-            e.startsWith("#x") -> e.drop(2).toIntOrNull(16)?.let { String(Character.toChars(it)) } ?: m.value
-            e.startsWith("#") -> e.drop(1).toIntOrNull()?.let { String(Character.toChars(it)) } ?: m.value
+            e.startsWith("#x") -> e.drop(2).toIntOrNull(16)?.takeIf { Character.isValidCodePoint(it) }?.let { String(Character.toChars(it)) } ?: m.value
+            e.startsWith("#") -> e.drop(1).toIntOrNull()?.takeIf { Character.isValidCodePoint(it) }?.let { String(Character.toChars(it)) } ?: m.value
             else -> named[e] ?: m.value
         }
     }
@@ -98,7 +98,8 @@ object Html {
      * A page cut down to fit through Binder: scripts, styles, SVG, comments and the like go; the markup that tells
      * the article from the menus stays, for LFM to read on the phone.
      */
-    fun slim(html: String, maxChars: Int = 400_000): String {
+    // 100k chars is 200 KB in a Parcel: three pages at once stay well inside Binder's 1 MB buffer.
+    fun slim(html: String, maxChars: Int = 100_000): String {
         var s = html.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), " ")
         for (tag in listOf("script", "style", "noscript", "svg", "template", "iframe", "canvas", "select")) {
             s = s.replace(Regex("<$tag\\b[^>]*>.*?</$tag\\s*>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), " ")

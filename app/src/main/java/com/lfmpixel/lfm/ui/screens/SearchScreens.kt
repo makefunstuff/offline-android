@@ -127,7 +127,8 @@ fun QueryCard(req: SearchRequest) {
             } else {
                 Btn("Edit", { editing = true }, Modifier.weight(0.8f), small = true)
                 Btn("Send anyway", { req.send() }, Modifier.weight(1.2f), small = true)
-                Btn("Remove ${personal.first().kind.noun}", { req.removePersonal() }, Modifier.weight(1.3f), small = true, kind = BtnKind.Primary)
+                if (req.onlyPersonal) Btn("Don't search", { req.cancel() }, Modifier.weight(1.3f), small = true, kind = BtnKind.Primary)
+                else Btn("Remove ${personal.first().kind.noun}", { req.removePersonal() }, Modifier.weight(1.3f), small = true, kind = BtnKind.Primary)
             }
         }
     }
@@ -177,8 +178,9 @@ private val citation = Regex("""\[(\d{1,2})]""")
  * the highlighter instead) and [1] shows as a small numbered box.
  */
 @Composable
-fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: Modifier = Modifier) {
+fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: Modifier = Modifier, citations: Boolean = true) {
     val c = Lfm.c
+    val citation = if (citations) citation else Regex("(?!)")
     val numbers = citation.findAll(text).map { it.groupValues[1] }.toSet()
     val annotated = buildAnnotatedString {
         var marked = false

@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -105,9 +106,13 @@ class ModelDownloads(
     }
 
     private fun update(m: KnownModel, save: Boolean = false, f: (Item) -> Item) {
-        _items.value[m.fileName]?.let { _items.value = _items.value + (m.fileName to f(it)) }
+        // Progress comes from the reader thread and taps from the main thread: change the map atomically.
+        _items.update { map -> map[m.fileName]?.let { map + (m.fileName to f(it)) } ?: map }
         if (save) save()
     }
+
+    /** Android's daily limit for a data-sync service was reached: pause everything, keeping what arrived. */
+    fun pauseAll() = _items.value.values.forEach { pause(it.model) }
 
     private fun kick() {
         if (worker?.isActive == true) return
@@ -174,7 +179,7 @@ class ModelDownloads(
                                     val prev = _items.value[m.fileName]?.speed ?: 0
                                     // A little smoothing, so time left doesn't jump about.
                                     val smooth = if (prev == 0L) speed else (prev * 3 + speed) / 4
-                                    update(m) { it.copy(done = done, speed = smooth) }
+                                    update(m) { it.copy(done = done, speed = if (it.state == State.Running) smooth else 0) }
                                     mark = t; markBytes = done
                                 }
                             }

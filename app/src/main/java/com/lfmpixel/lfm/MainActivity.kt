@@ -105,6 +105,8 @@ class MainActivity : ComponentActivity() {
         // LFM Net may have been installed, removed or set up meanwhile; downloads cut off by a restart carry on.
         graph.net.refresh()
         graph.downloads.resumeInterrupted()
+        // Back from Android's install prompt without an answer: let Install be tapped again.
+        if (graph.netInstaller.status.value == com.lfmpixel.lfm.web.NetInstaller.Status.Working) graph.netInstaller.status.value = com.lfmpixel.lfm.web.NetInstaller.Status.Idle
     }
 
     override fun onDestroy() {
