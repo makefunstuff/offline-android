@@ -29,6 +29,8 @@ object TimeArgs {
 
     fun parse(text: String, now: LocalDateTime): When? {
         val s = text.trim().lowercase(Locale.ROOT).removeSuffix("z").replace(Regex("\\s+"), " ").removePrefix("at ")
+            // "on tuesday", "this friday", "next friday": the coming one, as a bare day name is.
+            .replace(Regex("^(?:on |this |next )+(?=[a-z]{3})"), "")
         if (s.isEmpty()) return null
         val iso = s.uppercase(Locale.ROOT).replace(' ', 'T')
         runCatching { return LocalDateTime.parse(iso.take(19)).let { When(it.toLocalDate(), it.toLocalTime().withSecond(0)) } }

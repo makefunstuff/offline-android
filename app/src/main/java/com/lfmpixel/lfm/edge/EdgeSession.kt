@@ -180,7 +180,9 @@ class EdgeSession(
         val json = JSONObject().put("model", EdgeModels.VISION).put("messages", chatMessages(prompt, urls))
             .put("max_tokens", maxTokens).put("temperature", temp.toDouble()).put("stream", true).put("reasoning_effort", "none")
         val r = runStream(json.toString(), "/v1/chat/completions", "Your server: pictures") { ev ->
-            val text = ev.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("delta")?.optString("content").orEmpty()
+            // A first delta with "content": null reads as "null" through optString.
+            val d = ev.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("delta")
+            val text = d?.takeIf { !it.isNull("content") }?.optString("content").orEmpty()
             if (text.isNotEmpty()) trySend(text).isSuccess else true
         }
         r?.let { throw LlmException("Your server: ${it.message}") }

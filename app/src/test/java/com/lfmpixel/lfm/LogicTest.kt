@@ -46,6 +46,9 @@ class TimeArgsTest {
         assertEquals(When(LocalDate.of(2026, 10, 31), LocalTime.of(9, 0)), parse("tomorrow 9:00"))
         assertEquals(When(LocalDate.of(2026, 11, 6), LocalTime.of(20, 0)), parse("friday 8pm"))
         assertEquals(When(LocalDate.of(2026, 11, 3), null), parse("tuesday"))
+        // As the small model copies them from a line (docs/notebook-spec.md B.2).
+        assertEquals(When(LocalDate.of(2026, 11, 6), LocalTime.of(17, 0)), parse("next Friday at 5pm"))
+        assertEquals(When(LocalDate.of(2026, 11, 3), LocalTime.of(15, 0)), parse("on tuesday at 3pm"))
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(14, 18)), parse("in 10 minutes"))
         assertNull(parse("whenever"))
     }
