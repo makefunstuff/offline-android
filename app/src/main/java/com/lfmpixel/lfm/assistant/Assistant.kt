@@ -366,13 +366,17 @@ class Assistant(
             // Once web text is in the conversation, every action and every new query asks first (spec section 4).
             val afterWebText = thread.any { it.role == Role.Tool && (it.searchId ?: 0) > 0 }
             var history = thread.mapNotNull(::toPrompt)
-            var prompt = PromptFormat.build(systemPrompt(webOn), tools, history, thinking)
-            // Drop the oldest turns until the prompt leaves room for the answer.
-            // The context is the chat model's: Settings' size for llama.cpp, the file's own for LiteRT-LM.
-            while (history.size > 1 && models.textSession().let { it.countTokens(prompt) > it.contextTokens - maxTokens - 64 }) {
-                history = history.drop(1).dropWhile { it.role != PromptMessage.Role.User }.ifEmpty { history.takeLast(1) }
-                prompt = PromptFormat.build(systemPrompt(webOn), tools, history, thinking)
+            // The prompt must leave room for the answer, in the chat model's context: Settings' size for llama.cpp,
+            // the file's own for LiteRT-LM. Too long, earlier answers first lose what they thought, then the oldest
+            // turns go; the last thing the owner said always stays.
+            val fitSession = models.textSession()
+            suspend fun fits(h: List<PromptMessage>) =
+                fitSession.countTokens(PromptFormat.build(systemPrompt(webOn), tools, h, thinking)) <= fitSession.contextTokens - maxTokens - 64
+            if (!fits(history)) history = PromptFormat.withoutOldThoughts(history)
+            while (!fits(history)) {
+                history = history.drop(1).dropWhile { it.role != PromptMessage.Role.User }.takeIf { it.isNotEmpty() } ?: break
             }
+            val prompt = PromptFormat.build(systemPrompt(webOn), tools, history, thinking)
             val raw = StringBuilder()
             streaming.value = Streaming("", thinking)
             // How long it thought: from its first word to the end of its think block.

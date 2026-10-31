@@ -158,6 +158,8 @@ class Settings(private val context: Context) {
     suspend fun setBackendSpeeds(file: String, speeds: Map<Backend, BackendSpeed>) = context.store.edit {
         it[K.backendSpeeds] = Backends.encode(it.toPrefs().backendSpeeds + (file to speeds))
     }
+    /** Chats are cleared: their ids come back, so their Think choices go too. */
+    suspend fun clearChatThinking() = context.store.edit { it.remove(K.chatThinking) }
     /** Wipe: every setting back to how it was on first run. */
     suspend fun clear() = context.store.edit { it.clear() }
     suspend fun setShowSpeed(on: Boolean) = context.store.edit { it[K.speed] = on }

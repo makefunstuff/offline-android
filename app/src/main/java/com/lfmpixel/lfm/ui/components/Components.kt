@@ -5,7 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -397,10 +398,11 @@ fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onS
 fun ThinkChip(on: Boolean, onChange: (Boolean) -> Unit, onInfo: () -> Unit) {
     val c = Lfm.c
     val shape = RoundedCornerShape(6.dp)
-    Row(Modifier.heightIn(min = 34.dp).clip(shape).border(1.dp, if (on) c.text else c.control, shape)
+    // Drawn 34 dp tall; the touch target is the full 48 dp.
+    Row(Modifier.minimumInteractiveComponentSize().heightIn(min = 34.dp).clip(shape).border(1.dp, if (on) c.text else c.control, shape)
         .combinedClickable(role = Role.Switch, onClickLabel = if (on) "Answer without thinking" else "Think before answering",
             onLongClickLabel = "What Think does", onLongClick = onInfo) { onChange(!on) }
-        .semantics { stateDescription = if (on) "On" else "Off" }
+        .semantics { toggleableState = androidx.compose.ui.state.ToggleableState(on) }
         .padding(start = 6.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         LIcon("bulb", size = 16.dp, tint = if (on) c.text else c.text3)

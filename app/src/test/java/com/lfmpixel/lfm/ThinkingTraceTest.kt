@@ -55,11 +55,24 @@ class ThinkingTraceTest {
 
     @Test fun aSecondEndTagAfterTheBudgetMovesItsThoughtIntoTheTrace() {
         // Closed for it, the model may go on thinking and close the block again itself.
-        val raw = "First part of the thought" + "\n</think>\n" + "and the rest of it.</think>\n\nThe answer."
+        val raw = "First part of the thought" + ModelOutput.OUT_OF_BUDGET + "and the rest of it.</think>\n\nThe answer."
         val out = ModelOutput.parse(raw, thinkingOn = true)
         assertEquals("First part of the thought\n\nand the rest of it.", out.thinking)
         assertEquals("The answer.", out.answer)
         assertFalse(out.answer.contains("think"))
+        // It may open a block again first: the tag is not shown either way.
+        assertEquals("First\n\nmore", ModelOutput.parse("First" + ModelOutput.OUT_OF_BUDGET + "<think>more</think>Done.", true).thinking)
+    }
+
+    @Test fun aStrayEndTagInTheAnswerKeepsTheAnswer() {
+        // A stray tag after a whole answer (seen from LFM3 on both engines) never hides it in the trace.
+        val budget = ModelOutput.parse("Thought" + ModelOutput.OUT_OF_BUDGET + "1. Salmon\n2. Stir-fry</think>", thinkingOn = true)
+        assertEquals("Thought", budget.thinking)
+        assertEquals("1. Salmon\n2. Stir-fry", budget.answer)
+        // Without a budget close, a tag mid-answer just goes and the words stay.
+        val mid = ModelOutput.parse("Thought</think>Here are three: 1. Salmon</think> 2. Stir-fry", thinkingOn = true)
+        assertEquals("Thought", mid.thinking)
+        assertEquals("Here are three: 1. Salmon 2. Stir-fry", mid.answer)
     }
 
     @Test fun aReopenedThinkTagIsNotShown() {
@@ -98,5 +111,18 @@ class ThinkingTraceTest {
         assertTrue(thinksFor(p, 1, "typed"))
         assertTrue(thinksFor(p.copy(thinking = false), 3, "typed"))
         assertFalse(thinksFor(p.copy(thinking = false), 1, "typed"))
+    }
+
+    @Test fun aShortenedPromptDropsOldThoughtsFirst() {
+        val u = com.lfmpixel.lfm.llm.PromptMessage.Role.User
+        val a = com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant
+        val t = com.lfmpixel.lfm.llm.PromptMessage.Role.Tool
+        fun m(r: com.lfmpixel.lfm.llm.PromptMessage.Role, c: String) = com.lfmpixel.lfm.llm.PromptMessage(r, c)
+        val h = listOf(m(u, "hi"), m(a, "<think>long thought</think>Hello."), m(u, "remind me"),
+            m(a, "<think>they want a reminder</think><tool_call>x</tool_call>"), m(t, "{}"))
+        val out = PromptFormat.withoutOldThoughts(h)
+        assertEquals("<think></think>Hello.", out[1].content)
+        // The current turn keeps its thought; the rest is untouched.
+        assertEquals(h.subList(2, 5), out.subList(2, 5))
     }
 }

@@ -23,6 +23,20 @@ object PromptFormat {
     /** The prefix the assistant turn starts with; the model writes everything after it. */
     fun assistantPrefix(thinking: Boolean) = if (thinking) "<think>" else "<think></think>"
 
+    /**
+     * [messages] with the thinking taken out of the answers before the last user message, as the template does with
+     * `preserve_thinking` off: for a prompt that has to be shortened anyway (so the context is read again regardless).
+     * Answers in the current turn keep theirs, as the model wrote them before its tool calls.
+     */
+    fun withoutOldThoughts(messages: List<PromptMessage>): List<PromptMessage> {
+        val lastUser = messages.indexOfLast { it.role == PromptMessage.Role.User }
+        return messages.mapIndexed { i, m ->
+            if (i < lastUser && m.role == PromptMessage.Role.Assistant && m.content.startsWith("<think>") && m.content.contains("</think>"))
+                m.copy(content = "<think></think>" + m.content.substringAfter("</think>").trimStart())
+            else m
+        }
+    }
+
     fun build(system: String, toolsJson: List<String>, messages: List<PromptMessage>, thinking: Boolean): String {
         val sb = StringBuilder(system(system, toolsJson))
         var pendingTool = mutableListOf<String>()
