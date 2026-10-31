@@ -16,6 +16,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.async
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Duration
@@ -151,5 +152,63 @@ class SmallThingsTest {
         assertEquals(TodoTab.Someday, todoTab(Entry(kind = EntryKind.Todo, title = "a"), end))
         assertEquals(TodoTab.Today, todoTab(Entry(kind = EntryKind.Todo, title = "a", dueAt = end - 1), end))
         assertEquals(TodoTab.Upcoming, todoTab(Entry(kind = EntryKind.Todo, title = "a", dueAt = end), end))
+    }
+}
+
+class Phase7LogicTest {
+    /** Two tools asking at once: the second waits for the first answer instead of replacing its request. */
+    @Test fun permissionRequestsGoOneAtATime() = kotlinx.coroutines.runBlocking {
+        val granted = mutableSetOf<String>()
+        val launched = mutableListOf<Pair<List<String>, kotlinx.coroutines.CompletableDeferred<Boolean>>>()
+        val gate = com.lfmpixel.lfm.tools.SerialPermissionGate({ p -> granted.containsAll(p) }, { p, a -> launched += p to a })
+        val bg = kotlinx.coroutines.Dispatchers.Default
+        val a = async(bg) { gate.ensure(listOf("mic")) }
+        kotlinx.coroutines.delay(50)
+        val b = async(bg) { gate.ensure(listOf("contacts")) }
+        kotlinx.coroutines.delay(50)
+        val c = async(bg) { gate.ensure(listOf("mic")) }
+        kotlinx.coroutines.withTimeout(2_000) { while (launched.isEmpty()) kotlinx.coroutines.delay(5) }
+        kotlinx.coroutines.delay(100)
+        assertEquals("only one request on screen", 1, launched.size)
+        val first = launched[0]
+        granted += first.first; first.second.complete(true)
+        kotlinx.coroutines.withTimeout(2_000) { while (launched.size < 2) kotlinx.coroutines.delay(5) }
+        kotlinx.coroutines.delay(100)
+        assertEquals("the second asks once the first is answered; the repeat of the first doesn't ask again", 2, launched.size)
+        launched[1].second.complete(false)
+        assertEquals(listOf(true, false, true).sorted(), listOf(a.await(), b.await(), c.await()).sorted())
+    }
+
+    @Test fun volumeLevels() {
+        val v = com.lfmpixel.lfm.tools.VolumeTool
+        assertEquals(40, v.target("40", 10)); assertEquals(40, v.target("40%", 10)); assertEquals(50, v.target("0.5", 10))
+        assertEquals(70, v.target("up", 50)); assertEquals(0, v.target("down", 10)); assertEquals(0, v.target("mute", 60))
+        assertEquals(100, v.target("max", 3)); assertEquals(100, v.target("140", 3))
+        assertEquals(android.media.AudioManager.STREAM_ALARM, v.stream("alarm"))
+        assertEquals(android.media.AudioManager.STREAM_MUSIC, v.stream(""))
+    }
+
+    @Test fun heatSteps() {
+        val H = com.lfmpixel.lfm.device.Heat.Companion
+        val (Normal, Warm, Hot, TooHot) = com.lfmpixel.lfm.device.Heat.entries
+        assertEquals(Normal, H.of(android.os.PowerManager.THERMAL_STATUS_LIGHT))
+        assertEquals(Warm, H.of(android.os.PowerManager.THERMAL_STATUS_MODERATE))
+        assertEquals(Hot, H.of(android.os.PowerManager.THERMAL_STATUS_SEVERE))
+        assertEquals(TooHot, H.of(android.os.PowerManager.THERMAL_STATUS_SHUTDOWN))
+        // Tensor G5: 6 big cores; Auto writes with 5.
+        assertEquals(0, H.threadCap(Normal, 6)); assertEquals(4, H.threadCap(Warm, 6))
+        assertEquals(3, H.threadCap(Hot, 6)); assertEquals(2, H.threadCap(TooHot, 6))
+        assertEquals(2, H.threadCap(Warm, 2))
+        assertTrue(Hot.holdsLongJobs && !Hot.holdsEverything && TooHot.holdsEverything && !Warm.holdsLongJobs)
+    }
+
+    @Test fun lockClosesAfterAMinuteAway() {
+        val L = com.lfmpixel.lfm.device.AppLock
+        val off = com.lfmpixel.lfm.settings.LockMode.Off
+        val app = com.lfmpixel.lfm.settings.LockMode.App
+        assertTrue(!L.shouldClose(off, 1_000, 1_000_000))
+        assertTrue(!L.shouldClose(app, 1_000, 1_000 + 59_000))
+        assertTrue(L.shouldClose(app, 1_000, 1_000 + 60_000))
+        assertTrue("never hidden yet", !L.shouldClose(app, 0, 1_000_000))
     }
 }
