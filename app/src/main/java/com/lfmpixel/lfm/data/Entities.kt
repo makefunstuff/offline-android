@@ -57,6 +57,9 @@ data class ChatMessage(
     val meta: String = "",          // "LFM3-1.7B · on this phone"
     val createdAt: Long = System.currentTimeMillis(),
     val searchId: Long? = null,     // a web search card (-1: no search was made), or an answer written from one
+    @ColumnInfo(defaultValue = "") val media: String = "",      // what the owner showed: Photo, Video, Document (SeeKind)
+    @ColumnInfo(defaultValue = "") val mediaPath: String = "",  // its small JPEG in the app's files
+    @ColumnInfo(defaultValue = "") val mediaLabel: String = "", // "Video · 0:06", "Lease.pdf · 3 pages"
 )
 
 enum class ActionStatus { Done, Undone, Cancelled, Failed, Opened }

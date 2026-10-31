@@ -20,6 +20,9 @@ object LlamaNative {
         fun onToken(bytes: ByteArray): Boolean
     }
 
+    const val PROJ_AUDIO = 1
+    const val PROJ_VISION = 2
+
     @Volatile private var ready = false
 
     fun ensureLoaded(nativeLibDir: String) {
@@ -35,11 +38,13 @@ object LlamaNative {
     external fun backendInit(nativeLibDir: String)
     external fun systemInfo(): String
     external fun load(path: String, nCtx: Int, nThreads: Int): Long
-    external fun loadProjector(handle: Long, path: String): Boolean
+    /** What the projector takes in: [PROJ_AUDIO], [PROJ_VISION] bits, or -1 if it did not load. */
+    external fun loadProjector(handle: Long, path: String): Int
     external fun free(handle: Long)
     external fun countTokens(handle: Long, text: ByteArray): Int
     external fun generate(handle: Long, prompt: ByteArray, maxTokens: Int, temp: Float, topP: Float, seed: Int, listener: TokenListener): Int
     external fun transcribe(handle: Long, pcm: FloatArray, prompt: ByteArray, maxTokens: Int, listener: TokenListener): Int
+    external fun see(handle: Long, images: Array<ByteArray>, sizes: IntArray, prompt: ByteArray, maxTokens: Int, temp: Float, listener: TokenListener): Int
     external fun lastStats(handle: Long): DoubleArray
 }
 
@@ -47,6 +52,9 @@ data class GenStats(val prefillMs: Double, val prefillTokens: Int, val decodeMs:
     val decodeTps get() = if (decodeMs > 0) decodeTokens * 1000.0 / decodeMs else 0.0
     val prefillTps get() = if (prefillMs > 0) prefillTokens * 1000.0 / prefillMs else 0.0
 }
+
+/** A picture as llama.cpp takes it: packed RGB, 3 bytes a pixel, rows top to bottom. */
+class RgbImage(val width: Int, val height: Int, val rgb: ByteArray)
 
 class LlmException(message: String) : Exception(message)
 
@@ -79,7 +87,7 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
         }
     }
 
-    suspend fun loadProjector(path: String): Boolean = native { LlamaNative.loadProjector(handle, path) }
+    suspend fun loadProjector(path: String): Int = native { LlamaNative.loadProjector(handle, path) }
 
     suspend fun countTokens(text: String): Int = native { LlamaNative.countTokens(handle, text.toByteArray()) }
 
@@ -107,6 +115,25 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
         if (n < 0) throw LlmException("Transcription failed ($n)")
         out.toString(Charsets.UTF_8).replace(Regex("<think>.*?</think>", RegexOption.DOT_MATCHES_ALL), "").replace("<|im_end|>", "").trim()
     }
+
+    /**
+     * Pictures in, text streamed out. [prompt] is the full chat prompt with one `<__media__>` marker per picture.
+     * The context is cleared first: pictures are not reused across calls.
+     */
+    fun see(images: List<RgbImage>, prompt: String, maxTokens: Int, temp: Float = 0.1f): Flow<String> = callbackFlow {
+        mutex.withLock {
+            if (closed) throw LlmException("The model was unloaded; try again")
+            val sizes = IntArray(images.size * 2) { i -> if (i % 2 == 0) images[i / 2].width else images[i / 2].height }
+            val n = LlamaNative.see(handle, images.map { it.rgb }.toTypedArray(), sizes, prompt.toByteArray(), maxTokens, temp) { bytes ->
+                trySend(String(bytes, Charsets.UTF_8)).isSuccess
+            }
+            lastStats = readStats()
+            if (n == -2) throw LlmException("Too much to look at in one go: try fewer pages or a shorter clip")
+            if (n < 0) throw LlmException("Could not read the picture ($n)")
+        }
+        close()
+        awaitClose { }
+    }.buffer(Channel.UNLIMITED).flowOn(dispatcher)
 
     private fun readStats() = LlamaNative.lastStats(handle).let { GenStats(it[0], it[1].toInt(), it[2], it[3].toInt(), it[4].toInt()) }
 

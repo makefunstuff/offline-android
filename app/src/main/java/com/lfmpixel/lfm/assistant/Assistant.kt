@@ -26,6 +26,10 @@ import com.lfmpixel.lfm.tools.Tool
 import com.lfmpixel.lfm.tools.ToolArgsException
 import com.lfmpixel.lfm.tools.ToolRegistry
 import com.lfmpixel.lfm.tools.ToolResult
+import com.lfmpixel.lfm.see.SeeKind
+import com.lfmpixel.lfm.see.SeeModel
+import com.lfmpixel.lfm.see.SeeRequest
+import com.lfmpixel.lfm.see.SeeRules
 import com.lfmpixel.lfm.web.WebSearch
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +46,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** The answer being written right now. */
-data class Streaming(val text: String, val thinking: Boolean)
+data class Streaming(val text: String, val thinking: Boolean, val note: String = "")
 
 /** An action waiting for the owner's tap on the confirmation sheet. */
 class ConfirmRequest(
@@ -85,7 +89,7 @@ class Assistant(
     val busy = MutableStateFlow(false)
     val pendingConfirm = MutableStateFlow<ConfirmRequest?>(null)
     private var job: Job? = null
-    private data class Input(val text: String, val voiceSeconds: Int, val source: String, val thread: Long)
+    private class Input(val text: String, val voiceSeconds: Int, val source: String, val thread: Long, val see: SeeRequest? = null)
     // Messages sent while the assistant is busy wait their turn here instead of being dropped.
     private val inbox = Channel<Input>(Channel.UNLIMITED)
     private var threadSet = false
@@ -129,11 +133,23 @@ class Assistant(
         inbox.trySend(Input(clean, voiceSeconds, source, if (threadReady || threadSet) _thread.value else -1))
     }
 
+    /** Asks about a photo, a clip or a document: the picture goes to Omni or VL, in this process. */
+    fun ask(req: SeeRequest) {
+        busy.value = true
+        inbox.trySend(Input(req.question, 0, "camera", if (threadReady || threadSet) _thread.value else -1, req))
+    }
+
     private suspend fun handle(input: Input) {
         if (input.thread != -1L && input.thread != _thread.value) return
         try {
-            db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = input.text, voiceSeconds = input.voiceSeconds))
-            if (!models.hasText()) sortWithoutModel(input.text, input.source) else converse(input.source)
+            val see = input.see
+            db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = input.text, voiceSeconds = input.voiceSeconds,
+                media = see?.kind?.name.orEmpty(), mediaPath = see?.thumbPath.orEmpty(), mediaLabel = see?.label.orEmpty()))
+            when {
+                see != null -> look(see)
+                !models.hasText() -> sortWithoutModel(input.text, input.source)
+                else -> converse(input.source)
+            }
         } catch (e: LlmException) {
             notice(e.message ?: "The model stopped")
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -180,8 +196,9 @@ class Assistant(
     private val stamp = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH)
 
     private fun toPrompt(m: ChatMessage): PromptMessage? = when (m.role) {
+        // The text model can't see the picture; it reads what was asked and, next, what Omni or VL answered.
         Role.User -> PromptMessage(PromptMessage.Role.User,
-            m.text + "\n\n(Now: " + Instant.ofEpochMilli(m.createdAt).atZone(zone).format(stamp) + ")")
+            (if (m.media.isNotEmpty()) "[${m.media.lowercase()} shown: ${m.mediaLabel}] " else "") + m.text + "\n\n(Now: " + Instant.ofEpochMilli(m.createdAt).atZone(zone).format(stamp) + ")")
         Role.Assistant -> PromptMessage(PromptMessage.Role.Assistant, m.raw)
         Role.Tool -> PromptMessage(PromptMessage.Role.Tool, m.raw)
         Role.Notice -> null
@@ -248,6 +265,55 @@ class Assistant(
             }
             if (round == 3) notice("Stopped after four rounds of tool calls.")
         }
+    }
+
+    /** Omni or VL looks at the pictures (or VL reads the pages) and answers in the chat. */
+    private suspend fun look(req: SeeRequest) {
+        val picturesNeeded = req.images.isNotEmpty() || req.pages.any { it.image != null }
+        val model = SeeRules.pick(req.kind, models.hasVoice(), models.hasVision(), models.hasText(), picturesNeeded)
+            ?: throw LlmException(if (req.kind == SeeKind.Document) "Documents need LFM3-VL-2B. Get it in Settings → Models."
+                else "Photos and video need LFM3-Omni-2B or LFM3-VL-2B. Get one in Settings → Models.")
+        val started = System.nanoTime()
+        streaming.value = Streaming("", false, if (req.kind == SeeKind.Document) "Reading…" else "Looking…")
+        val session = when (model) {
+            SeeModel.Omni -> models.omniSession()
+            SeeModel.Vision -> models.visionSession()
+            SeeModel.Text -> models.textSession()
+        }
+        val raw = StringBuilder()
+        val onPiece: (String) -> Unit = { raw.append(it); streaming.value = Streaming(SeeRules.clean(raw.toString()), false) }
+        if (req.pages.isEmpty()) {
+            session.see(req.images, SeeRules.prompt(req.kind, req.question, req.images.size, req.seconds), 512).collect(onPiece)
+        } else {
+            // Pages without a text layer (scans) are read one at a time, then the question is answered over all the text.
+            val texts = req.pages.mapIndexed { i, p ->
+                if (p.image == null) p.text else {
+                    streaming.value = Streaming("", false, "Reading page ${i + 1} of ${req.pages.size}…")
+                    val sb = StringBuilder()
+                    session.see(listOf(p.image), SeeRules.prompt(SeeKind.Document, SeeRules.READ_PAGE, 1), 1024, temp = 0f)
+                        .collect { sb.append(it) }
+                    SeeRules.clean(sb.toString())
+                }
+            }
+            streaming.value = Streaming("", false, "Thinking about ${req.pages.size} ${if (req.pages.size == 1) "page" else "pages"}…")
+            val ctx = if (model == SeeModel.Vision) ModelManager.VISION_CONTEXT else settings.now().contextTokens
+            // About 3 characters a token, leaving room for the answer.
+            var text = SeeRules.documentText(texts, (ctx - 1200) * 3)
+            var prompt = SeeRules.documentPrompt(text, req.question)
+            while (session.countTokens(prompt) > ctx - 600 && text.length > 2000) {
+                text = SeeRules.documentText(texts, text.length * 3 / 4)
+                prompt = SeeRules.documentPrompt(text, req.question)
+            }
+            session.generate(prompt, 512, temp = 0.2f).collect(onPiece)
+        }
+        val answer = SeeRules.clean(raw.toString())
+        val secs = (System.nanoTime() - started) / 1e9
+        val more = if (req.pagesSkipped > 0) " · first ${req.pages.size} pages" else ""
+        db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = answer,
+            raw = "<think></think>" + answer,
+            meta = "%s · on this phone · %.0f s%s".format(Locale.ENGLISH, model.label, secs, more)))
+        streaming.value = null
+        if (answer.isBlank()) notice("The model gave no answer. Try again, or ask another way.")
     }
 
     /** Previews, confirms if needed, runs and logs one call. */

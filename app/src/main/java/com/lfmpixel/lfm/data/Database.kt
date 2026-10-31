@@ -93,7 +93,8 @@ class Converters {
 }
 
 @Database(entities = [Entry::class, EntryFts::class, ChatMessage::class, ActionRecord::class, Reminder::class, NetLogEntry::class,
-    SearchRecord::class], version = 2, exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2)])
+    SearchRecord::class], version = 3, exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)])
 @TypeConverters(Converters::class)
 abstract class LfmDatabase : RoomDatabase() {
     abstract fun entries(): EntryDao

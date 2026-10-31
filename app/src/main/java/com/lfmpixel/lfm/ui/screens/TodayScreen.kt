@@ -95,7 +95,7 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         Column(Modifier.padding(horizontal = 16.dp)) {
             Composer(draft, { draft = it }, "Ask, capture or do…", onSend = {
                 g.assistant.send(draft); draft = ""; nav.go(Route.Chat)
-            }, onMic = onMic, listening = listening)
+            }, onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) })
             Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pill("On this phone", "shield")
                 Pill("Search: ${prefs?.searchMode?.label?.lowercase() ?: "ask first"}", "globe")

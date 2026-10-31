@@ -103,6 +103,11 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
     implementation(project(":ipc"))
+    // CameraX for the "Ask about this" viewfinder; frames stay in this process.
+    implementation(libs.camera.camera2)
+    implementation(libs.camera.lifecycle)
+    // camera-view's video recorder (and media3, which asks for network state) is not used: frames come from ImageAnalysis.
+    implementation(libs.camera.view) { exclude(group = "androidx.camera", module = "camera-video"); exclude(group = "androidx.media3") }
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -127,7 +132,11 @@ androidComponents {
         val depsCheck = tasks.register<CheckDependencyAllowList>("check${name}Dependencies") {
             modules.set(runtime.flatMap { c -> c.incoming.resolutionResult.rootComponent.map { runtimeModules(it) } })
             // okio is DataStore's file I/O; it has no networking of its own. offline-android:ipc is the AIDL to LFM Net.
-            allowed.set(baseAllowList + listOf("com.squareup.okio:", "offline-android:ipc"))
+            // CameraX brings Guava, Dagger (its internal wiring) and annotation-only jars: plain Java, no networking.
+            allowed.set(baseAllowList + listOf("com.squareup.okio:", "offline-android:ipc",
+                "com.google.guava:", "com.google.dagger:dagger", "com.google.auto.value:auto-value-annotations",
+                "jakarta.inject:", "javax.inject:", "com.google.code.findbugs:jsr305", "org.checkerframework:checker-qual",
+                "com.google.j2objc:j2objc-annotations"))
             report.set(layout.buildDirectory.file("reports/privacy/${variant.name}-dependencies.txt"))
         }
         tasks.matching { it.name == "assemble$name" || it.name == "check" }.configureEach {

@@ -47,6 +47,19 @@ import com.lfmpixel.lfm.ui.components.Txt
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
 import kotlinx.coroutines.launch
+import android.graphics.BitmapFactory
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import com.lfmpixel.lfm.ui.theme.LfmMotion
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
@@ -60,6 +73,9 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     var draft by remember { mutableStateOf("") }
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val reduced = LfmMotion.reduced()
+    val itemFade = if (reduced) null else tween<Float>(LfmMotion.MEDIUM, easing = LfmMotion.standard)
+    val itemMove = if (reduced) null else tween<androidx.compose.ui.unit.IntOffset>(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate)
     val visible = messages.filter { !(it.role == Role.Assistant && it.text.isBlank()) }
     LaunchedEffect(visible.size, streaming?.text?.length, query) {
         val n = visible.size + (if (streaming != null) 1 else 0) + (if (query != null) 1 else 0)
@@ -82,17 +98,17 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
             }
             items(visible, key = { it.id }) { m ->
-                when (m.role) {
+                Box(Modifier.animateItem(fadeInSpec = itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
                     Role.User -> UserBubble(m)
                     Role.Assistant -> AssistantText(m.text, m.meta, citations = m.searchId != null)
                     Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
                         else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
                     Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
-                }
+                } }
             }
             streaming?.let { s ->
                 item(key = "streaming") {
-                    if (s.text.isEmpty()) Txt(if (s.thinking) "Thinking…" else "…", LfmType.small, c.text2)
+                    if (s.text.isEmpty()) Txt(s.note.ifEmpty { if (s.thinking) "Thinking…" else "…" }, LfmType.small, c.text2)
                     else AssistantText(s.text, "")
                 }
             }
@@ -101,7 +117,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)) {
             Composer(draft, { draft = it }, if (busy) "Writing…  tap the mic to speak next" else "Message…", onSend = {
                 if (!busy) { g.assistant.send(draft); draft = "" }
-            }, onMic = onMic, listening = listening)
+            }, onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) })
         }
         if (busy) Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.Center) {
             Txt("Stop", LfmType.button, c.text, Modifier.clickable { g.assistant.stop() }.padding(8.dp), decoration = TextDecoration.Underline)
@@ -115,12 +131,34 @@ private fun UserBubble(m: ChatMessage) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         val shape = RoundedCornerShape(8.dp, 8.dp, 2.dp, 8.dp)
         Column(Modifier.widthIn(max = 300.dp).background(c.fill, shape).border(1.dp, c.line, shape).padding(horizontal = 14.dp, vertical = 10.dp)) {
+            if (m.media.isNotEmpty()) MediaThumb(m)
             if (m.voiceSeconds > 0) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(bottom = 4.dp)) {
                 LIcon("wave", size = 16.dp, tint = c.text2)
                 Txt("0:%02d".format(m.voiceSeconds), LfmType.meta, c.text2)
             }
             Txt(m.text, LfmType.body)
+        }
+    }
+}
+
+/** The photo, clip or page the owner asked about: its picture fades in once read from the app's files. */
+@Composable
+private fun MediaThumb(m: ChatMessage) {
+    val c = Lfm.c
+    val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, m.mediaPath) {
+        value = withContext(Dispatchers.IO) { runCatching { BitmapFactory.decodeFile(m.mediaPath)?.asImageBitmap() }.getOrNull() }
+    }
+    val alpha by animateFloatAsState(if (bitmap != null) 1f else 0f, LfmMotion.spec(LfmMotion.MEDIUM), label = "thumb")
+    Column(Modifier.padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        bitmap?.let { b ->
+            val ratio = (b.width.toFloat() / b.height).coerceIn(0.6f, 1.8f)
+            Image(b, m.mediaLabel, Modifier.widthIn(max = 220.dp).aspectRatio(ratio).clip(RoundedCornerShape(6.dp)).alpha(alpha),
+                contentScale = ContentScale.Crop)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            LIcon(when (m.media) { "Video" -> "video"; "Document" -> "doc"; else -> "image" }, size = 16.dp, tint = c.text2)
+            Txt(m.mediaLabel.ifEmpty { m.media }, LfmType.meta, c.text2, maxLines = 1)
         }
     }
 }
