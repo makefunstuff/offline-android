@@ -42,11 +42,12 @@ object EdgeModels {
     const val TEXT_CONTEXT = 32_768
     const val LONG_CONTEXT = 262_144
     /**
-     * The answer model, when the server serves it (homelab HOM-11, voice mode): Qwen3.8-27B writes chat and Talk answers
+     * The answer model, when the server serves it (homelab HOME-1): Qwen3.8-27B writes chat and Talk answers
      * and their tool calls, with native tool calling. The LFM3 models keep speech, pictures and the small jobs.
      */
     const val ANSWER = "qwen3.8-27b"
-    const val ANSWER_CONTEXT = 131_072
+    /** As the server runs it (HOME-1: --ctx-size 32768). */
+    const val ANSWER_CONTEXT = 32_768
 
     /** How a model is named under an answer and in the timings. */
     fun label(id: String): String = when {
@@ -60,7 +61,7 @@ object EdgeModels {
 
 /**
  * Speech in and out on the server. Today Omni's /v1/audio/transcriptions and /tts ([Edge]); homelab's shared voice and
- * video service (HOM-11: realtime duplex, a speech formatter) can take its place behind this, with nothing else changed.
+ * video service (HOME-1: realtime duplex, a speech formatter) can take its place behind this, with nothing else changed.
  */
 interface ServerVoice {
     /** Speech to text: [pcm16k] is 16 kHz mono float. */

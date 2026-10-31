@@ -430,12 +430,14 @@ class Talk(
                 _state.value = _state.value.copy(turns = _state.value.turns.map { if (it.id == id && !it.done) it.copy(done = true, stopped = true) else it })
             }
         }
-        if (failure != null && text.isEmpty() && firstAudio == 0L) {
+        // Taken back only if nothing happened yet: once a tool ran, answering the turn again would run it twice.
+        if (failure != null && text.isEmpty() && firstAudio == 0L && ran == 0) {
             out.stop()
             synchronized(this) { _state.value = _state.value.copy(turns = _state.value.turns.filter { it.id != id }) }
             return false
         }
-        if (failure != null) set(run) { it.copy(error = "Your server stopped answering mid-way.") }
+        if (failure != null) set(run) { it.copy(error = "Your server stopped answering mid-way." +
+            (if (ran > 0) " What it already did stays done." else "")) }
         if (spoken && finished) out.finish() else out.stop()
         val played = out.last
         val timing = TalkTiming(heardMs, if (firstWord > 0) firstWord - endedAt else 0, if (firstAudio > 0) firstAudio - endedAt else 0,

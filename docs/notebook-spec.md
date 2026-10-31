@@ -181,9 +181,9 @@ Qwen3.8-27B writes the answers and the tool calls** in chat and Talk; LFM3-1.7B 
 
 | Job | Model | Why |
 | --- | --- | --- |
-| Chat, Talk and a note's margin: answers and tool calls | `qwen3.8-27b` (HOM-11), native tool calling on `/v1/chat/completions` | Trustworthy answers; the 1.7B model invents |
+| Chat, Talk and a note's margin: answers and tool calls | `qwen3.8-27b` (HOME-1), native tool calling on `/v1/chat/completions` | Trustworthy answers; the 1.7B model invents |
 | Same, when Qwen isn't loaded or fails before writing | `lfm3-1.7b` on the server, then the phone | Never stuck: the old path, unchanged |
-| Speech in and out | `lfm3-omni-2b` (`/v1/audio/transcriptions`, `/tts`), behind `ServerVoice` | HOM-11's shared voice service can replace it there |
+| Speech in and out | `lfm3-omni-2b` (`/v1/audio/transcriptions`, `/tts`), behind `ServerVoice` | HOME-1's shared voice service can replace it there |
 | Pictures, Look | `lfm3-vl-2b` | 100-250 ms a frame on the server |
 | Classifiers, organizer jobs | `lfm3-1.7b`, JSON schema output, thinking off | 150-200 ms each |
 

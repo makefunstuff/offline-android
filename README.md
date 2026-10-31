@@ -233,12 +233,12 @@ server doesn't answer on the host's loopback, so not `10.0.2.2`) and its API key
 Design and ranking: [docs/notebook-spec.md](docs/notebook-spec.md), section B.
 
 - **Answers from Qwen.** In Edge mode, chat, Talk and a note's margin are answered by `qwen3.8-27b` when the server
-  has it loaded (homelab HOM-11), with **native tool calling**: the same tools (to-dos, reminders, events, notes,
+  has it loaded (homelab HOME-1), with **native tool calling**: the same tools (to-dos, reminders, events, notes,
   search, the organizer's actions), the same confirmation sheet and undo, in Talk too. Omni only listens and speaks.
   When Qwen isn't loaded (or fails before writing) LFM3-1.7B on the server answers, then the phone. The line under
   an answer and Talk's timings (Settings → Show speed) name the model that wrote it. `edge/ChatPrompt.kt` converts
   the phone's LFM3 prompt to chat messages and tools and the reply back. Server voice calls go through one
-  interface, `ServerVoice` (`edge/Edge.kt`), for HOM-11's shared voice service.
+  interface, `ServerVoice` (`edge/Edge.kt`), for HOME-1's shared voice service.
 - **Look.** In Talk, the camera button shows the camera's view and what LFM3-VL-2B sees in it, live; Talk answers
   about it ("what am I holding?" goes straight to the VL model on the newest frame). `see/Look.kt`.
 - **Classifiers** on LFM3-1.7B / LFM3-VL-2B with JSON-schema output (`edge/Labels.kt`): the Ink line's kind and time
