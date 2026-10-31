@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -88,11 +89,12 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
             Group {
                 val text = installed.firstOrNull { it.known.role == ModelRole.Text && it.verified }
                 val omni = installed.firstOrNull { it.known.role == ModelRole.Omni && it.verified }
-                val inMem = listOfNotNull(if (status.text == LoadState.Ready) "1.7B" else null, if (status.omni == LoadState.Ready) "Omni" else null)
+                val inMem = listOfNotNull(if (status.text == LoadState.Ready) "1.7B" else null, if (status.omni == LoadState.Ready) "Omni" else null,
+                    if (status.vision == LoadState.Ready) "VL" else null)
                 ListRow("Models", when {
                     text == null && omni == null -> "None yet · import a file"
                     else -> listOfNotNull(omni?.known?.family, text?.known?.family).joinToString(", ") +
-                        (if (inMem.isNotEmpty()) " · in memory" else "") + " · " + formatBytes(installed.sumOf { it.known.sizeBytes })
+                        (if (inMem.isNotEmpty()) " · ${inMem.joinToString(", ")} loaded" else " · none loaded") + " · " + formatBytes(installed.sumOf { it.known.sizeBytes })
                 }, "chip", { nav.go(Route.Models) }) { Chevron() }
                 GroupDivider()
                 ListRow("Web search", listOf(netLabel, p.searchMode.label.lowercase()).filter { it.isNotEmpty() }.joinToString(" · "), "globe",
@@ -103,12 +105,13 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 ListRow("Action history", "Everything the assistant did, with undo", "history", { nav.go(Route.History) }) { Chevron() }
             }
             Group {
-                ListRow("Privacy", "Network log, LFM Net, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
+                ListRow("Privacy", "Network log, Inkling Net, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
             }
             Group {
                 ListRow("Voice", if (g.engine.hasVoice()) "LFM3-Omni-2B · English" else "Import LFM3-Omni-2B and its projector", "speaker", { nav.go(Route.Models) }) { Chevron() }
                 GroupDivider()
-                ListRow("Battery & heat", "${p.threads} threads · unload after ${p.unloadAfterMinutes} min idle", "flash")
+                ListRow("Battery & heat", "${p.threads} threads · " + if (p.unloadAfterMinutes == 0) "models stay loaded" else "unload after ${p.unloadAfterMinutes} min idle",
+                    "flash", { nav.go(Route.Models) }) { Chevron() }
             }
             SectionLabel("Thinking")
             Row(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
@@ -226,7 +229,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
             Guarantee("cal", "Events go to “On this phone”", "A local calendar that never syncs to any account")
             if (installed) {
                 val on = prefs?.netEnabled ?: true
-                Guarantee("globe", "LFM Net handles search", if (on) "Search words, result addresses, model downloads" else "Off: nothing is searched or downloaded") {
+                Guarantee("globe", "Inkling Net handles search", if (on) "Search words, result addresses, model downloads" else "Off: nothing is searched or downloaded") {
                     Switch(on) {
                         // Off means off: downloads in progress pause too (they resume when it is back on).
                         if (!it) g.downloads.pauseAll()
@@ -234,7 +237,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
                     }
                 }
             } else {
-                Guarantee("globe", "LFM Net is not installed", "Without the helper app, LFM is fully offline: no search, no downloads")
+                Guarantee("globe", "Inkling Net is not installed", "Without the helper app, Inkling is fully offline: no search, no downloads")
             }
             SectionLabel("Network log · today")
             if (log.isEmpty()) Txt(if (installed) "No requests today." else "No requests. This app cannot make any.", LfmType.small, c.text2)
@@ -254,7 +257,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
                     scope.launch {
                         val all = g.db.netLog().all()
                         val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                        g.launcher.share("LFM network log", all.joinToString("\n") { e ->
+                        g.launcher.share("Inkling network log", all.joinToString("\n") { e ->
                             listOf(Instant.ofEpochMilli(e.at).atZone(ZoneId.systemDefault()).format(fmt), e.host, e.url, e.sent, "${e.bytes} bytes",
                                 if (e.ok) "ok" else "failed").joinToString("\t")
                         }.ifEmpty { "No requests." })
@@ -266,7 +269,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
             Txt("Chats, notes, ideas, journal, to-dos, reminders, searches, the network log and the action history, in the app's private storage. Models in the app's files.",
                 LfmType.small, c.text2)
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Btn("Clear chats", { scope.launch { g.assistant.newChat(); g.db.messages().deleteAll(); g.db.searches().deleteAll(); g.prep.deleteAll() } }, Modifier.weight(1f), icon = "trash")
+                Btn("Clear chats", { scope.launch { g.assistant.clearQueue(); g.assistant.newChat(); g.db.messages().deleteAll(); g.db.searches().deleteAll(); g.prep.deleteAll() } }, Modifier.weight(1f), icon = "trash")
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -289,10 +292,10 @@ private fun Guarantee(icon: String, title: String?, detail: String, markedTitle:
 
 /** "Your SearXNG + Wikipedia", or why there is no search. Asks LFM Net about itself; no request goes out. */
 suspend fun webSearchLabel(g: AppGraph): String = when (g.net.state()) {
-    com.lfmpixel.lfm.web.NetClient.State.On -> runCatching { g.net.info() }.fold({ if (it.ready) it.provider.replaceFirstChar { c -> c.uppercase() } else "No provider set up" }, { "LFM Net not answering" })
-    com.lfmpixel.lfm.web.NetClient.State.Off -> "LFM Net off"
-    com.lfmpixel.lfm.web.NetClient.State.NotInstalled -> "Needs the LFM Net helper"
-    com.lfmpixel.lfm.web.NetClient.State.WrongSigner -> "LFM Net signed with another key"
+    com.lfmpixel.lfm.web.NetClient.State.On -> runCatching { g.net.info() }.fold({ if (it.ready) it.provider.replaceFirstChar { c -> c.uppercase() } else "No provider set up" }, { "Inkling Net not answering" })
+    com.lfmpixel.lfm.web.NetClient.State.Off -> "Inkling Net off"
+    com.lfmpixel.lfm.web.NetClient.State.NotInstalled -> "Needs the Inkling Net helper"
+    com.lfmpixel.lfm.web.NetClient.State.WrongSigner -> "Inkling Net signed with another key"
 }
 
 @Composable
@@ -312,9 +315,28 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             Txt(if (g.net.installed()) "Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web."
                 else "Everything it thinks, hears and keeps stays here. No account. It cannot reach the internet.", LfmType.body, c.text2)
             SectionLabel("Step 1 of 2 · Models")
-            Txt("For chat get LFM3-1.7B; for voice also Omni-2B ($size for both at Q4). Each is checked against its pinned SHA-256.",
-                LfmType.meta, c.text2, Modifier.padding(bottom = 10.dp))
-            ModelList(g, highlight = false)
+            val installed by g.models.installed.collectAsState()
+            val downloads by g.downloads.items.collectAsState()
+            val netState by g.net.current.collectAsState()
+            val missing = com.lfmpixel.lfm.llm.ModelCatalog.essentials.filter { m -> installed.none { it.known == m } &&
+                (downloads[m.fileName]?.state ?: com.lfmpixel.lfm.web.ModelDownloads.State.Failed) == com.lfmpixel.lfm.web.ModelDownloads.State.Failed }
+            var choose by remember { mutableStateOf(false) }
+            when {
+                missing.isEmpty() -> Txt(if (downloads.values.any { it.state != com.lfmpixel.lfm.web.ModelDownloads.State.Done }) "Getting LFM3-1.7B and Omni. They carry on in the background; Models shows how far."
+                    else "LFM3-1.7B and Omni are on this phone. You're set.", LfmType.body, c.text, Modifier.padding(bottom = 10.dp))
+                netState == com.lfmpixel.lfm.web.NetClient.State.On -> {
+                    Txt("LFM3-1.7B for chat and Omni for voice and photos: $size in all, each checked against its pinned SHA-256.", LfmType.meta, c.text2,
+                        Modifier.padding(bottom = 10.dp))
+                    Btn("Get the recommended models", { g.downloads.start(missing) }, Modifier.fillMaxWidth(), com.lfmpixel.lfm.ui.components.BtnKind.Primary, icon = "download")
+                }
+                else -> Txt("For chat get LFM3-1.7B; for voice also Omni-2B ($size for both at Q4). Each is checked against its pinned SHA-256.",
+                    LfmType.meta, c.text2, Modifier.padding(bottom = 10.dp))
+            }
+            if (choose || netState != com.lfmpixel.lfm.web.NetClient.State.On) {
+                Spacer(Modifier.height(10.dp))
+                ModelList(g, highlight = false)
+            } else Btn("Choose models yourself", { choose = true }, Modifier.padding(top = 8.dp).fillMaxWidth(), icon = "list")
+            Spacer(Modifier.height(8.dp))
             Btn("Import files instead", onImportOnly, Modifier.fillMaxWidth(), icon = "folder")
             Txt("Already on this phone or copied over USB; no network needed.", LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             SectionLabel("Step 2 of 2 · Web search (change any time)")

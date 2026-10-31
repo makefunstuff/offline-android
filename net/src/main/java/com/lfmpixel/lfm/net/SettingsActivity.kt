@@ -63,11 +63,11 @@ class SettingsActivity : ComponentActivity() {
             val set: (NetConfig) -> Unit = { cfg = it; store.save(it) }
             Column(Modifier.fillMaxSize().background(c.bg).statusBarsPadding().navigationBarsPadding().imePadding()) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text("LFM Net", style = header, color = c.text, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
+                    Text("Inkling Net", style = header, color = c.text, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
                 }
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-                    Text("The helper LFM uses for web search, opening result pages and model downloads. It keeps no chats or notes: only these settings.",
+                    Text("The helper Inkling uses for web search, opening result pages and model downloads. It keeps no chats or notes: only these settings.",
                         style = small, color = c.text2, modifier = Modifier.padding(top = 14.dp))
                     Label(c, "Web search provider")
                     Segmented(c, WebProvider.entries.map { it.label }, cfg.provider.label) { l -> set(cfg.copy(provider = WebProvider.entries.first { it.label == l })) }

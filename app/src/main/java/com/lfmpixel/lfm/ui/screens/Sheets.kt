@@ -44,7 +44,6 @@ import com.lfmpixel.lfm.assistant.ConfirmRequest
 import com.lfmpixel.lfm.data.Entry
 import com.lfmpixel.lfm.data.EntryKind
 import com.lfmpixel.lfm.tools.TimeArgs
-import com.lfmpixel.lfm.ui.EntrySheet
 import com.lfmpixel.lfm.ui.components.Btn
 import com.lfmpixel.lfm.ui.components.BtnKind
 import com.lfmpixel.lfm.ui.components.Divider
@@ -138,84 +137,6 @@ fun ConfirmSheet(req: ConfirmRequest) {
         }
         val fine = if (req.afterWebText) "Actions suggested by web text always ask, even ones set to run directly." else req.preview.note
         if (fine.isNotEmpty()) Txt(fine, LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
-    }
-}
-
-/** Add or edit a note, idea, journal line or to-do; one tap moves it to another kind. */
-@Composable
-fun EntryEditor(g: AppGraph, sheet: EntrySheet, onClose: () -> Unit) {
-    val c = Lfm.c
-    val scope = rememberCoroutineScope()
-    var loaded by remember(sheet) { mutableStateOf(sheet.id == null) }
-    var entry by remember(sheet) { mutableStateOf(Entry(kind = sheet.kind, title = "", body = sheet.text, source = "typed")) }
-    var text by remember(sheet) { mutableStateOf(sheet.text) }
-    var due by remember(sheet) { mutableStateOf("") }
-    var list by remember(sheet) { mutableStateOf("") }
-    var tags by remember(sheet) { mutableStateOf("") }
-    var error by remember(sheet) { mutableStateOf("") }
-    val zone = ZoneId.systemDefault()
-    LaunchedEffect(sheet) {
-        sheet.id?.let { id ->
-            g.db.entries().get(id)?.let { e ->
-                entry = e
-                text = when {
-                    // Notes from the assistant keep the whole text in the body, and its first line as the title.
-                    e.kind == EntryKind.Note && e.body.lineSequence().first().let { first ->
-                        first.equals(e.title, ignoreCase = true) ||
-                            (e.title.endsWith("…") && first.startsWith(e.title.removeSuffix("…"), ignoreCase = true))
-                    } -> e.body
-                    e.kind == EntryKind.Note -> listOf(e.title, e.body).filter { it.isNotBlank() }.joinToString("\n")
-                    else -> e.body.ifBlank { e.title }
-                }
-                due = e.dueAt?.let { TimeArgs.iso(com.lfmpixel.lfm.tools.When(Instant.ofEpochMilli(it).atZone(zone).toLocalDate(),
-                    if (e.dueHasTime) Instant.ofEpochMilli(it).atZone(zone).toLocalTime().withSecond(0).withNano(0) else null)) } ?: ""
-                list = e.list
-                tags = if (e.kind == EntryKind.Idea) e.topic else e.tags
-            }
-            loaded = true
-        }
-    }
-    FlatSheet(onDismiss = onClose) {
-        if (!loaded) return@FlatSheet
-        Txt(if (sheet.id == null) "New ${entry.kind.label.lowercase()}" else entry.kind.label, LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
-        Label("Kind", Modifier.padding(top = 14.dp, bottom = 6.dp))
-        Segmented(EntryKind.entries.map { it.label }, entry.kind.label, { l -> entry = entry.copy(kind = EntryKind.entries.first { it.label == l }) })
-        Field(if (entry.kind == EntryKind.Journal) "Entry" else "Text", text, { text = it }, minLines = if (entry.kind == EntryKind.Todo) 1 else 4)
-        when (entry.kind) {
-            EntryKind.Todo -> {
-                Field("Due", due, { due = it }, placeholder = "e.g. tomorrow 17:00, friday, 2026-11-06")
-                Field("List", list, { list = it }, placeholder = "Shopping, Work, Home")
-            }
-            EntryKind.Idea -> Field("Topic", tags, { tags = it }, placeholder = "Side projects")
-            EntryKind.Note -> Field("Tags", tags, { tags = it }, placeholder = "work home")
-            EntryKind.Journal -> {
-                Label("Mood", Modifier.padding(top = 10.dp, bottom = 6.dp))
-                Segmented(listOf("None", "Good", "Low"), listOf("None", "Good", "Low")[entry.mood], { m -> entry = entry.copy(mood = listOf("None", "Good", "Low").indexOf(m)) })
-            }
-        }
-        if (error.isNotEmpty()) Txt(error, LfmType.small, c.text, Modifier.padding(top = 8.dp))
-        Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (sheet.id != null) Btn("Delete", { scope.launch { g.db.entries().delete(sheet.id); onClose() } }, Modifier.weight(1f), icon = "trash")
-            Btn("Cancel", onClose, Modifier.weight(1f))
-            Btn("Save", {
-                val body = text.trim()
-                if (body.isEmpty()) { error = "Write something first."; return@Btn }
-                val w = if (entry.kind == EntryKind.Todo && due.isNotBlank()) TimeArgs.parse(due, LocalDateTime.now()) else null
-                if (entry.kind == EntryKind.Todo && due.isNotBlank() && w == null) { error = "I couldn't read that date."; return@Btn }
-                val first = body.lineSequence().first().trim()
-                val e = entry.copy(
-                    title = first.take(120),
-                    body = if (entry.kind == EntryKind.Note) body.lineSequence().drop(1).joinToString("\n").trim() else if (body.length > 120 || body.contains('\n')) body else "",
-                    dueAt = w?.epochMillis(zone) ?: if (entry.kind == EntryKind.Todo) null else entry.dueAt,
-                    dueHasTime = w?.time != null,
-                    list = if (entry.kind == EntryKind.Todo) list.trim() else entry.list,
-                    tags = if (entry.kind == EntryKind.Note) tags.trim().lowercase() else entry.tags,
-                    topic = if (entry.kind == EntryKind.Idea) tags.trim() else entry.topic,
-                    updatedAt = System.currentTimeMillis(),
-                )
-                scope.launch { if (sheet.id == null) g.db.entries().insert(e) else g.db.entries().update(e); onClose() }
-            }, Modifier.weight(1f), BtnKind.Primary)
-        }
     }
 }
 

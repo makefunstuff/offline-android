@@ -29,6 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.llm.CheckResult
+import com.lfmpixel.lfm.llm.InstalledModel
+import com.lfmpixel.lfm.llm.Slot
+import com.lfmpixel.lfm.ui.components.Segmented
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.Role
 import com.lfmpixel.lfm.llm.LoadState
 import com.lfmpixel.lfm.llm.ModelCatalog
 import com.lfmpixel.lfm.llm.ModelRole
@@ -59,6 +64,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
     val c = Lfm.c
+    var deleting by remember { mutableStateOf<InstalledModel?>(null) }
+    deleting?.let { m -> DeleteModelSheet(g, m) { deleting = null } }
     val installed by g.models.installed.collectAsState()
     val downloads by g.downloads.items.collectAsState()
     val used = g.models.usedBytes()
@@ -68,8 +75,10 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Column(Modifier.padding(top = 14.dp, bottom = 12.dp)) {
                 Bar(if (used + free > 0) used.toFloat() / (used + free) else 0f)
-                Txt("${formatBytes(used)} used · ${formatBytes(free)} free", LfmType.label.copy(fontWeight = null), c.text2)
+                Txt("Storage: ${formatBytes(used)} of models · ${formatBytes(free)} free", LfmType.label.copy(fontWeight = null), c.text2)
             }
+            ModelControl(g)
+            SectionLabel("Get models")
             ModelList(g, highlight = true)
             // Files imported by hand that the list above doesn't offer (other quantisations).
             val offered = ModelCatalog.groups.flatMap { it.variants + listOfNotNull(it.projector) }.toSet()
@@ -82,13 +91,13 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
                             Txt("${m.known.family} ${m.known.quant}", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
                             Txt("${m.known.sizeLabel} · ${if (m.verified) "verified" else "not verified"} · ${m.known.role.label}", LfmType.label.copy(fontWeight = null), c.text2)
                         }
-                        IconButtonPlain("trash", { g.models.delete(m) }, desc = "Delete ${m.known.fileName}")
+                        IconButtonPlain("trash", { deleting = m }, desc = "Delete ${m.known.fileName}")
                     }
                     Divider()
                 }
             }
             Btn("Import a file", onImport, Modifier.padding(top = 14.dp).fillMaxWidth(), icon = "folder")
-            Txt("Downloads come from Hugging Face with no login, through LFM Net, and each file is checked against its pinned SHA-256 before it is used. " +
+            Txt("Downloads come from Hugging Face with no login, through Inkling Net, and each file is checked against its pinned SHA-256 before it is used. " +
                 "Import works fully offline: copy the GGUF to the phone (adb push or USB), then pick it.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
             if (downloads.isEmpty()) g.engine.systemInfo().takeIf { it.isNotEmpty() }?.let {
                 SectionLabel("llama.cpp on this phone")
@@ -112,6 +121,8 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
     val netState by g.net.current.collectAsState()
     val prefs by g.settings.prefs.collectAsState(null)
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var deleting by remember { mutableStateOf<InstalledModel?>(null) }
+    deleting?.let { m -> DeleteModelSheet(g, m) { deleting = null } }
     androidx.compose.runtime.LaunchedEffect(Unit) { g.net.refresh() }
     val canDownload = netState == NetClient.State.On
     val running = downloads.values.firstOrNull { it.state == ModelDownloads.State.Running || it.state == ModelDownloads.State.Checking }
@@ -130,8 +141,8 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
             (grp.variants + listOfNotNull(grp.projector)).forEach { m ->
                 val have = installed.firstOrNull { it.known == m }
                 val d = downloads[m.fileName]?.takeIf { have == null && it.state != ModelDownloads.State.Done }
-                val inMemory = have != null && ((m.role == ModelRole.Text && status.text == LoadState.Ready && g.models.text()?.file == have.file) ||
-                    (m.role in setOf(ModelRole.Omni, ModelRole.OmniProjector) && status.omni == LoadState.Ready))
+                val inMemory = have != null && status.of(slotOf(m.role)) == LoadState.Ready &&
+                    (m.role != ModelRole.Text || status.textFile == have.file.name)
                 Divider(Modifier.padding(top = 10.dp))
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f)) {
@@ -149,7 +160,7 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
                     when {
                         have != null -> {
                             if (inMemory) Pill("In memory")
-                            IconButtonPlain("trash", { g.models.delete(have) }, desc = "Delete ${m.fileName}")
+                            IconButtonPlain("trash", { deleting = have }, desc = "Delete ${m.fileName}")
                         }
                         d == null && canDownload -> Btn("Download", { g.downloads.startWithProjector(m) }, small = true, icon = "download")
                         d == null -> Txt("Not on this phone", LfmType.meta, c.text2)
@@ -172,20 +183,20 @@ private fun NetMissingCard(g: AppGraph, st: NetClient.State) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("download", size = 18.dp)
             Txt(when (st) {
-                NetClient.State.NotInstalled -> "LFM Net is not installed"
-                NetClient.State.Off -> "LFM Net is turned off"
-                else -> "LFM Net is signed with another key"
+                NetClient.State.NotInstalled -> "Inkling Net is not installed"
+                NetClient.State.Off -> "Inkling Net is turned off"
+                else -> "Inkling Net is signed with another key"
             }, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
         }
         Txt(when (st) {
-            NetClient.State.NotInstalled -> "Downloads come through LFM Net, a small helper app. It is the only part with network access; LFM itself has none. Without it, import model files instead."
+            NetClient.State.NotInstalled -> "Downloads come through Inkling Net, a small helper app. It is the only part with network access; Inkling itself has none. Without it, import model files instead."
             NetClient.State.Off -> "You turned it off in Privacy, so nothing is downloaded. Import works without it."
-            else -> "LFM only talks to the LFM Net built with it. Uninstall the LFM Net you have, then come back here to install this one."
+            else -> "Inkling only talks to the Inkling Net built with it. Uninstall the Inkling Net you have, then come back here to install this one."
         }, LfmType.small, c.text2, Modifier.padding(top = 6.dp))
         val bundled = remember { g.netInstaller.bundled() }
         if (st == NetClient.State.NotInstalled && bundled) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Btn(if (install == NetInstaller.Status.Working) "Installing…" else "Install LFM Net",
+            Btn(if (install == NetInstaller.Status.Working) "Installing…" else "Install Inkling Net",
                 { scope.launch { g.netInstaller.install() } }, small = true, kind = BtnKind.Primary, icon = "download",
                 enabled = install != NetInstaller.Status.Working)
             (install as? NetInstaller.Status.Failed)?.let { Txt(it.why, LfmType.meta, c.text2, Modifier.weight(1f)) }
@@ -204,7 +215,7 @@ private fun DownloadProgress(d: ModelDownloads.Item, highlighted: Boolean, onPau
         Row(verticalAlignment = Alignment.CenterVertically) {
             Txt(when (d.state) {
                 ModelDownloads.State.Waiting -> "Waiting to start"
-                ModelDownloads.State.Running -> "Downloading through LFM Net"
+                ModelDownloads.State.Running -> "Downloading through Inkling Net"
                 ModelDownloads.State.Pausing -> "Pausing…"
                 ModelDownloads.State.Cancelling -> "Cancelling…"
                 ModelDownloads.State.Paused -> d.error ?: "Paused"
@@ -353,6 +364,142 @@ private fun Check(ok: Boolean?, title: String?, detail: String, marked: String? 
             if (marked != null) Marked(marked, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             else Txt(title ?: "", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             Txt(detail, LfmType.label.copy(fontWeight = null), c.text2)
+        }
+    }
+}
+
+fun slotOf(role: ModelRole) = when (role) {
+    ModelRole.Text -> Slot.Text
+    ModelRole.Omni, ModelRole.OmniProjector -> Slot.Omni
+    ModelRole.Vision, ModelRole.VisionProjector -> Slot.Vision
+}
+
+private val idleChoices = listOf(0 to "Never", 1 to "1 min", 5 to "5 min", 15 to "15 min", 30 to "30 min")
+
+/**
+ * What is in memory and what it takes, Load and Unload for each model, when they unload by themselves, and which
+ * model chat uses (ux-spec section 5, model control). On the Models screen and in the chat header's sheet.
+ */
+@Composable
+fun ModelControl(g: AppGraph) {
+    val c = Lfm.c
+    val status by g.engine.status.collectAsState()
+    val installed by g.models.installed.collectAsState()
+    val prefs by g.settings.prefs.collectAsState(null)
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val memory by produceState(emptyMap<Slot, Long>(), status, installed, prefs) { value = Slot.entries.associateWith { g.engine.memoryBytes(it) } }
+    val slots = Slot.entries.filter { g.engine.installed(it) }
+    var failed by remember { mutableStateOf<Pair<Slot, String>?>(null) }
+    // Unloading waits for an answer being written with that model; say so instead of looking stuck.
+    var unloading by remember { mutableStateOf(emptySet<Slot>()) }
+    val working by g.assistant.working.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(status) { unloading = unloading.filter { status.of(it) == LoadState.Ready }.toSet() }
+    SectionLabel("In memory")
+    if (slots.isEmpty()) Txt("No models on this phone yet.", LfmType.small, c.text2)
+    Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp))) {
+        slots.forEachIndexed { i, slot ->
+            if (i > 0) Divider()
+            val st = status.of(slot)
+            val name = if (slot == Slot.Text) installed.firstOrNull { it.file.name == status.textFile }?.let { "${it.known.family} ${it.known.quant}" }
+                ?: (g.models.text(prefs?.chatModel ?: "")?.let { "${it.known.family} ${it.known.quant}" } ?: slot.label) else slot.label
+            val mem = memory[slot]?.let { "about ${formatBytes(it)}" } ?: ""
+            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                val dot = Modifier.size(8.dp)
+                when (st) {
+                    LoadState.Ready -> Box(dot.background(c.text, RoundedCornerShape(2.dp)))
+                    else -> Box(dot.border(1.dp, if (st == LoadState.Loading) c.text else c.text3, RoundedCornerShape(2.dp)))
+                }
+                Column(Modifier.weight(1f)) {
+                    Txt(name, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+                    Txt(listOf(slot.purpose, when (st) {
+                        LoadState.Ready -> "loaded · $mem"
+                        LoadState.Loading -> "loading…"
+                        LoadState.Failed -> "didn't load"
+                        LoadState.None -> "not loaded · $mem when loaded"
+                    }).joinToString(" · "), LfmType.label.copy(fontWeight = null), c.text2)
+                    failed?.takeIf { it.first == slot }?.let { Txt(it.second, LfmType.meta, c.text, maxLines = 3) }
+                    if (slot in unloading && working) Txt("Unloads when the current answer ends", LfmType.meta, c.text)
+                }
+                when {
+                    slot in unloading -> Btn("Unloading…", {}, small = true, enabled = false)
+                    st == LoadState.Ready -> Btn("Unload", { unloading = unloading + slot; g.scope.launch { g.engine.unload(slot) } }, small = true)
+                    st == LoadState.Loading -> Btn("Loading…", {}, small = true, enabled = false)
+                    else -> Btn("Load", {
+                        failed = null
+                        g.scope.launch { runCatching { g.engine.load(slot) }.onFailure { failed = slot to (it.message ?: "Could not load") } }
+                    }, small = true)
+                }
+            }
+        }
+    }
+    val am = ctx.getSystemService(android.app.ActivityManager::class.java)
+    val mi = remember(status) { android.app.ActivityManager.MemoryInfo().also { am?.getMemoryInfo(it) } }
+    if (mi.totalMem > 0) Txt("Phone memory: ${formatBytes(mi.availMem)} free of ${formatBytes(mi.totalMem)}", LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
+
+    val texts = installed.filter { it.known.role == ModelRole.Text && it.verified }
+    if (texts.size > 1) {
+        SectionLabel("Chat model")
+        val current = g.models.text(prefs?.chatModel ?: "")
+        Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp))) {
+            texts.forEachIndexed { i, m ->
+                if (i > 0) Divider()
+                val on = m.file == current?.file
+                Row(Modifier.fillMaxWidth().clickable(role = Role.RadioButton) {
+                    scope.launch {
+                        g.settings.setChatModel(m.file.name)
+                        // Swap now if a chat model is loaded, so the next answer doesn't wait.
+                        if (status.text == LoadState.Ready) g.scope.launch { runCatching { g.engine.load(Slot.Text) } }
+                    }
+                }.padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(18.dp).border(if (on) 6.dp else 1.dp, if (on) c.text else c.control, RoundedCornerShape(50)))
+                    Column(Modifier.weight(1f)) {
+                        Txt("${m.known.family} ${m.known.quant}", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+                        Txt(m.known.sizeLabel + if (m.known.quant.startsWith("Q4")) " · smaller, faster" else " · more accurate", LfmType.label.copy(fontWeight = null), c.text2)
+                    }
+                }
+            }
+        }
+    }
+    SectionLabel("Unload when idle")
+    val minutes = prefs?.unloadAfterMinutes ?: 5
+    Segmented(idleChoices.map { it.second }, idleChoices.firstOrNull { it.first == minutes }?.second ?: "$minutes min", { l ->
+        scope.launch { g.settings.setUnloadMinutes(idleChoices.first { it.second == l }.first); g.engine.idleTimeChanged() }
+    })
+    Txt(if (minutes == 0) "Models stay in memory until you unload them. Uses more battery and memory." else
+        "Frees memory after $minutes ${if (minutes == 1) "minute" else "minutes"} without use; the next question loads it again in a few seconds.",
+        LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
+}
+
+/** The chat header's model sheet: the same control, and a way to the full Models screen. */
+@Composable
+fun ModelSheet(g: AppGraph, onModels: () -> Unit, onClose: () -> Unit) {
+    FlatSheet(onDismiss = onClose) {
+        Txt("Models", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
+        ModelControl(g)
+        Btn("Downloads and all models", onModels, Modifier.padding(top = 16.dp).fillMaxWidth(), icon = "chip")
+    }
+}
+
+/** A model file is big and can't be undone: say what is lost before deleting. A loaded model is unloaded first. */
+@Composable
+fun DeleteModelSheet(g: AppGraph, m: InstalledModel, onClose: () -> Unit) {
+    val c = Lfm.c
+    FlatSheet(onDismiss = onClose) {
+        Txt("Delete ${m.known.family} ${m.known.quant}?", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
+        Txt("Frees ${m.known.sizeLabel}. To use it again you'd download or import it again.", LfmType.body, c.text2, Modifier.padding(top = 8.dp))
+        Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Btn("Cancel", onClose, Modifier.weight(1f))
+            Btn("Delete", {
+                g.scope.launch {
+                    val slot = slotOf(m.known.role)
+                    val st = g.engine.status.value
+                    if (st.of(slot) != LoadState.None && (slot != Slot.Text || st.textFile == m.file.name)) g.engine.unload(slot)
+                    g.models.delete(m)
+                }
+                onClose()
+            }, Modifier.weight(1f), BtnKind.Primary, icon = "trash")
         }
     }
 }

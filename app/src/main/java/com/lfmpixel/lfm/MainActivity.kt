@@ -55,7 +55,9 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.togetherWith
 import com.lfmpixel.lfm.ui.screens.ConfirmSheet
-import com.lfmpixel.lfm.ui.screens.EntryEditor
+import com.lfmpixel.lfm.ui.screens.EditorScreen
+import com.lfmpixel.lfm.ui.components.SnackHost
+import com.lfmpixel.lfm.ui.isTab
 import com.lfmpixel.lfm.ui.screens.FirstRunScreen
 import com.lfmpixel.lfm.ui.screens.HistoryScreen
 import com.lfmpixel.lfm.ui.screens.ImportRun
@@ -110,6 +112,7 @@ class MainActivity : ComponentActivity() {
         graph.assistant.permissionGate = gate
         graph.web.permissionGate = gate
         graph.launcher.activity = this
+        graph.assistant.onShown()
         setContent {
             LfmTheme {
                 Root(graph, gate, pickers, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
@@ -145,6 +148,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
     val imports = remember { mutableMapOf<List<android.net.Uri>, ImportRun>() }
     val cameraQuestion = remember { CameraQuestion() }
     val reduced = LfmMotion.reduced()
+    // Screens under the one on top keep their saveable state (search, tab, scroll, chat draft) while it is shown.
+    val saved = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
 
     val startImport: () -> Unit = {
         pickFiles { uris ->
@@ -185,16 +190,22 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         Column(Modifier.fillMaxSize().background(if (nav.current == Route.Camera) Color.Black else c.bg).statusBarsPadding().navigationBarsPadding()) {
-            // The camera opens and closes along the Z axis; other screens change at once for now (the motion pass is LP-6).
-            AnimatedContent(nav.current, Modifier.weight(1f), contentKey = { it == Route.Camera }, transitionSpec = {
-                if (targetState == Route.Camera || initialState == Route.Camera) LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
-                else EnterTransition.None togetherWith ExitTransition.None
+            // ux-spec section 7: the camera opens along the Z axis, pushed screens (editor, chat, settings) along X;
+            // the four places of the bottom bar change at once.
+            Box(Modifier.weight(1f)) {
+            AnimatedContent(nav.current, Modifier.fillMaxSize(), contentKey = { if (it.isTab()) "places" else it }, transitionSpec = {
+                when {
+                    targetState == Route.Camera || initialState == Route.Camera -> LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
+                    targetState.isTab() && initialState.isTab() -> EnterTransition.None togetherWith ExitTransition.None
+                    else -> LfmMotion.sharedAxisX(nav.forward, reduced)
+                }
             }, label = "screen") { r ->
-                when (r) {
+                saved.SaveableStateProvider(if (r is Route.Library) "library" else r.toString()) { when (r) {
                     Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Camera -> CameraScreen(g, nav, gate, pickers, cameraQuestion, { voice(VoiceTarget.Question) }, listening)
-                    is Route.Library -> LibraryScreen(g, nav, r.tab, { voice(VoiceTarget.Library(it)) }, listening)
+                    is Route.Library -> LibraryScreen(g, nav, r.filter, { voice(VoiceTarget.Library(it)) }, listening)
+                    is Route.Editor -> EditorScreen(g, nav, r)
                     Route.Todos -> TodosScreen(g, nav, { voice(VoiceTarget.Library(EntryKind.Todo)) }, listening)
                     Route.Settings -> SettingsScreen(g, nav)
                     Route.Models -> ModelsScreen(g, nav, startImport)
@@ -205,14 +216,15 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
                     Route.FirstRun -> FirstRunScreen(g, nav) { nav.go(Route.Models); startImport() }
                     is Route.Search -> SearchScreen(g, nav, r.id)
                     Route.WebSearch -> WebSearchScreen(g, nav)
-                }
+                } }
+            }
+            SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter))
             }
             VoicePanel(g) { g.voice.stop() }
             if (nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) BottomBar(nav)
         }
     }
     confirm?.let { ConfirmSheet(it) }
-    nav.entrySheet?.let { s -> EntryEditor(g, s) { nav.entrySheet = null } }
     nav.voiceInfo?.let { m -> VoiceInfoSheet(m, onModels = { nav.voiceInfo = null; nav.go(Route.Models) }, onClose = { nav.voiceInfo = null }) }
 }
 

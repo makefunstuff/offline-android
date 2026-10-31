@@ -32,6 +32,7 @@ class AssistantTest {
         val app = ApplicationProvider.getApplicationContext<LfmApp>()
         org.robolectric.Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
         g = app.graph
+        g.assistant.onShown()
     }
 
     private fun waitIdle() = runBlocking {
@@ -140,13 +141,75 @@ class AssistantTest {
         assertEquals(ActionStatus.Done, g.db.actions().get(result!!.actionId!!)!!.status)
     }
 
-    @Test fun newChatDropsMessagesStillQueuedForTheOldOne() = runBlocking {
+    @Test fun queuedMessagesCanBeEditedMovedAndRemoved() {
+        // Hold the queue still: nothing runs until the main looper is idled.
+        g.assistant.send("first")
+        g.assistant.send("second")
+        g.assistant.send("third")
+        val q = g.assistant.queue.value
+        assertEquals(listOf("first", "second", "third"), q.map { it.text })
+        g.assistant.editQueued(q[1].id, "  second, edited ")
+        g.assistant.moveQueued(q[2].id, -1)
+        assertEquals(listOf("first", "third", "second, edited"), g.assistant.queue.value.map { it.text })
+        g.assistant.sendNext(q[1].id)
+        assertEquals("second, edited", g.assistant.queue.value.first().text)
+        g.assistant.removeQueued(q[0].id)
+        g.assistant.editQueued(q[2].id, "   ")
+        assertEquals(listOf("second, edited"), g.assistant.queue.value.map { it.text })
+        assertTrue(g.assistant.busy.value)
+        g.assistant.removeQueued(q[1].id)
+    }
+
+    @Test fun typedQueuedMessagesAreKeptOnDisk() {
+        val f = java.io.File.createTempFile("queue", ".json")
+        com.lfmpixel.lfm.assistant.QueueStore.write(f, listOf(com.lfmpixel.lfm.assistant.Queued(4, "Buy \"oat\" milk\nand bread", 3, "voice")))
+        val back = com.lfmpixel.lfm.assistant.QueueStore.read(f)
+        assertEquals(listOf(com.lfmpixel.lfm.assistant.Queued(4, "Buy \"oat\" milk\nand bread", 3, "voice")), back)
+        f.writeText("not json")
+        assertTrue(com.lfmpixel.lfm.assistant.QueueStore.read(f).isEmpty())
+    }
+
+    @Test fun newChatKeepsQueuedMessagesAndRunsThemThere() = runBlocking {
         g.assistant.send("Buy oat milk")
         g.assistant.send("Buy bread")
         g.assistant.newChat()
         repeat(100) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(20) }
         waitIdle()
-        assertTrue(g.db.messages().threadNow(g.assistant.threadId.value).isEmpty())
-        assertFalse(g.db.entries().todos().first().any { it.title == "Buy bread" })
+        val titles = g.db.entries().todos().first().map { it.title }
+        assertTrue(titles.containsAll(listOf("Buy oat milk", "Buy bread")))
+        assertEquals(2, g.db.messages().threadNow(g.assistant.threadId.value).count { it.role == Role.User })
+        assertTrue(g.assistant.queue.value.isEmpty())
+    }
+
+    @Test fun editorNeverCutsALongNote() = runBlocking {
+        val long = "Dictated in one go: " + "the boiler pressure drops overnight and the plumber wants photos first ".repeat(4)
+        val id = g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Note, title = long.take(60) + "…", body = long, source = "voice"))
+        // Opened and left with no change: nothing is written.
+        val d = com.lfmpixel.lfm.ui.screens.Draft(g, id, EntryKind.Note)
+        d.load(g.db.entries().get(id)!!)
+        assertNull(d.save(leaving = true))
+        assertEquals(long, g.db.entries().get(id)!!.body)
+        // Edited: the whole first line survives, in the body, and loads back the same.
+        d.text = androidx.compose.ui.text.input.TextFieldValue(long + " More.")
+        d.changed()
+        d.save(leaving = true)
+        val saved = g.db.entries().get(id)!!
+        assertTrue(saved.title.endsWith("…") && saved.title.length <= 120)
+        val again = com.lfmpixel.lfm.ui.screens.Draft(g, id, EntryKind.Note).also { it.load(saved) }
+        assertEquals(long + " More.", again.text.text)
+        // Emptied and left: deleted, and what it was comes back for Undo.
+        again.text = androidx.compose.ui.text.input.TextFieldValue("")
+        again.changed()
+        assertEquals(id, again.save(leaving = true)?.id)
+        assertNull(g.db.entries().get(id))
+    }
+
+    @Test fun editorKeepsAFirstLineThatRepeats() = runBlocking {
+        val d = com.lfmpixel.lfm.ui.screens.Draft(g, null, EntryKind.Note)
+        d.text = androidx.compose.ui.text.input.TextFieldValue("Milk\nmilk")
+        d.changed()
+        d.save()
+        val back = com.lfmpixel.lfm.ui.screens.Draft(g, d.id, EntryKind.Note).also { it.load(g.db.entries().get(d.id!!)!!) }
+        assertEquals("Milk\nmilk", back.text.text)
     }
 }

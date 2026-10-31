@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- An ink L with a highlighter stroke behind its foot. -->
+<!-- Inkling: a white lower-case i whose dot is a stroke of yellow highlighter (docs/ux-spec.md section 2). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFD400" android:pathData="M38,60h36v11h-36z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M43,36h7v28h20v6h-27z" />
+    <path android:fillColor="#FFD400" android:pathData="M43,35.5 L65,31.5 L67,43 L45,47 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M48,55.5 Q48,54 49.5,54 H58.5 Q60,54 60,55.5 V80.5 Q60,82 58.5,82 H49.5 Q48,82 48,80.5 Z" />
 </vector>

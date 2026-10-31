@@ -267,7 +267,7 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
                 Txt(when {
                     r.personalSent.isNotEmpty() -> "Sent: the search words$pages. You chose to send “${r.personalSent}”. Nothing else from your notes, contacts or chats."
                     warn && !g.contacts.canRead() -> "Sent: the search words$pages, checked on this phone for personal words from your notes and journal. " +
-                        "Contacts were not checked: LFM may not read them."
+                        "Contacts were not checked: Inkling may not read them."
                     warn -> "Sent: the search words$pages, checked on this phone for personal words. Nothing from your notes, contacts or chats."
                     else -> "Sent: the search words$pages. The personal-word check is off, so check the words above."
                 }, LfmType.label.copy(fontWeight = null), c.text2)
@@ -316,7 +316,7 @@ fun WebSearchScreen(g: AppGraph, nav: Nav) {
             SectionLabel("Search mode")
             Segmented(SearchMode.entries.map { it.label }, p.searchMode.label, { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
             Txt(when (p.searchMode) {
-                SearchMode.Off -> "The assistant never searches. Nothing goes to LFM Net."
+                SearchMode.Off -> "The assistant never searches. Nothing goes to Inkling Net."
                 SearchMode.AskFirst -> "You see the search words first, and can edit them, before they go."
                 SearchMode.Automatic -> "Searches go straight away, unless a personal word is in them or web pages were read: then it asks."
             }, LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
@@ -325,15 +325,15 @@ fun WebSearchScreen(g: AppGraph, nav: Nav) {
                 val (st, provider) = net ?: (null to "")
                 ListRow(when (st) {
                     NetClient.State.On -> provider.ifEmpty { "No provider set up" }.replaceFirstChar { it.uppercase() }
-                    NetClient.State.Off -> "LFM Net is off"
-                    NetClient.State.NotInstalled -> "LFM Net is not installed"
-                    NetClient.State.WrongSigner -> "LFM Net is signed with another key"
+                    NetClient.State.Off -> "Inkling Net is off"
+                    NetClient.State.NotInstalled -> "Inkling Net is not installed"
+                    NetClient.State.WrongSigner -> "Inkling Net is signed with another key"
                     null -> "…"
                 }, when (st) {
-                    NetClient.State.On -> "Set in LFM Net: address or key, Wikipedia, proxy"
+                    NetClient.State.On -> "Set in Inkling Net: address or key, Wikipedia, proxy"
                     NetClient.State.Off -> "Turn it on in Privacy"
-                    NetClient.State.NotInstalled -> "Install the LFM Net helper app to search and download models"
-                    NetClient.State.WrongSigner -> "Install the LFM Net built with this app"
+                    NetClient.State.NotInstalled -> "Install the Inkling Net helper app to search and download models"
+                    NetClient.State.WrongSigner -> "Install the Inkling Net built with this app"
                     null -> ""
                 }, "globe", if (st == NetClient.State.On || st == NetClient.State.Off) ({
                     if (st == NetClient.State.On) g.launcher.openApp(g.net.settingsIntent()) else nav.go(Route.Privacy)
@@ -357,7 +357,7 @@ fun WebSearchScreen(g: AppGraph, nav: Nav) {
             Spacer(Modifier.height(8.dp))
             ToggleRow("Warn about personal words", "Names, places, numbers, e-mails", p.warnPersonalWords) { scope.launch { g.settings.setWarnPersonal(it) } }
             Txt("What leaves the phone: the search words, then the addresses of the pages it opens. Never your chats, notes, contacts or location. " +
-                "The provider and the opened sites see your IP address unless LFM Net uses a proxy.", LfmType.meta, c.text2, Modifier.padding(top = 14.dp))
+                "The provider and the opened sites see your IP address unless Inkling Net uses a proxy.", LfmType.meta, c.text2, Modifier.padding(top = 14.dp))
             Spacer(Modifier.height(24.dp))
         }
     }

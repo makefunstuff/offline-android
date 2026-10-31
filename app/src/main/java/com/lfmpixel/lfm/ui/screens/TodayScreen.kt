@@ -32,7 +32,8 @@ import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.data.Entry
 import com.lfmpixel.lfm.data.EntryKind
-import com.lfmpixel.lfm.ui.EntrySheet
+import androidx.compose.foundation.horizontalScroll
+import com.lfmpixel.lfm.ui.components.Btn
 import com.lfmpixel.lfm.ui.Nav
 import com.lfmpixel.lfm.ui.Route
 import com.lfmpixel.lfm.ui.components.Card
@@ -96,8 +97,15 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             Composer(draft, { draft = it }, "Ask, capture or do…", onSend = {
                 g.assistant.send(draft); draft = ""; nav.go(Route.Chat)
             }, onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) })
-            Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // One tap to write any kind, keyboard up (ux-spec section 4).
+            Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, EntryKind.Todo).forEach { k ->
+                    Btn(k.label, { nav.go(Route.Editor(kind = k)) }, small = true, icon = k.icon())
+                }
+            }
+            Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Pill("On this phone", "shield")
+                ModelPill(g) { nav.go(Route.Models) }
                 Pill("Search: ${prefs?.searchMode?.label?.lowercase() ?: "ask first"}", "globe")
             }
             SectionLabel(if (count == 0) "Today · nothing planned" else "Today · $count ${if (count == 1) "thing" else "things"}")
@@ -110,14 +118,14 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             if (count == 0) Txt("Say or type what's coming up; reminders and events show here.", LfmType.small, c.text2, Modifier.padding(vertical = 8.dp))
             if (latest.isNotEmpty()) {
                 SectionLabel("Just captured")
-                latest.forEach { e -> CaptureCard(e) { nav.entrySheet = EntrySheet(e.id, e.kind) } ; Spacer(Modifier.height(8.dp)) }
+                latest.forEach { e -> CaptureCard(e) { nav.go(Route.Editor(e.id, e.kind)) } ; Spacer(Modifier.height(8.dp)) }
             }
             if (!g.engine.hasText()) {
                 Spacer(Modifier.height(8.dp))
                 Card(onClick = { nav.go(Route.Models) }) {
                     Column {
                         Txt("No model yet", LfmType.rowTitle)
-                        Txt("Import LFM3-1.7B to chat and let it sort what you capture. Until then, simple rules sort it.", LfmType.small, c.text2)
+                        Txt("Get LFM3-1.7B to chat and let it sort what you capture. Until then, simple rules sort it.", LfmType.small, c.text2)
                     }
                 }
             }
@@ -177,3 +185,25 @@ private fun minutes(ms: Long): String {
 }
 
 fun EntryKind.icon() = when (this) { EntryKind.Note -> "note"; EntryKind.Idea -> "bulb"; EntryKind.Journal -> "book"; EntryKind.Todo -> "todo" }
+
+/** The chat model's state in a word, for Today and the chat header: "ready", "loading…", "not loaded". */
+@Composable
+fun modelState(g: AppGraph): String {
+    val st by g.engine.status.collectAsState()
+    val installed by g.models.installed.collectAsState()
+    val prefs by g.settings.prefs.collectAsState(null)
+    val chat = installed.firstOrNull { it.file.name == (st.textFile ?: prefs?.chatModel) && it.known.role == com.lfmpixel.lfm.llm.ModelRole.Text }
+        ?: g.models.text()
+    val name = chat?.let { "${it.known.family} ${it.known.quant}" } ?: return "No chat model"
+    return name + " · " + when (st.text) {
+        com.lfmpixel.lfm.llm.LoadState.Ready -> "ready"
+        com.lfmpixel.lfm.llm.LoadState.Loading -> "loading…"
+        com.lfmpixel.lfm.llm.LoadState.Failed -> "failed to load"
+        com.lfmpixel.lfm.llm.LoadState.None -> "not loaded"
+    }
+}
+
+@Composable
+private fun ModelPill(g: AppGraph, onClick: () -> Unit) {
+    Box(Modifier.clickable(onClick = onClick)) { Pill(modelState(g), "chip") }
+}

@@ -10,7 +10,7 @@ import com.lfmpixel.lfm.data.EntryKind
 sealed interface Route {
     data object Today : Route
     data object Chat : Route
-    data class Library(val tab: EntryKind = EntryKind.Note) : Route
+    data class Library(val filter: com.lfmpixel.lfm.ui.screens.LibFilter = com.lfmpixel.lfm.ui.screens.LibFilter.All) : Route
     data object Todos : Route
     data object Settings : Route
     data object Models : Route
@@ -22,6 +22,8 @@ sealed interface Route {
     data class Search(val id: Long) : Route
     data object WebSearch : Route
     data object Camera : Route
+    /** The full-screen editor: an existing entry, or a new one of [kind]. */
+    data class Editor(val id: Long? = null, val kind: EntryKind = EntryKind.Note, val opened: Long = System.nanoTime()) : Route
 }
 
 /** Where a voice capture goes: to the assistant, or straight into the library. */
@@ -32,14 +34,23 @@ sealed interface VoiceTarget {
     data object Question : VoiceTarget
 }
 
-/** The open entry sheet: a new entry of a kind, or an existing one. */
-data class EntrySheet(val id: Long? = null, val kind: EntryKind = EntryKind.Note, val text: String = "")
+/** A short message at the bottom with an optional Undo, shown for a few seconds (ux-spec section 6). */
+class Snack(val text: String, val undo: (suspend () -> Unit)? = null) {
+    val at = System.nanoTime()
+    /** Undo runs once, however fast it is tapped twice. */
+    var undone = false
+}
 
 class Nav(start: Route) {
     val stack = mutableStateListOf(start)
     val current get() = stack.last()
-    var entrySheet by mutableStateOf<EntrySheet?>(null)
     var voiceInfo by mutableStateOf<String?>(null)
+    var snack by mutableStateOf<Snack?>(null)
+    /** True while the last change of screen went forward (a push), for the direction of the transition. */
+    var forward by mutableStateOf(true)
+        private set
+
+    fun show(text: String, undo: (suspend () -> Unit)? = null) { snack = Snack(text, undo) }
 
     fun go(r: Route) {
         // The four places in the bottom bar replace each other instead of piling up.
@@ -47,11 +58,18 @@ class Nav(start: Route) {
             stack.removeAt(stack.lastIndex)
             if (r != Route.Today && stack.isEmpty()) stack.add(Route.Today)
         }
+        forward = true
         if (stack.lastOrNull() != r) stack.add(r)
+    }
+
+    /** Swaps the screen on top for another, as when a new entry's editor becomes that entry's. */
+    fun replace(r: Route) {
+        stack[stack.lastIndex] = r
     }
 
     fun back(): Boolean {
         if (stack.size <= 1) return false
+        forward = false
         stack.removeAt(stack.lastIndex)
         return true
     }

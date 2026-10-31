@@ -27,6 +27,7 @@ data class Entry(
     val voiceSeconds: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(defaultValue = "0") val pinned: Boolean = false,
 )
 
 @Fts4(contentEntity = Entry::class)

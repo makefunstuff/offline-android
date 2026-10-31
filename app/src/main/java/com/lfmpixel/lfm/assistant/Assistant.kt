@@ -48,6 +48,23 @@ import java.util.Locale
 /** The answer being written right now. */
 data class Streaming(val text: String, val thinking: Boolean, val note: String = "")
 
+/** A message waiting its turn in the chat. [see] is set for a camera question (those are not kept on disk). */
+data class Queued(val id: Long, val text: String, val voiceSeconds: Int = 0, val source: String = "typed", val see: SeeRequest? = null)
+
+/** Typed queued messages in a small JSON file, so they survive the app being closed. */
+object QueueStore {
+    fun read(f: java.io.File): List<Queued> = runCatching {
+        val a = org.json.JSONArray(f.readText())
+        (0 until a.length()).map { i -> a.getJSONObject(i).let { Queued(it.getLong("id"), it.getString("text"), it.optInt("voice"), it.optString("source", "typed")) } }
+    }.getOrDefault(emptyList())
+
+    fun write(f: java.io.File, list: List<Queued>) {
+        val a = org.json.JSONArray()
+        list.filter { it.see == null }.forEach { a.put(org.json.JSONObject().put("id", it.id).put("text", it.text).put("voice", it.voiceSeconds).put("source", it.source)) }
+        runCatching { f.writeText(a.toString()) }
+    }
+}
+
 /** An action waiting for the owner's tap on the confirmation sheet. */
 class ConfirmRequest(
     val tool: Tool,
@@ -86,34 +103,74 @@ class Assistant(
     val messages: Flow<List<ChatMessage>> = _thread.flatMapLatest { db.messages().thread(it) }
 
     val streaming = MutableStateFlow<Streaming?>(null)
+    /** A turn is running or messages are waiting. */
     val busy = MutableStateFlow(false)
+    /** A turn is running right now: what Stop ends. */
+    val working = MutableStateFlow(false)
     val pendingConfirm = MutableStateFlow<ConfirmRequest?>(null)
     private var job: Job? = null
-    private class Input(val text: String, val voiceSeconds: Int, val source: String, val thread: Long, val see: SeeRequest? = null)
-    // Messages sent while the assistant is busy wait their turn here instead of being dropped.
-    private val inbox = Channel<Input>(Channel.UNLIMITED)
+
+    /**
+     * Messages waiting their turn, in order. They are shown in the chat as queued, can be edited, moved or removed,
+     * run in whichever chat is open when their turn comes (so New chat keeps them), and typed ones are kept on disk.
+     */
+    val queue = MutableStateFlow<List<Queued>>(emptyList())
+    private val wake = Channel<Unit>(Channel.CONFLATED)
+    private val queueFile = java.io.File(context.filesDir, "queue.json")
+    private var nextId = 1L
     private var threadSet = false
-    @Volatile private var threadReady = false
+    // The queue only runs once the app is on screen: messages kept from an earlier run never run unattended
+    // (a reminder or a reboot can start the process with no one looking).
+    private val shown = CompletableDeferred<Unit>()
+    /** A queued message being edited: it and those after it wait until the edit is done. */
+    @Volatile private var held: Long? = null
 
     init {
+        queue.value = QueueStore.read(queueFile).also { list -> nextId = (list.maxOfOrNull { it.id } ?: 0) + 1 }
         scope.launch {
             val last = db.messages().lastThread()
             if (!threadSet) _thread.value = last
-            threadReady = true
-            for (input in inbox) {
+            shown.await()
+            while (true) {
+                var taken: Queued? = null
+                mutate(wakeWorker = false) { list -> taken = list.firstOrNull()?.takeIf { it.id != held }; if (taken != null) list.drop(1) else list }
+                val next = taken
+                if (next == null) {
+                    busy.value = queue.value.isNotEmpty()
+                    wake.receive()
+                    continue
+                }
                 busy.value = true
-                job = scope.launch { handle(input) }
+                working.value = true
+                job = scope.launch { handle(next) }
                 job?.join()
-                busy.value = !inbox.isEmpty
+                working.value = false
             }
         }
     }
 
+    private fun mutate(wakeWorker: Boolean = true, change: (List<Queued>) -> List<Queued>) = synchronized(queue) {
+        val old = queue.value
+        val list = change(old)
+        if (list == old) return@synchronized
+        queue.value = list
+        busy.value = working.value || list.isNotEmpty()
+        QueueStore.write(queueFile, list)
+        if (wakeWorker) wake.trySend(Unit)
+    }
+
+    /** The app is on screen: queued messages may run. */
+    fun onShown() { shown.complete(Unit) }
+
+    /** Holds a queued message while the owner edits it; null lets the queue go on. */
+    fun hold(id: Long?) { held = id; wake.trySend(Unit) }
+
+    /** Clear chats: messages still waiting go too, with their file. */
+    fun clearQueue() = mutate { emptyList() }
+
     fun newChat() {
         stop()
-        // Messages still waiting belong to the old chat: drop them rather than start the new one with them.
-        while (inbox.tryReceive().isSuccess) Unit
-        if (job?.isActive != true) busy.value = false
+        // Messages still waiting are not dropped: they run in the new chat.
         threadSet = true
         _thread.value = _thread.value + 1
     }
@@ -129,19 +186,32 @@ class Assistant(
     fun send(text: String, voiceSeconds: Int = 0, source: String = "typed") {
         val clean = text.trim()
         if (clean.isEmpty()) return
-        busy.value = true
-        // Before the last chat is known (cold start), -1 means "whichever chat is current".
-        inbox.trySend(Input(clean, voiceSeconds, source, if (threadReady || threadSet) _thread.value else -1))
+        mutate { it + Queued(nextId++, clean, voiceSeconds, source) }
     }
 
     /** Asks about a photo, a clip or a document: the picture goes to Omni or VL, in this process. */
     fun ask(req: SeeRequest) {
-        busy.value = true
-        inbox.trySend(Input(req.question, 0, "camera", if (threadReady || threadSet) _thread.value else -1, req))
+        mutate { it + Queued(nextId++, req.question, 0, "camera", req) }
     }
 
-    private suspend fun handle(input: Input) {
-        if (input.thread != -1L && input.thread != _thread.value) return
+    fun editQueued(id: Long, text: String) {
+        val clean = text.trim()
+        if (clean.isEmpty()) removeQueued(id) else mutate { list -> list.map { if (it.id == id) it.copy(text = clean) else it } }
+    }
+
+    fun removeQueued(id: Long) = mutate { list -> list.filter { it.id != id } }
+
+    /** Moves a queued message [by] places (negative is earlier). */
+    fun moveQueued(id: Long, by: Int) = mutate { old ->
+        val list = old.toMutableList()
+        val i = list.indexOfFirst { it.id == id }
+        if (i >= 0) list.add((i + by).coerceIn(0, list.lastIndex), list.removeAt(i))
+        list
+    }
+
+    fun sendNext(id: Long) = moveQueued(id, -queue.value.size)
+
+    private suspend fun handle(input: Queued) {
         try {
             val see = input.see
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = input.text, voiceSeconds = input.voiceSeconds,
@@ -159,6 +229,8 @@ class Assistant(
             notice("Something went wrong: ${e.message}")
         } finally {
             streaming.value = null
+            // Idle time counts from the end of a turn, not from when the model was fetched.
+            models.keepAlive()
         }
     }
 
@@ -187,7 +259,7 @@ class Assistant(
         val tz = zone.id
         val net = if (webOn) "It can search the web with web_search: use it when a question needs current facts, prices, news or " +
             "anything you are unsure of; answer from your own knowledge otherwise. " else "with no internet access. "
-        return "You are LFM, a private assistant that runs entirely on the owner's phone" + (if (webOn) ". " else ", ") + net +
+        return "You are Inkling, a private assistant that runs entirely on the owner's phone" + (if (webOn) ". " else ", ") + net +
             "Answer briefly and plainly. When the owner asks you to remember, note, remind, add, set, text, call or change " +
             "something, call a tool. \"Remind me\" means set_reminder; use set_alarm only when they say alarm. Things to buy " +
             "are to-dos on the Shopping list. Work out dates and times from the time given with each message and write them " +

@@ -69,7 +69,7 @@ class NetEngine(
         val cfg = config()
         val q = query.replace(Regex("\\s+"), " ").trim().take(300)
         if (q.isEmpty()) return SearchReply(cfg.label, emptyList(), emptyList(), "Empty search")
-        if (!cfg.ready) return SearchReply("", emptyList(), emptyList(), "No search provider is set up in LFM Net")
+        if (!cfg.ready) return SearchReply("", emptyList(), emptyList(), "No search provider is set up in Inkling Net")
         val log = mutableListOf<NetRequest>()
         val web = mutableListOf<SearchHit>()
         val wiki = mutableListOf<SearchHit>()

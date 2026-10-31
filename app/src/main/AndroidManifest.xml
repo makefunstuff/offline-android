@@ -23,7 +23,7 @@
 
     <!-- LFM Net's service only lets apps signed with this key bind. Declared here too, so install order doesn't matter. -->
     <permission android:name="com.lfmpixel.lfm.permission.LFM_NET" android:protectionLevel="signature"
-        android:label="Use LFM Net" />
+        android:label="Use Inkling Net" />
     <uses-permission android:name="com.lfmpixel.lfm.permission.LFM_NET" />
 
     <queries>
@@ -41,7 +41,7 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="LFM"
+        android:label="Inkling"
         android:supportsRtl="true"
         android:theme="@style/Theme.Lfm"
         tools:targetApi="36">

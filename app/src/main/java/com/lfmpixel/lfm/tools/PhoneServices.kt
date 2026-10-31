@@ -144,6 +144,7 @@ class LocalCalendar(private val context: Context) {
     private val resolver get() = context.contentResolver
 
     companion object {
+        // The calendar account keeps the old name, so events made before the rename stay in the same calendar.
         const val ACCOUNT = "LFM"
         const val NAME = "On this phone"
     }

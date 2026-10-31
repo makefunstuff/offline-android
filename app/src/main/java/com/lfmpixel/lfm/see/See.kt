@@ -70,7 +70,7 @@ object SeeRules {
         SeeKind.Document -> "What is this document about? Sum it up and give the key facts."
     }
 
-    private const val SYSTEM = "You are LFM, a private assistant that runs entirely on the owner's phone. " +
+    private const val SYSTEM = "You are Inkling, a private assistant that runs entirely on the owner's phone. " +
         "Answer briefly and plainly from what you see. If you cannot tell, say so."
 
     /** A prompt with one media marker per picture, in LFM3's chat format. */

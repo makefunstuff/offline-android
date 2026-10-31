@@ -353,7 +353,7 @@ class SoundModeTool(private val env: ToolEnv) : Tool {
         val m = mode(args)
         if (m == AudioManager.RINGER_MODE_SILENT && !c.hasDndAccess()) {
             env.launcher?.panel(c.dndSettingsAction())
-            return ToolResult(false, "Silent needs Do Not Disturb access; the settings page is open for the owner.", "Needs Do Not Disturb access", "Allow LFM in the page that opened")
+            return ToolResult(false, "Silent needs Do Not Disturb access; the settings page is open for the owner.", "Needs Do Not Disturb access", "Allow Inkling in the page that opened")
         }
         val before = c.ringerMode
         return if (c.setRingerMode(m)) ToolResult(true, "Sound set to ${args.need("mode")}.", "Sound mode", args.need("mode").replaceFirstChar { it.uppercase() }, undo = "ringer:$before")
@@ -371,7 +371,7 @@ class DndTool(private val env: ToolEnv) : Tool {
         val c = env.controls ?: return ToolResult.error("No phone controls")
         if (!c.hasDndAccess()) {
             env.launcher?.panel(c.dndSettingsAction())
-            return ToolResult(false, "Needs Do Not Disturb access; the settings page is open for the owner.", "Needs Do Not Disturb access", "Allow LFM in the page that opened")
+            return ToolResult(false, "Needs Do Not Disturb access; the settings page is open for the owner.", "Needs Do Not Disturb access", "Allow Inkling in the page that opened")
         }
         val before = c.dndOn
         return if (c.setDnd(on(args))) ToolResult(true, "Do Not Disturb ${if (on(args)) "on" else "off"}.", "Do Not Disturb", if (on(args)) "On" else "Off", undo = "dnd:$before")
