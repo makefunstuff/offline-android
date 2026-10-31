@@ -10,6 +10,7 @@ import com.lfmpixel.lfm.web.NetClient
 import com.lfmpixel.lfm.web.NetException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -124,11 +125,15 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
 
     /**
      * As [usable], but an Offline server is asked again first (at most every 10 s), instead of waiting for the next
-     * retry (up to 2 min): Talk asks before each turn, so Qwen answers again as soon as the server is back.
+     * retry (up to 2 min): Talk asks before each turn, so Qwen answers again as soon as the server is back. Waits
+     * at most 1.5 s for that check (the mic waits on it); a slower one goes on in the background for the next turn.
      */
     suspend fun usableNow(): Boolean {
         if (server() == null) return false
-        if (_state.value is EdgeState.Offline && SystemClock.elapsedRealtime() - checkedAt > 10_000) runCatching { check() }
+        if (_state.value is EdgeState.Offline && SystemClock.elapsedRealtime() - checkedAt > 10_000) {
+            val asked = scope.async(kotlinx.coroutines.Dispatchers.Default) { runCatching { check() } }
+            kotlinx.coroutines.withTimeoutOrNull(1_500) { asked.await() }
+        }
         return usable()
     }
 
