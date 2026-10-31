@@ -65,6 +65,28 @@ object QueueStore {
     }
 }
 
+/**
+ * Runs [push] at most every [intervalMs] while tokens stream in, so the answer is parsed and drawn about 20 times a
+ * second rather than once a token. [flush] pushes whatever came since.
+ */
+class Throttle(private val intervalMs: Long = 50, private val now: () -> Long = { System.nanoTime() / 1_000_000 }, private val push: () -> Unit) {
+    private var last = Long.MIN_VALUE
+    private var pending = false
+    fun tick() {
+        val t = now()
+        if (last == Long.MIN_VALUE || t - last >= intervalMs) { last = t; pending = false; push() } else pending = true
+    }
+    fun flush() { if (pending) { pending = false; last = now(); push() } }
+}
+
+/** "28 tokens/s · first token 0.4 s", as shown under an answer (Settings → Show speed). */
+fun speedLabel(tokensPerSecond: Double, firstTokenMs: Double): String =
+    "%.0f tokens/s".format(Locale.ENGLISH, tokensPerSecond) +
+        (if (firstTokenMs > 0) " · first token %.1f s".format(Locale.ENGLISH, firstTokenMs / 1000) else "")
+
+/** [meta] without the speed part, for when Show speed is off. */
+fun withoutSpeed(meta: String): String = meta.replace(Regex(""" · \d+ tokens/s( · first token [\d.]+ s)?"""), "")
+
 /** An action waiting for the owner's tap on the confirmation sheet. */
 class ConfirmRequest(
     val tool: Tool,
@@ -299,26 +321,31 @@ class Assistant(
             }
             val raw = StringBuilder()
             streaming.value = Streaming("", prefs.thinking)
-            val onPiece: (String) -> Unit = { piece ->
-                raw.append(piece)
+            val show = Throttle {
                 val partial = ModelOutput.parse(raw.toString(), prefs.thinking)
                 streaming.value = Streaming(partial.answer.substringBefore("<tool_call>").trim(), partial.stillThinking)
             }
+            val onPiece: (String) -> Unit = { piece -> raw.append(piece); show.tick() }
             val first = if (prefs.thinking) thinkBudget else answerBudget
             val session = models.textSession()
             session.generate(prompt, first).collect { onPiece(it) }
-            if (prefs.thinking && session.stats().decodeTokens >= first) {
+            val firstStats = session.stats()
+            if (prefs.thinking && firstStats.decodeTokens >= first) {
                 // Out of thinking budget: close the think block if it is still open, then let the answer run.
                 if (ModelOutput.parse(raw.toString(), true).stillThinking) raw.append("\n</think>\n")
                 session.generate(prompt + raw, answerBudget).collect { onPiece(it) }
             }
+            show.flush()
             val out = ModelOutput.parse(raw.toString(), prefs.thinking)
             val st = session.stats()
-            val meta = "LFM3-1.7B · on this phone · %.0f tokens/s".format(Locale.ENGLISH, st.decodeTps)
+            // Over both calls when thinking ran out of budget; the first token is the first call's.
+            val tps = if (st !== firstStats) (firstStats.decodeTokens + st.decodeTokens) * 1000.0 / (firstStats.decodeMs + st.decodeMs).coerceAtLeast(1.0) else st.decodeTps
+            val speed = speedLabel(tps, firstStats.firstTokenMs)
+            val meta = "LFM3-1.7B · on this phone · $speed"
             val answerFrom = searchId.takeIf { out.toolCalls.isEmpty() && out.answer.isNotBlank() }
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
                 raw = PromptFormat.assistantPrefix(prefs.thinking) + raw,
-                meta = if (answerFrom != null) "Written on this phone from the web · %.0f tokens/s".format(Locale.ENGLISH, st.decodeTps) else meta,
+                meta = if (answerFrom != null) "Written on this phone from the web · $speed" else meta,
                 searchId = answerFrom))
             streaming.value = null
             if (answerFrom != null) db.searches().get(answerFrom)?.let { db.searches().update(it.copy(answer = out.answer)) }
@@ -360,7 +387,8 @@ class Assistant(
         }
         val looker = if (session.path == models.visionPath()) SeeModel.Vision else model
         val raw = StringBuilder()
-        val onPiece: (String) -> Unit = { raw.append(it); streaming.value = Streaming(SeeRules.clean(raw.toString()), false) }
+        val show = Throttle { streaming.value = Streaming(SeeRules.clean(raw.toString()), false) }
+        val onPiece: (String) -> Unit = { raw.append(it); show.tick() }
         if (req.pages.isEmpty()) {
             session.see(req.images, SeeRules.prompt(req.kind, req.question, req.images.size, req.seconds), 512).collect(onPiece)
         } else {
@@ -387,6 +415,7 @@ class Assistant(
             }
             session.generate(prompt, 512, temp = 0.2f).collect(onPiece)
         }
+        show.flush()
         val answer = SeeRules.clean(raw.toString())
         streaming.value = null
         if (answer.isBlank()) { notice("The model gave no answer. Try again, or ask another way."); return }

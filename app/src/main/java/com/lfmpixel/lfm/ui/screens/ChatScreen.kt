@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
+import com.lfmpixel.lfm.assistant.withoutSpeed
 import com.lfmpixel.lfm.data.ActionRecord
 import com.lfmpixel.lfm.data.ActionStatus
 import com.lfmpixel.lfm.data.ChatMessage
@@ -73,7 +75,10 @@ import com.lfmpixel.lfm.ui.components.Btn
 fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val c = Lfm.c
     val messages by g.assistant.messages.collectAsState(emptyList())
-    val streaming by g.assistant.streaming.collectAsState()
+    // Only the streaming line reads the streamed text, so a new token redraws that line, not the whole chat.
+    val streamingState = g.assistant.streaming.collectAsState()
+    val streamingOn by remember { derivedStateOf { streamingState.value != null } }
+    val showSpeed = g.settings.prefs.collectAsState(null).value?.showSpeed ?: true
     val working by g.assistant.working.collectAsState()
     val queued by g.assistant.queue.collectAsState()
     val status by g.engine.status.collectAsState()
@@ -89,8 +94,8 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     // New lines appear at once (a streamed answer is already on screen); moves and removals animate.
     val itemFade = if (reduced) null else tween<Float>(LfmMotion.MEDIUM, easing = LfmMotion.standard)
     val itemMove = if (reduced) null else tween<androidx.compose.ui.unit.IntOffset>(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate)
-    val visible = messages.filter { !(it.role == Role.Assistant && it.text.isBlank()) }
-    val count = visible.size + (if (streaming != null) 1 else 0) + (if (query != null) 1 else 0) + queued.size
+    val visible = remember(messages) { messages.filter { !(it.role == Role.Assistant && it.text.isBlank()) } }
+    val count = visible.size + (if (streamingOn) 1 else 0) + (if (query != null) 1 else 0) + queued.size
     // Follow the end while the owner is at the end; once they scroll up, offer a way back instead of pulling them down.
     val atEnd by remember { derivedStateOf { !list.canScrollForward } }
     var follow by remember { mutableStateOf(true) }
@@ -99,7 +104,9 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     // The "unloads in N min" line counts down.
     var tick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(20_000); tick++ } }
-    LaunchedEffect(count, streaming?.text?.length) { if (follow && count > 0) list.scrollToItem(count - 1, Int.MAX_VALUE / 2) }
+    LaunchedEffect(count) {
+        snapshotFlow { streamingState.value?.text?.length }.collect { if (follow && count > 0) list.scrollToItem(count - 1, Int.MAX_VALUE / 2) }
+    }
     val send: () -> Unit = {
         g.assistant.send(draft); draft = ""; follow = true
     }
@@ -132,7 +139,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         Box(Modifier.weight(1f)) {
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (visible.isEmpty() && streaming == null && queued.isEmpty()) item {
+                if (visible.isEmpty() && !streamingOn && queued.isEmpty()) item {
                     Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Txt("Ask, capture or do.", LfmType.answer)
                         listOf("Remind me to call the plumber at six", "Add oat milk to my list", "What did I note about the boiler?").forEach { ex ->
@@ -145,14 +152,15 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 items(visible, key = { it.id }) { m ->
                     Box(Modifier.animateItem(fadeInSpec = null, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
                         Role.User -> UserBubble(m)
-                        Role.Assistant -> AssistantText(m.text, m.meta, citations = m.searchId != null)
+                        Role.Assistant -> AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null)
                         Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
                             else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
                         Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
                     } }
                 }
-                streaming?.let { s ->
+                if (streamingOn) {
                     item(key = "streaming") {
+                        val s = streamingState.value ?: return@item
                         if (s.text.isEmpty()) Txt(s.note.ifEmpty {
                             when {
                                 status.text == LoadState.Loading -> "Loading ${modelState(g).substringBefore(" ·")}…"

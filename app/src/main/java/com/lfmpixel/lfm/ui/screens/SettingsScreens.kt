@@ -110,7 +110,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
             Group {
                 ListRow("Voice", if (g.engine.hasVoice()) "LFM3-Omni-2B · English" else "Import LFM3-Omni-2B and its projector", "speaker", { nav.go(Route.Models) }) { Chevron() }
                 GroupDivider()
-                ListRow("Battery & heat", "${p.threads} threads · " + if (p.unloadAfterMinutes == 0) "models stay loaded" else "unload after ${p.unloadAfterMinutes} min idle",
+                ListRow("Battery & heat", "${if (p.threads == 0) "Auto" else p.threads} threads · " + if (p.unloadAfterMinutes == 0) "models stay loaded" else "unload after ${p.unloadAfterMinutes} min idle",
                     "flash", { nav.go(Route.Models) }) { Chevron() }
             }
             SectionLabel("Thinking")
@@ -132,9 +132,21 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 }
                 Switch(p.warnPersonalWords) { scope.launch { g.settings.setWarnPersonal(it) } }
             }
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Show speed", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+                    Txt("Tokens a second and time to the first token, under each answer", LfmType.label.copy(fontWeight = null), c.text2)
+                }
+                Switch(p.showSpeed) { scope.launch { g.settings.setShowSpeed(it) } }
+            }
             Label("Thread count", Modifier.padding(top = 20.dp, bottom = 6.dp))
-            Segmented(listOf("2", "4", "6"), p.threads.toString(), { scope.launch { g.settings.setThreads(it.toInt()); g.engine.unloadAll() } })
-            Txt("Takes effect the next time a model loads.", LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
+            // A count the benchmark picked that is not one of these shows too.
+            val counts = listOf(2, 4, 5, 6).let { if (p.threads > 0 && p.threads !in it) (it + p.threads).sorted() else it }
+            Segmented(listOf("Auto") + counts.map { it.toString() }, if (p.threads == 0) "Auto" else p.threads.toString(),
+                { scope.launch { g.settings.setThreads(it.toIntOrNull() ?: 0); g.engine.unloadAll() } })
+            Txt("Auto keeps off the little cores and leaves one core for the screen. Settings → Models → Benchmark tries each count. " +
+                "Takes effect the next time a model loads.", LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             Spacer(Modifier.height(24.dp))
         }
     }
