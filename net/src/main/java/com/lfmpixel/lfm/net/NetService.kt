@@ -8,6 +8,7 @@ import android.os.Binder
 import android.os.Bundle
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import com.lfmpixel.lfm.ipc.IEdgeReply
 import com.lfmpixel.lfm.ipc.ILfmNet
 import com.lfmpixel.lfm.ipc.NetContract
 import com.lfmpixel.lfm.ipc.NetRequest
@@ -59,6 +60,28 @@ class NetService : Service() {
                 if (wifiOnly && r.error != null && r.error != "Stopped" && unmetered() == null) putString(NetContract.CODE, NetContract.NO_WIFI)
             }
         }
+
+        override fun edge(id: String?, baseUrl: String?, key: String?, method: String?, path: String?, contentType: String?,
+                          body: ParcelFileDescriptor?, to: IEdgeReply?): Bundle {
+            checkCaller()
+            if (to == null) return reply("No reply", emptyList())
+            val r = try { engine.edge(baseUrl.orEmpty(), key.orEmpty(), method.orEmpty(), path.orEmpty(), contentType,
+                body?.let { ParcelFileDescriptor.AutoCloseInputStream(it) }, onCall = { c -> id?.let { calls[it] = c } }) { bytes ->
+                // LFM gone or done listening: stop.
+                runCatching { to.data(bytes) }.getOrDefault(false)
+            } } finally { id?.let { calls.remove(it) } }
+            return reply(r.error, r.log).apply { putInt(NetContract.STATUS, r.status) }
+        }
+
+        override fun edgeCancel(id: String?) {
+            checkCaller()
+            id?.let { calls.remove(it)?.cancel() }
+        }
+
+        override fun edgePin(baseUrl: String?) {
+            checkCaller()
+            settings.pinEdge(baseUrl.orEmpty())
+        }
     }
 
     private fun reply(error: String?, log: List<NetRequest>) = Bundle().apply {
@@ -89,8 +112,10 @@ class NetService : Service() {
     companion object {
         // One engine per process, so the latest results outlive a rebind.
         private var shared: NetEngine? = null
+        /** Edge requests in flight, by Inkling's id, so Stop reaches one still waiting for the server. */
+        private val calls = java.util.concurrent.ConcurrentHashMap<String, okhttp3.Call>()
     }
 
     private val engine: NetEngine
-        get() = synchronized(NetService) { shared ?: NetEngine({ settings.load() }).also { shared = it } }
+        get() = synchronized(NetService) { shared ?: NetEngine({ settings.load() }, edgePinned = { settings.pinnedEdge() }).also { shared = it } }
 }

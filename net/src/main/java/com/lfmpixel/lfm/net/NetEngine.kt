@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.net
 
+import com.lfmpixel.lfm.ipc.EdgeRules
 import com.lfmpixel.lfm.ipc.NetRequest
 import com.lfmpixel.lfm.ipc.PinnedFiles
 import com.lfmpixel.lfm.ipc.SearchHit
@@ -7,10 +8,14 @@ import okhttp3.Credentials
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
+import java.io.InputStream
+import java.net.InetAddress
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Proxy
@@ -26,6 +31,10 @@ class NetEngine(
     private val downloadUrl: (PinnedFiles.File) -> String = { it.url },
     private val downloadAllowed: (HttpUrl) -> Boolean = { it.isHttps && isHuggingFace(it.host) },
     private val clock: () -> Long = System::currentTimeMillis,
+    /** Edge mode: which server addresses may be opened (tests also allow loopback). */
+    private val edgeAddressAllowed: (InetAddress) -> Boolean = EdgeRules::isPrivate,
+    /** Edge mode: the server saved in Inkling's Settings, the only one used for more than a test. */
+    private val edgePinned: () -> String? = { null },
 ) {
     data class SearchReply(val provider: String, val hits: List<SearchHit>, val log: List<NetRequest>, val error: String?)
     data class FetchReply(val text: String, val log: List<NetRequest>, val error: String?)
@@ -204,7 +213,108 @@ class NetEngine(
 
     private class StoppedException : IOException("Stopped")
 
+    data class EdgeReply(val status: Int, val bytes: Long, val log: List<NetRequest>, val error: String?)
+
+    /**
+     * Edge mode: one request to the owner's server. Only [EdgeRules.PATHS], only a private or tailnet address (a
+     * name must resolve to such addresses only), no redirects, no proxy, no cookies. The reply body goes to [out]
+     * as it comes; [out] returning false stops it. A reply that is not 2xx is read (up to 4 KB) into the error.
+     */
+    fun edge(base: String, key: String, method: String, path: String, contentType: String?, body: InputStream?,
+             onCall: (okhttp3.Call) -> Unit = {}, out: (ByteArray) -> Boolean): EdgeReply {
+        // Read first, whatever happens next, so the writer on Inkling's side never waits on a pipe nobody reads.
+        val sentBytes = body?.use { it.readNBytes(MAX_EDGE_BODY + 1) }
+        val b = base.trim().trimEnd('/').toHttpUrlOrNull() ?: return EdgeReply(0, 0, emptyList(), "The server address doesn't look right")
+        // Only the saved server, but for Settings' Test, which may try a new address (health and the model list only).
+        val pinned = edgePinned()?.trim()?.trimEnd('/')
+        if (path !in TEST_PATHS && pinned != base.trim().trimEnd('/')) return EdgeReply(0, 0, emptyList(), "That isn't the server saved in Settings")
+        if (path !in EdgeRules.PATHS) return EdgeReply(0, 0, emptyList(), "Inkling Net doesn't open $path on the server")
+        if (method != "GET" && method != "POST") return EdgeReply(0, 0, emptyList(), "Bad method")
+        EdgeRules.literal(b.host)?.let { if (!edgeAddressAllowed(it)) return EdgeReply(0, 0, emptyList(), "${b.host} is not on your home network or tailnet") }
+        EdgeRules.refuse(b.host)?.takeIf { EdgeRules.literal(b.host) == null }?.let { return EdgeReply(0, 0, emptyList(), it) }
+        val url = b.newBuilder().addPathSegments(path.removePrefix("/")).build()
+        if (sentBytes != null && sentBytes.size > MAX_EDGE_BODY) return EdgeReply(0, 0, emptyList(), "Too much to send in one request")
+        val hops = Hops()
+        val at = clock()
+        var bytes = 0L
+        var status = 0
+        var error: String? = null
+        try {
+            val r = Request.Builder().url(url).header("Authorization", "Bearer $key").header("Accept-Encoding", "identity")
+                // llama-server closes each connection after its reply (it says so): never reuse one.
+                .header("Connection", "close")
+            if (method == "POST") r.post((sentBytes ?: ByteArray(0)).toRequestBody(contentType?.toMediaTypeOrNull())) else r.get()
+            edgeClient().newBuilder().addNetworkInterceptor(hops).build().newCall(r.build()).also(onCall).execute().use { resp ->
+                status = resp.code
+                val src = resp.body.source()
+                if (!resp.isSuccessful) {
+                    src.request(4096)
+                    val text = src.buffer.readUtf8(minOf(src.buffer.size, 4096))
+                    // llama-server's {"error":{"message":…}}, else the start of what it said.
+                    val msg = Regex(""""message"\s*:\s*"((?:[^"\\]|\\.)*)"""").find(text)?.groupValues?.get(1) ?: text.take(200)
+                    throw IOException("HTTP ${resp.code}${if (msg.isBlank()) "" else ": $msg"}")
+                }
+                val buf = ByteArray(16 * 1024)
+                while (true) {
+                    val n = src.read(buf)
+                    if (n < 0) break
+                    bytes += n
+                    if (!out(buf.copyOf(n))) throw StoppedException()
+                }
+            }
+        } catch (e: StoppedException) {
+            error = "Stopped"
+        } catch (e: Exception) {
+            error = e.message ?: "The server did not answer"
+        }
+        val sent = "${path.removePrefix("/")}${if (sentBytes != null) " · ${sentBytes.size} bytes sent" else ""}"
+        val log = mutableListOf<NetRequest>()
+        logHops(hops, at, sent, bytes, error == null || error == "Stopped", log, url)
+        return EdgeReply(status, bytes, log, error)
+    }
+
+    /** No proxy (the server is on the owner's own network), no redirects, and a DNS that only answers private addresses. */
+    private fun edgeClient(): OkHttpClient = edgeBase ?: OkHttpClient.Builder()
+        .proxy(Proxy.NO_PROXY)
+        // No Nagle: a POST's body goes out right behind its headers, not after the server's delayed ACK (that wait
+        // was half a second a request on the emulator).
+        .socketFactory(NoDelaySockets)
+        .followRedirects(false).followSslRedirects(false)
+        // A connection the server already closed is retried once on a fresh one, before anything was sent.
+        .retryOnConnectionFailure(true)
+        .connectTimeout(4, TimeUnit.SECONDS)
+        // A long document or answer streams for minutes; between pieces the server is never silent this long.
+        .readTimeout(90, TimeUnit.SECONDS)
+        .callTimeout(0, TimeUnit.SECONDS)
+        .dns(object : okhttp3.Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                val all = okhttp3.Dns.SYSTEM.lookup(hostname)
+                val bad = all.filterNot(edgeAddressAllowed)
+                if (bad.isNotEmpty() || all.isEmpty())
+                    throw IOException("$hostname is not on your home network or tailnet (${bad.firstOrNull()?.hostAddress ?: "no address"})")
+                return all
+            }
+        })
+        .build().also { edgeBase = it }
+
+    @Volatile private var edgeBase: OkHttpClient? = null
+
+    private object NoDelaySockets : javax.net.SocketFactory() {
+        private val d = javax.net.SocketFactory.getDefault()
+        private fun java.net.Socket.nd() = apply { tcpNoDelay = true }
+        override fun createSocket() = d.createSocket().nd()
+        override fun createSocket(host: String, port: Int) = d.createSocket(host, port).nd()
+        override fun createSocket(host: String, port: Int, local: InetAddress, localPort: Int) = d.createSocket(host, port, local, localPort).nd()
+        override fun createSocket(host: InetAddress, port: Int) = d.createSocket(host, port).nd()
+        override fun createSocket(host: InetAddress, port: Int, local: InetAddress, localPort: Int) = d.createSocket(host, port, local, localPort).nd()
+    }
+
     companion object {
+        /** The most one Edge request may send: a long recording or a few pictures. */
+        const val MAX_EDGE_BODY = 32 * 1024 * 1024
+        /** What Settings' Test asks of an address not saved yet. */
+        val TEST_PATHS = setOf("/health", "/v1/models")
+
         /** A current Chrome on Android, reduced the way Chrome itself sends it: looks like any phone's. */
         const val USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Mobile Safari/537.36"
 

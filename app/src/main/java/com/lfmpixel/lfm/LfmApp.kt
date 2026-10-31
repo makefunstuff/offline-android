@@ -48,6 +48,8 @@ class AppGraph(context: Context) {
     private val journalHidden: () -> Boolean = { lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal) }
     val tools = ToolRegistry(defaultTools(ToolEnv(db, reminders, calendar, contacts, controls, launcher, hideJournal = { journalHidden() })))
     val net = NetClient(context, settings, db, scope)
+    /** Edge mode: the owner's server, through Inkling Net. */
+    val edge = com.lfmpixel.lfm.edge.Edge(net, settings, scope).also { engine.edge = it }
     val web = WebSearch(db, settings, net, contacts)
     val downloads = ModelDownloads(context, models, net, settings, engine, scope)
     val netInstaller = NetInstaller(context)
@@ -63,6 +65,7 @@ class AppGraph(context: Context) {
         }
     }
     val bench = com.lfmpixel.lfm.llm.Benchmark(engine, models, settings, scope)
+    val edgeBench = com.lfmpixel.lfm.edge.EdgeBench(edge, settings, scope)
 }
 
 /**
@@ -91,6 +94,7 @@ suspend fun AppGraph.wipe(context: Context, models: Boolean) {
         this.models.refresh()
     }
     settings.clear()
+    com.lfmpixel.lfm.edge.EdgeKey.forget()
     assistant.newChat()
 }
 
@@ -98,9 +102,16 @@ class LfmApp : Application() {
     lateinit var graph: AppGraph
         private set
 
+    companion object {
+        /** Edge mode is set up, for screens that only need to say where things run. */
+        val edgeOn: Boolean get() = instance?.graph?.edge?.configured?.value == true
+        @Volatile private var instance: LfmApp? = null
+    }
+
     override fun onCreate() {
         super.onCreate()
         graph = AppGraph(this)
+        instance = this
         Reminders.createChannel(this)
     }
 }

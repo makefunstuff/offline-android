@@ -374,6 +374,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Talk -> TalkScreen(g, nav, gate)
                     Route.Voice -> VoiceSettingsScreen(g, nav)
+                    Route.Server -> com.lfmpixel.lfm.ui.screens.ServerScreen(g, nav)
                     Route.Camera -> CameraScreen(g, nav, gate, pickers, cameraQuestion, { voice(VoiceTarget.Question) }, listening)
                     is Route.Library -> LibraryScreen(g, nav, r.filter, { voice(VoiceTarget.Library(it)) }, listening)
                     is Route.Editor -> EditorScreen(g, nav, r)

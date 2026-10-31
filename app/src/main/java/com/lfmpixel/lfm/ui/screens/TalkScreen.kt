@@ -116,6 +116,12 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
                 Txt(state.error ?: "", LfmType.small, c.text2, Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
             }
             Transcript(state.turns, Modifier.weight(1f).padding(top = 14.dp))
+            // Where the last answer came from, and how soon it was heard (Settings → Show speed).
+            val showSpeed = prefs?.showSpeed == true
+            state.timing?.takeIf { showSpeed && it.firstSoundMs > 0 }?.let { t ->
+                Txt((if (t.viaServer) "Your server" else "This phone") + " · first sound %.1f s after your turn".format(java.util.Locale.ENGLISH, t.firstSoundMs / 1000.0),
+                    LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
+            }
             AnimatedVisibility(state.warm, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),
                 exit = fadeOut(LfmMotion.spec()) + shrinkVertically(LfmMotion.spec())) {
                 val shape = RoundedCornerShape(6.dp)
@@ -225,7 +231,8 @@ private fun Transcript(turns: List<TalkTurn>, modifier: Modifier = Modifier) {
     LaunchedEffect(turns.size, last?.it?.length) { if (turns.isNotEmpty()) list.scrollToItem(turns.size * 2 - 1, Int.MAX_VALUE / 2) }
     LazyColumn(modifier.fillMaxWidth(), state = list, contentPadding = PaddingValues(bottom = 8.dp)) {
         if (turns.isEmpty()) item(key = "empty") {
-            Txt("Ask anything out loud. It answers with its voice, on this phone. Nothing you say leaves it.",
+            Txt(if (com.lfmpixel.lfm.LfmApp.edgeOn) "Ask anything out loud. Your server hears it and answers with its voice; nothing goes anywhere else."
+                else "Ask anything out loud. It answers with its voice, on this phone. Nothing you say leaves it.",
                 LfmType.small, c.text2, Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
         }
         turns.forEach { t ->

@@ -121,7 +121,7 @@ data class GenStats(val prefillMs: Double, val prefillTokens: Int, val decodeMs:
 /** A picture as llama.cpp takes it: packed RGB, 3 bytes a pixel, rows top to bottom. */
 class RgbImage(val width: Int, val height: Int, val rgb: ByteArray)
 
-class LlmException(message: String) : Exception(message)
+open class LlmException(message: String) : Exception(message)
 
 /** A loaded model in llama.cpp. All calls run on one thread, one at a time. */
 class LlamaSession private constructor(private val handle: Long, override val path: String, private val dispatcher: CoroutineDispatcher,

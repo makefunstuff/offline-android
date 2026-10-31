@@ -253,7 +253,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                 Txt(if (lockedLines == 1) "1 journal line, locked" else "$lockedLines journal lines, locked", LfmType.small, c.text2)
             }
         }
-        if (isToday && !g.engine.hasText()) item(key = "nomodel") {
+        if (isToday && !g.engine.canChat()) item(key = "nomodel") {
             Card(Modifier.padding(16.dp).fillMaxWidth(), onClick = { nav.go(Route.Models) }) {
                 Column {
                     Txt("No model yet", LfmType.rowTitle)
@@ -412,7 +412,7 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
         draft = ""; picked = null
         if (kind == InkKind.Ask) {
             // Without a model a question would be sorted into the notebook: it waits in the line instead.
-            if (!g.engine.hasText()) { draft = line; nav.show("Asking needs a chat model: Settings → Models"); return }
+            if (!g.engine.canChat()) { draft = line; nav.show("Asking needs a chat model: Settings → Models"); return }
             g.assistant.send(InkLine.question(line), source = "today"); nav.go(Route.Chat); return
         }
         InkLine.call(line, kind, today)?.let { call ->
@@ -485,6 +485,8 @@ fun modelState(g: AppGraph): String {
     val st by g.engine.status.collectAsState()
     val installed by g.models.installed.collectAsState()
     val prefs by g.settings.prefs.collectAsState(null)
+    val edge by g.edge.state.collectAsState()
+    if (edge is com.lfmpixel.lfm.edge.EdgeState.Online) return "LFM3-1.7B · on your server"
     val chat = installed.firstOrNull { it.file.name == (st.textFile ?: prefs?.chatModel) && (it.known.role == com.lfmpixel.lfm.llm.ModelRole.Text || it.known.role == com.lfmpixel.lfm.llm.ModelRole.TextLiteRt) }
         ?: g.models.text()
     val name = chat?.let { "${it.known.family} ${it.known.quant}" } ?: return "No chat model"
