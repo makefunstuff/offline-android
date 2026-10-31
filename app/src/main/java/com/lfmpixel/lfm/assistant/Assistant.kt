@@ -410,12 +410,14 @@ class Assistant(
                 if (thinkFrom == 0L) thinkFrom = SystemClock.elapsedRealtime()
                 raw.append(piece); show.tick()
             }
-            val first = if (thinks) budget else answerBudget
+            val first = if (thinks) budget + (if ((fitSession as? com.lfmpixel.lfm.edge.EdgeSession)?.answersBig == true) answerBudget else 0) else answerBudget
             // The session the prompt was fitted to: the server's window is far larger than the phone's.
             val session = fitSession
             session.generate(prompt, first).collect { onPiece(it) }
             val firstStats = session.stats()
-            if (thinks && firstStats.decodeTokens >= first) {
+            // The answer model (Qwen) can't carry on a cut answer, only a cut thought: past the thought it gets both budgets.
+            val big = (session as? com.lfmpixel.lfm.edge.EdgeSession)?.answeredBy?.let { it.isNotEmpty() && it != com.lfmpixel.lfm.edge.EdgeModels.TEXT && it != com.lfmpixel.lfm.edge.EdgeModels.TEXT_LONG } == true
+            if (thinks && firstStats.decodeTokens >= first && (!big || ModelOutput.parse(raw.toString(), true).stillThinking)) {
                 // Out of thinking budget: close the think block if it is still open, then let the answer run.
                 if (ModelOutput.parse(raw.toString(), true).stillThinking) raw.append(ModelOutput.OUT_OF_BUDGET)
                 session.generate(prompt + raw, answerBudget).collect { onPiece(it) }
@@ -471,7 +473,8 @@ class Assistant(
             var filed: Pair<com.lfmpixel.lfm.edge.PhotoLabel, String>? = null
             if (req.kind == SeeKind.Photo && req.images.size == 1 && req.question == SeeRules.defaultQuestion(SeeKind.Photo)) {
                 streaming.value = Streaming("", false, "Looking…")
-                labels?.photo(com.lfmpixel.lfm.edge.EdgeSession.jpegDataUrl(req.images[0]))?.let { l ->
+                val url = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { com.lfmpixel.lfm.edge.EdgeSession.jpegDataUrl(req.images[0]) }
+                labels?.photo(url)?.let { l ->
                     SeeRules.filing(l.kind)?.let { (q, tag) ->
                         filed = l to tag
                         req = SeeRequest(req.kind, q, req.images, req.pages, req.seconds, req.thumbPath, req.label, req.pagesSkipped)

@@ -45,7 +45,8 @@ object InkLine {
      */
     fun withLabel(line: String, label: com.lfmpixel.lfm.edge.CaptureLabel, now: java.time.LocalDateTime = java.time.LocalDateTime.now()): InkGuess {
         val rules = guess(line)
-        if (rules.kind == InkKind.Ask) return rules
+        // A question, or a time the rules could read (a reminder), stays as the rules have it.
+        if (rules.kind == InkKind.Ask || rules.kind == InkKind.Reminder) return rules
         val words = label.whenWords.takeIf { it.isNotEmpty() && line.contains(it, ignoreCase = true) }
         val timed = words?.let { com.lfmpixel.lfm.tools.TimeArgs.parse(it, now) }?.takeIf { it.time != null }
         val kind = when (label.kind) {

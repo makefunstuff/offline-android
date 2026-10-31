@@ -69,7 +69,7 @@ class Labels(private val edge: Edge) {
     }
 
     companion object {
-        const val TIMEOUT_MS = 2_500L
+        const val TIMEOUT_MS = 1_500L
 
         /** The prompt the server's tests settled on (docs/notebook-spec.md B.2): definitions, then three examples. */
         const val CAPTURE_SYSTEM = "Label one line the owner wrote in their notebook. Fill each field:\n" +

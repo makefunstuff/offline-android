@@ -215,7 +215,7 @@ extraction with LFM3-1.7B, the Discord moderator, live video captioning, photo t
    "private" tag. Next, with care: a wrong "sensitive" tag is noise, a missed one is false comfort.
 
 Rules: one short instruction, no history, temperature 0, output held to a JSON schema by the server's grammar
-(LP-37's "never JSON" rule was for free-form JSON; a grammar can't be broken), 2.5 s at most, and the phone's rules
+(LP-37's "never JSON" rule was for free-form JSON; a grammar can't be broken), 1.5 s at most, and the phone's rules
 decide whenever the server doesn't answer.
 
 ### B.3 Look (live camera)

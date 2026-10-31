@@ -122,13 +122,13 @@ class ChatStream(private val thinking: Boolean) {
         return sb.toString()
     }
 
-    /** True once the reply has text or a call: the answer has started (no fallback after this). */
-    val started get() = !thoughtOpen || names.isNotEmpty()
-
     fun finish(): String {
         val sb = StringBuilder()
         if (thoughtOpen) { sb.append("\n</think>\n\n"); thoughtOpen = false }
         names.forEach { (i, name) ->
+            // A call cut off mid-way (out of tokens) is not run with half its arguments.
+            val json = argText[i]?.toString().orEmpty().ifBlank { "{}" }
+            if (runCatching { JSONObject(json) }.isFailure) return@forEach
             sb.append(if (sb.isEmpty()) "" else "\n").append(ChatPrompt.rawCall(name, ChatPrompt.args(argText[i]?.toString().orEmpty())))
         }
         return sb.toString()

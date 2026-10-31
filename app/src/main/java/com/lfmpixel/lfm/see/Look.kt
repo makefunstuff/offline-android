@@ -54,14 +54,13 @@ class Look(private val edge: Edge, private val scope: CoroutineScope) {
 
     fun stop() = synchronized(lock) {
         on = false
+        _scene.value = null
         waiting?.recycle(); waiting = null
         latest?.recycle(); latest = null
     }
 
     /** What the camera sees, for an answer: the last line while it is fresh (Look on, under 90 s old), else null. */
-    fun seeing(): String? = _scene.value?.takeIf { on && SystemClock.elapsedRealtime() - it.at < 90_000 }?.let {
-        "${it.text} (${(SystemClock.elapsedRealtime() - it.at) / 1000} s ago)"
-    }
+    fun seeing(): String? = _scene.value?.takeIf { on && SystemClock.elapsedRealtime() - it.at < 90_000 }?.text
 
     /**
      * A frame from the camera, already upright and at most [SIDE] px. [now]: look at it whatever (a tap, a Talk turn).

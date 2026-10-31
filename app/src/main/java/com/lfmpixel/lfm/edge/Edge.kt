@@ -216,7 +216,8 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
      * later. An error the server sent (a bad request, a model loading) leaves it Online: the caller falls back once.
      */
     fun failed(e: Throwable) {
-        if (e is Exception && !fallsBack(e)) return
+        // An error the server sent (a 5xx from one model) falls that request back, but the server is still there.
+        if (e is Exception && (!fallsBack(e) || (e is NetException && e.code == EDGE_REFUSED))) return
         val reason = e.message ?: "No answer"
         val was = _state.value
         if (was !is EdgeState.Offline) {

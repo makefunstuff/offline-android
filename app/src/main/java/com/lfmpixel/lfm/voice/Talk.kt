@@ -154,6 +154,7 @@ class Talk(
     @Volatile var seeing: (() -> String?)? = null
     /** With Look on: the answer to a question about the view, from the VL model, or null for the answer model to take it. */
     @Volatile var lookAnswer: (suspend (String) -> String?)? = null
+    private var talkSession: com.lfmpixel.lfm.edge.EdgeSession? = null
     private var job: Job? = null
     private var turnId = 0L
     /**
@@ -366,8 +367,9 @@ class Talk(
                     if (spoken) chunker.feed(direct).forEach { pieces.send(it) }
                 } else {
                 // The answer model (Qwen) with the app's tools when the server has it loaded; else LFM3-1.7B, words only.
-                val session = models.answerSession() as? com.lfmpixel.lfm.edge.EdgeSession
-                    ?: com.lfmpixel.lfm.edge.EdgeSession(edge, com.lfmpixel.lfm.edge.EdgeModels.TEXT, null)
+                // No phone model behind it: if the server fails, this turn goes back to Omni on the phone, voice and all.
+                val session = talkSession ?: com.lfmpixel.lfm.edge.EdgeSession(edge, com.lfmpixel.lfm.edge.EdgeModels.TEXT, null, answers = true)
+                    .also { talkSession = it }
                 val big = session.refresh() != null
                 val toolBox = tools?.takeIf { big }
                 val history = if (toolBox == null) prompt else null
@@ -377,12 +379,12 @@ class Talk(
                         msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, you)
                         msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, it)
                     }
-                    msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, said)
+                    msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, SpeechFormat.talkUser(said, seeing?.invoke()))
                 }
                 for (round in 0 until 3) {
                     val raw = StringBuilder()
                     var cut = false
-                    val p2 = history ?: com.lfmpixel.lfm.llm.PromptFormat.build(SpeechFormat.talkToolSystem(p.speechLanguage, seeing?.invoke()),
+                    val p2 = history ?: com.lfmpixel.lfm.llm.PromptFormat.build(SpeechFormat.talkToolSystem(p.speechLanguage),
                         toolBox!!.specs(), msgs, thinking = false)
                     session.generate(p2, if (toolBox != null) 400 else 300, 0.3f).collect { piece ->
                         if (interrupted || run != epoch) throw CancellationException("Stopped")

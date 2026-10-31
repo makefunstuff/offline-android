@@ -76,6 +76,12 @@ class SmartAnswersTest {
         assertEquals(listOf(ToolCall("add_todo", mapOf("text" to "Oat milk", "list" to "Shopping"))), out.toolCalls)
     }
 
+    @Test fun aCallCutOffIsNotRun() {
+        val s = ChatStream(thinking = false)
+        val raw = s.feed(ev("""{"tool_calls":[{"index":0,"id":"x","type":"function","function":{"name":"add_todo","arguments":"{\"text\": \"Oat"}}]}""")) + s.finish()
+        assertTrue(ModelOutput.parse(raw, false).toolCalls.isEmpty())
+    }
+
     @Test fun streamedThoughtIsClosedBeforeTheAnswer() {
         val s = ChatStream(thinking = true)
         val raw = s.feed(ev("""{"reasoning_content":"Short answer."}""")) + s.feed(ev("""{"content":"Paris."}""")) + s.finish()
@@ -106,6 +112,8 @@ class SmartAnswersTest {
         // Words the line doesn't hold are not trusted; a question stays a question.
         assertEquals(InkKind.Todo, InkLine.withLabel("renew passport", label("todo", "before december"), now).kind)
         assertEquals(InkKind.Ask, InkLine.withLabel("what is on today?", label("note"), now).kind)
+        // A time the rules read is kept, whatever the label says.
+        assertEquals(InkKind.Reminder, InkLine.withLabel("remind me to call mom at 6", label("todo", ""), now).kind)
         val call = InkLine.call("dentist on tuesday at 3", InkKind.Reminder, now.toLocalDate(), g)!!
         assertEquals("set_reminder", call.name)
         assertEquals("tuesday at 3", call.args["at"])

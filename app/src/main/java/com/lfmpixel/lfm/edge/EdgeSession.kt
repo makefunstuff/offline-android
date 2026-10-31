@@ -18,6 +18,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.toList
 import org.json.JSONArray
 import org.json.JSONObject
@@ -53,6 +54,8 @@ class EdgeSession(
         else -> 131_072
     }
     @Volatile private var answerReady = false
+    /** The answer model (Qwen) takes the next prompt, as last asked ([refresh]). */
+    val answersBig get() = answers && answerReady
     /** The server model that wrote the last answer ([EdgeModels.label] names it), or "" when the phone did. */
     @Volatile var answeredBy = ""
         private set
@@ -183,7 +186,7 @@ class EdgeSession(
         r?.let { throw LlmException("Your server: ${it.message}") }
         close()
         awaitClose { }
-    }.buffer(Channel.UNLIMITED)
+    }.buffer(Channel.UNLIMITED).flowOn(kotlinx.coroutines.Dispatchers.Default)
 
     override fun stats(): GenStats = lastStats
 
