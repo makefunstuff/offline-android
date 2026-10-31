@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Capture from anywhere (docs/notebook-spec.md, A.1 proposal 3): long-press Inkling's icon. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="line" android:enabled="true" android:icon="@drawable/ic_tile_capture"
+        android:shortcutShortLabel="@string/shortcut_line">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.lfmpixel.lfm"
+            android:targetClass="com.lfmpixel.lfm.MainActivity">
+            <extra android:name="com.lfmpixel.lfm.OPEN" android:value="line" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="dump" android:enabled="true" android:icon="@drawable/ic_w_note"
+        android:shortcutShortLabel="@string/shortcut_dump">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.lfmpixel.lfm"
+            android:targetClass="com.lfmpixel.lfm.MainActivity">
+            <extra android:name="com.lfmpixel.lfm.OPEN" android:value="dump" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="now" android:enabled="true" android:icon="@drawable/ic_stat_lfm"
+        android:shortcutShortLabel="@string/shortcut_now">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="com.lfmpixel.lfm"
+            android:targetClass="com.lfmpixel.lfm.MainActivity">
+            <extra android:name="com.lfmpixel.lfm.OPEN" android:value="now" />
+        </intent>
+    </shortcut>
+</shortcuts>

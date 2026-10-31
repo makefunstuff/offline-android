@@ -9,7 +9,7 @@ import androidx.room.PrimaryKey
 enum class EntryKind(val label: String) { Note("Note"), Idea("Idea"), Journal("Journal"), Todo("To-do") }
 
 /** Everything captured: notes, ideas, journal lines and to-dos share one table, so one search covers all. */
-@Entity(tableName = "entries", indices = [Index("kind"), Index("createdAt"), Index("dueAt")])
+@Entity(tableName = "entries", indices = [Index("kind"), Index("createdAt"), Index("dueAt"), Index("parentId")])
 data class Entry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val kind: EntryKind,
@@ -28,6 +28,12 @@ data class Entry(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     @ColumnInfo(defaultValue = "0") val pinned: Boolean = false,
+    /** A step of another to-do (notebook-spec A.1, proposal 2): it has no date of its own and follows that to-do. */
+    @ColumnInfo(defaultValue = "NULL") val parentId: Long? = null,
+    /** To-dos: about how long it takes, in minutes; 0 when not known. */
+    @ColumnInfo(defaultValue = "0") val minutes: Int = 0,
+    /** To-dos: its place in the plan of the day it is due (1, 2, 3); 0 when not in a plan. */
+    @ColumnInfo(defaultValue = "0") val planOrder: Int = 0,
 )
 
 @Fts4(contentEntity = Entry::class)

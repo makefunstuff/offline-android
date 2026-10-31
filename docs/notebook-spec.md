@@ -1,4 +1,4 @@
-# Inkling: private notebook (LP-35)
+# Inkling: private notebook (LP-35) and ADHD organizer (LP-37)
 
 The owner: "I would like a private personal notebook with LLM assistance. We won't use it for programming. It's mostly
 for ideation, reading, privacy stuff, scheduling. The UI is too generic right now: find something unique and
@@ -9,6 +9,167 @@ file holds the ranked UX proposals, then the screen rules the build follows. [ux
 holds for everything not named here: palette, editing rules, motion, accessibility. Where they disagree, this file wins.
 
 Written 31 October 2026. The mockups (dark and light) are in the LP-35 artifact.
+
+## A. The ADHD organizer (LP-37)
+
+The owner, next: Inkling should be "an ADHD-friendly organizer with the help of these tiny private LLMs". This part
+builds on the notebook below (the Daily Page, the Ink line, Ink in the margin, Carried over, the seal) and changes it
+where an ADHD brain needs something else. Where this part and the sections after it disagree, this part wins. The
+mockups (dark and light) and the emulator screenshots are in the LP-37 artifact.
+
+Written 31 October 2026.
+
+### A.0 What an ADHD brain needs from a notebook (grounding)
+
+- **Time blindness and the point of performance.** Barkley's model: ADHD is less a problem of knowing what to do
+  than of doing it at the moment it matters; time, plans and motivation have to be put *outside* the head, where the
+  task happens. So: visible time, one cue at the moment, not a list to remember.
+- **Task initiation.** Starting is the hardest part; a big vague task ("sort the flat") stays unstarted. Breaking it
+  into a first step small enough to feel silly (2–10 minutes) is the core move of ADHD coaching and of tools like
+  Goblin Tools' Magic To-Do. Implementation intentions (Gollwitzer: "when X, I do Y") show that one concrete next
+  action beats a goal.
+- **Working memory.** Ideas arrive mid-task and vanish; capture must cost a second, and sorting must wait (GTD's inbox,
+  Allen; "brain dumps" in ADHD coaching). Every extra decision at capture time loses the thought.
+- **Overwhelm and choice paralysis.** A long list reads as a wall; picking the next thing is itself a task. Tools that
+  work for ADHD (Llama Life, Tiimo, Structured, Sunsama) show *one thing now* and a short day, not everything.
+- **Emotional load.** Rejection sensitivity and shame make red "overdue" counts and streaks backfire: people stop
+  opening the app. Gentle wording, easy rescheduling and no penalties keep them coming back (Finch, Tiimo's tone).
+- **Interruptions.** Resuming after a break has a cost (Altmann and Trafton's memory-for-goals model): a cue of "where
+  you were" cuts the time to get going again.
+
+### A.1 The proposals, ranked
+
+Ranked by how much they help on a bad-focus day per unit of effort. 1–7 are built in LP-37; 8 is the rule every LLM
+job follows; 9 are follow-ups.
+
+#### 1. Now: one next thing, at the top of today *(signature)*
+
+- **Daily problem.** Opening the app shows a page of lines and to-dos; choosing what to do first is itself the task
+  that never starts.
+- **How it works.** Above today's page, one card: **Now** and a single action in large type ("Clear the kitchen
+  table"), with its time ("about 10 min") and where it comes from ("Step 1 of 4 · Tidy the kitchen", or "1 of 3 in
+  today's plan"). Four answers: **Start** (opens Focus, proposal 5), **Done** (the next one slides in), **Not now**
+  (shows the next one; it comes back later today) and **⋯** for *Smaller steps* (proposal 2), *Tomorrow*, *Someday*.
+  It picks: the first open step of the first unfinished thing in today's plan; else today's plan in order; else what
+  is due now (a timed to-do in the next hour); else open to-dos of today and earlier, oldest first. Nothing open: "Nothing
+  next. Write a line below, or plan your day."
+- **Why it helps an ADHD brain.** It removes the choice. One cue at the point of performance, worded as an action, with
+  its size shown so it feels doable.
+- **Borrowed.** Llama Life and Things' "Today" focus; GTD's "next action". **New here:** the card walks through the
+  steps the model wrote (proposal 2), skipping is free and never counted, and it all runs on the phone.
+
+#### 2. Smaller steps: the model breaks a task down and sizes it *(signature)*
+
+- **Daily problem.** "Do taxes" sits on the list for weeks because nobody knows where it starts.
+- **How it works.** *Smaller steps* on the Now card, on a to-do's long-press menu, and in the to-do's editor. The
+  model writes 3–6 tiny first steps, each with minutes ("Find last year's tax letter · 5 min"). They show as a
+  proposal sheet (the margin's rule: nothing changes until you tap **Add steps**); a step can be removed first.
+  Steps belong to the to-do: Now walks through them, the to-do shows "2 of 5 steps", and ticking the last step ticks
+  the to-do (Undo). Every to-do also gets a size: the model's, or a quick guess on the phone ("call" 5 min, "write" 30
+  min), changed by one tap in the editor (5 · 15 · 30 · 60 min).
+- **Why it helps.** The first step becomes small enough to start, and the size makes the time visible before it
+  starts (time blindness).
+- **Borrowed.** Goblin Tools' Magic To-Do; coaching's "make the first step silly-small". **New here:** private, steps
+  are real to-dos the Now card walks through, and the size feeds the day plan.
+
+#### 3. Dump now, sort later: capture from anywhere *(signature)*
+
+- **Daily problem.** Ten things are buzzing at once; writing each in the right place takes too long, so they are lost.
+- **How it works.** Three ways in, each one tap: the **Ink line** (as in LP-35: type, Enter; voice by the mic), **Brain
+  dump** (the cloud button by the date, or the app icon's long-press shortcut): one big page to type or speak
+  everything, saved *as you type*, and the **share sheet** (as in LP-35). Long-pressing the Inkling icon gives *Write a
+  line*, *Brain dump* and *Now*. A dump is kept at once as a note tagged *dump*; **Sort it** (in the dump sheet, and on
+  the dump's line on the page) has the model split it into small to-dos with sizes, ideas and notes, shown as a list
+  to keep or drop line by line, then **Add**. Without a model the same split is done by the phone's rules (one item
+  per line or sentence, sorted like the Ink line).
+- **Why it helps.** Capture costs one tap and no decisions; the thought is safe before it fades. Sorting happens when
+  there is calm (or by the model), not mid-thought.
+- **Borrowed.** GTD's inbox; brain dumps from ADHD coaching; Drafts' "text first". **New here:** the model sorts it
+  into next actions with sizes, on the phone; the dump stays as written, so nothing is lost if the sort is wrong.
+
+#### 4. A calm plan for today, drafted by the model
+
+- **Daily problem.** Every open to-do looks equally urgent; the day is over-planned by ten, then nothing gets done.
+- **How it works.** On today's page, under Now: **Today's plan**. Empty, it offers **Plan my day**. The model gets the
+  open to-dos (today's, earlier ones, a few undated) with their sizes and the time left, and picks **at most three**,
+  lightest first or what is due, so the plan fits the hours that are left. It shows as a proposal: three lines with
+  minutes, "about 50 min · 6 h 40 left today", **Use this plan**, **Try again**, and × on a line to drop it. Used, the
+  three are today's plan (Now follows it) and show as a slim list with a ticked count. Without a model, the same pick
+  is made by rules (due first, then smallest).
+- **Why it helps.** A short plan that fits is a promise you can keep; three is small enough to start and to finish,
+  which is the reward loop.
+- **Borrowed.** Sunsama's daily planning ritual; the 1-3-5 rule cut to three; Tiimo's AI day plan. **New here:**
+  private, sized by the steps' minutes, and it never adds more than fits.
+
+#### 5. Visible time: Focus with a shrinking disc
+
+- **Daily problem.** Ten minutes and an hour feel the same; a task runs over, or never starts because it feels endless.
+- **How it works.** **Start** on Now opens **Focus**: the one action, large, and a disc of yellow highlighter that
+  shrinks as the minutes go (a Time Timer), with the minutes left in the middle. **Done**, **+5 min**, **Pause** and
+  **Stop**. When the time is up the phone gives one soft notification ("Time's up for *Clear the table*. Done, or 5
+  more minutes? Both are fine.") and the disc stays empty, no alarm. Done goes straight to the next step ("Next: Wipe
+  the counter · 5 min · Start"). The page's plan shows a time bar: what is planned against what is left of the day.
+- **Why it helps.** Time becomes a shape you can see shrinking, outside the head. The end is a nudge, not a judgment.
+- **Borrowed.** Time Timer's red disc (here yellow, the app's marker); the Pomodoro technique, shortened to the task's
+  own size; Tiimo's visual timers. **New here:** the timer is sized by the model's estimate and walks into the next step.
+
+#### 6. Gentle by design: nothing overdue, rescheduling in one tap
+
+- **Daily problem.** Red "Overdue (14)" walls make the app feel like a debt collector; opening it is avoided.
+- **How it works.** Nothing in the app is red, and the word "overdue" is gone: earlier to-dos are **Still open** ("from
+  Tuesday"), a calm block of at most three with **Today** and **Not today** (Tomorrow, Next week, Someday). Plans says
+  "from Tue 27 Oct", not "Overdue". Not now on the Now card is never counted. No streaks, no scores. Ticking off shows a
+  quiet line ("Done. 2 of 3 in today's plan"), not confetti.
+- **Why it helps.** Shame is what stops ADHD users coming back; rescheduling must be cheaper than avoiding.
+- **Borrowed.** Bullet Journal's migration; Finch and Tiimo's gentle tone; Things' "Later". **New here:** one
+  vocabulary for the whole app, with no red anywhere.
+
+#### 7. Where was I: a cue when you come back
+
+- **Daily problem.** After a call or a scroll break, the thread is gone; the app opens on a page that doesn't say
+  where you were.
+- **How it works.** Coming back to Inkling after 20 minutes or more, a card at the top of today: **Where was I** —
+  "You were on *Clear the table* (Focus, 6 of 10 min), 40 min ago" or "You were writing *Garden idea* at 14:05", with
+  what was captured since. **Resume** opens it (Focus where it stopped, or the note at its place); **Recap** has the
+  model sum up in two sentences what you were working on today; × hides it.
+- **Why it helps.** A resumption cue cuts the cost of every interruption, and ADHD days are full of them.
+- **Borrowed.** Interruption research (memory for goals); Android's "continue where you left off". **New here:** the cue
+  knows the task, the timer and the note, and the recap is private.
+
+#### 8. Small model jobs (the rule behind 2, 3, 4 and 7)
+
+The phone runs a 1–2 B model; each job is kept small and fast so it answers in seconds and can run on the edge
+server when LP-32 (Edge mode) is there:
+
+- One job, one short instruction, no chat history, thinking off, temperature 0.3, at most 160–300 tokens out.
+- Output in plain line formats the phone parses ("- Find the letter (5 min)", "3 · 10 min"), never JSON a small model
+  breaks; anything that doesn't parse is dropped, not guessed.
+- Every job has a rule-based answer on the phone when there is no model, and its result is a proposal you accept.
+- Jobs run one at a time and stop when their sheet closes.
+
+#### 9. Follow-ups (not built here)
+
+- **Body doubling.** A quiet "working with you" presence in Focus (Focusmate's idea, without people).
+- **Energy.** Tag to-dos low or high energy and let the plan pick to match how you feel.
+- **Morning nudge.** One gentle notification at a chosen time: "Plan your day? About 2 min."
+- **Now on the home screen.** The widget shows the Now card, with Done.
+
+### A.2 Build rules
+
+- **Data.** Room schema 5 → 6 by auto-migration: to-dos gain `parentId` (a step's to-do), `minutes` (the size) and
+  `planOrder` (place in the plan of the day they are due). Existing rows get no parent, no size and no plan: every
+  entry carries over as is. Steps have no date of their own; they follow their to-do and stay off the page, Plans
+  and Still open.
+- **Now card.** Today only, above the timeline; AnimatedContent on the action's id (fade and an 8 dp rise), no flicker
+  while the lists load (it waits for the first read).
+- **Focus.** A pushed screen (shared axis X); its state (which to-do, when it started, minutes, paused) is kept in
+  preferences so it survives the app being closed; the end notification is an exact alarm on its own channel.
+- **Brain dump.** A full-height sheet with one text field; its text is saved into the dump note half a second after
+  typing stops and on close. Keyboard rules from ux-spec section 6.
+- **Where was I.** When Inkling leaves the screen it writes the time; on return after 20 min the card shows once.
+- **Shortcuts.** Static launcher shortcuts for *Write a line*, *Brain dump* and *Now* open MainActivity with
+  `EXTRA_OPEN`.
+- **No new permissions; no network.** The alarm uses the existing exact-alarm permission.
 
 ## 0. What is generic today
 

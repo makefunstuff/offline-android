@@ -2,4 +2,7 @@
 <resources>
     <string name="widget_description">Capture by voice, Talk, or a new note</string>
     <string name="tile_capture">Capture</string>
+    <string name="shortcut_line">Write a line</string>
+    <string name="shortcut_dump">Brain dump</string>
+    <string name="shortcut_now">Now</string>
 </resources>

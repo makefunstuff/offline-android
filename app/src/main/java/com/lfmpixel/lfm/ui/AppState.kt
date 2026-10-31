@@ -26,6 +26,10 @@ sealed interface Route {
     data object Voice : Route
     /** Edge mode: the owner's own server. */
     data object Server : Route
+    /** Focus: the running timer of graph.focus (notebook-spec A.1, proposal 5). */
+    data object Focus : Route
+    /** Brain dump: a new one, or an existing dump note (proposal 3). */
+    data class Dump(val id: Long? = null, val opened: Long = System.nanoTime()) : Route
     /** The full-screen editor: an existing entry, or a new one of [kind]. */
     data class Editor(val id: Long? = null, val kind: EntryKind = EntryKind.Note, val opened: Long = System.nanoTime()) : Route
 }
@@ -38,6 +42,8 @@ sealed interface VoiceTarget {
     data object Question : VoiceTarget
     /** The Ink line on today's page: the words are put in the line, to be read before they go on the page. */
     data object Line : VoiceTarget
+    /** The brain dump being written: the words are added to it. */
+    data object Dump : VoiceTarget
 }
 
 /** A short message at the bottom with an optional Undo, shown for a few seconds (ux-spec section 6). */
@@ -54,6 +60,10 @@ class Nav(start: Route) {
     var snack by mutableStateOf<Snack?>(null)
     /** What the mic heard for the Ink line, until the line takes it. */
     var heard by mutableStateOf<String?>(null)
+    /** "Not now" on the Now card: these go to the back of the queue, until the app is closed. */
+    val skipped = mutableStateListOf<Long>()
+    /** Bumped to put the caret in the Ink line (the "Write a line" shortcut). */
+    var inkFocus by mutableStateOf(0)
     /** The Daily Page shown, as days before today (0: today's page). */
     var daysBack by mutableStateOf(0L)
     /** True while the last change of screen went forward (a push), for the direction of the transition. */

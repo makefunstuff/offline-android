@@ -81,8 +81,11 @@ class EntryActions(private val g: AppGraph, private val nav: Nav) {
     }
 
     fun delete(e: Entry) = g.scope.launch {
+        // A to-do's steps go with it, and come back with Undo.
+        val steps = if (e.kind == EntryKind.Todo) g.db.entries().stepsNow(e.id) else emptyList()
+        g.db.entries().deleteSteps(e.id)
         g.db.entries().delete(e.id)
-        nav.show("${e.kind.label} deleted") { g.db.entries().insert(e) }
+        nav.show("${e.kind.label} deleted") { g.db.entries().insert(e); steps.forEach { g.db.entries().insert(it) } }
     }
 
     fun move(e: Entry, to: EntryKind) = g.scope.launch {
