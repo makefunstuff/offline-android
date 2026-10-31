@@ -13,7 +13,7 @@ object CaptureSorter {
     private val note = Regex("""^note:?\s*(.*)$""", RegexOption.IGNORE_CASE)
 
     private val remindStart = Regex("""^(?:please\s+)?remind me(?: to)?\s+""", RegexOption.IGNORE_CASE)
-    private val timeWord = Regex("""\s(at|on|in|tomorrow|tonight|today)\b""", RegexOption.IGNORE_CASE)
+    private val timeWord = Regex("""(?:^|\s)(at|on|in|tomorrow|tonight|today)\b""", RegexOption.IGNORE_CASE)
 
     /**
      * "remind me to X <when>": the first "at", "on", "in", "today"… that starts a time [TimeArgs] can read, so
@@ -26,8 +26,14 @@ object CaptureSorter {
         fun at(m: MatchResult): Pair<String, String> {
             // "in 10 minutes" keeps its "in"; "at 6" and "on Friday" lose theirs; "tomorrow 9:00" keeps the day.
             val word = m.groupValues[1].lowercase()
+            val keep = if (word in setOf("tomorrow", "tonight", "today", "in")) "$word " else ""
             val tail = rest.substring(m.range.last + 1).trim()
-            return rest.substring(0, m.range.first).trim() to ((if (word in setOf("tomorrow", "tonight", "today", "in")) "$word " else "") + tail).trim()
+            // The time first: "remind me in 10 minutes to check the oven", or just "remind me at 6".
+            if (m.range.first == 0) {
+                val parts = tail.split(Regex("""\s+to\s+""", RegexOption.IGNORE_CASE), limit = 2)
+                return parts.getOrElse(1) { "Reminder" }.trim() to (keep + parts[0]).trim()
+            }
+            return rest.substring(0, m.range.first).trim() to (keep + tail).trim()
         }
         val good = splits.map(::at).firstOrNull { (what, w) -> what.isNotEmpty() && com.lfmpixel.lfm.tools.TimeArgs.parse(w, now) != null }
         return good ?: splits.firstOrNull()?.let(::at)?.takeIf { it.first.isNotEmpty() }

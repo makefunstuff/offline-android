@@ -67,6 +67,8 @@ class TimeArgsTest {
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(20, 0)), parse("tonight at 8"))
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(18, 0)), parse("today at 6"))
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(15, 0)), parse("today 3"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(18, 30)), parse("today at 6:30"))
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(9, 0)), parse("today 9am"))
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(14, 18)), parse("in 10 minutes"))
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(16, 38)), parse("in 2 and a half hours"))
     }
@@ -144,6 +146,11 @@ class CaptureSorterTest {
         // "in" inside what to do is not the time.
         CaptureSorter.sort("remind me to check in with Sam at 6").let { assertEquals("check in with Sam", it.args["text"]); assertEquals("6", it.args["at"]) }
         CaptureSorter.sort("remind me to plug in the car at 6pm").let { assertEquals("plug in the car", it.args["text"]) }
+        // The time first.
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(14, 18)), at("remind me in 10 minutes"))
+        CaptureSorter.sort("remind me in 10 minutes to check the oven").let { assertEquals("check the oven", it.args["text"]); assertEquals("in 10 minutes", it.args["at"]) }
+        CaptureSorter.sort("remind me at 6 to call mum").let { assertEquals("call mum", it.args["text"]); assertEquals("6", it.args["at"]) }
+        assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(21, 30)), at("remind me to take my pills tonight at 9:30"))
     }
 }
 

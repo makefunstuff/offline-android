@@ -68,10 +68,10 @@ object TimeArgs {
         }
         if (date != null) rest = words.drop(1).joinToString(" ").removePrefix("at ").trim()
         var time = clock(rest)
-        // A bare hour with "tonight" is the evening; with "today", the next time the clock shows it.
-        bareHour.find(rest)?.groupValues?.get(1)?.toInt()?.takeIf { it in 1..12 }?.let { h ->
-            if (first == "tonight" && h < 12) time = LocalTime.of(h + 12, 0)
-            else if (first == "today" && !LocalTime.of(h, 0).isAfter(now.toLocalTime()) && h < 12) time = LocalTime.of(h + 12, 0)
+        // A morning time with no am/pm: "tonight at 8" or "9:30" is the evening; "today at 6" (or 6:30) the next
+        // time the clock shows it.
+        time?.takeIf { it.hour in 1..11 && !rest.contains('a') && !rest.contains('p') }?.let { t ->
+            if (first == "tonight" || (first == "today" && !t.isAfter(now.toLocalTime()))) time = t.plusHours(12)
         }
         if (date == null && time == null) return null
         if (date == null) {

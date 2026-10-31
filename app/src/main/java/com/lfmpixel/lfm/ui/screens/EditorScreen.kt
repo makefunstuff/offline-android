@@ -184,7 +184,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     // and the same draft carries on.
     val draft = remember(route.opened) { Draft(g, route.id, route.kind) }
     // For the journal lock: whether this was an existing entry, and how often the lock had closed when it opened.
-    val startedWith = remember(route.opened) { route.id }
+    val startedWith = remember(route.opened) { route.id?.takeIf { route.kind == EntryKind.Journal } }
     val closingsAtStart = remember(route.opened) { g.lock.closings.value }
     val closings by g.lock.closings.collectAsState()
     var loaded by remember(route.opened) { mutableStateOf(route.id == null) }

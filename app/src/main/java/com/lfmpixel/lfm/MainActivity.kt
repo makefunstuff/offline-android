@@ -150,8 +150,6 @@ class MainActivity : ComponentActivity() {
         graph.launcher.onScreen = true
         graph.lock.onShown()
         graph.assistant.onShown()
-        // Back on screen: the "keeps going" notice is not needed; it starts again if Inkling is left while busy.
-        stopService(android.content.Intent(this, com.lfmpixel.lfm.assistant.WorkService::class.java))
     }
 
     override fun onPause() {
@@ -186,6 +184,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Back on screen (also after a permission dialog): the "keeps going" notice is not needed; it starts again
+        // if Inkling is left while busy.
+        stopService(android.content.Intent(this, com.lfmpixel.lfm.assistant.WorkService::class.java))
         // LFM Net may have been installed, removed or set up meanwhile; downloads cut off by a restart carry on.
         graph.net.refresh()
         graph.downloads.resumeInterrupted()

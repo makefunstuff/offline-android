@@ -128,7 +128,7 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
             val list = all?.visible() ?: return@Column
             when (filter) {
                 LibFilter.Ideas -> IdeasList(g, nav, list.filter { it.kind == EntryKind.Idea }, open, actions)
-                LibFilter.Journal -> if (hideJournal) Locked(g, "Your journal is locked", "Unlock with your fingerprint, face or screen lock to read and write it.",
+                LibFilter.Journal -> if (hideJournal) Locked(g, "Your journal is locked", "Unlock with your fingerprint, face or screen lock to read it. A new line can be written from Today.",
                     "Unlock your journal")
                     else JournalList(list.filter { it.kind == EntryKind.Journal }, nav, onMic, listening, open, actions)
                 else -> {
