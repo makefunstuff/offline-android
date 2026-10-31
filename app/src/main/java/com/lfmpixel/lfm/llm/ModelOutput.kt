@@ -48,7 +48,9 @@ data class ModelOutput(val thinking: String, val answer: String, val toolCalls: 
             } else if (text.contains("</think>") && !text.contains("<think>") && !text.substringBefore("</think>").contains("<tool_call>")) {
                 // With thinking off LFM3 sometimes answers, closes a thought it never opened, then answers again
                 // ("Tokyo</think>Tokyo"): the part after is the answer, and the part before is dropped (no thought shows).
-                text = text.substring(text.lastIndexOf("</think>") + "</think>".length)
+                // A tag with nothing after it just goes.
+                val after = text.substring(text.lastIndexOf("</think>") + "</think>".length)
+                text = if (after.isBlank()) text.replace("</think>", "") else after
             }
             val calls = mutableListOf<ToolCall>()
             for (block in callBlock.findAll(text)) {

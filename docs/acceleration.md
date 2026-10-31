@@ -24,10 +24,12 @@ GPU, Google TPU). Inkling has no INTERNET permission and no Play Services, and t
    - ONNX Runtime.
 
 **Auto** (Settings → Models → Runs on) puts each model on the quickest backend the Benchmark measured that also got
-its check questions right. "Quickest" is the time for a typical turn: 400 prompt tokens read, 150 written, plus half
-of LiteRT-LM's engine start, since a new conversation needs a new engine (below). Auto leaves the CPU only for a
-backend that is at least 10% quicker. The owner can also pick one backend by hand. If a backend won't load, that is
-recorded, and the model runs on llama.cpp's CPU until the choice changes or the app restarts. While the Benchmark
+its check questions right. "Quickest" is the time for a typical turn: 400 prompt tokens read, 150 written, plus
+LiteRT-LM's engine start in half the turns (all of them with thinking on), since a new conversation, or an answer
+that hit its length limit, needs a new engine (below). Auto leaves the CPU only for a
+backend that is at least 10% quicker. The owner can also pick one backend by hand. If a backend won't load, Auto marks
+it as not working until the next Benchmark and picks again; a manual pick runs that load on llama.cpp's CPU and
+tries its backend again at the next load. While the Benchmark
 runs, chat, Talk and pictures wait, so they neither disturb its numbers nor load a second copy of a model.
 
 ## The options
@@ -77,11 +79,15 @@ How to read the labels:
     ([#3165](https://github.com/google-ai-edge/LiteRT-LM/issues/3165), still open). Inkling keeps one session while
     each prompt extends the last, and starts a fresh engine for any other prompt. The emulator test below shows a new
     conversation gives the same answer as on a freshly loaded model.
-  - **Context is the file's 4,096 tokens.** The chat trims history to that. LiteRT-LM has no tokenizer call, so
+  - **Context is the file's 4,096 tokens**, half of llama.cpp's default, so a chat on LiteRT-LM remembers fewer turns.
+    Runs on says so when chat is there. The chat trims history to that. LiteRT-LM has no tokenizer call, so
     tokens are estimated: a digit counts as one token and other text as one token per 3 bytes, which errs on the high
     side.
   - **Stray `</think>` with thinking off.** The int4 file sometimes writes `</think>` mid-answer with thinking off. So
     does the GGUF file on llama.cpp. The chat now keeps the answer after it.
+  - **A stop restarts the engine.** After a stop (by the user, or at the answer's length limit) LiteRT-LM leaves the
+    session cancelled, and the next prompt fails ("Prefill task finished in cancelled state", tried on the emulator).
+    So the next prompt starts a fresh engine; Auto counts that cost.
   - **Pictures and speech stay on llama.cpp.** Omni and VL run there, because Talk and the camera depend on
     llama.cpp's mtmd and Inkling's own speech code.
 
@@ -121,6 +127,8 @@ How to read the labels:
     [#11251](https://github.com/google-ai-edge/LiteRT/issues/11251)).
   - Compiling decoder LLMs often fails (LiteRT #8062 and others). There is no LFM build for it, and no published G5
     LLM speed.
+- **Shown (javap).** The LiteRT-LM 0.19.0 runtime in the app already has `Backend.NPU` and `Backend.GOOGLE_TENSOR`,
+  but they need a model compiled ahead of time for Tensor G5, and none exists for LFM3.
 - **Mine.** LFM3's hybrid of short convolutions and sliding-window attention has never been shown to compile for it.
   That makes it a research project, not a path for this app.
 
@@ -185,8 +193,9 @@ How to read the labels:
   GPU is offered only where `libOpenCL.so` loads.
 - **Auto.** It switched chat to LiteRT-LM CPU in a run where host load slowed llama.cpp (17 against 26 tok/s). It
   switched back to llama.cpp in the next run (39 against 25).
-- **Vulkan.** The emulator's SwiftShader Vulkan device is seen once llama.cpp is allowed to use a CPU-type device. It
-  then refuses the model (no 16-bit storage), and the fallback works.
+- **Vulkan.** With a temporary test change that let llama.cpp use a CPU-type device (not shipped), the emulator's
+  SwiftShader Vulkan device was found, refused the model (no 16-bit storage), and the fallback to the CPU worked. As
+  shipped, the emulator shows no Vulkan GPU.
 
 **Only the phone can prove:**
 - LiteRT-LM GPU speed and correctness on the PowerVR GPU;

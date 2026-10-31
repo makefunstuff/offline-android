@@ -88,6 +88,8 @@ class PromptAndOutputTest {
         // A tool call written before a stray tag is kept.
         assertEquals(1, ModelOutput.parse("<tool_call>\n<function=f>\n</function>\n</tool_call></think>", thinkingOn = false).toolCalls.size)
         assertEquals("Tokyo", ModelOutput.parse("Tokyo</think>Tokyo", thinkingOn = false).answer)
+        // A whole answer followed by a stray tag keeps the answer.
+        assertEquals("Paris is the capital.", ModelOutput.parse("Paris is the capital.</think>", thinkingOn = false).answer)
         // A normal answer is untouched.
         assertEquals("Paris.", ModelOutput.parse("Paris.", thinkingOn = false).answer)
     }

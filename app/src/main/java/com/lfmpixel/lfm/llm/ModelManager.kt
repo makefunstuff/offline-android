@@ -89,7 +89,10 @@ class ModelManager(
     }
 
     /** Where [slot]'s model runs now: the owner's pick, or for Auto the backend the benchmark found quickest for it. */
-    suspend fun backendFor(slot: Slot): Backend = Backends.pick(settings.now().backend, available(slot), speeds(slot))
+    suspend fun backendFor(slot: Slot): Backend = settings.now().let { p ->
+        Backends.pick(p.backend, available(slot), speeds(slot),
+            if (p.thinking) BackendSpeed.FRESH_SHARE_THINKING else BackendSpeed.FRESH_SHARE)
+    }
 
     /** The file a backend measures under: the .litertlm for LiteRT-LM, else the slot's GGUF. */
     private suspend fun fileFor(slot: Slot, backend: Backend): String? =
@@ -118,7 +121,6 @@ class ModelManager(
         }
     }
 
-    /** The chat model on its backend: LiteRT-LM's file when a LiteRT backend is chosen, else the GGUF in llama.cpp. */
     /**
      * What each loaded slot was asked for (file, backend). A session that fell back to the CPU still answers that
      * request, so it is kept rather than tried again on every call.
@@ -132,6 +134,7 @@ class ModelManager(
         if (benchmarking) throw LlmException("The benchmark in Settings → Models is running; try again when it ends.")
     }
 
+    /** The chat model on its backend: LiteRT-LM's file when a LiteRT backend is chosen, else the GGUF in llama.cpp. */
     suspend fun textSession(): TextSession = lock.withLock {
         notWhileBenchmarking()
         touch()
@@ -147,17 +150,26 @@ class ModelManager(
         _status.value = _status.value.copy(text = LoadState.Loading, error = null, textFile = (lite ?: m).file.name)
         val p = settings.now()
         try {
+            var tryNext: Backend = backend
+            var key = path to backend
             val s: TextSession = withContext(NonCancellable) {
-                if (lite != null) {
-                    try { return@withContext LiteRtSession.open(lite.file.path, backend, liteRtCache.path) } catch (_: LlmException) {
-                        markFailed(Slot.Text, backend)
-                        _status.value = _status.value.copy(textFile = m.file.name)
+                // A LiteRT backend that won't load is marked not ok. Auto then picks again (the other LiteRT backend,
+                // Vulkan or the CPU); a manual pick goes to llama.cpp's CPU for this load.
+                repeat(2) {
+                    val liteFile = store.liteRt()?.takeIf { tryNext.liteRt } ?: return@repeat
+                    try { return@withContext LiteRtSession.open(liteFile.file.path, tryNext, liteRtCache.path) } catch (_: LlmException) {
+                        markFailed(Slot.Text, tryNext)
+                        tryNext = if (p.backend == BackendChoice.Auto) backendFor(Slot.Text) else Backend.Cpu
+                        val next = if (tryNext.liteRt) liteFile.file.path else m.file.path
+                        // What the next textSession() call will ask for, so it keeps this session rather than retry.
+                        key = (if (p.backend == BackendChoice.Auto) next else path) to (if (p.backend == BackendChoice.Auto) tryNext else backend)
+                        _status.value = _status.value.copy(textFile = (if (tryNext.liteRt) liteFile else m).file.name)
                     }
                 }
-                open(Slot.Text, m.file.path, p.contextTokens, if (backend.liteRt) Backend.Cpu else backend)
+                open(Slot.Text, m.file.path, p.contextTokens, if (tryNext.liteRt) Backend.Cpu else tryNext)
             }
             text = s
-            asked[Slot.Text] = path to backend
+            asked[Slot.Text] = key
             _status.value = _status.value.copy(text = LoadState.Ready, backends = _status.value.backends + (Slot.Text to s.backend))
             s
         } catch (e: Exception) {
@@ -235,7 +247,8 @@ class ModelManager(
      * slots (that slot is unloaded first; while [benchmarking], no slot loads). The caller closes it. Throws if
      * [backend] won't load it.
      */
-    suspend fun benchSession(slot: Slot, backend: Backend): TextSession = lock.withLock {
+    suspend fun benchSession(slot: Slot, backend: Backend, fromBenchmark: Boolean = false): TextSession = lock.withLock {
+        if (!fromBenchmark) notWhileBenchmarking()
         val m = (if (backend.liteRt) store.liteRt() else file(slot)) ?: throw LlmException("${slot.label} is not on this phone")
         when (slot) {
             Slot.Text -> { text?.close(); text = null; _status.value = _status.value.copy(text = LoadState.None, textFile = null) }

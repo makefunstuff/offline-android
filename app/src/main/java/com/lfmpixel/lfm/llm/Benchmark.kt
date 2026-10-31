@@ -104,7 +104,7 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
     private suspend fun measure(slot: Slot, backend: Backend, nPrompt: Int, nGen: Int, sweep: MutableList<BenchRun>?): BackendResult {
         val name = "${slot.label} on ${backend.short}"
         _state.value = State.Running("Loading $name…")
-        val s = try { engine.benchSession(slot, backend) } catch (e: Exception) {
+        val s = try { engine.benchSession(slot, backend, fromBenchmark = true) } catch (e: Exception) {
             return BackendResult(slot, backend, null, false, emptyList(), e.message ?: "did not load")
         }
         try {
@@ -136,9 +136,11 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
         val sweep = mutableListOf<BenchRun>()
         // Chat, Talk and pictures wait: they would close the model being measured, or load a second copy beside it,
         // and their work would slow the numbers Auto goes by.
-        engine.unloadAll()
         engine.benchmarking = true
-        try { measureAll(results, sweep) } finally { engine.benchmarking = false }
+        try {
+            engine.unloadAll()
+            measureAll(results, sweep)
+        } finally { engine.benchmarking = false }
         return report(model, gpu, results, sweep)
     }
 

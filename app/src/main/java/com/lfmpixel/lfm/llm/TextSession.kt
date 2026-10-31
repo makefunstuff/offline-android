@@ -143,20 +143,16 @@ class LiteRtSession private constructor(override val path: String, override val 
 
         /**
          * About how many tokens [text] is, erring high: LiteRT-LM has no tokenizer call. LFM3's makes about one token
-         * of 4 bytes of English; digits are counted a token each, as in dates, times and tool results they may split.
+         * of 4.4 bytes of English; here 3.5, and digits a token each, as in dates, times and tool results they may split.
          */
         fun estimateTokens(text: String): Int {
             val digits = text.count { it.isDigit() }
-            return digits + (text.toByteArray().size - digits) / 3 + 1
+            return digits + ((text.toByteArray().size - digits) / 3.5).toInt() + 1
         }
     }
 
     override suspend fun countTokens(text: String): Int = estimateTokens(text)
 
-    /**
-     * Reads in the token every chat prompt starts with, so a GPU that can't run the model (no OpenCL) fails here, at
-     * load, where ModelManager falls back to llama.cpp, and not in the middle of an answer.
-     */
     /** Lets the session and engine go; neither close may throw past here, so an unload always completes. */
     private fun closeEngine() {
         runCatching { session?.close() }
@@ -165,6 +161,10 @@ class LiteRtSession private constructor(override val path: String, override val 
         engine = null
     }
 
+    /**
+     * Reads in the token every chat prompt starts with, so a GPU that can't run the model (no OpenCL) fails here, at
+     * load, where ModelManager falls back to llama.cpp, and not in the middle of an answer.
+     */
     private fun probe() {
         try {
             val s = sessionFor(PromptFormat.IM_START, CHAT_SAMPLER).first
@@ -227,7 +227,8 @@ class LiteRtSession private constructor(override val path: String, override val 
             val err = withContext(kotlinx.coroutines.NonCancellable) { done.await() }
             val end = System.nanoTime()
             consumed.append(input).append(out)
-            // Stopped at maxTokens, the last token was sampled but not read back in: start over next time to be safe.
+            // Stopped at maxTokens: LiteRT-LM leaves a cancelled session that fails on the next prompt ("Prefill task
+            // finished in cancelled state", seen on the emulator), so the next prompt starts over.
             if (n >= maxTokens) dirty = true
             val firstMs = if (firstAt > 0) (firstAt - started) / 1e6 else 0.0
             // Like llama.cpp, decodeTokens counts every token written (the Assistant compares it with its budget). The

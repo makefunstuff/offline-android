@@ -29,13 +29,18 @@ data class BackendSpeed(val genTps: Double, val promptTps: Double, val ok: Boole
      * Seconds for a typical chat turn: [TURN_PROMPT] new prompt tokens read in, [TURN_GEN] written, and a restart in
      * [FRESH_SHARE] of turns (a new chat, a trimmed history, a document, an answer that hit its length). Lower is better.
      */
-    val turnSeconds get() = if (!ok || genTps <= 0 || promptTps <= 0) Double.MAX_VALUE
-        else TURN_PROMPT / promptTps + TURN_GEN / genTps + FRESH_SHARE * restartSeconds
+    val turnSeconds get() = turnSeconds(FRESH_SHARE)
+
+    /** The same with a restart in [freshShare] of turns: with thinking on, most answers use up the thinking budget. */
+    fun turnSeconds(freshShare: Double) = if (!ok || genTps <= 0 || promptTps <= 0) Double.MAX_VALUE
+        else TURN_PROMPT / promptTps + TURN_GEN / genTps + freshShare * restartSeconds
 
     companion object {
         const val TURN_PROMPT = 400.0
         const val TURN_GEN = 150.0
         const val FRESH_SHARE = 0.5
+        /** With thinking on, an answer that uses up the thinking budget is continued, and on LiteRT-LM that restarts. */
+        const val FRESH_SHARE_THINKING = 1.0
     }
 }
 
@@ -46,12 +51,13 @@ object Backends {
      * typical turn, but leaves the CPU only for one that answered right and was at least [MARGIN] quicker; anything
      * unmeasured stays on the CPU, which works everywhere.
      */
-    fun pick(choice: BackendChoice, available: Set<Backend>, speeds: Map<Backend, BackendSpeed>): Backend {
+    fun pick(choice: BackendChoice, available: Set<Backend>, speeds: Map<Backend, BackendSpeed>,
+             freshShare: Double = BackendSpeed.FRESH_SHARE): Backend {
         choice.backend?.let { return if (it in available) it else Backend.Cpu }
-        val cpu = speeds[Backend.Cpu]?.turnSeconds ?: return Backend.Cpu
-        val best = speeds.filter { (b, s) -> b in available && b != Backend.Cpu && s.ok }.minByOrNull { it.value.turnSeconds }
+        val cpu = speeds[Backend.Cpu]?.turnSeconds(freshShare) ?: return Backend.Cpu
+        val best = speeds.filter { (b, s) -> b in available && b != Backend.Cpu && s.ok }.minByOrNull { it.value.turnSeconds(freshShare) }
             ?: return Backend.Cpu
-        return if (best.value.turnSeconds * MARGIN <= cpu) best.key else Backend.Cpu
+        return if (best.value.turnSeconds(freshShare) * MARGIN <= cpu) best.key else Backend.Cpu
     }
 
     /** Another backend must be this much quicker for Auto to move a model off the CPU. */

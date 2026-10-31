@@ -548,6 +548,9 @@ private fun BackendSection(g: AppGraph) {
     Txt((if (p.backend == BackendChoice.Auto) "Auto puts each model on the quickest backend the benchmark found that answered right; until then, the CPU. "
         else "Every model runs on ${p.backend.label} where it can; the rest on the CPU. ") +
         (if (now.isNotEmpty()) "Now: $now. " else "") +
+        // LiteRT-LM's file holds 4,096 tokens: a chat there remembers fewer turns than on llama.cpp.
+        (if ((status.backends[Slot.Text] ?: chosen[Slot.Text])?.liteRt == true)
+            "On LiteRT-LM chat remembers about half as much (4,096 tokens, against ${p.contextTokens} on llama.cpp). " else "") +
         when {
             gpu == null -> ""
             gpu!!.isEmpty() -> "No Vulkan GPU found."
