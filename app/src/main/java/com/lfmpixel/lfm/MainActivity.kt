@@ -380,7 +380,10 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter))
             }
             VoicePanel(g) { g.voice.stop() }
-            if ((nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) && !WindowInsets.isImeVisible) BottomBar(nav)
+            if (nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) {
+                androidx.compose.animation.AnimatedVisibility(!WindowInsets.isImeVisible, enter = LfmMotion.appear() + androidx.compose.animation.expandVertically(LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate)),
+                    exit = LfmMotion.leave()) { BottomBar(nav) }
+            }
         }
         if (appLocked) Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) { LockScreen(g) }
     }

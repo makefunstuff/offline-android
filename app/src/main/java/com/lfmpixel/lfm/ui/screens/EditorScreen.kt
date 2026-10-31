@@ -375,12 +375,12 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
             exit = fadeOut(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate)) + shrinkVertically(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate))) {
             Column {
                 Divider()
-                Row(Modifier.fillMaxWidth().height(44.dp).padding(start = 16.dp, end = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().height(48.dp).padding(start = 16.dp, end = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     val words by remember { derivedStateOf { wordCount(draft.text.text) } }
                     Txt(if (words == 1) "1 word" else "$words words", LfmType.meta, c.text2, Modifier.weight(1f))
-                    Txt("Done", LfmType.button, c.text, Modifier.clip(RoundedCornerShape(6.dp))
+                    Box(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(6.dp))
                         .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Hide the keyboard") { keyboard?.hide() }
-                        .padding(horizontal = 12.dp, vertical = 10.dp))
+                        .padding(horizontal = 12.dp), contentAlignment = androidx.compose.ui.Alignment.Center) { Txt("Done", LfmType.button, c.text) }
                 }
             }
         }

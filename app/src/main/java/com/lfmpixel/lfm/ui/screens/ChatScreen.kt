@@ -71,6 +71,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.composed
+import androidx.compose.foundation.layout.heightIn
 import com.lfmpixel.lfm.llm.LoadState
 import com.lfmpixel.lfm.ui.components.Btn
 import androidx.compose.ui.graphics.graphicsLayer
@@ -101,6 +103,10 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     var editing by remember { mutableStateOf<Long?>(null) }
     var modelSheet by remember { mutableStateOf(false) }
     val list = rememberLazyListState()
+    val keeper = remember { PlaceKeeper() }
+    LaunchedEffect(list) {
+        snapshotFlow { keeper.pending }.collect { owed -> if (owed != 0f) { keeper.pending = 0f; list.dispatchRawDelta(owed) } }
+    }
     val scope = rememberCoroutineScope()
     val reduced = LfmMotion.reduced()
     // New lines appear at once (a streamed answer is already on screen); moves and removals animate.
@@ -113,21 +119,22 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     // Thoughts opened by hand stay open, per answer, also after leaving the chat. The one being written is LIVE_THOUGHT
     // until its answer is saved, then it carries over to that answer.
     val thoughtsOpen = rememberSaveable(saver = openSaver) { androidx.compose.runtime.mutableStateMapOf<Long, Boolean>() }
-    // A whole answer (Streaming.done, then with its savedId) reaches this list from the database a moment after the
+    // A whole answer (Streaming.done, then its row in lastSaved) reaches this list from the database a moment after the
     // stream ends. Until its row is here, the streamed one stays on screen as it was, so it never blinks out and back
     // in, nor shows twice; its thought's open or folded state goes with it. A stopped or failed answer was never
     // whole: it goes at once.
     var finishing by remember { mutableStateOf<Finishing?>(null) }
+    val lastSaved by g.assistant.lastSaved.collectAsState()
     LaunchedEffect(Unit) {
         snapshotFlow { streamingState.value }.collect { s ->
             when {
-                s?.done == true -> finishing = Finishing(s, finishing?.takeIf { it.stream.copy(savedId = null) == s.copy(savedId = null) }?.open
-                    ?: (thoughtsOpen.remove(LIVE_THOUGHT) == true))
+                s?.done == true && finishing?.stream != s ->
+                    finishing = Finishing(s, thoughtsOpen.remove(LIVE_THOUGHT) == true, before = g.assistant.lastSaved.value)
                 s == null -> thoughtsOpen.remove(LIVE_THOUGHT)
             }
         }
     }
-    val saved = finishing?.stream?.savedId?.let { id -> visible.firstOrNull { it.id == id } }
+    val saved = finishing?.let { f -> lastSaved?.takeIf { it != f.before }?.let { id -> visible.firstOrNull { it.id == id } } }
     LaunchedEffect(saved?.id, finishing) {
         val f = finishing ?: return@LaunchedEffect
         if (saved != null) { if (f.open) thoughtsOpen[saved.id] = true; finishing = null }
@@ -202,6 +209,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
                 IconButtonPlain("wave", { nav.go(Route.Talk) }, desc = "Talk")
                 IconButtonPlain("plus", {
+                    finishing = null
                     g.assistant.newChat()
                     if (queued.isNotEmpty()) nav.show("New chat. ${queued.size} queued ${if (queued.size == 1) "message moves" else "messages move"} with you.")
                 }, desc = "New chat")
@@ -220,22 +228,13 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 query?.let { q -> item(key = "query") { QueryCard(q) } }
                 if (stream != null) {
                     item(key = "streaming") {
-                        // Bottom up, a growing answer grows upward. While the owner reads further up (not following),
-                        // the list moves by as much, so the line they read stays put.
-                        var height by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
                         val s = stream
                         val loading = status.text == LoadState.Loading && s.text.isEmpty() && s.thought.isEmpty()
                         val thinks = !loading && s.note.isEmpty() && (s.thinking || s.thought.isNotEmpty())
                         val text = if (s.done) s.text else s.text.take(shown.intValue).let { t -> if (t.lastOrNull()?.isHighSurrogate() == true) t.dropLast(1) else t }
                         val f = finishing
-                        val open = if (s.done && f != null && f.stream.copy(savedId = null) == s.copy(savedId = null)) f.open else thoughtsOpen[LIVE_THOUGHT] == true
-                        Column(Modifier.onSizeChanged { size ->
-                            val grew = if (height < 0) 0 else size.height - height
-                            height = size.height
-                            val at = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "streaming" }?.index
-                            if (grew != 0 && !follow && at != null && list.firstVisibleItemIndex <= at &&
-                                (list.firstVisibleItemIndex < at || list.firstVisibleItemScrollOffset > 0)) list.dispatchRawDelta(grew.toFloat())
-                        }) {
+                        val open = if (s.done && f?.stream == s) f.open else thoughtsOpen[LIVE_THOUGHT] == true
+                        Column(Modifier.keepPlace(list, keeper, "streaming") { !follow }) {
                             if (thinks) ThoughtBlock(s.thought, s.thoughtMs, live = !s.done && s.thinking, since = s.thinkingSince, open = open) {
                                 if (s.done && f != null) finishing = f.copy(open = !f.open) else thoughtsOpen[LIVE_THOUGHT] = !open
                             }
@@ -247,7 +246,8 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
                 items(visible.asReversed(), key = { it.id }) { m ->
                     // Your messages, cards and notices fade in; a finished answer takes the streamed one's place as it is.
-                    Box(Modifier.animateItem(fadeInSpec = if (m.role == Role.Assistant) null else itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
+                    Box(Modifier.animateItem(fadeInSpec = if (m.role == Role.Assistant) null else itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)
+                        .keepPlace(list, keeper, m.id) { true }) { when (m.role) {
                         Role.User -> UserBubble(m)
                         Role.Assistant -> {
                             val thought = remember(m.raw) { com.lfmpixel.lfm.llm.ModelOutput.thoughtOf(m.raw) }
@@ -345,8 +345,33 @@ private fun TypingDots() {
     }
 }
 
-/** A whole answer on its way to the database, and whether its thought is open. */
-private data class Finishing(val stream: com.lfmpixel.lfm.assistant.Streaming, val open: Boolean)
+/** A whole answer on its way to the database, whether its thought is open, and the saved row before it. */
+private data class Finishing(val stream: com.lfmpixel.lfm.assistant.Streaming, val open: Boolean, val before: Long?)
+
+/**
+ * Bottom up, a row that grows (an answer being written, a thought opened) grows upward and pushes what is above it
+ * off the top. Unless it is the newest row resting on the composer, the list moves by as much, so what the owner is
+ * reading stays put and the row opens downward, as a page would. [when] says whether to (the answer being written:
+ * only while the owner reads further up).
+ */
+private fun Modifier.keepPlace(list: androidx.compose.foundation.lazy.LazyListState, keeper: PlaceKeeper, key: Any, `when`: () -> Boolean) = composed {
+    var height by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    onSizeChanged { size ->
+        val grew = if (height < 0) 0 else size.height - height
+        height = size.height
+        if (grew == 0 || !`when`()) return@onSizeChanged
+        val at = list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }?.index ?: return@onSizeChanged
+        if (list.firstVisibleItemIndex < at || (list.firstVisibleItemIndex == at && list.firstVisibleItemScrollOffset > 0)) keeper.pending += grew
+    }
+}
+
+/**
+ * What [keepPlace] owes the list. It is measured inside the list's own layout, where scrolling would lay it out again
+ * mid-pass (a crash) and a requested position is overwritten by that pass, so it is paid right after it.
+ */
+private class PlaceKeeper {
+    var pending by androidx.compose.runtime.mutableFloatStateOf(0f)
+}
 
 /** The key of the thought being written, in the chat's map of opened thoughts. */
 private const val LIVE_THOUGHT = -1L
@@ -367,7 +392,7 @@ private fun ThoughtBlock(thought: String, ms: Long, live: Boolean, since: Long, 
     val c = Lfm.c
     val turn by animateFloatAsState(if (open) 90f else 0f, LfmMotion.spec(LfmMotion.MEDIUM), label = "chevron")
     Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.clip(RoundedCornerShape(6.dp))
+        Row(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(6.dp))
             .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = if (open) "Hide thinking" else "Show thinking", onClick = onToggle)
             .padding(start = 2.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)
             .semantics(mergeDescendants = true) { if (live) liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },

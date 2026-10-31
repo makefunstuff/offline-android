@@ -51,10 +51,10 @@ import java.util.Locale
 /**
  * The answer being written right now. [thought] is what it thought so far; [thinkingSince] (elapsed realtime) is when
  * it began to, 0 before its first word; [thoughtMs] is how long it thought, once done. [done]: the answer is whole and
- * being saved as it is (a stopped or failed one never is); [savedId] is its row once written.
+ * being saved as it is (a stopped or failed one never is); its row then shows in [Assistant.lastSaved].
  */
 data class Streaming(val text: String, val thinking: Boolean, val note: String = "", val thought: String = "",
-                     val thinkingSince: Long = 0, val thoughtMs: Long = 0, val done: Boolean = false, val savedId: Long? = null)
+                     val thinkingSince: Long = 0, val thoughtMs: Long = 0, val done: Boolean = false)
 
 /** A message waiting its turn in the chat. [see] is set for a camera question (those are not kept on disk). */
 data class Queued(val id: Long, val text: String, val voiceSeconds: Int = 0, val source: String = "typed", val see: SeeRequest? = null)
@@ -136,6 +136,8 @@ class Assistant(
         .stateIn(scope, kotlinx.coroutines.flow.SharingStarted.Eagerly, null)
 
     val streaming = MutableStateFlow<Streaming?>(null)
+    /** The row of the last whole answer saved from [streaming]. */
+    val lastSaved = MutableStateFlow<Long?>(null)
     /** A turn is running or messages are waiting. */
     val busy = MutableStateFlow(false)
     /** A turn is running right now: what Stop ends. */
@@ -491,8 +493,8 @@ class Assistant(
      */
     private suspend fun saveShown(shown: Streaming, m: ChatMessage) {
         streaming.value = shown.copy(done = true)
-        val id = db.messages().insert(m)
-        streaming.value = shown.copy(done = true, savedId = id)
+        // Its own flow: the stream is cleared right after, and a StateFlow reader may only ever see that.
+        lastSaved.value = db.messages().insert(m)
     }
 
     /** Previews, confirms if needed, runs and logs one call. */
