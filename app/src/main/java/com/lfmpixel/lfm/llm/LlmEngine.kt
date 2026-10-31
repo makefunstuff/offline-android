@@ -37,7 +37,9 @@ object LlamaNative {
 
     external fun backendInit(nativeLibDir: String)
     external fun systemInfo(): String
-    external fun load(path: String, nCtx: Int, nThreads: Int): Long
+    /** Cores that are not little (Tensor G5: 6 of 8); threads go only there. */
+    external fun fastCores(): Int
+    external fun load(path: String, nCtx: Int, nThreads: Int, nThreadsBatch: Int): Long
     /** What the projector takes in: [PROJ_AUDIO], [PROJ_VISION] bits, or -1 if it did not load. */
     external fun loadProjector(handle: Long, path: String): Int
     external fun free(handle: Long)
@@ -48,9 +50,37 @@ object LlamaNative {
     /** Stops any picture being read in (between pictures). */
     external fun cancelPictures()
     external fun lastStats(handle: Long): DoubleArray
+    /** See [LlamaSession.bench]; empty on failure. */
+    external fun bench(handle: Long, nPrompt: Int, nGen: Int, nThreads: Int, nThreadsBatch: Int): DoubleArray
+    /** How the session runs, one "key: value" a line. */
+    external fun runInfo(handle: Long): String
 }
 
-data class GenStats(val prefillMs: Double, val prefillTokens: Int, val decodeMs: Double, val decodeTokens: Int, val reusedTokens: Int) {
+/** Thread counts for one session: [gen] while writing (bound by memory), [batch] while reading a prompt in. */
+data class Threads(val gen: Int, val batch: Int) {
+    companion object {
+        /**
+         * [setting] 0 is Auto: one thread fewer than the cores that are not little while writing, so the screen and
+         * the system keep a core and no thread waits on another, and all of them while reading the prompt in.
+         */
+        fun pick(setting: Int, fastCores: Int): Threads {
+            val fast = fastCores.coerceAtLeast(1)
+            // A picked count is for writing; prompts still read on every fast core, which is what makes the first token quick.
+            if (setting > 0) return Threads(setting, maxOf(setting, fast))
+            return Threads((fast - 1).coerceIn(2, 6).coerceAtMost(fast), fast)
+        }
+    }
+}
+
+/** One benchmark run, from [LlamaSession.bench]. */
+data class BenchRun(val promptMs: Double, val promptTokens: Int, val firstTokenMs: Double, val genMs: Double, val genTokens: Int,
+                    val samplerMs: Double, val threads: Int, val batchThreads: Int) {
+    val promptTps get() = if (promptMs > 0) promptTokens * 1000.0 / promptMs else 0.0
+    val genTps get() = if (genMs > 0) genTokens * 1000.0 / genMs else 0.0
+}
+
+data class GenStats(val prefillMs: Double, val prefillTokens: Int, val decodeMs: Double, val decodeTokens: Int, val reusedTokens: Int,
+                    val firstTokenMs: Double = 0.0) {
     val decodeTps get() = if (decodeMs > 0) decodeTokens * 1000.0 / decodeMs else 0.0
     val prefillTps get() = if (prefillMs > 0) prefillTokens * 1000.0 / prefillMs else 0.0
 }
@@ -61,7 +91,8 @@ class RgbImage(val width: Int, val height: Int, val rgb: ByteArray)
 class LlmException(message: String) : Exception(message)
 
 /** A loaded model in llama.cpp. All calls run on one thread, one at a time. */
-class LlamaSession private constructor(private val handle: Long, val path: String, private val dispatcher: CoroutineDispatcher) {
+class LlamaSession private constructor(private val handle: Long, val path: String, private val dispatcher: CoroutineDispatcher,
+                                       val threads: Threads) {
     private val mutex = Mutex()
     private var closed = false
 
@@ -69,11 +100,13 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
         private val thread = Executors.newSingleThreadExecutor { r -> Thread(r, "llama").apply { priority = Thread.MAX_PRIORITY } }
             .asCoroutineDispatcher()
 
-        suspend fun open(nativeLibDir: String, path: String, nCtx: Int, nThreads: Int): LlamaSession = withContext(thread) {
+        /** [threadSetting]: the Settings value, 0 for Auto (see [Threads.pick]). */
+        suspend fun open(nativeLibDir: String, path: String, nCtx: Int, threadSetting: Int): LlamaSession = withContext(thread) {
             LlamaNative.ensureLoaded(nativeLibDir)
-            val h = LlamaNative.load(path, nCtx, nThreads)
+            val t = Threads.pick(threadSetting, LlamaNative.fastCores())
+            val h = LlamaNative.load(path, nCtx, t.gen, t.batch)
             if (h == 0L) throw LlmException("Could not load ${path.substringAfterLast('/')}")
-            LlamaSession(h, path, thread)
+            LlamaSession(h, path, thread, t)
         }
     }
 
@@ -138,7 +171,19 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
         awaitClose { }
     }.buffer(Channel.UNLIMITED).flowOn(dispatcher)
 
-    private fun readStats() = LlamaNative.lastStats(handle).let { GenStats(it[0], it[1].toInt(), it[2], it[3].toInt(), it[4].toInt()) }
+    private fun readStats() = LlamaNative.lastStats(handle).let { GenStats(it[0], it[1].toInt(), it[2], it[3].toInt(), it[4].toInt(), it[5]) }
+
+    /**
+     * Reads in [nPrompt] tokens, then writes [nGen] with the chat's sampler and no callbacks. Thread counts of 0 keep
+     * the session's own. The context is left empty, so the next chat reads its prompt in again.
+     */
+    suspend fun bench(nPrompt: Int, nGen: Int, threads: Int = 0, batchThreads: Int = 0): BenchRun = native {
+        val v = LlamaNative.bench(handle, nPrompt, nGen, threads, batchThreads)
+        if (v.size < 8) throw LlmException("The benchmark could not run")
+        BenchRun(v[0], v[1].toInt(), v[2], v[3], v[4].toInt(), v[5], v[6].toInt(), v[7].toInt())
+    }
+
+    suspend fun runInfo(): String = native { LlamaNative.runInfo(handle) }
 
     /** Numbers from the last generate call, kept here so they stay readable after the session is freed. */
     fun stats(): GenStats = lastStats

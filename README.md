@@ -48,7 +48,24 @@ git submodule update --init --depth 1        # llama.cpp, pinned at b12015
 - `:net:checkDebugDependencies`: LFM Net's libraries are AndroidX, Kotlin and OkHttp only.
 
 The APK holds native code for `arm64-v8a` (the phone) and `x86_64` (the emulator). llama.cpp picks the best CPU
-variant at run time.
+variant at run time (on Tensor G5 that should be `android_armv9.0_1`: dotprod, i8mm, SVE2; the `armv9.2` ones need SME,
+which G5 lacks). Q4_0 weights are repacked for Arm (KleidiAI) when the model loads.
+
+### Speed
+
+- Threads stay off the little cores (found from `cpu_capacity`, else the top clock): llama.cpp splits each step evenly
+  and waits for the slowest thread, so one thread on a little core slows every token. Auto (the default) writes with
+  one thread fewer than the other cores (G5: 5 of 6) and reads prompts with all of them.
+- Settings → Models → Benchmark: prompt and generation tok/s, time to the first token, tok/s through the chat, sampler
+  cost, a sweep of thread counts (with "Use N threads" when another count is 5% faster), the CPU variant, backends and
+  llama.cpp's buffer types. Copy results puts it all on the clipboard. Debug builds also run it with
+  `adb shell am broadcast -p com.lfmpixel.lfm -a com.lfmpixel.lfm.DEBUG_BENCH` (logcat tag `lfm-bench`).
+- The chat redraws only the streaming answer, at most 20 times a second; each answer shows tok/s and the time to the
+  first token (Settings → Show speed).
+- No GPU: llama.cpp's Vulkan backend is untested on the G5's PowerVR GPU and needs the phone to try; CPU stays the
+  only backend for now.
+- The emulator's default CPU model hides AVX2, so llama.cpp falls back to `ivybridge` with no repacking there. Start it
+  with `-qemu -cpu host` to measure.
 
 ## Install on the phone
 
@@ -180,7 +197,8 @@ Tested in an Android 16 emulator (x86_64, Pixel 10 Pro profile, software renderi
 
 Still needs the Pixel (spec Phase 0, Phase 4 and Phase 5):
 
-- Speed, memory, heat and battery for the 1.7B model and Omni on the Tensor G5 (arm64 build, KleidiAI, 6 threads).
+- Speed, memory, heat and battery for the 1.7B model and Omni on the Tensor G5 (arm64 build, KleidiAI, Auto threads):
+  run Settings → Models → Benchmark and Copy results.
 - Voice with the real microphone and a real voice; transcription quality outside English.
 - Tool-call accuracy on the owner's own phrasing (a 50-command test set); thinking on vs off. How often the model
   searches when it should, and how often it cites its sources (it did in some emulator runs, not all).

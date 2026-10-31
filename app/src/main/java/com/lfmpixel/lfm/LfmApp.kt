@@ -46,6 +46,7 @@ class AppGraph(context: Context) {
     val assistant = Assistant(context, db, engine, settings, tools, reminders, calendar, controls, launcher, scope, web)
     val voice = VoiceRecorder(OmniTranscriber(engine))
     val prep = MediaPrep(context)
+    val bench = com.lfmpixel.lfm.llm.Benchmark(engine, models, settings, scope)
 }
 
 class LfmApp : Application() {

@@ -20,7 +20,8 @@ data class Prefs(
     val thinking: Boolean = false,
     val searchMode: SearchMode = SearchMode.AskFirst,
     val warnPersonalWords: Boolean = true,
-    val threads: Int = 6,
+    /** 0 is Auto: see [com.lfmpixel.lfm.llm.Threads.pick]. */
+    val threads: Int = 0,
     val contextTokens: Int = 8192,
     /** Minutes idle before models are unloaded; 0 keeps them loaded. */
     val unloadAfterMinutes: Int = 5,
@@ -30,6 +31,8 @@ data class Prefs(
     val netEnabled: Boolean = true,
     val snippetsOnly: Boolean = false,
     val downloadWifiOnly: Boolean = true,
+    /** A small "28 tokens/s · first token 0.4 s" line under each answer. */
+    val showSpeed: Boolean = true,
 )
 
 private val Context.store by preferencesDataStore("settings")
@@ -40,7 +43,10 @@ class Settings(private val context: Context) {
         val thinking = booleanPreferencesKey("thinking")
         val search = stringPreferencesKey("search_mode")
         val warn = booleanPreferencesKey("warn_personal")
-        val threads = intPreferencesKey("threads")
+        // "threads" held 2, 4 or 6 from before Auto: a picked 2 or 4 is kept for writing; 6, the old default, becomes
+        // Auto, which keeps a core free for the screen.
+        val oldThreads = intPreferencesKey("threads")
+        val threads = intPreferencesKey("threads_v2")
         val ctx = intPreferencesKey("context_tokens")
         val unload = intPreferencesKey("unload_minutes")
         val policies = stringPreferencesKey("tool_policies") // "name=Ask;name2=Do"
@@ -48,6 +54,7 @@ class Settings(private val context: Context) {
         val snippets = booleanPreferencesKey("snippets_only")
         val wifiOnly = booleanPreferencesKey("download_wifi_only")
         val chatModel = stringPreferencesKey("chat_model")
+        val speed = booleanPreferencesKey("show_speed")
     }
 
     val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
@@ -59,7 +66,7 @@ class Settings(private val context: Context) {
         thinking = this[K.thinking] ?: false,
         searchMode = this[K.search]?.let { runCatching { SearchMode.valueOf(it) }.getOrNull() } ?: SearchMode.AskFirst,
         warnPersonalWords = this[K.warn] ?: true,
-        threads = this[K.threads] ?: defaultThreads(),
+        threads = this[K.threads] ?: this[K.oldThreads]?.takeIf { it in 1..5 } ?: 0,
         contextTokens = this[K.ctx] ?: 8192,
         unloadAfterMinutes = this[K.unload] ?: 5,
         toolPolicies = (this[K.policies] ?: "").split(';').mapNotNull { p ->
@@ -70,6 +77,7 @@ class Settings(private val context: Context) {
         snippetsOnly = this[K.snippets] ?: false,
         downloadWifiOnly = this[K.wifiOnly] ?: true,
         chatModel = this[K.chatModel] ?: "",
+        showSpeed = this[K.speed] ?: true,
     )
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
@@ -82,13 +90,9 @@ class Settings(private val context: Context) {
     suspend fun setSnippetsOnly(on: Boolean) = context.store.edit { it[K.snippets] = on }
     suspend fun setDownloadWifiOnly(on: Boolean) = context.store.edit { it[K.wifiOnly] = on }
     suspend fun setChatModel(fileName: String) = context.store.edit { it[K.chatModel] = fileName }
+    suspend fun setShowSpeed(on: Boolean) = context.store.edit { it[K.speed] = on }
     suspend fun setToolPolicy(tool: String, policy: ToolPolicy) = context.store.edit {
         val map = it.toPrefs().toolPolicies + (tool to policy)
         it[K.policies] = map.entries.joinToString(";") { (k, v) -> "$k=${v.name}" }
-    }
-
-    companion object {
-        /** Six threads on the Pixel's eight cores (spec section 7, battery and heat); fewer on smaller devices. */
-        fun defaultThreads() = (Runtime.getRuntime().availableProcessors() - 2).coerceIn(2, 6)
     }
 }

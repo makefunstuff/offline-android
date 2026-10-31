@@ -15,5 +15,9 @@
             android:permission="android.permission.DUMP">
             <intent-filter><action android:name="com.lfmpixel.lfm.DEBUG_SEED" /></intent-filter>
         </receiver>
+        <receiver android:name=".DebugBenchReceiver" android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter><action android:name="com.lfmpixel.lfm.DEBUG_BENCH" /></intent-filter>
+        </receiver>
     </application>
 </manifest>

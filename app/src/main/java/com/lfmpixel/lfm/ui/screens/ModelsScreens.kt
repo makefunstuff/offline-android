@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
+import com.lfmpixel.lfm.llm.Benchmark
 import com.lfmpixel.lfm.llm.CheckResult
 import com.lfmpixel.lfm.llm.InstalledModel
 import com.lfmpixel.lfm.llm.Slot
@@ -99,6 +100,7 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             Btn("Import a file", onImport, Modifier.padding(top = 14.dp).fillMaxWidth(), icon = "folder")
             Txt("Downloads come from Hugging Face with no login, through Inkling Net, and each file is checked against its pinned SHA-256 before it is used. " +
                 "Import works fully offline: copy the GGUF to the phone (adb push or USB), then pick it.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
+            BenchmarkSection(g)
             if (downloads.isEmpty()) g.engine.systemInfo().takeIf { it.isNotEmpty() }?.let {
                 SectionLabel("llama.cpp on this phone")
                 Txt(it.trim(), LfmType.meta, c.text2)
@@ -501,5 +503,66 @@ fun DeleteModelSheet(g: AppGraph, m: InstalledModel, onClose: () -> Unit) {
                 onClose()
             }, Modifier.weight(1f), BtnKind.Primary, icon = "trash")
         }
+    }
+}
+
+/** Settings → Models → Benchmark: speed of the text model on this phone, with Copy results to send the numbers on. */
+@Composable
+private fun BenchmarkSection(g: AppGraph) {
+    val c = Lfm.c
+    val state by g.bench.state.collectAsState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+    SectionLabel("Benchmark")
+    Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        when (val s = state) {
+            is Benchmark.State.Idle -> Txt("Measures how fast the chat model reads and writes on this phone. Takes about half a minute.",
+                LfmType.small, c.text2)
+            is Benchmark.State.Running -> Txt(s.step, LfmType.small, c.text2)
+            is Benchmark.State.Failed -> Txt(s.message, LfmType.small, c.text2)
+            is Benchmark.State.Done -> {
+                val r = s.report
+                fun f(v: Double) = "%.1f".format(java.util.Locale.ENGLISH, v)
+                BenchRow("Writing", "${f(r.main.genTps)} tokens/s")
+                BenchRow("Reading the prompt", "${f(r.main.promptTps)} tokens/s")
+                BenchRow("First token", "%.2f s for ${r.main.promptTokens} tokens".format(java.util.Locale.ENGLISH, r.main.firstTokenMs / 1000))
+                BenchRow("Through the chat", "${f(r.chatTps)} tokens/s")
+                BenchRow("Threads", "${r.main.threads} writing · ${r.main.batchThreads} reading")
+                BenchRow("CPU variant", r.info["cpu variant"].orEmpty())
+                BenchRow("Backend", r.info["backends"].orEmpty().substringBefore(" ("))
+                Txt(r.info["cores"].orEmpty(), LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
+                Txt("Threads tried (tokens/s): " + r.sweep.joinToString(" · ") { "${it.threads}: ${f(it.genTps)}" }, LfmType.meta, c.text2)
+                val setting = g.settings.prefs.collectAsState(null).value?.threads
+                // Not while the assistant writes: changing threads unloads the model.
+                val writing by g.assistant.busy.collectAsState()
+                r.better?.takeIf { it.threads != setting && !writing }?.let { b ->
+                    Btn("Use ${b.threads} threads (${f(b.genTps)} tokens/s)", {
+                        scope.launch { g.settings.setThreads(b.threads); g.engine.unloadAll() }
+                    }, Modifier.padding(top = 8.dp).fillMaxWidth(), small = true)
+                }
+            }
+        }
+        Row(Modifier.padding(top = 8.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Not while the assistant writes: both share the model, and the benchmark clears its memory.
+            val chatBusy by g.assistant.busy.collectAsState()
+            val running = state is Benchmark.State.Running || chatBusy
+            Btn(if (state is Benchmark.State.Done) "Run again" else "Run benchmark", { copied = false; g.bench.start() }, Modifier.weight(1f),
+                kind = BtnKind.Primary, enabled = !running && g.engine.hasText())
+            (state as? Benchmark.State.Done)?.let { d ->
+                Btn(if (copied) "Copied" else "Copy results", {
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(d.report.text())); copied = true
+                }, Modifier.weight(1f), icon = if (copied) "check" else null)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BenchRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Txt(label, LfmType.small, Lfm.c.text2, Modifier.weight(1f))
+        Txt(value, LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), maxLines = 1)
     }
 }
