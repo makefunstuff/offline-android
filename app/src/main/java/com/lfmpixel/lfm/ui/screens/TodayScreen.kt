@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -102,8 +103,13 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     var today by remember { mutableStateOf(LocalDate.now()) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); today = LocalDate.now() } }
     var shown by rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
-    // A page left open overnight, or a day picked after midnight: never past today.
+    // A page left open overnight, or a day picked after midnight: never past today. Today's page turns with midnight.
     if (shown > today.toEpochDay()) shown = today.toEpochDay()
+    var wasToday by remember { mutableLongStateOf(today.toEpochDay()) }
+    if (wasToday != today.toEpochDay()) { if (shown == wasToday) shown = today.toEpochDay(); wasToday = today.toEpochDay() }
+    // The Ink line's text and picked kind live here, so turning to another day and back keeps a half-written line.
+    val draft = rememberSaveable { mutableStateOf("") }
+    val picked = rememberSaveable { mutableStateOf<String?>(null) }
     val reduced = LfmMotion.reduced()
     val turn: (LocalDate) -> Unit = { d -> if (!d.isAfter(today)) shown = d.toEpochDay() }
     val turnNow by rememberUpdatedState(turn)
@@ -126,7 +132,7 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         }, label = "day") { day ->
             DayPage(g, nav, LocalDate.ofEpochDay(day), today, turn, toEnd)
         }
-        if (shown == today.toEpochDay()) InkLineBar(g, nav, today, onMic, listening) { toEnd++ }
+        if (shown == today.toEpochDay()) InkLineBar(g, nav, today, draft, picked, onMic, listening) { toEnd++ }
         else Column {
             Divider()
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.Center) {
@@ -169,7 +175,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
     val page = lines.filterNot(::timed)
     val shownLines = if (hideJournal) page.filter { it.kind != EntryKind.Journal } else page
     val lockedLines = page.size - shownLines.size
-    val next = if (isToday) timeline.firstOrNull { (it.at ?: 0) >= nowMs - 15 * 60_000 } else null
+    val next = if (isToday) timeline.indexOfFirst { (it.at ?: 0) >= nowMs - 15 * 60_000 } else -1
     val known = linesRead != null && remindersRead != null && eventsRead != null
 
     val list = rememberLazyListState()
@@ -232,7 +238,8 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
         }
         if (timeline.isNotEmpty()) {
             item(key = "tl-label") { PageLabel(if (isToday) "Today" else "That day") }
-            items(timeline, key = { "tl-" + it.at + it.title }) { TimelineRow(it, it == next, zone) }
+            // Two reminders can share a time and words: the place in the list keeps keys apart.
+            itemsIndexed(timeline, key = { i, it -> "tl-$i-${it.at}" }) { i, it -> TimelineRow(it, i == next, zone) }
         }
         if (carried.isNotEmpty()) item(key = "carried") { Carried(g, nav, carried, today, zone) }
         item(key = "page-label") { PageLabel("The page") }
@@ -384,11 +391,14 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
  * The Ink line (proposal 2): one line at the bottom of today's page. The glyph shows where the line goes as it is
  * typed, guessed on the phone; a tap on it picks another kind. Enter puts it on the page and keeps the keyboard up.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, onMic: () -> Unit, listening: Boolean, onFocus: () -> Unit) {
+private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: androidx.compose.runtime.MutableState<String>,
+                       pickedState: androidx.compose.runtime.MutableState<String?>, onMic: () -> Unit, listening: Boolean, onFocus: () -> Unit) {
     val c = Lfm.c
-    var draft by rememberSaveable { mutableStateOf("") }
-    var picked by rememberSaveable { mutableStateOf<String?>(null) }
+    var draft by draftState
+    var picked by pickedState
+    var kinds by remember { mutableStateOf(false) }
     // What the mic heard comes here, to be read (and its glyph seen) before it goes on the page.
     LaunchedEffect(nav.heard) { nav.heard?.let { draft = (draft.trimEnd() + " " + it).trim(); nav.heard = null } }
     val guess = remember(draft) { InkLine.guess(draft) }
@@ -397,7 +407,11 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, onMic: () -> Uni
         val line = draft.trim()
         if (line.isEmpty()) return
         draft = ""; picked = null
-        if (kind == InkKind.Ask) { g.assistant.send(InkLine.question(line), source = "today"); nav.go(Route.Chat); return }
+        if (kind == InkKind.Ask) {
+            // Without a model a question would be sorted into the notebook: it waits in the line instead.
+            if (!g.engine.hasText()) { draft = line; nav.show("Asking needs a chat model: Settings → Models"); return }
+            g.assistant.send(InkLine.question(line), source = "today"); nav.go(Route.Chat); return
+        }
         InkLine.call(line, kind, today)?.let { call ->
             g.assistant.runDirect(call, "typed") { r ->
                 if (!r.ok) { draft = line; nav.show(listOf(r.cardLabel, r.cardDetail).filter { it.isNotEmpty() }.joinToString(": ").ifEmpty { "Not added" }) }
@@ -414,14 +428,20 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, onMic: () -> Uni
                 InkKind.Ask -> "Ask Inkling · opens the chat"
                 else -> kind.label
             }
-            Txt("$detail  ·  tap the mark to change", LfmType.meta, c.text2, Modifier.padding(start = 16.dp, top = 6.dp))
+            Txt("$detail  ·  tap the mark to change, hold to pick", LfmType.meta, c.text2, Modifier.padding(start = 16.dp, top = 6.dp))
         }
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             val shape = RoundedCornerShape(6.dp)
-            Box(Modifier.size(48.dp).clip(shape).clickable(role = Role.Button, onClickLabel = "Change where it goes") {
+            Box(Modifier.size(48.dp).clip(shape).combinedClickable(role = Role.Button, onClickLabel = "Change where it goes",
+                    onLongClickLabel = "Pick where it goes", onLongClick = { kinds = true }) {
                     picked = InkLine.next(kind, guess.kind).name
                 }.semantics { contentDescription = "Goes to: ${kind.label}" }, contentAlignment = Alignment.Center) {
+                DropdownMenu(kinds, { kinds = false }) {
+                    InkLine.cycle(guess.kind).forEach { k ->
+                        DropdownMenuItem({ Txt(k.label) }, { kinds = false; picked = k.name }, leadingIcon = { LIcon(k.icon, size = 18.dp) })
+                    }
+                }
                 Box(Modifier.size(34.dp).clip(shape).background(c.fill).border(1.dp, c.line, shape), contentAlignment = Alignment.Center) {
                     AnimatedContent(kind, transitionSpec = {
                         androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(LfmMotion.SHORT)) togetherWith androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(LfmMotion.TINY))

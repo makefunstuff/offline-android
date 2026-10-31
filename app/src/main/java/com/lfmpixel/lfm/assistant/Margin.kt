@@ -47,8 +47,15 @@ object Margin {
     /** The answer so far, each time it grows; the model's raw output is cleaned of tags and stray markdown. */
     fun write(engine: ModelManager, note: String, ask: MarginAsk, question: String = ""): Flow<String> = flow {
         val session = engine.textSession()
+        // The cut by characters is a guess (CJK takes about a token a character): shorten until it fits in tokens.
+        var text = note
+        var p = prompt(text, ask, question)
+        while (text.length > 200 && session.countTokens(p) > session.contextTokens - MAX_TOKENS - 64) {
+            text = text.take(minOf(text.length, MAX_NOTE_CHARS) * 3 / 4)
+            p = prompt(text, ask, question)
+        }
         val raw = StringBuilder()
-        session.generate(prompt(note, ask, question), MAX_TOKENS, temp = 0.3f).collect { piece ->
+        session.generate(p, MAX_TOKENS, temp = 0.3f).collect { piece ->
             raw.append(piece)
             emit(clean(raw.toString()))
         }

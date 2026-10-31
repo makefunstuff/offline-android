@@ -135,7 +135,8 @@ gains the Reading filter), To-dos is renamed Plans. The app now reads as a noteb
 
 - **Header.** Date as the title ("Saturday 31", month small above), arrows ‹ › for the day before and after (› hidden
   on today), **Ask** (chat) and Settings buttons. Under it the seal line (6) and the brief.
-- **Timeline.** Today only: events, reminders and timed to-dos, slim rows (time · title), the next one marked.
+- **Timeline.** Events, reminders and timed to-dos of the day shown, slim rows (time · title); on today the next one
+  is marked.
 - **Carried over.** Today only, when not empty (4).
 - **The page.** Lines of the day, oldest first, so the page reads top to bottom like a journal; the newest is
   nearest the Ink line. A line belongs to a day when it was written that day, a to-do also when it is due or was
@@ -144,7 +145,7 @@ gains the Reading filter), To-dos is renamed Plans. The app now reads as a noteb
 - **Ink line.** Pinned at the bottom (today only; past days show "Back to today" there). Glyph button, text field,
   mic, send. While typing, a hint above it says where the line goes ("To-do · today", "Reminder · today 18:00"). The
   mic fills the line with what it heard, to be read before it goes on the page. A to-do written here is due today. Keyboard rules from ux-spec section 6; the page keeps the last line in view as lines are added.
-- **Day swipe.** Horizontal swipe past a third of the width turns the page; the new day slides in on the shared X
+- **Day swipe.** A horizontal swipe of 80 dp or more turns the page; the new day slides in on the shared X
   axis (ux-spec section 7, 300 ms). Days with nothing still open (a blank page).
 - **States.** No model: the Ink line still works (the sorter is rule-based); "?" lines go to Chat, which says how to
   get a model.
@@ -156,8 +157,10 @@ gains the Reading filter), To-dos is renamed Plans. The app now reads as a noteb
 
 ### Share target
 
-- `ACTION_SEND` with `text/plain` on the main activity. Title: the shared subject, else the first words. Body: the
-  quote; source line: subject and link if given. Kind Note, tag `reading`, source `share`. Locked app: saved after
+- `ACTION_SEND` with `text/plain` on a screenless `ShareActivity` in its own task: it saves the quote, then brings
+  Inkling's own task forward (no second Inkling inside the sharing app). Title: the quote's first words (the page shows
+  the whole quote). Body: the quote; source line: the subject and the link at the very end of the text, if given;
+  links inside the quote stay in it. Kind Note, tag `reading`, source `share`. Locked app: saved after
   unlock.
 
 ### Notebook (was Library)

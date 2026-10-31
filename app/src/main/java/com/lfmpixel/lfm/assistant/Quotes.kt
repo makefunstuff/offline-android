@@ -13,9 +13,11 @@ object Quotes {
     /** The quote for what was shared, or null when there is no text in it. */
     fun fromShare(text: String?, subject: String?, now: Long = System.currentTimeMillis()): Entry? {
         val raw = text?.trim().orEmpty()
-        val link = url.find(raw)?.value?.substringBefore("#:~:")
-        // Browsers send the selection in quotes with the page's address on the next line.
-        val quote = raw.replace(url, "").trim().trim('"', '“', '”').trim()
+        // Browsers send the selection in quotes with the page's address after it: only a link at the very end is the
+        // source; links inside the words stay part of the quote.
+        val last = url.findAll(raw).lastOrNull()?.takeIf { raw.substring(it.range.last + 1).isBlank() }
+        val link = last?.value?.substringBefore("#:~:")
+        val quote = (if (last != null) raw.removeRange(last.range) else raw).trim().trim('"', '“', '”').trim()
         val title = subject?.trim()?.takeIf { it.isNotEmpty() && it != link }
         if (quote.isEmpty() && link == null) return null
         val words = quote.ifEmpty { title ?: link!! }

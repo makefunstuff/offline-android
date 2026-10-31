@@ -119,15 +119,7 @@ class MainActivity : ComponentActivity() {
     /** What the assistant gesture, the Quick Settings tile or the widget asked for: "talk" or "capture". */
     private val opened = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
-    /** Text shared to Inkling from another app, until it is on today's page: (text, subject). */
-    private val shared = kotlinx.coroutines.flow.MutableStateFlow<Pair<String, String>?>(null)
-
     private fun take(intent: android.content.Intent?) {
-        if (intent?.action == android.content.Intent.ACTION_SEND) {
-            val text = intent.getCharSequenceExtra(android.content.Intent.EXTRA_TEXT)?.toString().orEmpty()
-            shared.value = text to intent.getStringExtra(android.content.Intent.EXTRA_SUBJECT).orEmpty()
-            return
-        }
         val what = intent?.getStringExtra(EXTRA_OPEN) ?: if (intent?.action == android.content.Intent.ACTION_ASSIST) "assist" else null
         if (what != null) opened.value = what
     }
@@ -151,7 +143,7 @@ class MainActivity : ComponentActivity() {
                 // The mic button's pulse follows the voice being recorded, wherever the mic is.
                 val level = graph.voice.level.collectAsState()
                 androidx.compose.runtime.CompositionLocalProvider(com.lfmpixel.lfm.ui.components.LocalMicLevel provides level) {
-                    Root(graph, gate, pickers, opened, shared, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
+                    Root(graph, gate, pickers, opened, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
                 }
             }
         }
@@ -211,6 +203,8 @@ class MainActivity : ComponentActivity() {
         const val OPEN_TALK = "talk"
         const val OPEN_CAPTURE = "capture"
         const val OPEN_NOTE = "note"
+        /** Followed by the id of the quote ShareActivity saved. */
+        const val OPEN_SHARED = "shared:"
         /** The assistant gesture: Talk or voice capture, as set in Settings → Voice. */
         const val OPEN_ASSIST = "assist"
 
@@ -232,8 +226,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: kotlinx.coroutines.flow.MutableStateFlow<String?>,
-                 shared: kotlinx.coroutines.flow.MutableStateFlow<Pair<String, String>?>, pickFiles: ((List<android.net.Uri>) -> Unit) -> Unit) {
+private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: kotlinx.coroutines.flow.MutableStateFlow<String?>, pickFiles: ((List<android.net.Uri>) -> Unit) -> Unit) {
     val c = Lfm.c
     val prefs by g.settings.prefs.collectAsState(null)
     val p = prefs ?: return Box(Modifier.fillMaxSize().background(c.bg))
@@ -299,6 +292,14 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
         if (appLocked) return@LaunchedEffect
         opened.value = null
         if (!p.firstRunDone) return@LaunchedEffect
+        // A quote ShareActivity already saved: show it on today's page, with Undo.
+        if (what.startsWith(MainActivity.OPEN_SHARED)) {
+            val id = what.removePrefix(MainActivity.OPEN_SHARED).toLongOrNull() ?: return@LaunchedEffect
+            if (nav.current == Route.Talk) nav.back()
+            nav.reset(Route.Today)
+            nav.show("Saved to today's page") { g.db.entries().delete(id) }
+            return@LaunchedEffect
+        }
         if (what == MainActivity.OPEN_NOTE) { nav.reset(Route.Today); nav.go(Route.Editor(kind = EntryKind.Note)); return@LaunchedEffect }
         val talk = what == MainActivity.OPEN_TALK || (what == MainActivity.OPEN_ASSIST && p.assistOpens == com.lfmpixel.lfm.settings.AssistOpens.Talk)
         if (talk) {
@@ -313,18 +314,6 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             if (nav.current != Route.Today && nav.current != Route.Chat) nav.reset(Route.Today)
             if (voiceState == VoiceState.Idle) voice(VoiceTarget.Assistant)
         }
-    }
-
-    // Text shared from another app: a quote on today's page, once Inkling is unlocked and set up.
-    val share by shared.collectAsState()
-    LaunchedEffect(share, p.firstRunDone, appLocked) {
-        val (text, subject) = share ?: return@LaunchedEffect
-        if (appLocked || !p.firstRunDone) return@LaunchedEffect
-        shared.value = null
-        val quote = com.lfmpixel.lfm.assistant.Quotes.fromShare(text, subject) ?: return@LaunchedEffect
-        val id = g.db.entries().insert(quote)
-        nav.reset(Route.Today)
-        nav.show("Saved to today's page") { g.db.entries().delete(id) }
     }
 
     // Predictive back (Android 16): while the back swipe is held, the screen shrinks a little toward the far edge

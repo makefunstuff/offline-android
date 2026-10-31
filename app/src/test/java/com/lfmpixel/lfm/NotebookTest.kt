@@ -79,6 +79,15 @@ class QuotesTest {
         assertEquals("A page", Quotes.fromShare("https://example.org/a", "A page")!!.title)
     }
 
+    @Test fun onlyATrailingLinkIsTheSource() {
+        val e = Quotes.fromShare("Compare https://a.example and https://b.example", null)!!
+        assertEquals("Compare https://a.example and", Quotes.words(e))
+        assertEquals("https://b.example", Quotes.source(e))
+        val inside = Quotes.fromShare("See https://a.example for more", "Notes")!!
+        assertEquals("See https://a.example for more", Quotes.words(inside))
+        assertEquals("Notes", Quotes.source(inside))
+    }
+
     @Test fun longQuotesGetAShortTitle() {
         val long = "word ".repeat(40).trim()
         val e = Quotes.fromShare(long, null)!!
