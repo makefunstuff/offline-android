@@ -49,6 +49,7 @@ import com.lfmpixel.lfm.ui.components.IconButtonPlain
 import com.lfmpixel.lfm.ui.components.InputLine
 import com.lfmpixel.lfm.ui.components.LIcon
 import com.lfmpixel.lfm.ui.components.Label
+import com.lfmpixel.lfm.ui.components.Marked
 import com.lfmpixel.lfm.ui.components.MicButton
 import com.lfmpixel.lfm.ui.components.SwipeAction
 import com.lfmpixel.lfm.ui.components.SwipeRow
@@ -200,7 +201,9 @@ fun LazyItemScope.EntryRow(e: Entry, showKind: Boolean, onClick: () -> Unit, act
             Column(Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = { menu = true }).padding(horizontal = 16.dp)) {
                 Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (showKind || e.isQuote()) LIcon(if (e.isQuote()) "quote" else e.kind.icon(), size = 16.dp, tint = c.text2)
-                    Txt(e.title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.weight(1f), maxLines = 1,
+                    // A quote keeps its highlighter here too.
+                    if (e.isQuote()) Marked(com.lfmpixel.lfm.assistant.Quotes.words(e), LfmType.body, Modifier.weight(1f), maxLines = 2)
+                    else Txt(e.title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.weight(1f), maxLines = 1,
                         decoration = if (e.done) TextDecoration.LineThrough else null)
                     if (e.pinned) LIcon("pin", size = 14.dp, tint = c.text2)
                     Txt(shortDay(e.createdAt), LfmType.meta, c.text2)

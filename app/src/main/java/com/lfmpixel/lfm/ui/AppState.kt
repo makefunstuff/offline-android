@@ -52,6 +52,8 @@ class Nav(start: Route) {
     var snack by mutableStateOf<Snack?>(null)
     /** What the mic heard for the Ink line, until the line takes it. */
     var heard by mutableStateOf<String?>(null)
+    /** The Daily Page shown, as days before today (0: today's page). */
+    var daysBack by mutableStateOf(0L)
     /** True while the last change of screen went forward (a push), for the direction of the transition. */
     var forward by mutableStateOf(true)
         private set

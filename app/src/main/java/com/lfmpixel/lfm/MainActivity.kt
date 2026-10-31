@@ -297,6 +297,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             val id = what.removePrefix(MainActivity.OPEN_SHARED).toLongOrNull() ?: return@LaunchedEffect
             if (nav.current == Route.Talk) nav.back()
             nav.reset(Route.Today)
+            nav.daysBack = 0
             nav.show("Saved to today's page") { g.db.entries().delete(id) }
             return@LaunchedEffect
         }

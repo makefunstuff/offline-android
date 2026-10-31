@@ -147,8 +147,8 @@ gains the Reading filter), To-dos is renamed Plans. The app now reads as a noteb
   mic fills the line with what it heard, to be read before it goes on the page. A to-do written here is due today. Keyboard rules from ux-spec section 6; the page keeps the last line in view as lines are added.
 - **Day swipe.** A horizontal swipe of 80 dp or more turns the page; the new day slides in on the shared X
   axis (ux-spec section 7, 300 ms). Days with nothing still open (a blank page).
-- **States.** No model: the Ink line still works (the sorter is rule-based); "?" lines go to Chat, which says how to
-  get a model.
+- **States.** No model: the Ink line still works (the sorter is rule-based); a "?" line stays in the line with a note
+  that asking needs a chat model (Settings → Models), rather than being filed as a note.
 
 ### Editor
 
@@ -160,8 +160,8 @@ gains the Reading filter), To-dos is renamed Plans. The app now reads as a noteb
 - `ACTION_SEND` with `text/plain` on a screenless `ShareActivity` in its own task: it saves the quote, then brings
   Inkling's own task forward (no second Inkling inside the sharing app). Title: the quote's first words (the page shows
   the whole quote). Body: the quote; source line: the subject and the link at the very end of the text, if given;
-  links inside the quote stay in it. Kind Note, tag `reading`, source `share`. Locked app: saved after
-  unlock.
+  links inside the quote stay in it. Kind Note, tag `reading`, source `share`. It is saved at once, also
+  while the app is locked (the owner chose to share it); the page and its Undo show after unlock.
 
 ### Notebook (was Library)
 

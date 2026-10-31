@@ -102,16 +102,14 @@ data class AgendaItem(val at: Long?, val title: String, val detail: String, val 
 fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     var today by remember { mutableStateOf(LocalDate.now()) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); today = LocalDate.now() } }
-    var shown by rememberSaveable { mutableLongStateOf(LocalDate.now().toEpochDay()) }
-    // A page left open overnight, or a day picked after midnight: never past today. Today's page turns with midnight.
-    if (shown > today.toEpochDay()) shown = today.toEpochDay()
-    var wasToday by remember { mutableLongStateOf(today.toEpochDay()) }
-    if (wasToday != today.toEpochDay()) { if (shown == wasToday) shown = today.toEpochDay(); wasToday = today.toEpochDay() }
+    // The page shown, as days before today (kept by Nav, so a share can turn back to today): today's page turns with
+    // midnight, and a cold start opens on today.
+    val shown = today.toEpochDay() - nav.daysBack.coerceAtLeast(0)
     // The Ink line's text and picked kind live here, so turning to another day and back keeps a half-written line.
     val draft = rememberSaveable { mutableStateOf("") }
     val picked = rememberSaveable { mutableStateOf<String?>(null) }
     val reduced = LfmMotion.reduced()
-    val turn: (LocalDate) -> Unit = { d -> if (!d.isAfter(today)) shown = d.toEpochDay() }
+    val turn: (LocalDate) -> Unit = { d -> if (!d.isAfter(today)) nav.daysBack = today.toEpochDay() - d.toEpochDay() }
     val turnNow by rememberUpdatedState(turn)
     val shownNow by rememberUpdatedState(shown)
     val threshold = with(LocalDensity.current) { 80.dp.toPx() }
