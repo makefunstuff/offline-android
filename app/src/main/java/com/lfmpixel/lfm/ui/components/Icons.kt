@@ -62,6 +62,10 @@ object LfmIcons {
         "list" to listOf("M4 6h16M4 12h16M4 18h10"),
         "history" to listOf("M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4", "M12 8v4l3 2"),
         "more" to listOf("M12 5h.01M12 12h.01M12 19h.01"),
+        "pin" to listOf("M9 3h6l-1 7 3 3H7l3-3z", "M12 13v8"),
+        "up" to listOf("M12 19V5M6 11l6-6 6 6"),
+        "down" to listOf("M12 5v14M6 13l6 6 6-6"),
+        "copy" to listOf(rr(8f, 8f, 12f, 12f, 2f), "M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"),
         "undo" to listOf("M9 14L4 9l5-5", "M4 9h10a6 6 0 0 1 0 12h-3"),
     )
 

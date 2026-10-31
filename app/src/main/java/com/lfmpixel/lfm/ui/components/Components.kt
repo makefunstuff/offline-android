@@ -41,6 +41,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.liveRegion
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
 
@@ -206,7 +217,7 @@ fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
 fun CheckBox(checked: Boolean, onChange: (Boolean) -> Unit) {
     val c = Lfm.c
     val shape = RoundedCornerShape(4.dp)
-    Box(Modifier.size(32.dp).clickable(role = Role.Checkbox) { onChange(!checked) }, contentAlignment = Alignment.Center) {
+    Box(Modifier.size(48.dp).clickable(role = Role.Checkbox) { onChange(!checked) }, contentAlignment = Alignment.Center) {
         Box(Modifier.size(18.dp).clip(shape).background(if (checked) c.text else Color.Transparent).border(1.dp, if (checked) c.text else c.control, shape),
             contentAlignment = Alignment.Center) {
             if (checked) LIcon("check", size = 13.dp, tint = c.bg, stroke = 2.5f)
@@ -241,7 +252,8 @@ fun ListRow(title: String, subtitle: String = "", icon: String? = null, onClick:
 /** The composer: "Ask, capture or do…" with camera and mic. */
 @Composable
 fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onSend: () -> Unit, onMic: () -> Unit,
-             modifier: Modifier = Modifier, listening: Boolean = false, enabled: Boolean = true, onCamera: (() -> Unit)? = null) {
+             modifier: Modifier = Modifier, listening: Boolean = false, enabled: Boolean = true, onCamera: (() -> Unit)? = null,
+             onStop: (() -> Unit)? = null) {
     val c = Lfm.c
     val shape = RoundedCornerShape(8.dp)
     Row(modifier.fillMaxWidth().heightIn(min = 52.dp).clip(shape).background(c.fill).border(1.dp, c.control, shape)
@@ -254,10 +266,126 @@ fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onS
                 maxLines = 5, modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder })
         }
         if (value.isNotBlank()) {
-            IconButtonPlain("send", onSend, tint = c.text, desc = "Send")
+            IconButtonPlain("send", onSend, tint = c.text, desc = if (onStop != null) "Queue" else "Send")
+        } else if (onStop != null) {
+            // While an answer is written, Stop sits where Send would be: ink, square, named.
+            Box(Modifier.size(42.dp).clip(RoundedCornerShape(6.dp)).background(c.text).clickable(role = Role.Button, onClick = onStop)
+                .semantics { contentDescription = "Stop" }, contentAlignment = Alignment.Center) { LIcon("stop", tint = c.bg) }
         } else if (onCamera != null) {
             IconButtonPlain("camera", onCamera, desc = "Camera")
         }
         MicButton(onMic, listening = listening)
+    }
+}
+
+/** The ink + button for a new entry; the mic stays the only yellow one. */
+@Composable
+fun Fab(icon: String, onClick: () -> Unit, desc: String, modifier: Modifier = Modifier) {
+    val c = Lfm.c
+    val shape = RoundedCornerShape(8.dp)
+    Box(modifier.size(56.dp).clip(shape).background(c.text).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
+        contentAlignment = Alignment.Center) { LIcon(icon, tint = c.bg) }
+}
+
+/** A search or quick-add line: always visible, keyboard up when [focus] is set. Enter calls [onDone]. */
+@Composable
+fun InputLine(value: String, onChange: (String) -> Unit, placeholder: String, icon: String, modifier: Modifier = Modifier,
+              focus: androidx.compose.ui.focus.FocusRequester? = null, imeAction: ImeAction = ImeAction.Search, onDone: () -> Unit = {},
+              trailing: @Composable () -> Unit = {}) {
+    val c = Lfm.c
+    val shape = RoundedCornerShape(8.dp)
+    Row(modifier.fillMaxWidth().heightIn(min = 48.dp).clip(shape).background(c.fill).border(1.dp, c.control, shape).padding(start = 12.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LIcon(icon, size = 18.dp, tint = c.text2)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (value.isEmpty()) Txt(placeholder, LfmType.body, c.text2, maxLines = 1)
+            BasicTextField(value, onChange, singleLine = true, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text),
+                keyboardOptions = KeyboardOptions(imeAction = imeAction, capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences),
+                keyboardActions = KeyboardActions(onAny = { onDone() }),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).let { m -> focus?.let { m.focusRequester(it) } ?: m }
+                    .semantics { contentDescription = placeholder })
+        }
+        trailing()
+    }
+}
+
+/** What a swipe does: its word, icon, and the action. */
+class SwipeAction(val label: String, val icon: String, val run: () -> Unit)
+
+/**
+ * A row you can swipe: right for [right] (pin, done), left for [left] (delete). Past 40 % of the width the action
+ * shows in ink and runs on release; the row springs back (the list then moves it). Both actions are also TalkBack
+ * custom actions, and a long-press menu where the caller offers one.
+ */
+@Composable
+fun SwipeRow(right: SwipeAction?, left: SwipeAction?, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val c = Lfm.c
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val offset = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
+    var width by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(1) }
+    val past = kotlin.math.abs(offset.value) > width * 0.4f
+    val action = if (offset.value > 0) right else if (offset.value < 0) left else null
+    Box(modifier.fillMaxWidth().onSizeChanged { width = it.width }
+        .semantics { customActions = listOfNotNull(right, left).map { a -> CustomAccessibilityAction(a.label) { a.run(); true } } }) {
+        if (action != null) Row(Modifier.matchParentSize().background(if (past) c.text else c.fill).padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (offset.value > 0) Arrangement.Start else Arrangement.End) {
+            LIcon(action.icon, tint = if (past) c.bg else c.text2)
+            Txt(action.label, LfmType.button, if (past) c.bg else c.text2, Modifier.padding(start = 8.dp))
+        }
+        Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.value.toInt(), 0) }.background(c.bg)
+            .pointerInput(right, left) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        val a = if (offset.value > 0) right else left
+                        val fire = kotlin.math.abs(offset.value) > width * 0.4f
+                        scope.launch {
+                            if (fire && a != null) a.run()
+                            offset.animateTo(0f, androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+                        }
+                    },
+                    onDragCancel = { scope.launch { offset.animateTo(0f) } },
+                ) { change, drag ->
+                    val next = offset.value + drag
+                    if ((next > 0 && right == null) || (next < 0 && left == null)) return@detectHorizontalDragGestures
+                    change.consume()
+                    scope.launch { offset.snapTo(next) }
+                }
+            }) { content() }
+    }
+}
+
+/** The snackbar: one line and an optional Undo, for 5 s (10 s with TalkBack), fading and rising in. */
+@Composable
+fun SnackHost(snack: com.lfmpixel.lfm.ui.Snack?, onDone: () -> Unit, modifier: Modifier = Modifier) {
+    val c = Lfm.c
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    androidx.compose.runtime.LaunchedEffect(snack) {
+        if (snack == null) return@LaunchedEffect
+        val a11y = ctx.getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+        kotlinx.coroutines.delay(if (a11y?.isTouchExplorationEnabled == true) 10_000 else 5_000)
+        onDone()
+    }
+    val reduced = com.lfmpixel.lfm.ui.theme.LfmMotion.reduced()
+    androidx.compose.animation.AnimatedVisibility(snack != null, modifier,
+        enter = if (reduced) androidx.compose.animation.EnterTransition.None else
+            androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(com.lfmpixel.lfm.ui.theme.LfmMotion.MEDIUM, easing = com.lfmpixel.lfm.ui.theme.LfmMotion.emphasizedDecelerate)) +
+            androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(com.lfmpixel.lfm.ui.theme.LfmMotion.MEDIUM, easing = com.lfmpixel.lfm.ui.theme.LfmMotion.emphasizedDecelerate)) { 24 },
+        exit = if (reduced) androidx.compose.animation.ExitTransition.None else
+            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(com.lfmpixel.lfm.ui.theme.LfmMotion.SHORT, easing = com.lfmpixel.lfm.ui.theme.LfmMotion.emphasizedAccelerate))) {
+        val last = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(snack) }
+        if (snack != null) last.value = snack
+        val s = last.value ?: return@AnimatedVisibility
+        val shape = RoundedCornerShape(8.dp)
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth().heightIn(min = 48.dp).clip(shape).background(c.text)
+            .padding(start = 16.dp, end = 4.dp).semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+            verticalAlignment = Alignment.CenterVertically) {
+            Txt(s.text, LfmType.body, c.bg, Modifier.weight(1f).padding(vertical = 12.dp), maxLines = 2)
+            s.undo?.let { u ->
+                Box(Modifier.heightIn(min = 48.dp).clickable(role = Role.Button) { onDone(); scope.launch { u() } }.padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center) { Txt("Undo", LfmType.button, c.bg, decoration = TextDecoration.Underline) }
+            }
+        }
     }
 }

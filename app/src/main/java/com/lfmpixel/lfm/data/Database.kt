@@ -21,8 +21,12 @@ interface EntryDao {
     @Query("SELECT * FROM entries WHERE id = :id") suspend fun get(id: Long): Entry?
     @Query("SELECT * FROM entries WHERE id = :id") fun watch(id: Long): Flow<Entry?>
 
-    @Query("SELECT * FROM entries WHERE kind = :kind ORDER BY createdAt DESC")
+    @Query("SELECT * FROM entries WHERE kind = :kind ORDER BY pinned DESC, createdAt DESC")
     fun byKind(kind: EntryKind): Flow<List<Entry>>
+
+    /** Notes, ideas and journal: pinned first, then the newest. */
+    @Query("SELECT * FROM entries WHERE kind != 'Todo' ORDER BY pinned DESC, createdAt DESC")
+    fun library(): Flow<List<Entry>>
 
     @Query("SELECT * FROM entries WHERE kind != 'Todo' OR done = 0 ORDER BY createdAt DESC LIMIT :n")
     fun latest(n: Int): Flow<List<Entry>>
@@ -93,8 +97,8 @@ class Converters {
 }
 
 @Database(entities = [Entry::class, EntryFts::class, ChatMessage::class, ActionRecord::class, Reminder::class, NetLogEntry::class,
-    SearchRecord::class], version = 3, exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)])
+    SearchRecord::class], version = 4, exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)])
 @TypeConverters(Converters::class)
 abstract class LfmDatabase : RoomDatabase() {
     abstract fun entries(): EntryDao

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Inkling's i, for the status bar. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFF" android:pathData="M7,4h3v13h7v3h-10z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M8.5,4.6 L15,3.4 L15.6,6.8 L9.1,8 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M10,10h4v11h-4z" />
 </vector>

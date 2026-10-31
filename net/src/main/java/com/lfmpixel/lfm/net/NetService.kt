@@ -81,7 +81,7 @@ class NetService : Service() {
 
     private fun checkCaller() {
         val pkgs = packageManager.getPackagesForUid(Binder.getCallingUid()).orEmpty()
-        if (NetContract.LFM_PACKAGE !in pkgs) throw SecurityException("LFM Net only answers LFM")
+        if (NetContract.LFM_PACKAGE !in pkgs) throw SecurityException("Inkling Net only answers Inkling")
     }
 
     override fun onBind(intent: Intent): IBinder = binder

@@ -22,7 +22,10 @@ data class Prefs(
     val warnPersonalWords: Boolean = true,
     val threads: Int = 6,
     val contextTokens: Int = 8192,
+    /** Minutes idle before models are unloaded; 0 keeps them loaded. */
     val unloadAfterMinutes: Int = 5,
+    /** The chat model's file name; empty means the one added last. */
+    val chatModel: String = "",
     val toolPolicies: Map<String, ToolPolicy> = emptyMap(),
     val netEnabled: Boolean = true,
     val snippetsOnly: Boolean = false,
@@ -44,6 +47,7 @@ class Settings(private val context: Context) {
         val net = booleanPreferencesKey("net_enabled")
         val snippets = booleanPreferencesKey("snippets_only")
         val wifiOnly = booleanPreferencesKey("download_wifi_only")
+        val chatModel = stringPreferencesKey("chat_model")
     }
 
     val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
@@ -65,6 +69,7 @@ class Settings(private val context: Context) {
         netEnabled = this[K.net] ?: true,
         snippetsOnly = this[K.snippets] ?: false,
         downloadWifiOnly = this[K.wifiOnly] ?: true,
+        chatModel = this[K.chatModel] ?: "",
     )
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
@@ -76,6 +81,7 @@ class Settings(private val context: Context) {
     suspend fun setNetEnabled(on: Boolean) = context.store.edit { it[K.net] = on }
     suspend fun setSnippetsOnly(on: Boolean) = context.store.edit { it[K.snippets] = on }
     suspend fun setDownloadWifiOnly(on: Boolean) = context.store.edit { it[K.wifiOnly] = on }
+    suspend fun setChatModel(fileName: String) = context.store.edit { it[K.chatModel] = fileName }
     suspend fun setToolPolicy(tool: String, policy: ToolPolicy) = context.store.edit {
         val map = it.toPrefs().toolPolicies + (tool to policy)
         it[K.policies] = map.entries.joinToString(";") { (k, v) -> "$k=${v.name}" }

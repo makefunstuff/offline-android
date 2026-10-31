@@ -131,7 +131,7 @@ class NetClient(private val context: Context, private val settings: Settings, pr
     /** Opens LFM Net's own settings screen (provider, key, proxy): those never come into LFM. */
     fun settingsIntent(): Intent = Intent().setComponent(ComponentName(NetContract.NET_PACKAGE, NetContract.SETTINGS_ACTIVITY))
 
-    private fun Bundle.failure(): String? = if (getBoolean(NetContract.OK)) null else (getString(NetContract.ERROR) ?: "LFM Net failed")
+    private fun Bundle.failure(): String? = if (getBoolean(NetContract.OK)) null else (getString(NetContract.ERROR) ?: "Inkling Net failed")
 
     /**
      * A request is in the log from the moment it is asked for, so one whose reply never comes (LFM closed mid-download,
@@ -142,9 +142,9 @@ class NetClient(private val context: Context, private val settings: Settings, pr
 
     private suspend fun <T> call(block: suspend (ILfmNet) -> T): T {
         when (state()) {
-            State.NotInstalled -> throw NetException("LFM Net is not installed")
-            State.WrongSigner -> throw NetException("LFM Net is signed with another key, so LFM won't use it")
-            State.Off -> throw NetException("LFM Net is turned off in Privacy")
+            State.NotInstalled -> throw NetException("Inkling Net is not installed")
+            State.WrongSigner -> throw NetException("Inkling Net is signed with another key, so Inkling won't use it")
+            State.Off -> throw NetException("Inkling Net is turned off in Privacy")
             State.On -> Unit
         }
         val s = lock.withLock {
@@ -157,9 +157,9 @@ class NetClient(private val context: Context, private val settings: Settings, pr
         } catch (e: android.os.RemoteException) {
             // Only a dead helper is let go; a failed transaction (a reply too big) leaves other calls running.
             if (!s.asBinder().isBinderAlive) lock.withLock { drop() }
-            throw NetException("LFM Net stopped: ${e.message ?: "try again"}")
+            throw NetException("Inkling Net stopped: ${e.message ?: "try again"}")
         } catch (e: SecurityException) {
-            throw NetException("LFM Net refused: ${e.message}")
+            throw NetException("Inkling Net refused: ${e.message}")
         } finally {
             lock.withLock {
                 calls--
@@ -176,15 +176,15 @@ class NetClient(private val context: Context, private val settings: Settings, pr
             override fun onServiceConnected(name: ComponentName, binder: IBinder) { ILfmNet.Stub.asInterface(binder).let { service = it; ready.complete(it) } }
             override fun onServiceDisconnected(name: ComponentName) { service = null }
             override fun onBindingDied(name: ComponentName) { scope.launch { lock.withLock { drop() } } }
-            override fun onNullBinding(name: ComponentName) { ready.completeExceptionally(NetException("LFM Net refused the connection")) }
+            override fun onNullBinding(name: ComponentName) { ready.completeExceptionally(NetException("Inkling Net refused the connection")) }
         }
         val intent = Intent(NetContract.ACTION_BIND).setPackage(NetContract.NET_PACKAGE)
         val ok = try { context.bindService(intent, conn, Context.BIND_AUTO_CREATE) } catch (e: SecurityException) {
-            throw NetException("LFM Net refused: ${e.message}")
+            throw NetException("Inkling Net refused: ${e.message}")
         }
-        if (!ok) { runCatching { context.unbindService(conn) }; throw NetException("Could not reach LFM Net") }
+        if (!ok) { runCatching { context.unbindService(conn) }; throw NetException("Could not reach Inkling Net") }
         connection = conn
-        return try { withTimeout(10_000) { ready.await() } } catch (e: Exception) { drop(); throw NetException("LFM Net did not answer") }
+        return try { withTimeout(10_000) { ready.await() } } catch (e: Exception) { drop(); throw NetException("Inkling Net did not answer") }
     }
 
     private fun drop() {

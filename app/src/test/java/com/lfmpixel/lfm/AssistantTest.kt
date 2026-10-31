@@ -140,13 +140,43 @@ class AssistantTest {
         assertEquals(ActionStatus.Done, g.db.actions().get(result!!.actionId!!)!!.status)
     }
 
-    @Test fun newChatDropsMessagesStillQueuedForTheOldOne() = runBlocking {
+    @Test fun queuedMessagesCanBeEditedMovedAndRemoved() {
+        // Hold the queue still: nothing runs until the main looper is idled.
+        g.assistant.send("first")
+        g.assistant.send("second")
+        g.assistant.send("third")
+        val q = g.assistant.queue.value
+        assertEquals(listOf("first", "second", "third"), q.map { it.text })
+        g.assistant.editQueued(q[1].id, "  second, edited ")
+        g.assistant.moveQueued(q[2].id, -1)
+        assertEquals(listOf("first", "third", "second, edited"), g.assistant.queue.value.map { it.text })
+        g.assistant.sendNext(q[1].id)
+        assertEquals("second, edited", g.assistant.queue.value.first().text)
+        g.assistant.removeQueued(q[0].id)
+        g.assistant.editQueued(q[2].id, "   ")
+        assertEquals(listOf("second, edited"), g.assistant.queue.value.map { it.text })
+        assertTrue(g.assistant.busy.value)
+        g.assistant.removeQueued(q[1].id)
+    }
+
+    @Test fun typedQueuedMessagesAreKeptOnDisk() {
+        val f = java.io.File.createTempFile("queue", ".json")
+        com.lfmpixel.lfm.assistant.QueueStore.write(f, listOf(com.lfmpixel.lfm.assistant.Queued(4, "Buy \"oat\" milk\nand bread", 3, "voice")))
+        val back = com.lfmpixel.lfm.assistant.QueueStore.read(f)
+        assertEquals(listOf(com.lfmpixel.lfm.assistant.Queued(4, "Buy \"oat\" milk\nand bread", 3, "voice")), back)
+        f.writeText("not json")
+        assertTrue(com.lfmpixel.lfm.assistant.QueueStore.read(f).isEmpty())
+    }
+
+    @Test fun newChatKeepsQueuedMessagesAndRunsThemThere() = runBlocking {
         g.assistant.send("Buy oat milk")
         g.assistant.send("Buy bread")
         g.assistant.newChat()
         repeat(100) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(20) }
         waitIdle()
-        assertTrue(g.db.messages().threadNow(g.assistant.threadId.value).isEmpty())
-        assertFalse(g.db.entries().todos().first().any { it.title == "Buy bread" })
+        val titles = g.db.entries().todos().first().map { it.title }
+        assertTrue(titles.containsAll(listOf("Buy oat milk", "Buy bread")))
+        assertEquals(2, g.db.messages().threadNow(g.assistant.threadId.value).count { it.role == Role.User })
+        assertTrue(g.assistant.queue.value.isEmpty())
     }
 }

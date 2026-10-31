@@ -272,7 +272,7 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
                 Txt(when {
                     noCamera -> "No camera here. Pick a photo, a video or a document below."
                     !asked -> ""
-                    else -> "The camera is off for LFM. Allow it in Android settings, or pick from your photos below."
+                    else -> "The camera is off for Inkling. Allow it in Android settings, or pick from your photos below."
                 }, LfmType.small, DarkColors.text2, textAlign = TextAlign.Center)
             }
             // Top bar: close, mode, flash.

@@ -1,8 +1,22 @@
 # offline-android
 
-LFM, a private on-device assistant for the Pixel 10 Pro, built on Liquid AI's LFM3 models, and LFM Net, its small
-network helper. All thinking happens on the phone; LFM itself has no internet permission. Design:
-[docs/spec.md](docs/spec.md); mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-android>.
+Inkling (called LFM until LP-12), a private on-device assistant for the Pixel 10 Pro, built on Liquid AI's LFM3
+models, and Inkling Net, its small network helper. All thinking happens on the phone; Inkling itself has no internet
+permission. Design: [docs/spec.md](docs/spec.md); how it should feel to use: [docs/ux-spec.md](docs/ux-spec.md);
+mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-android>. In the code and below, "LFM" and
+"LFM Net" still name the app and its helper; package names did not change, so updates keep all data and models.
+
+## Using it (LP-12)
+
+- **Capture**: Today's Note · Idea · Journal · To-do buttons open the editor with the keyboard up. The editor saves as
+  you type and on Back; there is no Save button. In the Library, + and the mic; on To-dos, the "Add a to-do" line.
+- **Lists**: Library has one search field and All · Notes · Ideas · Journal · Pinned. Swipe right to pin (to-dos:
+  done), left to delete; long-press for Move to. Every delete and tick can be undone from the bar at the bottom.
+- **Chat**: keep sending while it answers; messages wait their turn in the thread as "Queued". Tap one to edit, move
+  or remove it. New chat takes them along. Stop is the black square next to the mic.
+- **Models**: the chat header (or Settings → Models) shows what is loaded and roughly how much memory it takes, with
+  Load and Unload for each model, the chat model when you have more than one, and "Unload when idle" (Never, 1, 5,
+  15 or 30 minutes).
 
 This build covers spec Phases 1–5: Today, Chat, Library (notes, ideas, journal), To-dos, Settings; chat with
 LFM3-1.7B through llama.cpp in-process (JNI, CPU); voice capture through LFM3-Omni-2B in-process; tools with a

@@ -28,7 +28,15 @@ import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.data.Entry
 import com.lfmpixel.lfm.data.EntryKind
-import com.lfmpixel.lfm.ui.EntrySheet
+import com.lfmpixel.lfm.ui.Route
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.text.input.ImeAction
+import com.lfmpixel.lfm.ui.components.InputLine
+import com.lfmpixel.lfm.ui.components.SwipeAction
+import com.lfmpixel.lfm.ui.components.SwipeRow
+import com.lfmpixel.lfm.ui.theme.LfmMotion
 import com.lfmpixel.lfm.ui.Nav
 import com.lfmpixel.lfm.ui.components.CheckBox
 import com.lfmpixel.lfm.ui.components.IconButtonPlain
@@ -60,7 +68,7 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val c = Lfm.c
     val todos by remember { g.db.entries().todos() }.collectAsState(null)
     var tab by rememberSaveable { mutableStateOf(TodoTab.Today) }
-    val scope = rememberCoroutineScope()
+    var adding by rememberSaveable { mutableStateOf("") }
     val zone = ZoneId.systemDefault()
     val endOfToday = LocalDate.now().plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
     val all = todos ?: emptyList()
@@ -68,56 +76,76 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val done = all.filter { it.done && todoTab(it, endOfToday) == tab && (it.doneAt ?: 0) > System.currentTimeMillis() - 7 * 86_400_000L }
     // The most urgent: overdue or earliest due today.
     val urgent = if (tab == TodoTab.Today) open.filter { it.dueAt != null }.minByOrNull { it.dueAt!! } else null
+    val actions = remember { EntryActions(g, nav) }
+    val focus = remember { FocusRequester() }
+    val add: () -> Unit = {
+        val text = adding.trim()
+        if (text.isNotEmpty()) {
+            // The tab says when: due today, tomorrow, or no date. The editor sets anything else.
+            val due = when (tab) { TodoTab.Today -> LocalDate.now(); TodoTab.Upcoming -> LocalDate.now().plusDays(1); TodoTab.Someday -> null }
+            g.scope.launch { g.db.entries().insert(Entry(kind = EntryKind.Todo, title = text.take(120), body = if (text.length > 120) text else "",
+                dueAt = due?.atTime(9, 0)?.atZone(zone)?.toInstant()?.toEpochMilli())) }
+            adding = ""
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Txt("To-dos", LfmType.title2, modifier = Modifier.weight(1f))
-                IconButtonPlain("plus", { nav.entrySheet = EntrySheet(kind = EntryKind.Todo) }, desc = "New to-do")
+            Txt("To-dos", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp))
+            val counts = TodoTab.entries.associateWith { t -> all.count { !it.done && todoTab(it, endOfToday) == t } }
+            Tabs(TodoTab.entries.map { t -> counts[t].takeIf { it != 0 }?.let { "${t.label} $it" } ?: t.label },
+                TodoTab.entries.first { it == tab }.let { t -> counts[t].takeIf { it != 0 }?.let { "${t.label} $it" } ?: t.label },
+                { l -> tab = TodoTab.entries.first { l.startsWith(it.label) } }, Modifier.padding(horizontal = 16.dp))
+            InputLine(adding, { adding = it }, when (tab) { TodoTab.Today -> "Add a to-do for today"; TodoTab.Upcoming -> "Add a to-do for tomorrow"; TodoTab.Someday -> "Add a to-do, no date" },
+                "plus", Modifier.padding(horizontal = 16.dp), focus = focus, imeAction = ImeAction.Done, onDone = add) {
+                if (adding.isNotBlank()) IconButtonPlain("send", add, tint = c.text, desc = "Add")
             }
-            Tabs(TodoTab.entries.map { it.label }, tab.label, { t -> tab = TodoTab.entries.first { it.label == t } }, Modifier.padding(horizontal = 16.dp))
-            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            LazyColumn(Modifier.fillMaxSize().padding(top = 6.dp)) {
                 if (open.isEmpty()) item {
-                    Empty(when (tab) { TodoTab.Today -> "Nothing due today"; TodoTab.Upcoming -> "Nothing coming up"; TodoTab.Someday -> "Nothing for someday" },
-                        "Say “buy oat milk” or “renew passport by Friday”.")
+                    Box(Modifier.padding(horizontal = 16.dp)) {
+                        Empty(when (tab) { TodoTab.Today -> "Nothing due today"; TodoTab.Upcoming -> "Nothing coming up"; TodoTab.Someday -> "Nothing for someday" },
+                            "Type above and press Enter, or say “buy oat milk” or “renew passport by Friday”.")
+                    }
                 }
                 items(open, key = { it.id }) { e ->
-                    TodoRow(e, e == urgent, endOfToday, onCheck = { scope.launch { g.db.entries().update(e.copy(done = true, doneAt = System.currentTimeMillis())) } }) {
-                        nav.entrySheet = EntrySheet(e.id, e.kind)
-                    }
+                    TodoRow(e, e == urgent, endOfToday, actions) { nav.go(Route.Editor(e.id, e.kind)) }
                 }
                 if (done.isNotEmpty()) {
-                    item { SectionLabel("Done") }
+                    item(key = "done") { Box(Modifier.padding(horizontal = 16.dp)) { SectionLabel("Done") } }
                     items(done, key = { it.id }) { e ->
-                        TodoRow(e, false, endOfToday, onCheck = { scope.launch { g.db.entries().update(e.copy(done = false, doneAt = null)) } }) {
-                            nav.entrySheet = EntrySheet(e.id, e.kind)
-                        }
+                        TodoRow(e, false, endOfToday, actions) { nav.go(Route.Editor(e.id, e.kind)) }
                     }
                 }
-                item { Spacer(Modifier.height(90.dp)) }
+                item { Spacer(Modifier.height(96.dp)) }
             }
         }
-        MicButton(onMic, Modifier.align(Alignment.BottomEnd).padding(16.dp), size = 56.dp, listening = listening)
+        MicButton(onMic, Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = snackLift(nav)), size = 56.dp, listening = listening)
     }
 }
 
 @Composable
-private fun TodoRow(e: Entry, urgent: Boolean, endOfToday: Long, onCheck: () -> Unit, onClick: () -> Unit) {
+private fun LazyItemScope.TodoRow(e: Entry, urgent: Boolean, endOfToday: Long, actions: EntryActions, onClick: () -> Unit) {
     val c = Lfm.c
-    Column {
-        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 5.dp), verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.padding(top = 0.dp)) { CheckBox(e.done) { onCheck() } }
-            Column(Modifier.weight(1f).padding(top = 6.dp, bottom = 6.dp)) {
-                when {
-                    e.done -> Txt(e.title, LfmType.body.copy(fontWeight = FontWeight.Normal), c.text3, decoration = TextDecoration.LineThrough)
-                    urgent -> Marked(e.title, LfmType.body.copy(fontWeight = FontWeight.SemiBold))
-                    else -> Txt(e.title, LfmType.body.copy(fontWeight = FontWeight.SemiBold))
+    val reduced = LfmMotion.reduced()
+    Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null,
+        placementSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate))) {
+        SwipeRow(SwipeAction(if (e.done) "Not done" else "Done", "check") { actions.done(e) }, SwipeAction("Delete", "trash") { actions.delete(e) }) {
+            Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+                Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    CheckBox(e.done) { actions.done(e) }
+                    Column(Modifier.weight(1f).padding(top = 6.dp, bottom = 6.dp)) {
+                        when {
+                            e.done -> Txt(e.title, LfmType.body.copy(fontWeight = FontWeight.Normal), c.text3, decoration = TextDecoration.LineThrough)
+                            urgent -> Marked(e.title, LfmType.body.copy(fontWeight = FontWeight.SemiBold))
+                            else -> Txt(e.title, LfmType.body.copy(fontWeight = FontWeight.SemiBold))
+                        }
+                        Txt(detail(e, endOfToday), LfmType.label.copy(fontWeight = null), c.text2, maxLines = 1)
+                    }
                 }
-                Txt(detail(e, endOfToday), LfmType.label.copy(fontWeight = null), c.text2, maxLines = 1)
+                com.lfmpixel.lfm.ui.components.Divider()
             }
         }
-        com.lfmpixel.lfm.ui.components.Divider()
     }
 }
 

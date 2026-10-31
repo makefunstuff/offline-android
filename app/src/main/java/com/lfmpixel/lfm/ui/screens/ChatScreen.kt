@@ -60,17 +60,28 @@ import androidx.compose.ui.layout.ContentScale
 import com.lfmpixel.lfm.ui.theme.LfmMotion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.lfmpixel.lfm.llm.LoadState
+import com.lfmpixel.lfm.ui.components.Btn
 
 @Composable
 fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val c = Lfm.c
     val messages by g.assistant.messages.collectAsState(emptyList())
     val streaming by g.assistant.streaming.collectAsState()
-    val busy by g.assistant.busy.collectAsState()
+    val working by g.assistant.working.collectAsState()
+    val queued by g.assistant.queue.collectAsState()
+    val status by g.engine.status.collectAsState()
     val query by g.web.pending.collectAsState()
     val actions by remember { g.db.actions().recent() }.collectAsState(emptyList())
     val records = actions.associateBy { it.id }
-    var draft by remember { mutableStateOf("") }
+    var draft by rememberSaveable { mutableStateOf("") }
+    var editing by remember { mutableStateOf<Long?>(null) }
+    var modelSheet by remember { mutableStateOf(false) }
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val reduced = LfmMotion.reduced()
@@ -78,50 +89,153 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val itemFade = if (reduced) null else tween<Float>(LfmMotion.MEDIUM, easing = LfmMotion.standard)
     val itemMove = if (reduced) null else tween<androidx.compose.ui.unit.IntOffset>(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate)
     val visible = messages.filter { !(it.role == Role.Assistant && it.text.isBlank()) }
-    LaunchedEffect(visible.size, streaming?.text?.length, query) {
-        val n = visible.size + (if (streaming != null) 1 else 0) + (if (query != null) 1 else 0)
-        if (n > 0) list.scrollToItem(n - 1)
+    val count = visible.size + (if (streaming != null) 1 else 0) + (if (query != null) 1 else 0) + queued.size
+    // Follow the end while the owner is at the end; once they scroll up, offer a way back instead of pulling them down.
+    val atEnd by remember { derivedStateOf { !list.canScrollForward } }
+    var follow by remember { mutableStateOf(true) }
+    LaunchedEffect(list.isScrollInProgress) { if (list.isScrollInProgress) follow = atEnd }
+    LaunchedEffect(atEnd) { if (atEnd) follow = true }
+    LaunchedEffect(count, streaming?.text?.length) { if (follow && count > 0) list.scrollToItem(count - 1, Int.MAX_VALUE / 2) }
+    val send: () -> Unit = {
+        g.assistant.send(draft); draft = ""; follow = true
     }
 
     Column(Modifier.fillMaxSize().imePadding()) {
-        Header("Assistant", onBack = { nav.back() }, leftIcon = "back") {
-            IconButtonPlain("plus", { g.assistant.newChat() }, desc = "New chat")
+        Column {
+            Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButtonPlain("back", { nav.back() }, desc = "Back")
+                Column(Modifier.weight(1f).clickable(onClickLabel = "Models") { modelSheet = true }.padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
+                    .semantics(mergeDescendants = true) {}) {
+                    Txt("Inkling", LfmType.header)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val dot = Modifier.size(7.dp)
+                        when (status.text) {
+                            LoadState.Ready -> Box(dot.background(c.text, RoundedCornerShape(2.dp)))
+                            LoadState.Loading -> Box(dot.border(1.dp, c.text, RoundedCornerShape(2.dp)))
+                            else -> Box(dot.border(1.dp, c.text3, RoundedCornerShape(2.dp)))
+                        }
+                        Txt(modelState(g) + (status.unloadAt?.takeIf { status.text == LoadState.Ready }?.let { " · ${untilLabel(it)}" } ?: ""),
+                            LfmType.meta, c.text2, maxLines = 1)
+                    }
+                }
+                IconButtonPlain("plus", {
+                    g.assistant.newChat()
+                    if (queued.isNotEmpty()) nav.show("New chat. ${queued.size} queued ${if (queued.size == 1) "message moves" else "messages move"} with you.")
+                }, desc = "New chat")
+            }
+            com.lfmpixel.lfm.ui.components.Divider()
         }
-        LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list, contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (visible.isEmpty() && streaming == null) item {
-                Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Txt("Ask, capture or do.", LfmType.answer)
-                    Txt("“Remind me to call the plumber at six.” “Add oat milk to my list.” “What did I note about the boiler?”",
-                        LfmType.small, c.text2)
-                    Txt(if (g.engine.hasText()) "Runs on this phone with LFM3-1.7B." else "No model yet: import LFM3-1.7B in Settings → Models.",
-                        LfmType.meta, c.text2)
+        Box(Modifier.weight(1f)) {
+            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (visible.isEmpty() && streaming == null && queued.isEmpty()) item {
+                    Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Txt("Ask, capture or do.", LfmType.answer)
+                        listOf("Remind me to call the plumber at six", "Add oat milk to my list", "What did I note about the boiler?").forEach { ex ->
+                            Btn(ex, { draft = ex }, small = true)
+                        }
+                        Txt(if (g.engine.hasText()) "Runs on this phone." else "No model yet: get LFM3-1.7B in Settings → Models.",
+                            LfmType.meta, c.text2)
+                    }
+                }
+                items(visible, key = { it.id }) { m ->
+                    Box(Modifier.animateItem(fadeInSpec = null, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
+                        Role.User -> UserBubble(m)
+                        Role.Assistant -> AssistantText(m.text, m.meta, citations = m.searchId != null)
+                        Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
+                            else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
+                        Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
+                    } }
+                }
+                streaming?.let { s ->
+                    item(key = "streaming") {
+                        if (s.text.isEmpty()) Txt(s.note.ifEmpty {
+                            when {
+                                status.text == LoadState.Loading -> "Loading ${modelState(g).substringBefore(" ·")}…"
+                                s.thinking -> "Thinking…"
+                                else -> "Writing…"
+                            }
+                        }, LfmType.small, c.text2)
+                        else AssistantText(s.text, "")
+                    }
+                }
+                query?.let { q -> item(key = "query") { QueryCard(q) } }
+                items(queued, key = { "q${it.id}" }) { q ->
+                    Box(Modifier.animateItem(fadeInSpec = itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)) {
+                        QueuedBubble(q, queued.indexOf(q) + 1, queued.size) { editing = q.id }
+                    }
                 }
             }
-            items(visible, key = { it.id }) { m ->
-                Box(Modifier.animateItem(fadeInSpec = null, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
-                    Role.User -> UserBubble(m)
-                    Role.Assistant -> AssistantText(m.text, m.meta, citations = m.searchId != null)
-                    Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }
-                        else ToolCard(m, records[m.actionId], onUndo = { id -> scope.launch { g.assistant.undo(id) } })
-                    Role.Notice -> Txt(m.text, LfmType.meta, c.text2)
-                } }
+            if (!atEnd && !follow) Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)) {
+                Btn("Latest", { follow = true; scope.launch { if (count > 0) list.animateScrollToItem(count - 1, Int.MAX_VALUE / 2) } }, small = true, icon = "down",
+                    kind = com.lfmpixel.lfm.ui.components.BtnKind.Primary)
             }
-            streaming?.let { s ->
-                item(key = "streaming") {
-                    if (s.text.isEmpty()) Txt(s.note.ifEmpty { if (s.thinking) "Thinking…" else "…" }, LfmType.small, c.text2)
-                    else AssistantText(s.text, "")
-                }
-            }
-            query?.let { q -> item(key = "query") { QueryCard(q) } }
         }
         Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)) {
-            Composer(draft, { draft = it }, if (busy) "Writing…  tap the mic to speak next" else "Message…", onSend = {
-                if (!busy) { g.assistant.send(draft); draft = "" }
-            }, onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) })
+            Composer(draft, { draft = it }, if (working) "Message… it will wait its turn" else "Message…", onSend = send,
+                onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) },
+                onStop = if (working) ({ g.assistant.stop() }) else null)
         }
-        if (busy) Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.Center) {
-            Txt("Stop", LfmType.button, c.text, Modifier.clickable { g.assistant.stop() }.padding(8.dp), decoration = TextDecoration.Underline)
+    }
+    editing?.let { id ->
+        queued.firstOrNull { it.id == id }?.let { q -> QueuedSheet(g, q, queued.indexOf(q), queued.size) { editing = null } }
+            ?: LaunchedEffect(id) { editing = null }
+    }
+    if (modelSheet) ModelSheet(g, onModels = { modelSheet = false; nav.go(Route.Models) }) { modelSheet = false }
+}
+
+/** "unloads in 4 min" for the chat header. */
+private fun untilLabel(at: Long): String {
+    val min = ((at - System.currentTimeMillis()) / 60_000).coerceAtLeast(0)
+    return if (min < 1) "unloads in under a minute" else "unloads in $min min"
+}
+
+/** A message waiting its turn: your bubble with a dashed edge and its place in the queue. Tap to change it. */
+@Composable
+private fun QueuedBubble(q: com.lfmpixel.lfm.assistant.Queued, n: Int, of: Int, onClick: () -> Unit) {
+    val c = Lfm.c
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+        val shape = RoundedCornerShape(8.dp, 8.dp, 2.dp, 8.dp)
+        Column(Modifier.widthIn(max = 300.dp).clip(shape).dashedBorder(c.control, 8.dp).clickable(onClickLabel = "Edit queued message", onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp).semantics(mergeDescendants = true) { contentDescription = "Queued, $n of $of: ${q.text}" }) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 4.dp)) {
+                LIcon("history", size = 14.dp, tint = c.text2)
+                Txt(if (of == 1) "Queued · runs next" else "Queued · $n of $of", LfmType.meta, c.text2)
+            }
+            Txt(q.text, LfmType.body, c.text2)
+        }
+    }
+}
+
+private fun Modifier.dashedBorder(color: androidx.compose.ui.graphics.Color, radius: androidx.compose.ui.unit.Dp) = drawBehind {
+    val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx(),
+        pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())))
+    drawRoundRect(color, cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius.toPx()), style = stroke)
+}
+
+/** Edit, move or remove a queued message. */
+@Composable
+private fun QueuedSheet(g: AppGraph, q: com.lfmpixel.lfm.assistant.Queued, index: Int, size: Int, onClose: () -> Unit) {
+    val c = Lfm.c
+    var text by remember(q.id) { mutableStateOf(q.text) }
+    val save = { if (text.trim() != q.text) g.assistant.editQueued(q.id, text) }
+    FlatSheet(onDismiss = { save(); onClose() }) {
+        Txt("Queued message", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
+        Txt(if (size == 1) "Runs once the current answer ends." else "Number ${index + 1} of $size. They run in this order.", LfmType.small, c.text2,
+            Modifier.padding(top = 4.dp))
+        val shape = RoundedCornerShape(6.dp)
+        Box(Modifier.padding(top = 12.dp).fillMaxWidth().background(c.fill, shape).border(1.dp, c.control, shape).padding(12.dp)) {
+            androidx.compose.foundation.text.BasicTextField(text, { text = it }, textStyle = LfmType.body.copy(color = c.text),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(c.text), minLines = 2, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Message" })
+        }
+        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Btn("Earlier", { save(); g.assistant.moveQueued(q.id, -1) }, Modifier.weight(1f), icon = "up", enabled = index > 0)
+            Btn("Later", { save(); g.assistant.moveQueued(q.id, 1) }, Modifier.weight(1f), icon = "down", enabled = index < size - 1)
+        }
+        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Btn("Remove", { g.assistant.removeQueued(q.id); onClose() }, Modifier.weight(1f), icon = "trash")
+            Btn(if (index == 0) "Done" else "Send next", { save(); if (index > 0) g.assistant.sendNext(q.id); onClose() }, Modifier.weight(1f),
+                com.lfmpixel.lfm.ui.components.BtnKind.Primary)
         }
     }
 }

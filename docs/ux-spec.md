@@ -53,7 +53,7 @@ data and models.
 Four places in a bottom bar, as before; everything else is pushed on top and Back returns.
 
 ```
-Today ─ Chat ─ Library ─ To-dos         (bottom bar; tapping the current place scrolls it to the top)
+Today ─ Chat ─ Library ─ To-dos         (bottom bar)
   │       │       │         │
   │       │       │         └─ Editor (to-do)
   │       │       └─ Editor (note, idea, journal)
@@ -76,8 +76,8 @@ Steps are taps (typing counts as none). Before → after.
 | New note from the Library | + → tap field → type → Save = 3, lost on Back | + → type = 1, Back saves |
 | New note, idea, journal line or to-do from Today | none (only via the assistant) | Kind chip → type = 1 |
 | New to-do due today | To-dos → + → tap field → type → tap Due → type "today" → Save = 5 | To-dos → type in "Add a to-do" → Enter = 1 |
-| Edit a note | open → tap field → edit → Save = 3 | open → edit = 1 (cursor at the end) |
-| Switch a note to a to-do | open → To-do → Save = 3 | open → To-do chip = 2 |
+| Edit a note | open → tap field → edit → Save = 3, lost on Back | open → tap → edit = 2, Back saves |
+| Switch a note to a to-do | open → To-do → Save = 3 | long-press → Move to To-dos = 2, Undo |
 | Delete a note | open → Delete = 2, no undo | swipe left = 1, Undo |
 | Tick a to-do | tap box = 1, no undo | tap box or swipe right = 1, Undo |
 | Pin a note | not possible | swipe right = 1 |
@@ -85,7 +85,7 @@ Steps are taps (typing counts as none). Before → after.
 | Send two messages in a row | not possible while it answers | type → Send → type → Send |
 | Stop an answer | find "Stop" below the composer = 1 | Stop button (where Send is) = 1 |
 | Load or unload a model | not possible | header status → Load/Unload = 2 |
-| Pick the chat model | not possible (the newest file wins) | Settings → Models → Use for chat = 3 |
+| Pick the chat model | not possible (the newest file wins) | chat header → pick it = 2 (with two or more on the phone) |
 | First run, recommended models | 3 Download taps + Continue = 4 | Get the recommended models = 1, Continue = 2 |
 
 ## 5. Screens
@@ -115,14 +115,15 @@ Each screen lists layout, states (empty, loading, error) and gestures. Margins a
   with what to do. Empty chat: three example prompts you can tap.
 - **Scroll.** Stays at the bottom while you are at the bottom; if you scrolled up, a "Latest ↓" button appears
   instead of jumping.
-- **Gestures.** Long-press a message to copy it.
 
 ### Model sheet (from the chat header) and Settings → Models
 
 - **Loaded now**: each model in memory with its memory use (estimate, from file size and context), and **Unload**.
   The phone's free memory is shown under the list.
-- **On this phone**: every installed model with **Load** (or "Loaded"), and for chat models **Use for chat** (the
-  default; a radio mark). Projectors are listed with their model, not on their own.
+- **Chat model**: with two or more text models on the phone (say Q4_0 and Q8_0), a radio list picks the one chat
+  uses; a loaded one is swapped at once. Projectors are listed with their model, not on their own.
+- **Unloading** waits for an answer being written with that model, and says so ("Unloads when the current answer
+  ends").
 - **Auto-unload**: Never · 1 · 5 · 15 · 30 min idle. Tied to the Battery & heat row in Settings.
 - **Download / Import** below, as before; Delete asks first ("Delete LFM3-1.7B Q8_0? Frees 1.85 GB. You'd download
   it again to use it."). A loaded model is unloaded before it is deleted.
@@ -141,9 +142,10 @@ Each screen lists layout, states (empty, loading, error) and gestures. Margins a
 
 ### Editor (note, idea, journal, to-do)
 
-- **Layout.** Full screen. Top bar: Back, **kind chips** Note · Idea · Journal · To-do, Pin, More (Delete). Body: one
+- **Layout.** Full screen. Top bar: Back, "Saved", Pin, Delete; under it the **kind chips** Note · Idea · Journal · To-do. Body: one
   big text field; the first line is the title. Under it, by kind: Tags (note), Topic (idea), Mood (journal), and for a
-  to-do **due chips** Today · Tomorrow · Next week · No date · Pick… plus List. A quiet "Saved" or "Saving…" line.
+  to-do **due chips** Today · Tomorrow · Next week · No date · Pick… plus List. A quiet "Saved" or "Saving…" word in
+  the top bar. A new entry opens with the keyboard up; an existing one opens to read, and a tap puts the cursor there.
 - **Saving.** Every change is saved half a second after you stop typing, and at once on Back, on leaving the app and
   on switching kind. A new entry is created on the first character; an entry left empty is removed. Nothing is lost
   on Back, swipe, rotation or the app being killed.
@@ -194,7 +196,8 @@ LP-12 already follows these rules. Implemented in `ui/theme/Motion.kt`.
 | Something appears in place (snackbar, queued bubble, saved line) | 150–250 ms | emphasized decelerate | fade + 8 dp rise |
 | Something leaves (snackbar, removed row) | 150 ms | emphasized accelerate | fade + shrink height |
 | List reorder (pin, done, queue order) | 250 ms (MEDIUM) | emphasized decelerate | `animateItem` placement |
-| Push a full screen (editor, sub-screens) | 300 ms (LONG) | emphasized | shared axis X: in from 10 % right with fade; Back reverses |
+| Push a full screen (editor, chat, sub-screens) | 300 ms (LONG) | emphasized | shared axis X: in from 10 % right with fade; Back reverses |
+| Switch places in the bottom bar | none | — | instant, as in Signal: they are places, not steps |
 | Full-screen mode change (camera) | 300 ms | emphasized | shared axis Z (as now) |
 | Swipe release | spring, no bounce | — | follows the finger; the action colour shows past 40 % |
 
@@ -206,7 +209,8 @@ LP-12 already follows these rules. Implemented in `ui/theme/Motion.kt`.
 
 - Touch targets at least 48 × 48 dp; icon-only buttons have a content description ("Stop", "Pin", "New note").
 - Text contrast at least 4.5:1 in both themes (the palette's greys pass); yellow is never text.
-- Every swipe action is also in the long-press menu, and in TalkBack's custom actions.
+- Every swipe action is also a TalkBack custom action; in the Library it is also in the long-press menu, and on
+  To-dos the checkbox and the editor do the same.
 - States are said, not only shown: "Queued, 2 of 3", "LFM3-1.7B loaded, 1.2 GB".
 - Font scaling up to 200 % keeps layouts usable: rows wrap rather than clip; the composer grows to 5 lines.
 - Snackbars stay 5 s, longer (10 s) with TalkBack on.

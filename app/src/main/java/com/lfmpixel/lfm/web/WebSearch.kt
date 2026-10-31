@@ -65,12 +65,12 @@ class WebSearch(
         if (prefs.searchMode == SearchMode.Off) return off("Web search is off. It can be turned on in Settings.")
         when (net.state()) {
             NetClient.State.On -> Unit
-            NetClient.State.NotInstalled -> return off("LFM Net, the helper app for web search, is not installed.")
-            NetClient.State.WrongSigner -> return off("LFM Net is signed with another key, so it was not used.")
-            NetClient.State.Off -> return off("LFM Net is turned off in Settings → Privacy.")
+            NetClient.State.NotInstalled -> return off("Inkling Net, the helper app for web search, is not installed.")
+            NetClient.State.WrongSigner -> return off("Inkling Net is signed with another key, so it was not used.")
+            NetClient.State.Off -> return off("Inkling Net is turned off in Settings → Privacy.")
         }
-        val info = try { net.info() } catch (e: NetException) { return off(e.message ?: "LFM Net did not answer") }
-        if (!info.ready) return off("No search provider is set up. Set one in LFM Net.")
+        val info = try { net.info() } catch (e: NetException) { return off(e.message ?: "Inkling Net did not answer") }
+        if (!info.ready) return off("No search provider is set up. Set one in Inkling Net.")
 
         // Names in contacts can only be checked if LFM may read them: ask once, here, where it matters.
         if (prefs.warnPersonalWords && contacts != null && !contacts.canRead()) permissionGate?.ensure(listOf(android.Manifest.permission.READ_CONTACTS))

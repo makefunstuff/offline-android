@@ -33,6 +33,9 @@ class ModelStore(private val context: Context) {
     private fun newest(role: ModelRole) = _installed.value.filter { it.known.role == role && it.verified }
         .maxByOrNull { File(dir, it.file.name + ".sha256").lastModified() }
     fun text(): InstalledModel? = newest(ModelRole.Text)
+    /** The chat model the owner picked, if it is still here; else the text model added last. */
+    fun text(preferred: String): InstalledModel? =
+        _installed.value.firstOrNull { it.known.role == ModelRole.Text && it.verified && it.file.name == preferred } ?: text()
     fun omni(): InstalledModel? = newest(ModelRole.Omni)
     fun omniProjector(): InstalledModel? = newest(ModelRole.OmniProjector)
     fun vision(): InstalledModel? = newest(ModelRole.Vision)

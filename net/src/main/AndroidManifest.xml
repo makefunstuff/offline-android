@@ -9,14 +9,14 @@
     <!-- Only apps signed with the same key (LFM) may bind to the service. LFM declares it too, so the order of
          installs doesn't matter. -->
     <permission android:name="com.lfmpixel.lfm.permission.LFM_NET" android:protectionLevel="signature"
-        android:label="Use LFM Net" />
+        android:label="Use Inkling Net" />
 
     <application
         android:allowBackup="false"
         android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="LFM Net"
+        android:label="Inkling Net"
         android:supportsRtl="true"
         android:theme="@style/Theme.LfmNet"
         android:usesCleartextTraffic="true">

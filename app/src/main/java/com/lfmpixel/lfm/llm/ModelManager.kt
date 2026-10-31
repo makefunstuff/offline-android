@@ -13,9 +13,22 @@ import kotlinx.coroutines.sync.withLock
 enum class LoadState { None, Loading, Ready, Failed }
 
 data class EngineStatus(val text: LoadState = LoadState.None, val omni: LoadState = LoadState.None, val vision: LoadState = LoadState.None,
-                        val error: String? = null)
+                        val error: String? = null, val textFile: String? = null, val unloadAt: Long? = null) {
+    fun of(slot: Slot) = when (slot) { Slot.Text -> text; Slot.Omni -> omni; Slot.Vision -> vision }
+    val anyLoaded get() = Slot.entries.any { of(it) == LoadState.Ready }
+}
 
-/** Keeps the text model (and Omni, for voice) in memory while in use, and lets them go after a few idle minutes. */
+/** The three models that can be in memory at once. */
+enum class Slot(val label: String, val purpose: String) {
+    Text("LFM3-1.7B", "Chat and tools"),
+    Omni("LFM3-Omni-2B", "Voice, photos, video"),
+    Vision("LFM3-VL-2B", "Documents"),
+}
+
+/**
+ * Keeps the text model (and Omni and VL when used) in memory while in use, and lets them go after the idle time the
+ * owner picked (never, if they chose so). Each can also be loaded or unloaded by hand.
+ */
 class ModelManager(
     private val nativeLibDir: String,
     private val store: ModelStore,
@@ -31,17 +44,22 @@ class ModelManager(
     val status: StateFlow<EngineStatus> = _status
 
     fun hasText() = store.text() != null
+    /** The model chat uses: the owner's pick, or the text model added last. */
+    suspend fun chatModel(): InstalledModel? = store.text(settings.now().chatModel)
+    fun installed(slot: Slot) = when (slot) { Slot.Text -> hasText(); Slot.Omni -> hasVoice(); Slot.Vision -> hasVision() }
     fun hasVoice() = store.omni() != null && store.omniProjector() != null
     fun visionPath() = store.vision()?.file?.path
     fun hasVision() = store.vision() != null && store.visionProjector() != null
 
     suspend fun textSession(): LlamaSession = lock.withLock {
         touch()
-        text?.takeIf { it.path == store.text()?.file?.path }?.let { return it }
+        val m = chatModel()
+        text?.takeIf { it.path == m?.file?.path }?.let { return it }
         text?.close()
         text = null
-        val m = store.text() ?: throw LlmException("No text model yet. Import LFM3-1.7B in Settings → Models.")
-        _status.value = _status.value.copy(text = LoadState.Loading, error = null)
+        _status.value = _status.value.copy(text = LoadState.None, textFile = null)
+        if (m == null) throw LlmException("No text model yet. Get LFM3-1.7B in Settings → Models.")
+        _status.value = _status.value.copy(text = LoadState.Loading, error = null, textFile = m.file.name)
         val p = settings.now()
         try {
             LlamaSession.open(nativeLibDir, m.file.path, p.contextTokens, p.threads).also {
@@ -114,16 +132,49 @@ class ModelManager(
     private fun touch() {
         idleJob?.cancel()
         idleJob = scope.launch {
-            delay(settings.now().unloadAfterMinutes * 60_000L)
+            val minutes = settings.now().unloadAfterMinutes
+            if (minutes <= 0) { _status.value = _status.value.copy(unloadAt = null); return@launch }
+            val ms = minutes * 60_000L
+            _status.value = _status.value.copy(unloadAt = System.currentTimeMillis() + ms)
+            delay(ms)
             unloadAll()
         }
     }
 
+    /** After the idle time changed: count it again from now, if anything is loaded. */
+    fun idleTimeChanged() { if (_status.value.anyLoaded) touch() }
+
     suspend fun unloadAll() = lock.withLock {
+        idleJob?.cancel()
         text?.close(); text = null
         omni?.close(); omni = null
         vision?.close(); vision = null
         _status.value = EngineStatus()
+    }
+
+    /** Loads one model by hand, so the next question doesn't wait for it. */
+    suspend fun load(slot: Slot) {
+        when (slot) { Slot.Text -> textSession(); Slot.Omni -> omniSession(); Slot.Vision -> visionSession() }
+    }
+
+    /** Lets one model go; the others stay. */
+    suspend fun unload(slot: Slot) = lock.withLock {
+        when (slot) {
+            Slot.Text -> { text?.close(); text = null; _status.value = _status.value.copy(text = LoadState.None, textFile = null) }
+            Slot.Omni -> { omni?.close(); omni = null; _status.value = _status.value.copy(omni = LoadState.None) }
+            Slot.Vision -> { vision?.close(); vision = null; _status.value = _status.value.copy(vision = LoadState.None) }
+        }
+        if (!_status.value.anyLoaded) { idleJob?.cancel(); _status.value = _status.value.copy(unloadAt = null) }
+    }
+
+    /**
+     * About how much memory a model takes once loaded: its weights (and projector), plus the context and working
+     * buffers. An estimate from file sizes, shown with "about".
+     */
+    suspend fun memoryBytes(slot: Slot): Long = when (slot) {
+        Slot.Text -> (chatModel()?.known?.sizeBytes ?: 0) + settings.now().contextTokens * 8_192L + 120_000_000L
+        Slot.Omni -> (store.omni()?.known?.sizeBytes ?: 0) + (store.omniProjector()?.known?.sizeBytes ?: 0) + 180_000_000L
+        Slot.Vision -> (store.vision()?.known?.sizeBytes ?: 0) + (store.visionProjector()?.known?.sizeBytes ?: 0) + 260_000_000L
     }
 
     companion object {
