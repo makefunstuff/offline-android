@@ -26,6 +26,7 @@ import com.lfmpixel.lfm.tools.Tool
 import com.lfmpixel.lfm.tools.ToolArgsException
 import com.lfmpixel.lfm.tools.ToolRegistry
 import com.lfmpixel.lfm.tools.ToolResult
+import com.lfmpixel.lfm.web.WebSearch
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -70,6 +71,7 @@ class Assistant(
     private val controls: PhoneControls,
     private val launcher: ExternalLauncher,
     private val scope: CoroutineScope,
+    val web: WebSearch? = null,
 ) {
     var permissionGate: PermissionGate? = null
     private val zone get() = ZoneId.systemDefault()
@@ -116,6 +118,7 @@ class Assistant(
     fun stop() {
         job?.cancel()
         pendingConfirm.value?.cancel()
+        web?.pending?.value?.cancel()
     }
 
     fun send(text: String, voiceSeconds: Int = 0, source: String = "typed") {
@@ -163,9 +166,11 @@ class Assistant(
             cardLabel = r.cardLabel, cardTitle = r.cardTitle, cardDetail = r.cardDetail, actionId = r.actionId))
     }
 
-    private fun systemPrompt(): String {
+    private fun systemPrompt(webOn: Boolean): String {
         val tz = zone.id
-        return "You are LFM, a private assistant that runs entirely on the owner's phone, with no internet access. " +
+        val net = if (webOn) "It can search the web with web_search: use it when a question needs current facts, prices, news or " +
+            "anything you are unsure of; answer from your own knowledge otherwise. " else "with no internet access. "
+        return "You are LFM, a private assistant that runs entirely on the owner's phone" + (if (webOn) ". " else ", ") + net +
             "Answer briefly and plainly. When the owner asks you to remember, note, remind, add, set, text, call or change " +
             "something, call a tool. \"Remind me\" means set_reminder; use set_alarm only when they say alarm. Things to buy " +
             "are to-dos on the Shopping list. Work out dates and times from the time given with each message and write them " +
@@ -184,18 +189,23 @@ class Assistant(
 
     private suspend fun converse(source: String) {
         val prefs = settings.now()
-        val tools = registry.specsJson()
+        val webOn = web?.available() == true
+        val tools = registry.specsJson() + listOfNotNull(if (webOn) WebSearch.spec.toJson() else null)
+        var searchId: Long? = null
         // Thinking gets a budget; past it, the think block is closed and the model must answer.
         val thinkBudget = 384
         val answerBudget = 512
         val maxTokens = if (prefs.thinking) thinkBudget + answerBudget else answerBudget
         repeat(4) { round ->
-            var history = db.messages().threadNow(_thread.value).mapNotNull(::toPrompt)
-            var prompt = PromptFormat.build(systemPrompt(), tools, history, prefs.thinking)
+            val thread = db.messages().threadNow(_thread.value)
+            // Once web text is in the conversation, every action and every new query asks first (spec section 4).
+            val afterWebText = thread.any { it.role == Role.Tool && (it.searchId ?: 0) > 0 }
+            var history = thread.mapNotNull(::toPrompt)
+            var prompt = PromptFormat.build(systemPrompt(webOn), tools, history, prefs.thinking)
             // Drop the oldest turns until the prompt leaves room for the answer.
             while (history.size > 1 && models.textSession().countTokens(prompt) > prefs.contextTokens - maxTokens - 64) {
                 history = history.drop(1).dropWhile { it.role != PromptMessage.Role.User }.ifEmpty { history.takeLast(1) }
-                prompt = PromptFormat.build(systemPrompt(), tools, history, prefs.thinking)
+                prompt = PromptFormat.build(systemPrompt(webOn), tools, history, prefs.thinking)
             }
             val raw = StringBuilder()
             streaming.value = Streaming("", prefs.thinking)
@@ -215,14 +225,27 @@ class Assistant(
             val out = ModelOutput.parse(raw.toString(), prefs.thinking)
             val st = session.stats()
             val meta = "LFM3-1.7B · on this phone · %.0f tokens/s".format(Locale.ENGLISH, st.decodeTps)
+            val answerFrom = searchId.takeIf { out.toolCalls.isEmpty() && out.answer.isNotBlank() }
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
-                raw = PromptFormat.assistantPrefix(prefs.thinking) + raw, meta = meta))
+                raw = PromptFormat.assistantPrefix(prefs.thinking) + raw,
+                meta = if (answerFrom != null) "Written on this phone from the web · %.0f tokens/s".format(Locale.ENGLISH, st.decodeTps) else meta,
+                searchId = answerFrom))
             streaming.value = null
+            if (answerFrom != null) db.searches().get(answerFrom)?.let { db.searches().update(it.copy(answer = out.answer)) }
             if (out.toolCalls.isEmpty()) {
                 if (out.answer.isBlank() && round == 0) notice("The model gave no answer. Try again, or say it another way.")
                 return
             }
-            for (call in out.toolCalls) toolCard(execute(call, source, afterWebText = false))
+            for (call in out.toolCalls) {
+                if (call.name == WebSearch.spec.name) {
+                    val r = web?.run(call.args["query"].orEmpty(), _thread.value, afterWebText)
+                        ?: com.lfmpixel.lfm.web.SearchOutcome("Error: web search is not available.", null, "No web search", "", "")
+                    if (r.searchId != null) searchId = r.searchId
+                    // -1 marks a search card that has no search behind it (off, cancelled, failed).
+                    db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Tool, text = "", raw = r.forModel,
+                        cardLabel = r.cardLabel, cardTitle = r.cardTitle, cardDetail = r.cardDetail, searchId = r.searchId ?: -1))
+                } else toolCard(execute(call, source, afterWebText))
+            }
             if (round == 3) notice("Stopped after four rounds of tool calls.")
         }
     }

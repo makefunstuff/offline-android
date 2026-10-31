@@ -54,7 +54,9 @@ import com.lfmpixel.lfm.ui.screens.ImportScreen
 import com.lfmpixel.lfm.ui.screens.LibraryScreen
 import com.lfmpixel.lfm.ui.screens.ModelsScreen
 import com.lfmpixel.lfm.ui.screens.PrivacyScreen
+import com.lfmpixel.lfm.ui.screens.SearchScreen
 import com.lfmpixel.lfm.ui.screens.SettingsScreen
+import com.lfmpixel.lfm.ui.screens.WebSearchScreen
 import com.lfmpixel.lfm.ui.screens.TodayScreen
 import com.lfmpixel.lfm.ui.screens.TodosScreen
 import com.lfmpixel.lfm.ui.screens.ToolsScreen
@@ -90,12 +92,22 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         graph.assistant.permissionGate = gate
+        graph.web.permissionGate = gate
         graph.launcher.activity = this
         setContent {
             LfmTheme {
                 Root(graph, gate, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // LFM Net may have been installed, removed or set up meanwhile; downloads cut off by a restart carry on.
+        graph.net.refresh()
+        graph.downloads.resumeInterrupted()
+        // Back from Android's install prompt without an answer: let Install be tapped again.
+        if (graph.netInstaller.status.value == com.lfmpixel.lfm.web.NetInstaller.Status.Working) graph.netInstaller.status.value = com.lfmpixel.lfm.web.NetInstaller.Status.Idle
     }
 
     override fun onDestroy() {
@@ -166,6 +178,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickFiles: ((List<android.ne
                     Route.History -> HistoryScreen(g, nav)
                     Route.Privacy -> PrivacyScreen(g, nav)
                     Route.FirstRun -> FirstRunScreen(g, nav) { nav.go(Route.Models); startImport() }
+                    is Route.Search -> SearchScreen(g, nav, r.id)
+                    Route.WebSearch -> WebSearchScreen(g, nav)
                 }
             }
             VoicePanel(g) { g.voice.stop() }

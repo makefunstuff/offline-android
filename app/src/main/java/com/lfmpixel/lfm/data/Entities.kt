@@ -56,6 +56,7 @@ data class ChatMessage(
     val voiceSeconds: Int = 0,
     val meta: String = "",          // "LFM3-1.7B · on this phone"
     val createdAt: Long = System.currentTimeMillis(),
+    val searchId: Long? = null,     // a web search card (-1: no search was made), or an answer written from one
 )
 
 enum class ActionStatus { Done, Undone, Cancelled, Failed, Opened }
@@ -83,3 +84,44 @@ data class Reminder(
     val cancelled: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
 )
+
+/** One request LFM Net made for LFM: the network log under Settings → Privacy. */
+@Entity(tableName = "netlog", indices = [Index("at")])
+data class NetLogEntry(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val at: Long,
+    val host: String,
+    val url: String,                // full address (API keys blanked by LFM Net)
+    val label: String,              // "“plumber call-out fee”", "Opened source 1", "Model: LFM3-VL-2B"
+    val sent: String,               // what went out beyond the address: the search words, a file name
+    val bytes: Long,                // received
+    val ok: Boolean,
+)
+
+/** One web search: the words sent, where, what came back and which pages were read. */
+@Entity(tableName = "searches")
+data class SearchRecord(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val threadId: Long,
+    val query: String,
+    val provider: String,           // "your SearXNG + Wikipedia"
+    val sources: String,            // SearchSource.encode
+    val personalSent: String = "",  // personal words the owner chose to send anyway
+    val answer: String = "",        // the answer written from it
+    val opened: Int = 0,            // result pages LFM Net was asked to open (some may not have answered)
+    val at: Long = System.currentTimeMillis(),
+)
+
+/** A numbered source of a search answer. [read] is whether its page was opened, not only its snippet used. */
+data class SearchSource(val n: Int, val title: String, val url: String, val snippet: String, val read: Boolean) {
+    val host get() = url.substringAfter("://").substringBefore('/').substringBefore(':').removePrefix("www.")
+
+    companion object {
+        private fun clean(s: String) = s.replace('\t', ' ').replace('\n', ' ')
+        fun encode(list: List<SearchSource>) = list.joinToString("\n") { listOf(it.n.toString(), clean(it.title), clean(it.url), clean(it.snippet), if (it.read) "1" else "0").joinToString("\t") }
+        fun decode(s: String) = s.lines().mapNotNull { line ->
+            val f = line.split('\t')
+            if (f.size < 5) null else SearchSource(f[0].toIntOrNull() ?: return@mapNotNull null, f[1], f[2], f[3], f[4] == "1")
+        }
+    }
+}

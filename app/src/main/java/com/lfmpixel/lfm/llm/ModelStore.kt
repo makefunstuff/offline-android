@@ -29,9 +29,12 @@ class ModelStore(private val context: Context) {
 
     fun refresh() { _installed.value = scan() }
 
-    fun text(): InstalledModel? = _installed.value.firstOrNull { it.known.role == ModelRole.Text && it.verified }
-    fun omni(): InstalledModel? = _installed.value.firstOrNull { it.known.role == ModelRole.Omni && it.verified }
-    fun omniProjector(): InstalledModel? = _installed.value.firstOrNull { it.known.role == ModelRole.OmniProjector && it.verified }
+    // With two of a kind (Q4 and Q8), the one added last is used: a new download or import takes over.
+    private fun newest(role: ModelRole) = _installed.value.filter { it.known.role == role && it.verified }
+        .maxByOrNull { File(dir, it.file.name + ".sha256").lastModified() }
+    fun text(): InstalledModel? = newest(ModelRole.Text)
+    fun omni(): InstalledModel? = newest(ModelRole.Omni)
+    fun omniProjector(): InstalledModel? = newest(ModelRole.OmniProjector)
 
     fun delete(m: InstalledModel) {
         m.file.delete()
@@ -93,6 +96,17 @@ class ModelStore(private val context: Context) {
         refresh()
         result
     }
+
+    /** Puts a downloaded, hash-checked file in place. */
+    fun adopt(model: KnownModel, part: File, sha256: String) {
+        val target = File(dir, model.fileName)
+        target.delete()
+        if (!part.renameTo(target)) throw java.io.IOException("Could not move ${model.fileName} into place")
+        File(dir, model.fileName + ".sha256").writeText(sha256)
+        refresh()
+    }
+
+    fun partFile(model: KnownModel) = File(dir, model.fileName + ".download")
 
     /** Offers to free the space the original took; works where the file's provider lets us delete it. */
     fun deleteOriginal(uri: Uri): Boolean = runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }.getOrDefault(false)

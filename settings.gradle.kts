@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "lfm-pixel"
-include(":app")
+rootProject.name = "offline-android"
+include(":app", ":ipc", ":net")

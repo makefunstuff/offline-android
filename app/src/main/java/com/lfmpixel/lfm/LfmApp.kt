@@ -16,6 +16,10 @@ import com.lfmpixel.lfm.tools.ToolEnv
 import com.lfmpixel.lfm.tools.ToolRegistry
 import com.lfmpixel.lfm.tools.defaultTools
 import com.lfmpixel.lfm.voice.OmniTranscriber
+import com.lfmpixel.lfm.web.ModelDownloads
+import com.lfmpixel.lfm.web.NetClient
+import com.lfmpixel.lfm.web.NetInstaller
+import com.lfmpixel.lfm.web.WebSearch
 import com.lfmpixel.lfm.voice.VoiceRecorder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +38,11 @@ class AppGraph(context: Context) {
     val controls = PhoneControls(context)
     val launcher = ExternalLauncher(context)
     val tools = ToolRegistry(defaultTools(ToolEnv(db, reminders, calendar, contacts, controls, launcher)))
-    val assistant = Assistant(context, db, engine, settings, tools, reminders, calendar, controls, launcher, scope)
+    val net = NetClient(context, settings, db, scope)
+    val web = WebSearch(db, settings, net, contacts)
+    val downloads = ModelDownloads(context, models, net, settings, engine, scope)
+    val netInstaller = NetInstaller(context)
+    val assistant = Assistant(context, db, engine, settings, tools, reminders, calendar, controls, launcher, scope, web)
     val voice = VoiceRecorder(OmniTranscriber(engine))
 }
 

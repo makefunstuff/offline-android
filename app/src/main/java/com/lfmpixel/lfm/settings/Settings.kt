@@ -24,6 +24,9 @@ data class Prefs(
     val contextTokens: Int = 8192,
     val unloadAfterMinutes: Int = 5,
     val toolPolicies: Map<String, ToolPolicy> = emptyMap(),
+    val netEnabled: Boolean = true,
+    val snippetsOnly: Boolean = false,
+    val downloadWifiOnly: Boolean = true,
 )
 
 private val Context.store by preferencesDataStore("settings")
@@ -38,6 +41,9 @@ class Settings(private val context: Context) {
         val ctx = intPreferencesKey("context_tokens")
         val unload = intPreferencesKey("unload_minutes")
         val policies = stringPreferencesKey("tool_policies") // "name=Ask;name2=Do"
+        val net = booleanPreferencesKey("net_enabled")
+        val snippets = booleanPreferencesKey("snippets_only")
+        val wifiOnly = booleanPreferencesKey("download_wifi_only")
     }
 
     val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
@@ -56,6 +62,9 @@ class Settings(private val context: Context) {
             val (k, v) = p.split('=').takeIf { it.size == 2 } ?: return@mapNotNull null
             runCatching { k to ToolPolicy.valueOf(v) }.getOrNull()
         }.toMap(),
+        netEnabled = this[K.net] ?: true,
+        snippetsOnly = this[K.snippets] ?: false,
+        downloadWifiOnly = this[K.wifiOnly] ?: true,
     )
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
@@ -64,6 +73,9 @@ class Settings(private val context: Context) {
     suspend fun setWarnPersonal(on: Boolean) = context.store.edit { it[K.warn] = on }
     suspend fun setThreads(n: Int) = context.store.edit { it[K.threads] = n }
     suspend fun setUnloadMinutes(n: Int) = context.store.edit { it[K.unload] = n }
+    suspend fun setNetEnabled(on: Boolean) = context.store.edit { it[K.net] = on }
+    suspend fun setSnippetsOnly(on: Boolean) = context.store.edit { it[K.snippets] = on }
+    suspend fun setDownloadWifiOnly(on: Boolean) = context.store.edit { it[K.wifiOnly] = on }
     suspend fun setToolPolicy(tool: String, policy: ToolPolicy) = context.store.edit {
         val map = it.toPrefs().toolPolicies + (tool to policy)
         it[K.policies] = map.entries.joinToString(";") { (k, v) -> "$k=${v.name}" }

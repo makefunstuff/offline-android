@@ -49,6 +49,21 @@ object ModelCatalog {
         KnownModel("mmproj-LFM3-VL-2B-Q8_0.gguf", "VL projector", "Q8_0", ModelRole.VisionProjector, 203031872, "c5c5b58d544a18da919172d2d0368090ea1a4a351b6feb7f8a326a264a5918ab", VL),
     )
 
+    /** A model as the Models screen lists it: what it is for, the quantisations offered, and the projector it needs. */
+    data class Group(val family: String, val purpose: String, val variants: List<KnownModel>, val projector: KnownModel?)
+
+    /** Q4 (smaller, faster) and Q8 (more accurate) of each model, as the spec has them; other pinned files can be imported. */
+    val groups get() = listOf(
+        Group("LFM3-1.7B", "Chat, tools and writing", listOf(byName("LFM3-1.7B-QAD-Q4_0.gguf")!!, byName("LFM3-1.7B-Q8_0.gguf")!!), null),
+        Group("LFM3-Omni-2B", "Voice: hears what you say", listOf(byName("LFM3-Omni-2B-Q4_0.gguf")!!, byName("LFM3-Omni-2B-Q8_0.gguf")!!),
+            byName("mmproj-LFM3-Omni-2B-Q4_K_M.gguf")!!),
+        Group("LFM3-VL-2B", "Documents and pictures (coming in Phase 5)", listOf(byName("LFM3-VL-2B-QAD-Q4_0.gguf")!!, byName("LFM3-VL-2B-Q8_0.gguf")!!),
+            byName("mmproj-LFM3-VL-2B-Q8_0.gguf")!!),
+    )
+
+    /** What first run downloads: chat and voice (2.4 GB). */
+    val essentials get() = listOf("LFM3-1.7B-QAD-Q4_0.gguf", "LFM3-Omni-2B-Q4_0.gguf", "mmproj-LFM3-Omni-2B-Q4_K_M.gguf").map { byName(it)!! }
+
     fun byName(fileName: String): KnownModel? = all.firstOrNull { it.fileName.equals(fileName, ignoreCase = true) }
 }
 
