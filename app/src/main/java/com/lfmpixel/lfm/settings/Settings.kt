@@ -3,6 +3,7 @@ package com.lfmpixel.lfm.settings
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -54,6 +55,9 @@ data class Prefs(
     val speechVoice: SpeechVoice = SpeechVoice.Female,
     /** Talk answers out loud; off, it answers in text only (faster, silent). */
     val talkSpoken: Boolean = true,
+    /** How fast this phone makes Omni's speech (real-time factor) and how long a spoken answer runs, as last seen. */
+    val voiceRtf: Double = 1.0,
+    val voiceUsualMs: Double = 6000.0,
     val assistOpens: AssistOpens = AssistOpens.Talk,
     val lockMode: LockMode = LockMode.Off,
     /** CPU, GPU, or Auto: per model, by [backendSpeeds]. */
@@ -99,6 +103,8 @@ class Settings(private val context: Context) {
         val speechLanguage = stringPreferencesKey("speech_language")
         val speechVoice = stringPreferencesKey("speech_voice")
         val talkSpoken = booleanPreferencesKey("talk_spoken")
+        val voiceRtf = doublePreferencesKey("voice_rtf")
+        val voiceUsualMs = doublePreferencesKey("voice_usual_ms")
         val assistOpens = stringPreferencesKey("assist_opens")
         val lock = stringPreferencesKey("lock_mode")
         val backend = stringPreferencesKey("backend")
@@ -138,6 +144,8 @@ class Settings(private val context: Context) {
         speechLanguage = this[K.speechLanguage]?.let { runCatching { SpeechLanguage.valueOf(it) }.getOrNull() } ?: SpeechLanguage.EnglishUK,
         speechVoice = this[K.speechVoice]?.let { runCatching { SpeechVoice.valueOf(it) }.getOrNull() } ?: SpeechVoice.Female,
         talkSpoken = this[K.talkSpoken] ?: true,
+        voiceRtf = this[K.voiceRtf] ?: 1.0,
+        voiceUsualMs = this[K.voiceUsualMs] ?: 6000.0,
         assistOpens = this[K.assistOpens]?.let { runCatching { AssistOpens.valueOf(it) }.getOrNull() } ?: AssistOpens.Talk,
         lockMode = this[K.lock]?.let { runCatching { LockMode.valueOf(it) }.getOrNull() } ?: LockMode.Off,
         backend = this[K.backend]?.let { runCatching { BackendChoice.valueOf(it) }.getOrNull() } ?: BackendChoice.Auto,
@@ -166,6 +174,7 @@ class Settings(private val context: Context) {
     suspend fun setSpeechLanguage(l: SpeechLanguage) = context.store.edit { it[K.speechLanguage] = l.name }
     suspend fun setSpeechVoice(v: SpeechVoice) = context.store.edit { it[K.speechVoice] = v.name }
     suspend fun setTalkSpoken(on: Boolean) = context.store.edit { it[K.talkSpoken] = on }
+    suspend fun setVoicePace(rtf: Double, usualMs: Double) = context.store.edit { it[K.voiceRtf] = rtf; it[K.voiceUsualMs] = usualMs }
     suspend fun setAssistOpens(o: AssistOpens) = context.store.edit { it[K.assistOpens] = o.name }
     suspend fun setChatModel(fileName: String) = context.store.edit { it[K.chatModel] = fileName }
     suspend fun setLockMode(m: LockMode) = context.store.edit { it[K.lock] = m.name }

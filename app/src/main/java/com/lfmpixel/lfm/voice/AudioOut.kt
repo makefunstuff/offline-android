@@ -26,7 +26,7 @@ import kotlin.math.sqrt
  * slower, and waits only at a pause in the voice. Every wait and underrun is counted ([last]) and logged (tag
  * lfm-voice).
  */
-class AudioOut(private val rate: Int = 24_000) {
+class AudioOut(private val rate: Int = 24_000, prior: Jitter.Prior = Jitter.prior, learnLength: Boolean = true) {
     private val _level = MutableStateFlow(0f)
     /** Loudness of what is playing now, 0..1, for the bars on the Talk screen. */
     val level: StateFlow<Float> = _level
@@ -37,7 +37,7 @@ class AudioOut(private val rate: Int = 24_000) {
     var keepLastIn: File? = null
 
     /** The rules, and what it learned of this phone's speed: kept from one stretch to the next. */
-    val jitter = Jitter(rate)
+    val jitter = Jitter(rate, prior, learnLength)
 
     /** How the last stretch played. */
     data class Played(
@@ -66,7 +66,11 @@ class AudioOut(private val rate: Int = 24_000) {
         @Volatile var firstAudioAt = 0L
     }
 
-    private var run: Run? = null
+    @Volatile private var run: Run? = null
+    /** The stretch stopped last, until its player has let go: see [awaitStopped]. */
+    @Volatile private var stopping: Run? = null
+    /** Called on the player thread when a stretch is first heard. */
+    @Volatile var onSound: (() -> Unit)? = null
     private val END = FloatArray(0)
 
     /** Starts a new stretch of speech; anything still playing stops. */
@@ -98,6 +102,9 @@ class AudioOut(private val rate: Int = 24_000) {
     /** The stretch should last about [ms] in all (a guess from its text), so the buffer knows what is still to come. */
     fun expect(ms: Double) = synchronized(jitter) { jitter.expect(ms) }
 
+    /** About [ms] more speech is coming on top of what has come so far. */
+    fun expectMore(ms: Double) = synchronized(jitter) { jitter.expectMore(ms) }
+
     /** No more audio for this stretch: waits until it has all been heard (or was stopped). */
     suspend fun finish() {
         val r = synchronized(this) { run } ?: return
@@ -113,10 +120,16 @@ class AudioOut(private val rate: Int = 24_000) {
     /** Stops at once, dropping what is still queued. */
     @Synchronized
     fun stop() {
-        run?.let { it.stopped = true; it.queue.clear(); it.queue.add(END) }
+        run?.let { it.stopped = true; it.queue.clear(); it.queue.add(END); stopping = it }
         run = null
         _level.value = 0f
         _playing.value = false
+    }
+
+    /** After [stop]: waits (up to [ms]) for the stopped stretch's player to finish, so [last] is its own numbers. */
+    suspend fun awaitStopped(ms: Long = 500): Played = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        // Off the main thread; a player that did not let go in time has no numbers of its own yet.
+        if (stopping?.done?.await(ms, TimeUnit.MILLISECONDS) == false) Played() else last
     }
 
     private fun play(r: Run, keep: FileOutputStream?) {
@@ -146,11 +159,11 @@ class AudioOut(private val rate: Int = 24_000) {
             if (next === END) ended = true else { pending.addLast(next); queued += next.size }
             return true
         }
-        fun need() = synchronized(jitter) { jitter.needMs(ms(written)) }
+        fun need(dry: Boolean) = synchronized(jitter) { if (dry) jitter.resumeMs(ms(written)) else jitter.needMs(ms(written)) }
         // Waits until enough audio is waiting (or all of it has come); returns how long it waited.
-        fun refill(): Double {
+        fun refill(dry: Boolean = false): Double {
             val t0 = SystemClock.elapsedRealtimeNanos()
-            while (!r.stopped && !ended && ms(queued) < need()) { take(true); while (take(false)) {} }
+            while (!r.stopped && !ended && ms(queued) < need(dry)) { take(true); while (take(false)) {} }
             return (SystemClock.elapsedRealtimeNanos() - t0) / 1e6
         }
         try {
@@ -162,12 +175,18 @@ class AudioOut(private val rate: Int = 24_000) {
                     track.play()
                     started = true
                     soundAt = SystemClock.elapsedRealtimeNanos()
+                    onSound?.invoke()
                     continue
                 }
                 if (queued == 0L) {
                     if (ended) break
-                    // Ran dry: at a pause in the voice it is only a longer pause; mid-word it is an underrun.
-                    val waited = refill()
+                    // The speaker still has audio of its own: wait for the next frame, nothing is heard yet.
+                    if (written - (track.playbackHeadPosition.toLong() and 0xffffffffL) > slice) { take(true); continue }
+                    // Ran dry: at a pause in the voice it is only a longer pause; mid-word it is an underrun. A wait
+                    // the speaker's own last audio covered was not heard at all.
+                    val left = ms(written - (track.playbackHeadPosition.toLong() and 0xffffffffL))
+                    val waited = refill(dry = true)
+                    if (waited <= left) continue
                     synchronized(jitter) { if (lastQuiet) jitter.paused(waited) else jitter.underrun(waited) }
                     if (!lastQuiet) Log.w(TAG, "underrun: speech ran out mid-word after %.1f s, waited %.0f ms (RTF %.2f)"
                         .format(ms(written) / 1000, waited, jitter.rtf))
@@ -177,12 +196,14 @@ class AudioOut(private val rate: Int = 24_000) {
                 val n = minOf(slice, pcm.size - head)
                 val quiet = synchronized(jitter) { jitter.quiet(pcm, head, n) }
                 lastQuiet = quiet
-                val pauseHere = synchronized(jitter) { jitter.pauseHere(ms(queued), quiet, ended) }
+                val pauseHere = synchronized(jitter) { jitter.pauseHere(ms(queued), quiet, ended, ms(written)) }
                 if (pauseHere) {
                     val waited = refill()
-                    synchronized(jitter) { jitter.paused(waited) }
-                    Log.i(TAG, "waited %.0f ms at a pause after %.1f s, for the model to catch up (RTF %.2f)"
-                        .format(waited, ms(written) / 1000, jitter.rtf))
+                    if (waited >= 20) {
+                        synchronized(jitter) { jitter.paused(waited) }
+                        Log.i(TAG, "waited %.0f ms at a pause after %.1f s, for the model to catch up (RTF %.2f)"
+                            .format(waited, ms(written) / 1000, jitter.rtf))
+                    }
                     if (r.stopped) break
                 }
                 var sum = 0.0
@@ -208,7 +229,8 @@ class AudioOut(private val rate: Int = 24_000) {
             runCatching { track.stop() }
             track.release()
             runCatching { keep?.close() }
-            synchronized(jitter) {
+            // A stretch already replaced by a newer one keeps its numbers to itself.
+            if (run === r || run == null) synchronized(jitter) {
                 if (!r.stopped) jitter.ended(ms(written))
                 last = Played(
                     toSoundMs = if (soundAt > 0) (soundAt - r.startedAt) / 1e6 else 0.0,
@@ -216,7 +238,7 @@ class AudioOut(private val rate: Int = 24_000) {
                     audioMs = ms(written), underruns = jitter.underruns, pauses = jitter.pauses,
                     waitedMs = jitter.waitedMs, trackUnderruns = trackUnderruns, rtf = jitter.rtf)
             }
-            if (written > 0) Log.i(TAG, "played %.1f s: buffer %.0f ms before the first sound, %d underruns, %d waits at a pause (%.0f ms), track underruns %d, RTF %.2f"
+            if (written > 0 && !r.stopped) Log.i(TAG, "played %.1f s: buffer %.0f ms before the first sound, %d underruns, %d waits at a pause (%.0f ms), track underruns %d, RTF %.2f"
                 .format(last.audioMs / 1000, last.bufferMs, last.underruns, last.pauses, last.waitedMs, trackUnderruns, last.rtf))
             if (run === r || run == null) { _level.value = 0f; _playing.value = run != null && run !== r }
             synchronized(r) { r.done.countDown(); r.onDone?.invoke() }

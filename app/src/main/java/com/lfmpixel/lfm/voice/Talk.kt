@@ -16,6 +16,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +56,45 @@ data class TalkTiming(val heardMs: Long, val firstWordMs: Long, val firstAudioMs
         .format(heardMs, firstWordMs, firstAudioMs, firstSoundMs, underruns, if (viaServer) "server" else "phone")
 }
 
+/** One Talk turn, stage by stage: logged (tag lfm-voice) and kept for Settings → Models → Benchmark. Times in ms. */
+data class VoiceTurn(
+    val at: Long = System.currentTimeMillis(),
+    /** How long the owner spoke. */
+    val heardMs: Int = 0,
+    /** The silence that ends a turn (voice activity detection): the owner stopped this long before it was over. */
+    val endSilenceMs: Int = 0,
+    /** Speech to text, all of it. */
+    val asrMs: Double = 0.0,
+    /** Of that, how much ran before the turn was over (heard early, during the silence). */
+    val asrEarlyMs: Double = 0.0,
+    val asrTokens: Int = 0,
+    val asrAudioInMs: Double = 0.0,
+    val speech: com.lfmpixel.lfm.llm.SpeechStats = com.lfmpixel.lfm.llm.SpeechStats(),
+    val played: AudioOut.Played = AudioOut.Played(),
+    /** From the end of the turn (the silence over) to the first sound. */
+    val endToSoundMs: Double = 0.0,
+    val spoken: Boolean = true,
+    /** Stopped by the owner (or a pause) before it was all said. */
+    val stopped: Boolean = false,
+) {
+    /** From when the owner stopped talking to the first sound of the answer; 0 if there was none. */
+    val stopToSoundMs get() = if (endToSoundMs > 0) endSilenceMs + endToSoundMs else 0.0
+
+    fun line(): String = buildString {
+        fun f(v: Double) = "%.0f".format(java.util.Locale.ENGLISH, v)
+        fun f2(v: Double) = "%.2f".format(java.util.Locale.ENGLISH, v)
+        val sp = speech
+        append(if (stopToSoundMs > 0) "stop→sound ${f(stopToSoundMs)} ms" else "no sound")
+        if (stopped) append(" · stopped")
+        append(" (end of turn ${endSilenceMs} · ASR ${f(asrMs)}, ${f(asrEarlyMs)} early, ${asrTokens} tok · ")
+        append("read ${sp.promptTokens} tok +${sp.reusedTokens} reused ${f(sp.promptMs)} · first text ${f(sp.firstTextMs)} · first audio ${f(sp.firstAudioMs)} · ")
+        append("buffer ${f(played.bufferMs)}) · ${"%.1f".format(java.util.Locale.ENGLISH, sp.stepsPerSecond)} steps/s · ")
+        append("RTF ${f2(sp.rtf)} · per frame: backbone ${f2(if (sp.frames > 0) sp.frameMs / sp.frames else 0.0)}, depth ${f2(if (sp.frames > 0) sp.depthMs / sp.frames else 0.0)}, codec ${f2(if (sp.frames > 0) sp.codecMs / sp.frames else 0.0)} · ")
+        append("${"%.1f".format(java.util.Locale.ENGLISH, played.audioMs / 1000)} s played, underruns ${played.underruns}, waits ${played.pauses} (${f(played.waitedMs)} ms)")
+        if (!spoken) append(" · text only")
+    }
+}
+
 data class TalkState(
     val phase: TalkPhase = TalkPhase.Off,
     /** The last answer came from the owner's server (Edge mode), not the phone. */
@@ -84,6 +124,18 @@ class Talk(
     /** Mic loudness while listening, 0..1. While speaking, see [out]'s level. */
     val micLevel: StateFlow<Float> = recorder.level
     val out = AudioOut()
+    private val _turnLog = MutableStateFlow<List<VoiceTurn>>(emptyList())
+    /** The last few turns, stage by stage (Settings → Models → Benchmark). */
+    val turnLog: StateFlow<List<VoiceTurn>> = _turnLog
+    /** The conversation being read in ahead, and a turn heard early: both dropped when Talk pauses or closes. */
+    @Volatile private var warm: Job? = null
+    @Volatile private var early: Early? = null
+    /** Milliseconds of speech per character of text, learnt from each answer: how long an answer will take to say. */
+    @Volatile var msPerChar = 70.0
+        private set
+
+    /** What the speaker's buffer learnt of this phone last time (Settings), so even the first answer waits enough. */
+    suspend fun loadPace() = Jitter.load(settings)
     private val focus = AudioFocus(context, exclusive = true) { pause() }
     private var job: Job? = null
     private var turnId = 0L
@@ -145,12 +197,18 @@ class Talk(
             epoch++
             job?.cancel()
             job = null
+            early?.drop()
+            early = null
+            warm?.cancel()
             _state.value = _state.value.copy(phase = phase)
         }
         if (interruptible) models.cancelSpeech()
         out.stop()
         focus.release()
     }
+
+    /** The session that answered last, for its stage numbers. */
+    @Volatile private var omniUsed: com.lfmpixel.lfm.llm.LlamaSession? = null
 
     /** True while Omni is answering: only then does stopping need to reach native code. */
     @Volatile private var interruptible = false
@@ -163,6 +221,7 @@ class Talk(
     private suspend fun runLoop(run: Int) {
         val p = settings.now()
         set(run) { it.copy(spoken = p.talkSpoken) }
+        loadPace()
         try {
             // Edge mode needs nothing on the phone; Omni loads only for a turn the server can't take.
             if (models.edge?.usable() != true) {
@@ -174,16 +233,28 @@ class Talk(
                 checkWarm(run)
                 interrupted = false
                 set(run) { it.copy(phase = TalkPhase.Listening) }
+                val lang = settings.now().speechLanguage
+                // While the owner speaks, Omni reads the conversation so far in, so the answer starts sooner. Not when
+                // the server answers (Edge mode): that would load Omni for nothing.
+                val local = models.edge?.usable() != true
+                val prefix = SpeechFormat.talkPrefix(system(), doneTurns())
+                warm = if (local) scope.launch { runCatching { models.omniSession().talkPrewarm(prefix) } } else null
+                // Heard early: once the owner pauses, transcribe what they said while the silence that ends the turn
+                // passes; if they go on, it is dropped.
+                early = null
                 val pcm = recorder.record(onStart = { set(run) { it.copy(phase = TalkPhase.Hearing) } },
-                    onRestart = { set(run) { it.copy(phase = TalkPhase.Listening) } })
+                    onRestart = { set(run) { it.copy(phase = TalkPhase.Listening) } },
+                    onPause = { heard -> if (local) synchronized(this) { early?.drop(); early = if (run == epoch) Early(heard, lang) else null } },
+                    onResume = { early?.drop(); early = null })
                 if (pcm == null) {
+                    early?.drop()
                     set(run) { it.copy(phase = TalkPhase.Paused) }
                     focus.release()
                     return
                 }
-                set(run) { it.copy(phase = TalkPhase.Thinking) }
+                val ended = System.nanoTime()
                 val endedAt = SystemClock.elapsedRealtime()
-                val lang = settings.now().speechLanguage
+                set(run) { it.copy(phase = TalkPhase.Thinking) }
                 if (models.edge?.usable() == true) {
                     val heard = try { models.edge!!.transcribe(pcm, lang.asr) } catch (e: NetException) {
                         // The server went away: this turn is heard on the phone, if Omni is there.
@@ -196,15 +267,25 @@ class Talk(
                         if (answerViaServer(run, heard, secs, endedAt, SystemClock.elapsedRealtime() - endedAt)) continue
                         // The server went away before it said anything: the phone answers this turn, if Omni is there.
                         if (!models.hasVoice()) { set(run) { it.copy(error = "Your server stopped answering. Try again in a moment.") }; continue }
-                        answer(run, heard, secs, endedAt)
+                        early?.drop(); early = null
+                        answer(run, heard, secs, VoiceTurn(heardMs = pcm.size / 16, endSilenceMs = recorder.endSilenceMs), ended)
                         continue
                     }
                 }
                 models.keepAlive()
-                val said = models.omniSession().transcribe(pcm, "Perform ASR in ${lang.asr}.").trim()
+                warm?.join()
+                val e = early
+                val heard = if (e != null) runCatching { e.result.await() }.getOrNull() else null
+                val asrStart = heard?.started ?: System.nanoTime()
+                val said = heard?.text ?: models.omniSession().transcribe(pcm, "Perform ASR in ${lang.asr}.").trim()
+                val asrEnd = heard?.ended ?: System.nanoTime()
+                val asr = models.omniSession().stats()
                 // Stop while it was transcribing: listen again instead of answering.
                 if (said.isBlank() || interrupted) continue
-                answer(run, said, (pcm.size + 8_000) / 16_000, endedAt)
+                val turn = VoiceTurn(heardMs = pcm.size / 16, endSilenceMs = recorder.endSilenceMs,
+                    asrMs = (asrEnd - asrStart) / 1e6, asrEarlyMs = ((minOf(ended, asrEnd) - asrStart) / 1e6).coerceAtLeast(0.0),
+                    asrTokens = heard?.tokens ?: asr.decodeTokens, asrAudioInMs = heard?.audioInMs ?: asr.prefillMs)
+                answer(run, said, (pcm.size + 8_000) / 16_000, turn, ended)
             }
         } catch (e: CancellationException) {
             throw e
@@ -298,14 +379,39 @@ class Talk(
         return true
     }
 
-    private suspend fun answer(run: Int, said: String, seconds: Int, endedAt: Long = SystemClock.elapsedRealtime()) {
-        val p = settings.now()
+    /** The finished exchanges, oldest first, as Omni reads them back. */
+    private fun doneTurns() = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
+
+    private suspend fun system(): String =
+        SpeechFormat.talkSystem(settings.now().speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date()))
+
+    private class Heard(val text: String, val started: Long, val ended: Long, val tokens: Int, val audioInMs: Double)
+
+    /** A turn transcribed early, at the owner's first pause; then the conversation with it read in too. */
+    private inner class Early(pcm: FloatArray, lang: SpeechLanguage) {
+        @Volatile private var dropped = false
+        val result = scope.async {
+            val started = System.nanoTime()
+            val session = models.omniSession()
+            val text = session.transcribe(pcm, "Perform ASR in ${lang.asr}.", stop = { dropped }).trim()
+            val ended = System.nanoTime()
+            val st = session.stats()
+            if (dropped) throw CancellationException("dropped")
+            if (text.isNotBlank()) runCatching { session.talkPrewarm(SpeechFormat.talkHistory(system(), doneTurns(), text)) }
+            Heard(text, started, ended, st.decodeTokens, st.prefillMs)
+        }
+
+        fun drop() { dropped = true; result.cancel() }
+    }
+
+    private suspend fun answer(run: Int, said: String, seconds: Int, heard: VoiceTurn = VoiceTurn(), ended: Long = System.nanoTime()) {
         val id = ++turnId
-        val before = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
+        val before = doneTurns()
         set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds), viaServer = false) }
         val spoken = _state.value.spoken
-        val history = SpeechFormat.talkHistory(
-            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())), before, said)
+        val history = SpeechFormat.talkHistory(system(), before, said)
+        // "Speaking" from the first sound, not the first audio: the buffer may wait a while first.
+        out.onSound = { set(run) { it.copy(phase = TalkPhase.Speaking) } }
         if (spoken) out.start()
         val text = StringBuilder()
         val t0 = System.nanoTime()
@@ -315,9 +421,13 @@ class Talk(
         val alive = { if (++steps % 100 == 0) scope.launch { models.keepAlive() } }
         interruptible = true
         val finished = try {
-            models.omniSession().talkReply(history, SpeechFormat.REPLY_PREFIX, 1200, 0.3f, spoken,
+            val session = models.omniSession()
+            omniUsed = session
+            session.talkReply(history, SpeechFormat.REPLY_PREFIX, 1200, 0.3f, spoken,
                 onText = { piece ->
                     text.append(piece)
+                    // Text runs ahead of the voice: the buffer learns how much speech is still to come.
+                    if (spoken) out.expect(text.length * msPerChar)
                     alive()
                     set(run) { st ->
                         st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
@@ -327,10 +437,7 @@ class Talk(
                 },
                 onAudio = { pcm ->
                     alive()
-                    if (firstAudio == 0L) {
-                        firstAudio = System.nanoTime()
-                        set(run) { it.copy(phase = TalkPhase.Speaking) }
-                    }
+                    if (firstAudio == 0L) firstAudio = System.nanoTime()
                     out.write(pcm)
                     !interrupted && run == epoch
                 })
@@ -345,10 +452,20 @@ class Talk(
             if (firstAudio == 0L) 0.0 else (firstAudio - t0) / 1e9, text))
         models.keepAlive()
         if (spoken && finished && !interrupted) out.finish() else out.stop()
+        val speech = omniUsed?.lastSpeech ?: com.lfmpixel.lfm.llm.SpeechStats()
+        val complete = spoken && finished && !interrupted
+        // A stopped answer: its own numbers once its player has let go (what it played, and any underruns).
+        val played = if (!spoken) AudioOut.Played() else if (complete) out.last else out.awaitStopped()
+        if (complete && text.isNotBlank() && played.audioMs > 1000) msPerChar = 0.7 * msPerChar + 0.3 * played.audioMs / text.length
+        val sound = if (spoken && played.toSoundMs > 0) (t0 - ended) / 1e6 + played.toSoundMs else 0.0
+        val turn = heard.copy(speech = speech, played = played, endToSoundMs = sound, spoken = spoken, stopped = !finished || interrupted)
+        Log.i(AudioOut.TAG, "turn: " + turn.line())
+        if (complete) settings.setVoicePace(Jitter.prior.rtf, Jitter.prior.usualMs)
+        _turnLog.value = (_turnLog.value + turn).takeLast(10)
         val stopped = interrupted || !finished
-        val sinceEnd = (t0 / 1_000_000 - (System.nanoTime() / 1_000_000 - (SystemClock.elapsedRealtime() - endedAt)))
-        val timing = TalkTiming(sinceEnd, 0, if (firstAudio > 0) sinceEnd + (firstAudio - t0) / 1_000_000 else 0,
-            if (out.last.toSoundMs > 0) sinceEnd + out.last.toSoundMs.toLong() else 0, viaServer = false, underruns = out.last.underruns)
+        val sinceEnd = (t0 - ended) / 1_000_000
+        val timing = TalkTiming(sinceEnd, 0, if (firstAudio > 0) (firstAudio - ended) / 1_000_000 else 0,
+            sound.toLong(), viaServer = false, underruns = played.underruns)
         Log.i(TAG, "phone answer: $timing")
         set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = stopped) else it }) }
     }

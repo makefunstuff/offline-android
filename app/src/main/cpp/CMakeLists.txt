@@ -7,12 +7,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 # CPU, plus llama.cpp's Vulkan backend for the GPU (docs/acceleration.md). Each is its own libggml-*.so, loaded at run
 # time; a phone without a working Vulkan driver just has no GPU device and stays on the CPU.
+# OpenMP on both ABIs: without it ggml starts and joins its worker threads for every graph, and speech runs six
+# graphs per 80 ms frame (the emulator made speech at half speed that way).
+set(GGML_OPENMP ON CACHE BOOL "" FORCE)
 if(ANDROID_ABI STREQUAL "arm64-v8a")
     set(GGML_CPU_KLEIDIAI ON CACHE BOOL "" FORCE)
-    set(GGML_OPENMP ON CACHE BOOL "" FORCE)
 else()
     set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)
-    set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 endif()
 
 # Vulkan: the NDK's libvulkan.so and glslc, with C++ headers (vulkan.hpp) and SPIR-V headers from submodules.

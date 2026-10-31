@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.llm.Benchmark
+import com.lfmpixel.lfm.voice.VoiceBench
 import com.lfmpixel.lfm.llm.BackendChoice
 import com.lfmpixel.lfm.llm.CheckResult
 import com.lfmpixel.lfm.llm.InstalledModel
@@ -106,6 +107,7 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             BackendSection(g)
             BenchmarkSection(g)
             ServerColumn(g)
+            VoiceBenchSection(g)
             if (downloads.isEmpty()) g.engine.systemInfo().takeIf { it.isNotEmpty() }?.let {
                 SectionLabel("llama.cpp on this phone")
                 Txt(it.trim(), LfmType.meta, c.text2)
@@ -607,7 +609,9 @@ private fun BenchmarkSection(g: AppGraph) {
         Row(Modifier.padding(top = 8.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Not while the assistant writes: both share the model, and the benchmark clears its memory.
             val chatBusy by g.assistant.busy.collectAsState()
-            val running = state is Benchmark.State.Running || chatBusy
+            val voice by g.voiceBench.state.collectAsState()
+            // Not during the voice benchmark either: this one unloads Omni under it.
+            val running = state is Benchmark.State.Running || chatBusy || voice is VoiceBench.State.Running
             Btn(if (state is Benchmark.State.Done) "Run again" else "Run benchmark", { copied = false; g.bench.start() }, Modifier.weight(1f),
                 kind = BtnKind.Primary, enabled = !running && g.engine.hasText())
             (state as? Benchmark.State.Done)?.let { d ->
@@ -665,6 +669,66 @@ private fun ServerColumn(g: AppGraph) {
             Btn("Benchmark the server", { g.edgeBench.start() }, Modifier.weight(1f), small = true,
                 enabled = state !is com.lfmpixel.lfm.edge.EdgeBench.State.Running)
             server?.let { r -> Btn("Copy", { clipboard.setText(androidx.compose.ui.text.AnnotatedString(r.text())) }, small = true) }
+        }
+    }
+}
+
+/**
+ * Settings → Models → Benchmark → Voice: how fast Talk hears, thinks and speaks on this phone, stage by stage, and
+ * whether its playback would run dry; with the last Talk turns' own numbers. Copy results sends them on.
+ */
+@Composable
+private fun VoiceBenchSection(g: AppGraph) {
+    val c = Lfm.c
+    val state by g.voiceBench.state.collectAsState()
+    val log by g.talk.turnLog.collectAsState()
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+    fun f(v: Double) = "%.0f".format(java.util.Locale.ENGLISH, v)
+    fun f2(v: Double) = "%.2f".format(java.util.Locale.ENGLISH, v)
+    SectionLabel("Voice benchmark")
+    Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        when (val s = state) {
+            is VoiceBench.State.Idle -> Txt("Omni asks itself a question out loud, hears it, and answers twice, as in Talk. Shows each stage's time and whether the voice would run dry. About a minute, silent.",
+                LfmType.small, c.text2)
+            is VoiceBench.State.Running -> Txt(s.step, LfmType.small, c.text2)
+            is VoiceBench.State.Failed -> Txt(s.message, LfmType.small, c.text2)
+            is VoiceBench.State.Done -> {
+                val r = s.report
+                BenchRow("You stop → voice starts", "${f(r.stopToSoundMs)} ms")
+                BenchRow("End of turn (VAD)", "${f(r.vadEndMs)} ms · pause at ${f(r.vadPauseMs)}")
+                BenchRow("Speech to text", "${f(r.asrMs)} ms · ${r.asrTokens} tokens")
+                r.turns.forEachIndexed { i, t ->
+                    Txt("Answer ${i + 1}", LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.padding(top = 6.dp))
+                    BenchRow("Read in", "${t.stats.promptTokens} tokens (+${t.stats.reusedTokens} kept) · ${f(t.stats.promptMs)} ms")
+                    BenchRow("First text · first audio", "${f(t.stats.firstTextMs)} · ${f(t.stats.firstAudioMs)} ms")
+                    BenchRow("LLM", "%.1f steps/s".format(java.util.Locale.ENGLISH, t.stats.stepsPerSecond))
+                    BenchRow("Speech speed (RTF)", f2(t.stats.rtf) + if (t.stats.rtf > 1) " · slower than it plays" else "")
+                    BenchRow("Playback", "starts ${f(t.sim.startMs)} ms · ${t.sim.underruns} underruns · ${t.sim.pauses} waits")
+                }
+                Txt("RTF under 1 means speech is made faster than it plays. Over 1, Talk waits a little first, and only at pauses.",
+                    LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
+            }
+        }
+        if (log.isNotEmpty()) {
+            Txt("Last Talk turns", LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.padding(top = 6.dp))
+            log.takeLast(3).forEach { t ->
+                Txt((if (t.stopToSoundMs > 0) "${f(t.stopToSoundMs)} ms to sound" else "no sound") + (if (t.stopped) " · stopped" else "") + " · RTF ${f2(t.speech.rtf)} · ${t.played.underruns} underruns · ${t.played.pauses} waits",
+                    LfmType.meta, c.text2)
+            }
+        }
+        Row(Modifier.padding(top = 8.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val chatBusy by g.assistant.busy.collectAsState()
+            val bench by g.bench.state.collectAsState()
+            val running = state is VoiceBench.State.Running || chatBusy || bench is Benchmark.State.Running
+            Btn(if (state is VoiceBench.State.Done) "Run again" else "Run voice benchmark", { copied = false; g.voiceBench.start() },
+                Modifier.weight(1f), kind = BtnKind.Primary, enabled = !running && g.talk.available)
+            val text = (state as? VoiceBench.State.Done)?.report?.text()
+                ?: log.takeIf { it.isNotEmpty() }?.joinToString("\n", "Inkling Talk turns\n") { it.line() }
+            if (text != null) Btn(if (copied) "Copied" else "Copy results", {
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(text)); copied = true
+            }, Modifier.weight(1f), icon = if (copied) "check" else null)
         }
     }
 }

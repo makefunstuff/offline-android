@@ -41,14 +41,21 @@ object SpeechFormat {
             "If you do not know, say so. Today is $today."
 
     /** The conversation so far for Talk, ending with the new user turn. */
-    fun talkHistory(system: String, turns: List<Pair<String, String>>, user: String): String {
+    fun talkHistory(system: String, turns: List<Pair<String, String>>, user: String): String =
+        talkPrefix(system, turns) + "${PromptFormat.IM_START}user\n$user${PromptFormat.IM_END}\n"
+
+    /**
+     * The conversation before the next user turn. Only the last few exchanges: a spoken conversation rarely needs
+     * more, and a short prompt answers sooner. The oldest are dropped three at a time, so the start stays the same
+     * for most turns and Omni can keep it read in (talk.cpp's history cache) instead of reading it all again.
+     */
+    fun talkPrefix(system: String, turns: List<Pair<String, String>>): String {
         val sb = StringBuilder(PromptFormat.system(system, emptyList()))
-        // Only the last few exchanges: a spoken conversation rarely needs more, and a short prompt answers sooner.
-        for ((you, it) in turns.takeLast(6)) {
+        val from = if (turns.size <= 6) 0 else (turns.size - 6 + 2) / 3 * 3
+        for ((you, it) in turns.drop(from)) {
             sb.append(PromptFormat.IM_START).append("user\n").append(you).append(PromptFormat.IM_END).append('\n')
             sb.append(PromptFormat.IM_START).append("assistant\n<think></think>").append(it).append(PromptFormat.IM_END).append('\n')
         }
-        sb.append(PromptFormat.IM_START).append("user\n").append(user).append(PromptFormat.IM_END).append('\n')
         return sb.toString()
     }
 
@@ -131,6 +138,10 @@ class Endpointer(
     private var waitedMs = 0
     private var voicedRun = 0
     val inSpeech get() = speaking
+    /** Silence so far inside a turn: the owner may have finished (see [TurnRecorder]'s early hearing). */
+    val pausedMs get() = if (speaking) silenceMs else 0
+    /** How long a silence ends a turn. */
+    val endMs get() = endSilenceMs
 
     private companion object { const val CALIBRATION_BLOCKS = 8 }
 
