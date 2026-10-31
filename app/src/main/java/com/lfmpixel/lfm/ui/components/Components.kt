@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -361,7 +363,7 @@ fun ListRow(title: String, subtitle: String = "", icon: String? = null, onClick:
 @Composable
 fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onSend: () -> Unit, onMic: () -> Unit,
              modifier: Modifier = Modifier, listening: Boolean = false, enabled: Boolean = true, onCamera: (() -> Unit)? = null,
-             onStop: (() -> Unit)? = null) {
+             onStop: (() -> Unit)? = null, think: Boolean? = null, onThink: (Boolean) -> Unit = {}, onThinkInfo: () -> Unit = {}) {
     val c = Lfm.c
     val shape = RoundedCornerShape(8.dp)
     Row(modifier.fillMaxWidth().heightIn(min = 52.dp).clip(shape).background(c.fill).border(1.dp, c.control, shape)
@@ -373,6 +375,7 @@ fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onS
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { onSend() }),
                 maxLines = 5, modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder })
         }
+        if (think != null) ThinkChip(think, onThink, onThinkInfo)
         if (value.isNotBlank()) IconButtonPlain("send", onSend, tint = c.text, desc = if (onStop != null) "Queue" else "Send")
         if (onStop != null) {
             // While an answer is written, Stop sits by the mic: ink, square, named; there even while you type.
@@ -382,6 +385,28 @@ fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onS
             IconButtonPlain("camera", onCamera, desc = "Camera")
         }
         MicButton(onMic, listening = listening)
+    }
+}
+
+/**
+ * Think, by the message box: whether this chat thinks before it answers. On, the word is marked with the
+ * highlighter; off, it is a quiet grey. A tap flips it; a long-press says what it does.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun ThinkChip(on: Boolean, onChange: (Boolean) -> Unit, onInfo: () -> Unit) {
+    val c = Lfm.c
+    val shape = RoundedCornerShape(6.dp)
+    Row(Modifier.heightIn(min = 34.dp).clip(shape).border(1.dp, if (on) c.text else c.control, shape)
+        .combinedClickable(role = Role.Switch, onClickLabel = if (on) "Answer without thinking" else "Think before answering",
+            onLongClickLabel = "What Think does", onLongClick = onInfo) { onChange(!on) }
+        .semantics { stateDescription = if (on) "On" else "Off" }
+        .padding(start = 6.dp, end = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        LIcon("bulb", size = 16.dp, tint = if (on) c.text else c.text3)
+        // The mic stays the only yellow control: on, only the word is marked.
+        Txt("Think", LfmType.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), if (on) c.onHighlight else c.text2,
+            Modifier.let { if (on) it.background(c.highlight, RoundedCornerShape(2.dp)) else it }.padding(horizontal = 3.dp), maxLines = 1)
     }
 }
 

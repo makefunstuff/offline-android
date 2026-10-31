@@ -57,6 +57,13 @@ import java.util.Locale
 data class Streaming(val text: String, val thinking: Boolean, val note: String = "", val thought: String = "",
                      val thinkingSince: Long = 0, val thoughtMs: Long = 0, val done: Boolean = false)
 
+/**
+ * Whether a turn thinks first: the chat's own Think when set, else Settings. Spoken captures never do: they want a
+ * quick tool call, and voice is where waiting hurts most.
+ */
+fun thinksFor(prefs: com.lfmpixel.lfm.settings.Prefs, thread: Long, source: String): Boolean =
+    source != "voice" && (prefs.chatThinking[thread] ?: prefs.thinking)
+
 /** A message waiting its turn in the chat. [see] is set for a camera question (those are not kept on disk). */
 data class Queued(val id: Long, val text: String, val voiceSeconds: Int = 0, val source: String = "typed", val see: SeeRequest? = null)
 
@@ -345,33 +352,35 @@ class Assistant(
 
     private suspend fun converse(source: String) {
         val prefs = settings.now()
+        val thinking = thinksFor(prefs, _thread.value, source)
         val webOn = web?.available() == true
         val tools = registry.specsJson() + listOfNotNull(if (webOn) WebSearch.spec.toJson() else null)
         var searchId: Long? = null
-        // Thinking gets a budget; past it, the think block is closed and the model must answer.
-        val thinkBudget = 384
+        // Thinking gets a budget (Settings); past it, the think block is closed and the model must answer. At most a
+        // quarter of the context, so the prompt and tools still fit in LiteRT-LM's 4096 tokens.
+        val thinkBudget = minOf(prefs.thinkBudget, models.textSession().contextTokens / 4)
         val answerBudget = 512
-        val maxTokens = if (prefs.thinking) thinkBudget + answerBudget else answerBudget
+        val maxTokens = if (thinking) thinkBudget + answerBudget else answerBudget
         repeat(4) { round ->
             val thread = db.messages().threadNow(_thread.value)
             // Once web text is in the conversation, every action and every new query asks first (spec section 4).
             val afterWebText = thread.any { it.role == Role.Tool && (it.searchId ?: 0) > 0 }
             var history = thread.mapNotNull(::toPrompt)
-            var prompt = PromptFormat.build(systemPrompt(webOn), tools, history, prefs.thinking)
+            var prompt = PromptFormat.build(systemPrompt(webOn), tools, history, thinking)
             // Drop the oldest turns until the prompt leaves room for the answer.
             // The context is the chat model's: Settings' size for llama.cpp, the file's own for LiteRT-LM.
             while (history.size > 1 && models.textSession().let { it.countTokens(prompt) > it.contextTokens - maxTokens - 64 }) {
                 history = history.drop(1).dropWhile { it.role != PromptMessage.Role.User }.ifEmpty { history.takeLast(1) }
-                prompt = PromptFormat.build(systemPrompt(webOn), tools, history, prefs.thinking)
+                prompt = PromptFormat.build(systemPrompt(webOn), tools, history, thinking)
             }
             val raw = StringBuilder()
-            streaming.value = Streaming("", prefs.thinking)
+            streaming.value = Streaming("", thinking)
             // How long it thought: from its first word to the end of its think block.
             var thinkFrom = 0L
             var thinkMs = 0L
             val show = Throttle {
-                val partial = ModelOutput.parse(raw.toString(), prefs.thinking)
-                if (prefs.thinking && !partial.stillThinking && thinkMs == 0L && thinkFrom > 0) thinkMs = SystemClock.elapsedRealtime() - thinkFrom
+                val partial = ModelOutput.parse(raw.toString(), thinking)
+                if (thinking && !partial.stillThinking && thinkMs == 0L && thinkFrom > 0) thinkMs = SystemClock.elapsedRealtime() - thinkFrom
                 streaming.value = Streaming(partial.answer.substringBefore("<tool_call>").trim(), partial.stillThinking,
                     thought = partial.thinking, thinkingSince = thinkFrom, thoughtMs = thinkMs)
             }
@@ -379,17 +388,17 @@ class Assistant(
                 if (thinkFrom == 0L) thinkFrom = SystemClock.elapsedRealtime()
                 raw.append(piece); show.tick()
             }
-            val first = if (prefs.thinking) thinkBudget else answerBudget
+            val first = if (thinking) thinkBudget else answerBudget
             val session = models.textSession()
             session.generate(prompt, first).collect { onPiece(it) }
             val firstStats = session.stats()
-            if (prefs.thinking && firstStats.decodeTokens >= first) {
+            if (thinking && firstStats.decodeTokens >= first) {
                 // Out of thinking budget: close the think block if it is still open, then let the answer run.
-                if (ModelOutput.parse(raw.toString(), true).stillThinking) raw.append("\n</think>\n")
+                if (ModelOutput.parse(raw.toString(), true).stillThinking) raw.append(ModelOutput.OUT_OF_BUDGET)
                 session.generate(prompt + raw, answerBudget).collect { onPiece(it) }
             }
             show.flush()
-            val out = ModelOutput.parse(raw.toString(), prefs.thinking)
+            val out = ModelOutput.parse(raw.toString(), thinking)
             if (thinkMs == 0L && thinkFrom > 0 && out.thinking.isNotEmpty()) thinkMs = SystemClock.elapsedRealtime() - thinkFrom
             val st = session.stats()
             // Over both calls when thinking ran out of budget; the first token is the first call's.
@@ -398,7 +407,7 @@ class Assistant(
             val meta = "LFM3-1.7B · on this phone · $speed"
             val answerFrom = searchId.takeIf { out.toolCalls.isEmpty() && out.answer.isNotBlank() }
             val message = ChatMessage(threadId = _thread.value, role = Role.Assistant, text = out.answer,
-                raw = PromptFormat.assistantPrefix(prefs.thinking) + raw,
+                raw = PromptFormat.assistantPrefix(thinking) + raw,
                 meta = if (answerFrom != null) "Written on this phone from the web · $speed" else meta,
                 searchId = answerFrom, thoughtMs = thinkMs)
             // What shows in the chat (an answer, or the thought before a tool call) is handed over to its saved row.

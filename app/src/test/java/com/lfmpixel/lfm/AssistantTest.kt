@@ -313,7 +313,7 @@ class AssistantTest {
         val app = ApplicationProvider.getApplicationContext<LfmApp>()
         g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Note, title = "Secret"))
         g.db.messages().insert(com.lfmpixel.lfm.data.ChatMessage(role = Role.User, text = "Hello"))
-        g.settings.setFirstRunDone(); g.settings.setThinking(true)
+        g.settings.setFirstRunDone(); g.settings.setThinking(false)
         g.assistant.hold(-1) // keep the queue still while it is filled
         g.assistant.send("still waiting")
         val model = java.io.File(g.models.dir, "LFM3-1.7B-QAD-Q4_0.gguf").apply { writeText("x") }
@@ -323,7 +323,7 @@ class AssistantTest {
         assertTrue(g.assistant.queue.value.isEmpty())
         assertFalse(java.io.File(app.filesDir, "queue.json").let { it.exists() && it.readText() != "[]" })
         assertFalse(g.settings.now().firstRunDone)
-        assertFalse(g.settings.now().thinking)
+        assertTrue("thinking is back to its default", g.settings.now().thinking)
         assertTrue("models stay unless asked", model.exists())
         g.wipe(app, models = true)
         assertFalse(model.exists())

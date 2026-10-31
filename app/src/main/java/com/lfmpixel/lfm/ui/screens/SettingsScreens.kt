@@ -123,10 +123,18 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Think before answering", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
-                    Txt("Better answers and tool calls, a little slower", LfmType.label.copy(fontWeight = null), c.text2)
+                    Txt("Better answers and tool calls, a little slower. You can open what it thought above each answer.",
+                        LfmType.label.copy(fontWeight = null), c.text2)
                 }
                 Switch(p.thinking, "Think before answering") { scope.launch { g.settings.setThinking(it) } }
             }
+            Txt("The default for new chats. Think, by the message box, turns it on or off for one chat. Voice and Talk " +
+                "never think first, so they answer quickly.", LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
+            Label("Thinking budget", Modifier.padding(top = 16.dp, bottom = 6.dp))
+            val budgets = com.lfmpixel.lfm.settings.THINK_BUDGETS.let { if (p.thinkBudget !in it) (it + p.thinkBudget).sorted() else it }
+            Segmented(budgets.map { it.toString() }, p.thinkBudget.toString(), { l -> scope.launch { g.settings.setThinkBudget(l.toInt()) } })
+            Txt("Tokens it may think for before it must answer. More is slower on a long question, but it gets further. LiteRT-LM, with its smaller memory, stops at 1024.",
+                LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             SectionLabel("Web search")
             Segmented(SearchMode.entries.map { it.label }, p.searchMode.label, { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
             Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),

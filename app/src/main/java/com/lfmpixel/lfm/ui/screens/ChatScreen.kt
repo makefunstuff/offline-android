@@ -88,7 +88,11 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val messages = loadedMessages ?: emptyList()
     // Only the streaming line reads the streamed text, so a new token redraws that line, not the whole chat.
     val streamingState = g.assistant.streaming.collectAsState()
-    val showSpeed = g.settings.prefs.collectAsState(null).value?.showSpeed ?: true
+    val prefs = g.settings.prefs.collectAsState(null).value
+    val showSpeed = prefs?.showSpeed ?: true
+    val thread by g.assistant.threadId.collectAsState()
+    // Think: this chat's own choice, else Settings' default.
+    val think = prefs?.let { it.chatThinking[thread] ?: it.thinking }
     val working by g.assistant.working.collectAsState()
     val queued by g.assistant.queue.collectAsState()
     val status by g.engine.status.collectAsState()
@@ -289,7 +293,9 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)) {
             Composer(draft, { draft = it }, if (working) "Message… it will wait its turn" else "Message…", onSend = send,
                 onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) },
-                onStop = if (working) ({ g.assistant.stop() }) else null)
+                onStop = if (working) ({ g.assistant.stop() }) else null,
+                think = think, onThink = { on -> scope.launch { g.settings.setChatThinking(thread, on) } },
+                onThinkInfo = { nav.show(THINK_INFO) })
         }
     }
     editing?.let { id ->
@@ -372,6 +378,9 @@ private fun Modifier.keepPlace(list: androidx.compose.foundation.lazy.LazyListSt
 private class PlaceKeeper {
     var pending by androidx.compose.runtime.mutableFloatStateOf(0f)
 }
+
+/** What Think does, on a long-press of it. */
+internal const val THINK_INFO = "Think works it out before answering: slower, better. This chat only; the default is in Settings."
 
 /** The key of the thought being written, in the chat's map of opened thoughts. */
 private const val LIVE_THOUGHT = -1L
