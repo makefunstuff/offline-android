@@ -94,5 +94,6 @@ class OrganizerTest {
         val lines = listOf(todo(1, "A").copy(done = true), todo(2, "B"), Entry(id = 3, kind = EntryKind.Note, title = "n"))
         assertEquals("You were on “Clear”. Today so far: 1 done, 1 still open, 1 line written.", Recap.rules("Clear", lines))
         assertEquals("A quiet day so far.", Recap.rules(null, emptyList()))
+        assertEquals("One. Two!", Recap.short("One. Two! Three."))
     }
 }

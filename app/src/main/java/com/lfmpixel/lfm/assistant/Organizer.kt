@@ -162,7 +162,7 @@ object DumpSort {
         val k = when (m.groupValues[1].lowercase()) { "idea" -> InkKind.Idea; "note" -> InkKind.Note; "journal" -> InkKind.Journal; else -> InkKind.Todo }
         val text = m.groupValues[2].trim().replaceFirstChar { it.uppercase() }
         if (text.isEmpty()) null else Item(k, text, if (k == InkKind.Todo) (if (s.minutes > 0) s.minutes else Sizes.guess(text)) else 0)
-    }
+    }.distinctBy { it.text.lowercase() }
 
     /** By rules: one item per line or sentence, sorted as the Ink line sorts a line; questions and reminders become notes. */
     fun rules(dump: String): List<Item> = dump.split(Regex("""\n+|(?<=[.!;])\s+|\s+(?:and also|also|plus)\s+""", RegexOption.IGNORE_CASE))
@@ -184,6 +184,9 @@ object Recap {
             "Speak to them as \"you\".\n" + (focus?.let { "They were focused on: $it\n" } ?: "") +
             "What they wrote or did today, oldest first:\n" +
             lines.takeLast(12).joinToString("\n") { "- " + (if (it.kind == EntryKind.Todo) (if (it.done) "[done] " else "[to-do] ") else "") + it.title.take(100) }
+
+    /** A small model runs on: the first two sentences are the recap. */
+    fun short(text: String): String = Regex("""(?<=[.!?])\s+""").split(text.trim()).take(2).joinToString(" ")
 
     /** Without a model: the same in plain counts. */
     fun rules(focus: String?, lines: List<Entry>): String {

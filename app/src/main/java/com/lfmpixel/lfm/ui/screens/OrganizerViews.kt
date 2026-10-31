@@ -232,7 +232,7 @@ internal fun NowCard(g: AppGraph, nav: Nav, now: NextAction.Now?, planEmpty: Boo
                 Txt(n.entry.title, LfmType.answer, c.text, Modifier.padding(end = 8.dp), maxLines = 3)
                 val from = listOfNotNull(
                     n.parent?.let { (if (n.stepsLeft == 1) "Last step" else "${n.stepsLeft} steps left") + " · " + it.title },
-                    if (n.plan > 0 && n.parent == null) "${n.plan} of ${n.planSize} in today's plan" else null,
+                    if (n.plan > 0 && n.parent == null) "In today's plan · ${n.planSize} left" else null,
                 ).joinToString(" · ")
                 if (from.isNotEmpty()) Txt(from, LfmType.small, c.onPeach, Modifier.padding(top = 2.dp), maxLines = 2)
                 FlowRow(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -326,7 +326,7 @@ internal fun WhereWasI(g: AppGraph, nav: Nav, away: Long, lines: List<Entry>, on
                 if (since > 0) (if (since == 1) "1 line captured since" else "$since lines captured since") else null,
             ).joinToString(" · ")
             if (detail.isNotEmpty()) Txt(detail, LfmType.small, c.onSky)
-            val said = recap ?: job.text.takeIf { it.isNotBlank() }
+            val said = recap ?: job.text.takeIf { it.isNotBlank() }?.let { Recap.short(it) }
             if (said != null) Txt(said, LfmType.body, c.text, Modifier.padding(top = 6.dp).semantics { liveRegion = LiveRegionMode.Polite })
             else if (job.running) Txt("Thinking back…", LfmType.small, c.onSky, Modifier.padding(top = 6.dp))
             LaunchedEffect(job.finished) { if (job.finished && job.text.isBlank()) recap = Recap.rules(focusTitle, lines) }

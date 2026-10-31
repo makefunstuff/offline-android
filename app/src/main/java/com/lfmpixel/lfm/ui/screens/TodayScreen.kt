@@ -397,14 +397,15 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
                 val head = if (e.kind == EntryKind.Note && whole) bodyLines.first() else e.title
                 when {
                     e.isQuote() -> Marked(com.lfmpixel.lfm.assistant.Quotes.words(e), LfmType.body, maxLines = 4)
+                    e.isDump() -> Txt(e.title, LfmType.body, maxLines = 2)
                     e.kind == EntryKind.Journal -> Txt(e.title, LfmType.body.copy(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic), maxLines = 4)
                     else -> Txt(head, LfmType.body, if (e.done) c.text3 else c.text, maxLines = 3, decoration = if (e.done) TextDecoration.LineThrough else null)
                 }
                 val sub = when {
+                    e.isDump() -> if (e.tags.contains("sorted")) "Brain dump · sorted" else "Brain dump · tap to sort"
                     e.isQuote() -> com.lfmpixel.lfm.assistant.Quotes.source(e)
                     e.kind == EntryKind.Note -> bodyLines.drop(if (whole) 1 else 0).firstOrNull().orEmpty()
                     e.kind == EntryKind.Idea -> e.topic
-                    e.isDump() -> if (e.tags.contains("sorted")) "Brain dump · sorted" else "Brain dump · tap to sort"
                     e.kind == EntryKind.Todo -> listOf(e.list, if (e.minutes > 0) Sizes.label(e.minutes) else "").filter { it.isNotEmpty() }.joinToString(" · ")
                     else -> ""
                 }
