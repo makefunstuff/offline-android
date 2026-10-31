@@ -29,6 +29,8 @@ class ToolEnv(
     val launcher: ExternalLauncher?,
     val zone: ZoneId = ZoneId.systemDefault(),
     val now: () -> LocalDateTime = { LocalDateTime.now() },
+    /** The journal is locked: library searches leave it out. */
+    val hideJournal: () -> Boolean = { false },
 ) {
     fun whenOf(args: Map<String, String>, key: String): When =
         args[key]?.let { TimeArgs.parse(it, now()) } ?: throw ToolArgsException("I couldn't read the time \"${args[key] ?: ""}\"")
@@ -114,7 +116,8 @@ class SearchLibraryTool(private val env: ToolEnv) : Tool {
     override suspend fun preview(args: Map<String, String>) = Preview("Search your library?", "search", "Search", listOf(Field("query", "Words", args.need("query"))))
     override suspend fun run(args: Map<String, String>): ToolResult {
         val q = FtsQuery.from(args.need("query")) ?: return ToolResult(true, "[]")
-        val found = env.db.entries().search(q, 6)
+        val hide = env.hideJournal()
+        val found = env.db.entries().search(q, if (hide) 24 else 6).filter { !hide || it.kind != EntryKind.Journal }.take(6)
         val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
         val lines = found.joinToString("\n") { e ->
             val day = Instant.ofEpochMilli(e.createdAt).atZone(env.zone).toLocalDate().format(fmt)
@@ -160,6 +163,7 @@ class SetAlarmTool(private val env: ToolEnv) : Tool {
         listOf(Param("time", "string", "Time of day, 24-hour HH:MM"), Param("label", "string", "A label", required = false)))
     override val label = "Alarms"
     override val defaultPolicy = ToolPolicy.Ask
+    override val opensApp = true
     override suspend fun preview(args: Map<String, String>): Preview {
         val w = env.whenOf(args, "time")
         return Preview("Set an alarm?", "alarm", "Set", listOf(
@@ -180,6 +184,7 @@ class SetTimerTool(private val env: ToolEnv) : Tool {
         listOf(Param("duration", "string", "How long, like 10 min or 1h 30m"), Param("label", "string", "A label", required = false)))
     override val label = "Timers"
     override val defaultPolicy = ToolPolicy.Ask
+    override val opensApp = true
     private fun duration(args: Map<String, String>): Duration =
         TimeArgs.parseDuration(args.need("duration"))?.takeIf { it.seconds in 1..86_400 } ?: throw ToolArgsException("I couldn't read the duration")
     private fun fmt(d: Duration) = buildString {
@@ -288,6 +293,7 @@ class SendMessageTool(private val env: ToolEnv) : Tool {
         listOf(Param("to", "string", "Contact name or phone number"), Param("text", "string", "The message")))
     override val label = "Text messages"
     override val defaultPolicy = ToolPolicy.Ask
+    override val opensApp = true
     override val permissions = listOf(Manifest.permission.READ_CONTACTS)
     override suspend fun preview(args: Map<String, String>): Preview {
         val (name, number) = env.resolvePerson(args.need("to"))
@@ -308,6 +314,7 @@ class CallTool(private val env: ToolEnv) : Tool {
     override val spec = ToolSpec("call", "Call someone: opens the dialer with the number.", listOf(Param("to", "string", "Contact name or phone number")))
     override val label = "Calls"
     override val defaultPolicy = ToolPolicy.Ask
+    override val opensApp = true
     override val permissions = listOf(Manifest.permission.READ_CONTACTS)
     override suspend fun preview(args: Map<String, String>): Preview {
         val (name, number) = env.resolvePerson(args.need("to"))
@@ -361,6 +368,63 @@ class SoundModeTool(private val env: ToolEnv) : Tool {
     }
 }
 
+/** Media, ring, alarm or call volume, as a share of its range, or a step louder or quieter. Undo puts it back. */
+class VolumeTool(private val env: ToolEnv) : Tool {
+    override val spec = ToolSpec("set_volume", "Set the phone's volume: media (music, videos, Inkling's voice), ring, alarm or call.", listOf(
+        Param("level", "string", "0 to 100 (percent), or up, down, mute, max"),
+        Param("stream", "string", "Which volume; media if not said", required = false, enum = listOf("media", "ring", "alarm", "call"))))
+    override val label = "Volume"
+    override val defaultPolicy = ToolPolicy.Do
+
+    companion object {
+        fun stream(name: String): Int = when (name.trim().lowercase(Locale.ROOT)) {
+            "", "media", "music", "sound" -> AudioManager.STREAM_MUSIC
+            "ring", "ringer", "ringtone", "notifications" -> AudioManager.STREAM_RING
+            "alarm", "alarms" -> AudioManager.STREAM_ALARM
+            "call", "voice call", "calls" -> AudioManager.STREAM_VOICE_CALL
+            else -> throw ToolArgsException("Volume can be media, ring, alarm or call")
+        }
+
+        /** The new level for [level] from [now] (both 0..100): "40", "40%", "up", "down", "mute", "max". */
+        fun target(level: String, now: Int): Int {
+            val l = level.trim().lowercase(Locale.ROOT).removeSuffix("%").trim()
+            return when (l) {
+                "up", "louder", "higher" -> now + 20
+                "down", "quieter", "lower", "softer" -> now - 20
+                "mute", "off", "silent" -> 0
+                "max", "maximum", "full", "loudest" -> 100
+                else -> l.toDoubleOrNull()?.let { v -> if (v in 0.0..1.0 && l.contains('.')) v * 100 else v }?.toInt()
+                    ?: throw ToolArgsException("I couldn't read the volume \"$level\"")
+            }.coerceIn(0, 100)
+        }
+
+        fun streamLabel(s: Int) = when (s) {
+            AudioManager.STREAM_RING -> "Ring volume"; AudioManager.STREAM_ALARM -> "Alarm volume"
+            AudioManager.STREAM_VOICE_CALL -> "Call volume"; else -> "Media volume"
+        }
+    }
+
+    override suspend fun preview(args: Map<String, String>): Preview {
+        val s = stream(args.opt("stream"))
+        val to = target(args.need("level"), env.controls?.volumePercent(s) ?: 50)
+        return Preview("Set ${streamLabel(s).lowercase()} to $to%?", "speaker", "Set", listOf(Field("level", "Level", "$to%", highlight = true)))
+    }
+
+    override suspend fun run(args: Map<String, String>): ToolResult {
+        val c = env.controls ?: return ToolResult.error("No audio")
+        val s = stream(args.opt("stream"))
+        val before = c.volumePercent(s)
+        val to = target(args.need("level"), before)
+        if (s == AudioManager.STREAM_RING && to == 0 && !c.hasDndAccess()) {
+            return ToolResult(false, "Muting the ringer needs Do Not Disturb access. Suggest set_sound_mode vibrate instead.",
+                "Needs Do Not Disturb access", "Ring volume", "Try “vibrate” instead")
+        }
+        return if (c.setVolumePercent(s, to)) ToolResult(true, "${streamLabel(s)} set to ${c.volumePercent(s)}%.", streamLabel(s), "${c.volumePercent(s)}%",
+            "was $before%", undo = "volume:$s:$before")
+        else ToolResult.error("Android refused the change")
+    }
+}
+
 class DndTool(private val env: ToolEnv) : Tool {
     override val spec = ToolSpec("set_do_not_disturb", "Turn Do Not Disturb on or off.", listOf(Param("on", "boolean", "true for on")))
     override val label = "Do Not Disturb"
@@ -384,6 +448,7 @@ class OpenPanelTool(private val env: ToolEnv) : Tool {
         listOf(Param("panel", "string", "Which one", enum = listOf("internet", "wifi", "bluetooth", "volume"))))
     override val label = "Open Wi-Fi, Bluetooth panels"
     override val defaultPolicy = ToolPolicy.Do
+    override val opensApp = true
     override suspend fun preview(args: Map<String, String>) = Preview("Open ${args.need("panel")} settings?", "sliders", "Open", emptyList())
     override suspend fun run(args: Map<String, String>): ToolResult {
         val action = when (args.need("panel").lowercase()) {
@@ -415,6 +480,7 @@ fun defaultTools(env: ToolEnv): List<Tool> = listOf(
     CallTool(env),
     TorchTool(env),
     SoundModeTool(env),
+    VolumeTool(env),
     DndTool(env),
     OpenPanelTool(env),
 )

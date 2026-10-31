@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import com.lfmpixel.lfm.ui.components.Header
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -178,13 +180,19 @@ private val kinds = listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, En
 @Composable
 fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     val c = Lfm.c
-    val draft = remember(route) { Draft(g, route.id, route.kind) }
-    var loaded by remember(route) { mutableStateOf(route.id == null) }
+    // Keyed by when the editor was opened, not by the route: a new entry's route takes its id once saved (below),
+    // and the same draft carries on.
+    val draft = remember(route.opened) { Draft(g, route.id, route.kind) }
+    // For the journal lock: whether this was an existing entry, and how often the lock had closed when it opened.
+    val startedWith = remember(route.opened) { route.id?.takeIf { route.kind == EntryKind.Journal } }
+    val closingsAtStart = remember(route.opened) { g.lock.closings.value }
+    val closings by g.lock.closings.collectAsState()
+    var loaded by remember(route.opened) { mutableStateOf(route.id == null) }
     val focus = remember { FocusRequester() }
     val zone = ZoneId.systemDefault()
     val ctx = LocalContext.current
 
-    LaunchedEffect(route) {
+    LaunchedEffect(route.opened) {
         route.id?.let { id -> g.db.entries().get(id)?.let { draft.load(it) } ?: nav.back() }
         loaded = true
         if (route.id == null) runCatching { focus.requestFocus() }
@@ -193,7 +201,12 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     LaunchedEffect(draft.text.text, draft.extra, draft.entry) {
         if (!loaded || draft.saved) return@LaunchedEffect
         delay(500)
-        g.scope.launch { draft.save() }
+        g.scope.launch {
+            draft.save()
+            // A new entry's editor becomes that entry's, so coming back to it (after a lock, say) opens the entry.
+            val id = draft.id
+            if (route.id == null && id != null && nav.current === route) nav.replace(route.copy(id = id))
+        }
     }
     // Leaving the screen (Back, a tab, a swipe) or the app saves at once, in the app's scope so it outlives the screen.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -207,6 +220,15 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     }
 
     val e = draft.entry
+    // A journal entry behind the lock (Journal only) shows only once unlocked: an existing one opened while locked,
+    // or one being written when the lock closed (a minute away). A new line can always be written, locked or not.
+    if (e.kind == EntryKind.Journal && draft.id != null && journalLocked(g) && (startedWith != null || closings != closingsAtStart)) {
+        Column(Modifier.fillMaxSize()) {
+            Header("Journal", onBack = { nav.back() })
+            Locked(g, "This entry is locked", "Unlock with your fingerprint, face or screen lock to read it.", "Unlock your journal", ask = true)
+        }
+        return
+    }
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             IconButtonPlain("back", { nav.back() }, desc = "Back")

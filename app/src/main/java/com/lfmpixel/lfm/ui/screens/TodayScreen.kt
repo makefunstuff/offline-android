@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.data.Entry
@@ -68,10 +69,12 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val end = start + 86_400_000L
     val reminders by remember(start) { g.db.reminders().between(start, end) }.collectAsState(emptyList())
     val todos by remember { g.db.entries().todos() }.collectAsState(emptyList())
-    val latest by remember { g.db.entries().latest(3) }.collectAsState(emptyList())
+    val latestAll by remember { g.db.entries().latest(3) }.collectAsState(emptyList())
+    val hideJournal = journalLocked(g)
+    val latest = if (hideJournal) latestAll.filter { it.kind != EntryKind.Journal } else latestAll
     val prefs by g.settings.prefs.collectAsState(null)
     val events by produceState(emptyList<com.lfmpixel.lfm.tools.CalendarEvent>(), start, reminders) { value = g.calendar.between(start, end) }
-    var draft by remember { mutableStateOf("") }
+    var draft by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
 
     val dueToday = todos.filter { !it.done && it.dueAt != null && it.dueAt < end }
     val nowMs = now.atZone(zone).toInstant().toEpochMilli()
@@ -92,7 +95,7 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 LIcon("user", size = 18.dp, tint = c.text2)
             }
         }
-        Txt(greeting(now), LfmType.title, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp))
+        Txt(greeting(now), LfmType.title, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp).semantics { heading() })
         Column(Modifier.padding(horizontal = 16.dp)) {
             Composer(draft, { draft = it }, "Ask, capture or do…", onSend = {
                 g.assistant.send(draft); draft = ""; nav.go(Route.Chat)
@@ -105,6 +108,9 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
             }
             Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // A hot phone comes first, where it is seen: answers are slower on purpose.
+                val heat by g.heat.heat.collectAsState()
+                if (heat != com.lfmpixel.lfm.device.Heat.Normal) Pill(heat.label.substringBefore(" ·"), "warn")
                 Pill("On this phone", "shield")
                 ModelPill(g) { nav.go(Route.Models) }
                 Pill("Search: ${prefs?.searchMode?.label?.lowercase() ?: "ask first"}", "globe")

@@ -25,10 +25,15 @@ import com.lfmpixel.lfm.voice.VoiceRecorder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** Everything the app is made of, wired by hand. */
 class AppGraph(context: Context) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val heat = com.lfmpixel.lfm.device.HeatWatch(context).also { w ->
+        com.lfmpixel.lfm.llm.LlamaNative.heat(w.heat.value)
+        w.onChange = { com.lfmpixel.lfm.llm.LlamaNative.heat(it) }
+    }
     val db = LfmDatabase.open(context)
     val settings = Settings(context)
     val models = ModelStore(context)
@@ -38,17 +43,54 @@ class AppGraph(context: Context) {
     val contacts = Contacts(context)
     val controls = PhoneControls(context)
     val launcher = ExternalLauncher(context)
-    val tools = ToolRegistry(defaultTools(ToolEnv(db, reminders, calendar, contacts, controls, launcher)))
+    // Late: the lock is made below; the journal is left out of library searches while it is locked.
+    private val journalHidden: () -> Boolean = { lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal) }
+    val tools = ToolRegistry(defaultTools(ToolEnv(db, reminders, calendar, contacts, controls, launcher, hideJournal = { journalHidden() })))
     val net = NetClient(context, settings, db, scope)
     val web = WebSearch(db, settings, net, contacts)
     val downloads = ModelDownloads(context, models, net, settings, engine, scope)
     val netInstaller = NetInstaller(context)
-    val assistant = Assistant(context, db, engine, settings, tools, reminders, calendar, controls, launcher, scope, web)
+    val assistant = Assistant(context, db, engine, settings, tools, reminders, calendar, controls, launcher, scope, web, heat.heat)
     val voice = VoiceRecorder(OmniTranscriber(engine))
     val talk = com.lfmpixel.lfm.voice.Talk(context, engine, settings, scope)
     val readAloud = com.lfmpixel.lfm.voice.ReadAloud(context, engine, settings, scope)
     val prep = MediaPrep(context)
+    val lock = com.lfmpixel.lfm.device.AppLock(context).also { l ->
+        scope.launch {
+            var first = true
+            settings.prefs.collect { p -> if (first) { first = false; l.start(p.lockMode) } else l.mode = p.lockMode }
+        }
+    }
     val bench = com.lfmpixel.lfm.llm.Benchmark(engine, models, settings, scope)
+}
+
+/**
+ * Delete everything (Settings → Privacy): every note, chat, reminder, search, log line and setting, pictures kept for
+ * the chat, the queue, Inkling's own calendar, and, if [models] is set, the model files. The app is then as on first
+ * run. Nothing outside Inkling is touched (alarms set in the Clock app stay; Android has no call to remove them).
+ */
+suspend fun AppGraph.wipe(context: Context, models: Boolean) {
+    assistant.stop()
+    assistant.clearQueue()
+    talk.close()
+    readAloud.stop()
+    kotlinx.coroutines.withContext(Dispatchers.IO) {
+        db.reminders().pending().forEach { reminders.cancel(it.id) }
+        context.getSystemService(android.app.NotificationManager::class.java)?.cancelAll()
+        runCatching { calendar.deleteOwnCalendar() }
+        db.clearAllTables()
+        prep.deleteAll()
+        java.io.File(context.filesDir, "queue.json").delete()
+        context.cacheDir.listFiles().orEmpty().forEach { it.deleteRecursively() }
+    }
+    if (models) {
+        downloads.items.value.values.forEach { downloads.cancel(it.model) }
+        engine.unloadAll()
+        kotlinx.coroutines.withContext(Dispatchers.IO) { this@wipe.models.dir.listFiles().orEmpty().forEach { it.deleteRecursively() } }
+        this.models.refresh()
+    }
+    settings.clear()
+    assistant.newChat()
 }
 
 class LfmApp : Application() {

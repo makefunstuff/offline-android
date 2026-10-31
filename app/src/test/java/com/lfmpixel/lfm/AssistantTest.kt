@@ -212,4 +212,121 @@ class AssistantTest {
         val back = com.lfmpixel.lfm.ui.screens.Draft(g, d.id, EntryKind.Note).also { it.load(g.db.entries().get(d.id!!)!!) }
         assertEquals("Milk\nmilk", back.text.text)
     }
+
+    private fun runTool(call: ToolCall): com.lfmpixel.lfm.tools.ToolResult {
+        var result: com.lfmpixel.lfm.tools.ToolResult? = null
+        g.assistant.runDirect(call, "chat") { result = it }
+        repeat(200) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(10); if (result != null) return result!! }
+        return result!!
+    }
+
+    /** Android blocks a hand-off from the background without an error: it must not be logged as opened. */
+    @Test fun handOffFromTheBackgroundIsNotLoggedAsOpened() = runBlocking {
+        g.settings.setToolPolicy("set_timer", ToolPolicy.Do)
+        g.launcher.onScreen = false
+        val blocked = runTool(ToolCall("set_timer", mapOf("duration" to "10 min")))
+        assertFalse(blocked.ok)
+        assertEquals("Not opened", blocked.cardLabel)
+        assertEquals(ActionStatus.Failed, g.db.actions().get(blocked.actionId!!)!!.status)
+        assertNull("nothing was started", org.robolectric.Shadows.shadowOf(g.launcher.let { ApplicationProvider.getApplicationContext<LfmApp>() }).nextStartedActivity)
+
+        g.launcher.onScreen = true
+        val opened = runTool(ToolCall("set_timer", mapOf("duration" to "10 min")))
+        assertTrue(opened.forModel, opened.ok)
+        assertEquals(ActionStatus.Opened, g.db.actions().get(opened.actionId!!)!!.status)
+        assertEquals(android.provider.AlarmClock.ACTION_SET_TIMER,
+            org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LfmApp>()).nextStartedActivity.action)
+    }
+
+    @Test fun volumeIsSetAndUndone() = runBlocking {
+        val audio = ApplicationProvider.getApplicationContext<LfmApp>().getSystemService(android.media.AudioManager::class.java)
+        val stream = android.media.AudioManager.STREAM_MUSIC
+        audio.setStreamVolume(stream, audio.getStreamMaxVolume(stream) / 5, 0)
+        val before = g.controls.volumePercent(stream)
+        val r = runTool(ToolCall("set_volume", mapOf("level" to "80", "stream" to "media")))
+        assertTrue(r.forModel, r.ok)
+        assertEquals(80.0, g.controls.volumePercent(stream).toDouble(), 7.0)
+        assertTrue(g.assistant.undo(r.actionId!!))
+        assertEquals(before, g.controls.volumePercent(stream))
+    }
+
+    /** Journal only lock: the assistant's library search can't read the journal until it is unlocked. */
+    @Test fun lockedJournalIsLeftOutOfLibrarySearch() = runBlocking {
+        g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Journal, title = "Felt anxious about the dentist"))
+        g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Note, title = "Dentist is on Elm Street"))
+        g.lock.start(com.lfmpixel.lfm.settings.LockMode.Journal)
+        val locked = runTool(ToolCall("search_library", mapOf("query" to "dentist")))
+        assertTrue(locked.forModel.contains("Elm Street"))
+        assertFalse(locked.forModel.contains("anxious"))
+        g.lock.start(com.lfmpixel.lfm.settings.LockMode.Off)
+        assertTrue(runTool(ToolCall("search_library", mapOf("query" to "dentist"))).forModel.contains("anxious"))
+        // Opened, then away from the screen past the grace time: a turn still running in the background can't read it.
+        g.lock.start(com.lfmpixel.lfm.settings.LockMode.Journal)
+        g.lock.prompt = { true }
+        assertTrue(g.lock.unlock("test"))
+        assertFalse(g.lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal))
+        g.lock.onHidden(now = 1_000)
+        assertFalse(g.lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal, now = 30_000))
+        assertTrue(g.lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal, now = 61_000))
+        g.lock.prompt = null
+        g.lock.start(com.lfmpixel.lfm.settings.LockMode.Off)
+    }
+
+    /** Stop from the notification holds the queue only until Inkling is on screen again. */
+    @Test fun stopAllHoldsTheQueueUntilShownAgain() = runBlocking {
+        g.assistant.stopAll()
+        assertFalse("held is not busy", g.assistant.busy.value)
+        g.assistant.send("Buy oat milk")
+        repeat(30) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(10) }
+        assertEquals(1, g.assistant.queue.value.size)
+        assertFalse(g.assistant.busy.value)
+        g.assistant.onShown()
+        repeat(100) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(10); if (g.assistant.queue.value.isEmpty() && !g.assistant.busy.value) return@repeat }
+        waitIdle()
+        assertTrue(g.assistant.queue.value.isEmpty())
+        assertEquals("Buy oat milk", g.db.entries().todos().first().single().title)
+    }
+
+    @Test fun exportHasEveryKindAndEveryTable() = runBlocking {
+        g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Note, title = "Boiler", body = "Pressure 1.2 bar", tags = "home"))
+        g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Todo, title = "Buy oat milk", list = "Shopping", done = true))
+        g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Journal, title = "A calm day", mood = 1))
+        g.db.messages().insert(com.lfmpixel.lfm.data.ChatMessage(role = Role.User, text = "Hello there"))
+        val out = java.io.ByteArrayOutputStream()
+        com.lfmpixel.lfm.data.Export.write(g.db, out, java.time.ZoneId.of("UTC"))
+        val files = mutableMapOf<String, String>()
+        java.util.zip.ZipInputStream(out.toByteArray().inputStream()).use { z ->
+            while (true) { val e = z.nextEntry ?: break; files[e.name] = z.readBytes().toString(Charsets.UTF_8) }
+        }
+        assertEquals(setOf("README.txt", "notes.md", "ideas.md", "journal.md", "todos.md", "chats.md", "inkling.json"), files.keys)
+        assertTrue(files["notes.md"]!!.contains("## Boiler") && files["notes.md"]!!.contains("Pressure 1.2 bar") && files["notes.md"]!!.contains("#home"))
+        assertTrue(files["todos.md"]!!.contains("## [x] Buy oat milk"))
+        assertTrue(files["journal.md"]!!.contains("good day"))
+        assertTrue(files["chats.md"]!!.contains("**You:** Hello there"))
+        val json = org.json.JSONObject(files["inkling.json"]!!)
+        assertEquals(3, json.getJSONArray("entries").length())
+        assertEquals("Pressure 1.2 bar", json.getJSONArray("entries").getJSONObject(0).getString("body"))
+        com.lfmpixel.lfm.data.Export.TABLES.forEach { assertTrue(it, json.has(it)) }
+    }
+
+    @Test fun wipeLeavesNothingBehindButTheModels() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<LfmApp>()
+        g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Note, title = "Secret"))
+        g.db.messages().insert(com.lfmpixel.lfm.data.ChatMessage(role = Role.User, text = "Hello"))
+        g.settings.setFirstRunDone(); g.settings.setThinking(true)
+        g.assistant.hold(-1) // keep the queue still while it is filled
+        g.assistant.send("still waiting")
+        val model = java.io.File(g.models.dir, "LFM3-1.7B-QAD-Q4_0.gguf").apply { writeText("x") }
+        g.wipe(app, models = false)
+        assertTrue(g.db.entries().all().isEmpty())
+        assertTrue(g.db.messages().all().isEmpty())
+        assertTrue(g.assistant.queue.value.isEmpty())
+        assertFalse(java.io.File(app.filesDir, "queue.json").let { it.exists() && it.readText() != "[]" })
+        assertFalse(g.settings.now().firstRunDone)
+        assertFalse(g.settings.now().thinking)
+        assertTrue("models stay unless asked", model.exists())
+        g.wipe(app, models = true)
+        assertFalse(model.exists())
+        g.assistant.hold(null)
+    }
 }

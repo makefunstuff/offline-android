@@ -18,12 +18,13 @@ mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-androi
   Load and Unload for each model, the chat model when you have more than one, and "Unload when idle" (Never, 1, 5,
   15 or 30 minutes).
 
-This build covers spec Phases 1–6: Today, Chat, Library (notes, ideas, journal), To-dos, Settings; chat with
+This build covers every phase of the spec, 1–7: Today, Chat, Library (notes, ideas, journal), To-dos, Settings; chat with
 LFM3-1.7B through llama.cpp in-process (JNI, CPU); voice capture through LFM3-Omni-2B in-process; tools with a
 confirmation sheet, action history and undo; web search with sources, the network log, and in-app model downloads
 through LFM Net (Phase 4); **Ask about this**: camera, photos, short videos and documents, understood on the phone
-with no network (Phase 5); and, new in Phase 6, **Talk** and **read-aloud** with Omni's own voice, Inkling as the
-phone's assistant, a Quick Settings tile and a home-screen widget.
+with no network (Phase 5); **Talk** and **read-aloud** with Omni's own voice, Inkling as the phone's assistant, a
+Quick Settings tile and a home-screen widget (Phase 6); and, new in Phase 7, heat handling, the app or journal lock,
+export and delete everything, an accessibility pass and a motion pass (below).
 
 ## Build
 
@@ -37,6 +38,22 @@ git submodule update --init --depth 1        # llama.cpp, pinned at b12015
 ./gradlew assembleDebug                      # app/build/outputs/apk/debug/app-debug.apk (LFM, with LFM Net inside)
                                              # net/build/outputs/apk/debug/net-debug.apk (LFM Net on its own)
 ./gradlew testDebugUnitTest                  # unit tests
+```
+
+**Release builds** are signed with your own key, never the public debug key. Make one once (keep it and its passwords
+safe: an update must be signed with the same key) and point `keystore.properties` at it, at the top of the repo.
+That file and `*.jks` are in `.gitignore`; never commit them. Inkling and Inkling Net read the same file, so both are
+signed alike, as Inkling Net's service requires. Without the file, `assembleRelease` makes unsigned APKs.
+
+```bash
+keytool -genkeypair -v -keystore ~/keys/inkling-release.jks -alias inkling -keyalg RSA -keysize 4096 -validity 10000
+cat > keystore.properties <<'KEY'
+storeFile=/home/you/keys/inkling-release.jks
+storePassword=…
+keyAlias=inkling
+keyPassword=…
+KEY
+./gradlew assembleRelease                    # app/build/outputs/apk/release/app-release.apk
 ```
 
 `assembleDebug` also runs privacy checks and fails if any breaks (task classes in `buildSrc/`):
@@ -190,6 +207,58 @@ assistant, and Android then makes it the phone's recogniser too: so it is a real
 keyboard's mic, a search box) is meant to be heard and written down by Omni on the phone (without Omni it says it
 can't); this path is built but was not tried yet, not even in the emulator.
 
+## Lock, export, delete, heat (Phase 7)
+
+- **Lock** (Settings → Privacy → Lock): Off, Whole app, or Journal only, opened with the phone's own fingerprint, face
+  or screen lock (Android's BiometricPrompt; nothing is stored by Inkling). Turning it on, off or changing it asks for
+  the phone's lock first. It locks again a minute after you leave Inkling. With a lock on, Recents shows a blank card. Whole app: a lock
+  screen covers everything; the assistant gesture, tile and widget wait for the unlock. Journal only: journal
+  entries leave the lists, Today, Library search and the assistant's library search until unlocked; writing a new
+  journal line still works. The phone needs a screen lock set for this.
+- **Export all** (Privacy): one ZIP saved where you choose: notes.md, ideas.md, journal.md, todos.md, chats.md to
+  read, and inkling.json with every row of every table. With the lock on, it asks first. Models, pictures and
+  settings are not in it.
+- **Delete everything** (Privacy): notes, journal, to-dos, chats, reminders, searches, the network log, the action
+  history, pictures, the queue, Inkling's own calendar and every setting; the models only if you tick that too. It
+  asks for the phone's lock when the lock is on, then starts again at first run.
+- **Heat**: Inkling follows Android's thermal status. Warm: one thread fewer. Hot: half the threads, and long jobs
+  (a scanned PDF read page by page) wait between pages for the phone to cool. Too hot: two threads, and queued
+  messages wait. Today and Chat say so ("Phone is hot · answers slower, long jobs wait"). The change applies from
+  the next token, through llama.cpp's thread count.
+- **Keeps going in the background**: an answer, a long scan or a queue of messages started on screen runs on in a
+  foreground service with a notification and a Stop button when you leave. Stop ends the answer and holds the queue
+  until Inkling is opened again.
+- **Other fixes**: "remind me in 10 minutes", "in an hour", "in half an hour" and "at 6" (the next 6 o'clock) now
+  work without a model; only one permission request at a time (a second waits for the first); a hand-off to
+  another app (Clock, Messages, dialer, a settings panel) is not tried when Inkling is in the background, where
+  Android silently blocks it, and the chat says "Not opened" instead of claiming it opened; a new `set_volume` tool
+  (media, ring, alarm, call; a level, up, down, mute, max; with undo); the network log shows each full address;
+  pill edges use the control grey so they show in both themes.
+
+## Motion and accessibility (Phase 7)
+
+One set of motion tokens in `ui/theme/Motion.kt` (100–300 ms, Material 3 emphasized and standard easing, springs
+without bounce for what follows a finger), used everywhere:
+
+- Pushed screens slide and fade along the X axis, the camera and Talk along Z; **predictive back** shrinks the screen
+  toward 90 % and rounds its corners while the back swipe is held, and settles back if you let it go.
+- Bottom sheets (the confirmation sheet too) slide up over a fading scrim (Material's own sheet motion).
+- List rows fade in where they land, fade out as the rest close up, and glide when reordered (pin, done, queue
+  order); a tick fills the box and draws the check, then the row moves to Done.
+- The chat answer streams in evenly: what arrives in a burst is revealed over about 120 ms instead of jumping; while
+  it thinks, three small squares brighten in turn beside "Thinking…" or "Writing…".
+- The mic turns ink while listening with an outline that breathes out with your voice level, and its yellow eases
+  back in when it stops. The highlighter draws in from the left behind its words the first time it shows.
+- Buttons dip to 96 % the moment they are pressed, with an ink ripple; switches slide their thumb, tabs and
+  segmented choices fade their ink across, progress bars glide between steps.
+- With Android's "Remove animations" on, everything snaps. Nothing bounces, nothing loops but the "working" dots.
+
+Accessibility: text contrast at least 4.5:1 and control edges at least 3:1 in both themes (a unit test checks the
+palette); switches, check boxes and icon buttons have 48 dp targets and say their names and states; tabs and
+segmented choices say which is selected; screen titles are headings; "Thinking…", the heat line and the undo bar are
+read out when they change; progress bars report their value; buttons, tabs and rows grow with large text (checked at
+200 %) instead of clipping.
+
 ## How it is put together
 
 - `ipc/`: the AIDL interface between the two apps (`info`, `search`, `fetch`, `download`) and the pinned file list.
@@ -214,7 +283,10 @@ can't); this path is built but was not tried yet, not even in the emulator.
   frames, PDF pages and text layers into RGB for llama.cpp). The camera screen is `ui/screens/CameraScreen.kt` (CameraX).
 - `web/`: LFM's side of LFM Net: `NetClient` (binds to it, logs every request), `WebSearch` (the search flow),
   `PersonalWords`, `ArticleText` (reads pages), `ModelDownloads` + `DownloadService`, `NetInstaller`.
-- `ui/`: Compose screens in the calm Signal, Ink + highlighter style.
+- `device/`: `Heat` (Android's thermal status to thread caps and waits) and `AppLock` (the optional lock).
+- `data/Export.kt`: Export all; `wipe` in `LfmApp.kt`: Delete everything. `assistant/WorkService.kt`: an answer keeps
+  going in a foreground service when you leave.
+- `ui/`: Compose screens in the calm Signal, Ink + highlighter style; `ui/theme/Motion.kt` holds the motion tokens.
 - `app/src/debug/`: debug-only hooks used for emulator testing: feed a recorded clip through the voice path, ask
   about a file in the app's folder as the pickers do (`DEBUG_SEE`), add sample library content, and play a clip into
   Talk in place of the mic, at the mic's pace, and keep what Talk and read-aloud say (`DEBUG_TALK`). Send them with
@@ -250,7 +322,19 @@ Tested in an Android 16 emulator (x86_64, Pixel 10 Pro profile, software renderi
   The Quick Settings tile (added and tapped) and the widget (pinned from settings; Capture, Talk and Note) opened
   the right place. Light and dark.
 
-Still needs the Pixel (spec Phase 0 and Phases 4–6):
+- Phase 7, in the same emulator: Journal only lock (journal hidden from the Library, All and Today, unlocked with
+  the phone's PIN, locked again after a minute away); Whole app lock (lock screen in light and dark, unlocked with the
+  PIN); turning the lock on and off asks for the PIN; Export all saved a ZIP through Android's save dialog (Markdown
+  and JSON checked); Delete everything without the models went back to first run with the models kept; a hot phone
+  (`adb shell cmd thermalservice override-status 3`) showed the heat line in Chat and on Today; 200 % font size;
+  "Remove animations" on. Motion was recorded with animations slowed 5× (the emulator draws in software) and played
+  back at real speed. The app's own work per frame (UI thread, from `dumpsys gfxinfo framestats`, Library scrolls,
+  tab and screen changes) was 2.3 ms at the median and under 8.3 ms (a 120 Hz frame) for 98 % of frames; whole
+  frames took about 40 ms there because the emulator's GPU is software, so smoothness at 60/120 Hz needs the phone.
+  Unit tests cover the new times, the permission queue, background hand-offs, volume with undo, heat steps, lock
+  timing, the locked journal in library search, export contents, delete everything and the palette's contrast.
+
+Still needs the Pixel (spec Phase 0 and Phases 4–7):
 
 - Speed, memory, heat and battery for the 1.7B model and Omni on the Tensor G5 (arm64 build, KleidiAI, Auto threads):
   run Settings → Models → Benchmark and Copy results.
@@ -277,3 +361,8 @@ Still needs the Pixel (spec Phase 0 and Phases 4–6):
   third-party assistant (it did in the emulator) and how the corner swipe behaves; the tile from the lock screen;
   the widget on the Pixel launcher; speech in languages other than English; the speech recogniser from another app
   (a keyboard's mic), including whether Android lets it use the mic while Inkling is in the background.
+- Phase 7 on the Pixel: the lock with a real fingerprint and face unlock; real heat (a long Talk or a 20-page scan)
+  and whether the thread cap keeps it below Severe; frame pacing at 120 Hz with the real GPU (the emulator could only
+  measure the app's own per-frame work); the mic's pulse with a real voice (the emulator's mic was silent); predictive
+  back with a real thumb (adb swipes always complete); TalkBack read-through on every screen (the semantics were
+  checked in the accessibility tree, not by listening); a signed release build with the owner's own key.

@@ -24,23 +24,37 @@ data class When(val date: LocalDate, val time: LocalTime?) {
 object TimeArgs {
     private val clock24 = Regex("""^(\d{1,2})[:.](\d{2})$""")
     private val clock12 = Regex("""^(\d{1,2})(?:[:.](\d{2}))?\s*([ap])\.?m\.?$""")
-    private val inRel = Regex("""^in\s+(\d+)\s*(min|minute|minutes|mins|m|hour|hours|h|hr|hrs|day|days|d)$""")
+    private val inRel = Regex("""^in\s+(\d+(?:\.\d+)?|an?|half an?|\d+ and a half)\s*(min|minute|minutes|mins|m|hour|hours|h|hr|hrs|day|days|d)$""")
+    private val bareHour = Regex("""^(\d{1,2})$""")
 
     fun parse(text: String, now: LocalDateTime): When? {
-        val s = text.trim().lowercase(Locale.ROOT).removeSuffix("z").replace(Regex("\\s+"), " ")
+        val s = text.trim().lowercase(Locale.ROOT).removeSuffix("z").replace(Regex("\\s+"), " ").removePrefix("at ")
         if (s.isEmpty()) return null
         val iso = s.uppercase(Locale.ROOT).replace(' ', 'T')
         runCatching { return LocalDateTime.parse(iso.take(19)).let { When(it.toLocalDate(), it.toLocalTime().withSecond(0)) } }
         runCatching { return LocalDateTime.parse(iso.take(16)).let { When(it.toLocalDate(), it.toLocalTime()) } }
         if (iso.length == 10 || iso.getOrNull(10) == 'T') runCatching { return When(LocalDate.parse(iso.take(10)), null) }
         inRel.find(s)?.let { m ->
-            val n = m.groupValues[1].toLong()
-            val t = when (m.groupValues[2].first()) {
-                'm' -> now.plusMinutes(n)
-                'h' -> now.plusHours(n)
-                else -> now.plusDays(n)
+            // "in 10 minutes", "in an hour", "in half an hour", "in 2 and a half hours", "in 1.5 hours"
+            val count = m.groupValues[1].let { n ->
+                when {
+                    n == "a" || n == "an" -> 1.0
+                    n.startsWith("half") -> 0.5
+                    n.endsWith("and a half") -> n.substringBefore(' ').toDouble() + 0.5
+                    else -> n.toDouble()
+                }
             }
+            val unit = when (m.groupValues[2].first()) { 'm' -> 60L; 'h' -> 3_600L; else -> 86_400L }
+            val t = now.plusSeconds((count * unit).toLong())
             return When(t.toLocalDate(), t.toLocalTime().withSecond(0).withNano(0))
+        }
+        // A bare hour, "6" or "at 6": the next time the clock shows it, morning or evening.
+        bareHour.find(s)?.let { m ->
+            val h = m.groupValues[1].toInt()
+            if (h > 23) return null
+            val candidates = listOf(h, h + 12).filter { it <= 23 && (h <= 12 || it == h) }.map { LocalTime.of(it, 0) }
+            val today = candidates.firstOrNull { it.isAfter(now.toLocalTime()) }
+            return if (today != null) When(now.toLocalDate(), today) else When(now.toLocalDate().plusDays(1), candidates.first())
         }
         // "tomorrow 9:00", "friday 6pm", "today", "18:00"
         var date: LocalDate? = null
@@ -53,7 +67,12 @@ object TimeArgs {
             dayOfWeek(first) != null -> date = now.toLocalDate().with(TemporalAdjusters.next(dayOfWeek(first)!!))
         }
         if (date != null) rest = words.drop(1).joinToString(" ").removePrefix("at ").trim()
-        val time = clock(rest)
+        var time = clock(rest)
+        // A morning time with no am/pm: "tonight at 8" or "9:30" is the evening; "today at 6" (or 6:30) the next
+        // time the clock shows it.
+        time?.takeIf { it.hour in 1..11 && !rest.contains('a') && !rest.contains('p') }?.let { t ->
+            if (first == "tonight" || (first == "today" && !t.isAfter(now.toLocalTime()))) time = t.plusHours(12)
+        }
         if (date == null && time == null) return null
         if (date == null) {
             // A bare time means the next time the clock shows it.
@@ -65,6 +84,8 @@ object TimeArgs {
 
     private fun clock(s: String): LocalTime? {
         if (s.isEmpty()) return null
+        // After a day, a bare hour is that hour: "tomorrow at 6" is 06:00.
+        bareHour.find(s)?.let { m -> return m.groupValues[1].toInt().takeIf { it in 0..23 }?.let { LocalTime.of(it, 0) } }
         clock24.find(s)?.let { m ->
             val h = m.groupValues[1].toInt(); val min = m.groupValues[2].toInt()
             if (h in 0..23 && min in 0..59) return LocalTime.of(h, min)

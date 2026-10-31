@@ -19,10 +19,20 @@ android {
         versionName = "0.1.0"
     }
 
+    releaseKey()?.let { key ->
+        signingConfigs.create("release") {
+            storeFile = key.storeFile
+            storePassword = key.storePassword
+            keyAlias = key.keyAlias
+            keyPassword = key.keyPassword
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            // The owner's key from keystore.properties (ReleaseKey.kt); unsigned without it, never the debug key.
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

@@ -88,6 +88,10 @@ fun LfmTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> U
         secondary = c.text, tertiary = c.text, scrim = c.scrim,
     )
     CompositionLocalProvider(LocalLfm provides c) {
-        MaterialTheme(colorScheme = scheme, typography = Typography(), content = content)
+        MaterialTheme(colorScheme = scheme, typography = Typography()) {
+            // Ripples in the ink of the page, a touch stronger than Material's default so a tap shows on the light greys.
+            CompositionLocalProvider(androidx.compose.material3.LocalRippleConfiguration provides androidx.compose.material3.RippleConfiguration(
+                color = c.text, rippleAlpha = androidx.compose.material.ripple.RippleAlpha(0.14f, 0.12f, 0.08f, 0.16f)), content = content)
+        }
     }
 }

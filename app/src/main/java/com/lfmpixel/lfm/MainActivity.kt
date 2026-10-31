@@ -63,6 +63,11 @@ import com.lfmpixel.lfm.ui.screens.HistoryScreen
 import com.lfmpixel.lfm.ui.screens.ImportRun
 import com.lfmpixel.lfm.ui.screens.ImportScreen
 import com.lfmpixel.lfm.ui.screens.LibraryScreen
+import com.lfmpixel.lfm.ui.screens.LockScreen
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import com.lfmpixel.lfm.ui.screens.ModelsScreen
 import com.lfmpixel.lfm.ui.screens.PrivacyScreen
 import com.lfmpixel.lfm.ui.screens.SearchScreen
@@ -94,20 +99,18 @@ class MainActivity : ComponentActivity() {
     private var onPickedOne: ((android.net.Uri) -> Unit)? = null
     private val mediaPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { onPickedOne?.invoke(it) } }
     private val documentPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { onPickedOne?.invoke(it) } }
+    private var onSaveAt: ((android.net.Uri) -> Unit)? = null
+    private val saver = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> uri?.let { onSaveAt?.invoke(it) } }
     private val pickers = Pickers(
         media = { cb -> onPickedOne = cb; mediaPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
         document = { cb -> onPickedOne = cb; documentPicker.launch(arrayOf("application/pdf", "image/*")) },
+        save = { name, cb -> onSaveAt = cb; saver.launch(name) },
     )
 
-    private val gate = object : PermissionGate {
-        override suspend fun ensure(permissions: List<String>): Boolean {
-            if (permissions.all { ContextCompat.checkSelfPermission(this@MainActivity, it) == PackageManager.PERMISSION_GRANTED }) return true
-            val answer = CompletableDeferred<Boolean>()
-            permissionAnswer = answer
-            permissionLauncher.launch(permissions.toTypedArray())
-            return answer.await()
-        }
-    }
+    private val gate = com.lfmpixel.lfm.tools.SerialPermissionGate(
+        granted = { p -> p.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED } },
+        launch = { p, answer -> permissionAnswer = answer; permissionLauncher.launch(p.toTypedArray()) },
+    )
 
     /** What the assistant gesture, the Quick Settings tile or the widget asked for: "talk" or "capture". */
     private val opened = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
@@ -129,16 +132,61 @@ class MainActivity : ComponentActivity() {
         graph.assistant.permissionGate = gate
         graph.web.permissionGate = gate
         graph.launcher.activity = this
+        graph.lock.prompt = ::authenticate
         graph.assistant.onShown()
         setContent {
             LfmTheme {
-                Root(graph, gate, pickers, opened, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
+                // The mic button's pulse follows the voice being recorded, wherever the mic is.
+                val level = graph.voice.level.collectAsState()
+                androidx.compose.runtime.CompositionLocalProvider(com.lfmpixel.lfm.ui.components.LocalMicLevel provides level) {
+                    Root(graph, gate, pickers, opened, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
+                }
             }
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        graph.launcher.onScreen = true
+        graph.lock.onShown()
+        graph.assistant.onShown()
+    }
+
+    override fun onPause() {
+        // Still visible here, so Android lets a foreground service start: an answer or queue keeps going after we leave.
+        if (graph.assistant.busy.value) com.lfmpixel.lfm.assistant.WorkService.start(this)
+        super.onPause()
+    }
+
+    override fun onStop() {
+        graph.launcher.onScreen = false
+        graph.lock.onHidden()
+        super.onStop()
+    }
+
+    /** The phone's own fingerprint, face or screen lock, for Inkling's lock. True once the owner got through. */
+    private suspend fun authenticate(title: String): Boolean = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+        val cancel = android.os.CancellationSignal()
+        cont.invokeOnCancellation { cancel.cancel() }
+        runCatching {
+            android.hardware.biometrics.BiometricPrompt.Builder(this).setTitle(title)
+                .setAllowedAuthenticators(com.lfmpixel.lfm.device.AppLock.AUTHENTICATORS).build()
+                .authenticate(cancel, mainExecutor, object : android.hardware.biometrics.BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: android.hardware.biometrics.BiometricPrompt.AuthenticationResult) {
+                        if (cont.isActive) cont.resumeWith(Result.success(true))
+                    }
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        if (cont.isActive) cont.resumeWith(Result.success(false))
+                    }
+                })
+        }.onFailure { if (cont.isActive) cont.resumeWith(Result.success(false)) }
+    }
+
     override fun onResume() {
         super.onResume()
+        // Back on screen (also after a permission dialog): the "keeps going" notice is not needed; it starts again
+        // if Inkling is left while busy.
+        stopService(android.content.Intent(this, com.lfmpixel.lfm.assistant.WorkService::class.java))
         // LFM Net may have been installed, removed or set up meanwhile; downloads cut off by a restart carry on.
         graph.net.refresh()
         graph.downloads.resumeInterrupted()
@@ -162,6 +210,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        // A request still open would leave its caller waiting: it counts as a no.
+        permissionAnswer?.complete(false)
+        if (graph.lock.prompt == ::authenticate) graph.lock.prompt = null
         if (graph.launcher.activity === this) graph.launcher.activity = null
         super.onDestroy()
     }
@@ -180,6 +231,13 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
     val imports = remember { mutableMapOf<List<android.net.Uri>, ImportRun>() }
     val cameraQuestion = remember { CameraQuestion() }
     val reduced = LfmMotion.reduced()
+    val lockOpen by g.lock.open.collectAsState()
+    val appLocked = p.lockMode == com.lfmpixel.lfm.settings.LockMode.App && !lockOpen
+    // Locking leaves Talk: coming back through the lock should not open the mic by itself.
+    LaunchedEffect(appLocked) { if (appLocked && nav.current == Route.Talk) nav.back() }
+    // With a lock on, Recents shows a blank card instead of what was on screen.
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    LaunchedEffect(p.lockMode) { activity?.setRecentsScreenshotEnabled(p.lockMode == com.lfmpixel.lfm.settings.LockMode.Off) }
     // Screens under the one on top keep their saveable state (search, tab, scroll, chat draft) while it is shown.
     val saved = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
 
@@ -220,8 +278,10 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
 
     // The assistant gesture, the tile and the widget land here.
     val open by opened.collectAsState()
-    LaunchedEffect(open, p.firstRunDone) {
+    LaunchedEffect(open, p.firstRunDone, appLocked) {
         val what = open ?: return@LaunchedEffect
+        // Locked: the gesture, tile or widget waits for the owner to unlock, then goes on.
+        if (appLocked) return@LaunchedEffect
         opened.value = null
         if (!p.firstRunDone) return@LaunchedEffect
         if (what == MainActivity.OPEN_NOTE) { nav.reset(Route.Today); nav.go(Route.Editor(kind = EntryKind.Note)); return@LaunchedEffect }
@@ -240,14 +300,45 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
         }
     }
 
-    BackHandler(enabled = nav.stack.size > 1) { nav.back() }
+    // Predictive back (Android 16): while the back swipe is held, the screen shrinks a little toward the far edge
+    // and its corners round, following the finger; letting go goes back with the usual shared-axis slide, and a
+    // cancelled swipe settles back. Sheets handle their own back.
+    val backProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+    var backEdge by remember { androidx.compose.runtime.mutableIntStateOf(androidx.activity.BackEventCompat.EDGE_LEFT) }
+    androidx.activity.compose.PredictiveBackHandler(enabled = nav.stack.size > 1 && !appLocked) { events ->
+        try {
+            events.collect { e ->
+                backEdge = e.swipeEdge
+                if (!reduced) backProgress.snapTo(e.progress)
+            }
+            nav.back()
+            backProgress.snapTo(0f)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            // The handler's own job is cancelled with the swipe: settle back in the screen's scope instead.
+            scope.launch { backProgress.animateTo(0f, androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)) }
+            throw e
+        }
+    }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
-        Column(Modifier.fillMaxSize().background(if (nav.current == Route.Camera) Color.Black else c.bg).statusBarsPadding().navigationBarsPadding()) {
+        // Behind the lock nothing is composed at all: no screen, sheet or menu can show or take a tap. The screens'
+        // saveable state (drafts, tabs, scroll) is kept by the state holder, and the place in the app by the stack.
+        if (!appLocked) Column(Modifier.fillMaxSize()
+            .background(if (nav.current == Route.Camera) Color.Black else c.bg).statusBarsPadding().navigationBarsPadding()) {
             // ux-spec section 7: the camera opens along the Z axis, pushed screens (editor, chat, settings) along X;
             // the four places of the bottom bar change at once.
             Box(Modifier.weight(1f)) {
-            AnimatedContent(nav.current, Modifier.fillMaxSize(), contentKey = { if (it.isTab()) "places" else it }, transitionSpec = {
+            AnimatedContent(nav.current, Modifier.fillMaxSize().graphicsLayer {
+                val p = backProgress.value
+                if (p > 0f) {
+                    // M3 back preview: down to 90 %, drifting 8 dp away from the edge the swipe came from.
+                    val s = 1f - 0.1f * p
+                    scaleX = s; scaleY = s
+                    translationX = (if (backEdge == androidx.activity.BackEventCompat.EDGE_LEFT) 1f else -1f) * 8.dp.toPx() * p
+                    shape = RoundedCornerShape(24.dp * p)
+                    clip = true
+                }
+            }, contentKey = { when { it.isTab() -> "places"; it is Route.Editor -> "editor" + it.opened; else -> it } }, transitionSpec = {
                 when {
                     targetState == Route.Camera || initialState == Route.Camera -> LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
                     targetState == Route.Talk || initialState == Route.Talk -> LfmMotion.sharedAxisZ(targetState == Route.Talk, reduced)
@@ -255,7 +346,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     else -> LfmMotion.sharedAxisX(nav.forward, reduced)
                 }
             }, label = "screen") { r ->
-                saved.SaveableStateProvider(if (r is Route.Library) "library" else r.toString()) { when (r) {
+                saved.SaveableStateProvider(when (r) { is Route.Library -> "library"; is Route.Editor -> "editor" + r.opened; else -> r.toString() }) { when (r) {
                     Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Talk -> TalkScreen(g, nav, gate)
@@ -269,7 +360,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     is Route.Import -> imports[r.uris]?.let { ImportScreen(g, nav, it) } ?: LaunchedEffect(r) { nav.back() }
                     Route.Tools -> ToolsScreen(g, nav)
                     Route.History -> HistoryScreen(g, nav)
-                    Route.Privacy -> PrivacyScreen(g, nav)
+                    Route.Privacy -> PrivacyScreen(g, nav, pickers)
                     Route.FirstRun -> FirstRunScreen(g, nav) { nav.go(Route.Models); startImport() }
                     is Route.Search -> SearchScreen(g, nav, r.id)
                     Route.WebSearch -> WebSearchScreen(g, nav)
@@ -280,7 +371,9 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             VoicePanel(g) { g.voice.stop() }
             if (nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) BottomBar(nav)
         }
+        if (appLocked) Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) { LockScreen(g) }
     }
+    if (appLocked) return
     confirm?.let { ConfirmSheet(it) }
     nav.voiceInfo?.let { m -> VoiceInfoSheet(m, onModels = { nav.voiceInfo = null; nav.go(Route.Models) }, onClose = { nav.voiceInfo = null }) }
 }

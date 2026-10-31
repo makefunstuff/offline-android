@@ -12,3 +12,4 @@ captures/
 *.wav
 *.keystore
 *.jks
+keystore.properties

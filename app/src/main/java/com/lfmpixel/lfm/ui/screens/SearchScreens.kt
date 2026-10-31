@@ -372,6 +372,6 @@ fun ToggleRow(title: String, detail: String, on: Boolean, onChange: (Boolean) ->
             Txt(title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             Txt(detail, LfmType.label.copy(fontWeight = null), c.text2)
         }
-        Switch(on, onChange)
+        Switch(on, title, onChange)
     }
 }

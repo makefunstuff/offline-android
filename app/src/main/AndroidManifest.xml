@@ -4,6 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The optional lock opens with the phone's fingerprint, face or screen lock (BiometricPrompt). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -18,6 +20,8 @@
     <!-- A model download keeps running while you leave the app. The bytes come from LFM Net, not the network. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- An answer, a scanned document or a queue of messages keeps going while you leave the app (WorkService). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- To install the LFM Net helper from the copy inside this app; Android asks you first. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
@@ -84,6 +88,10 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_capture" />
         </receiver>
         <service android:name=".web.DownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
+        <service android:name=".assistant.WorkService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="On-device AI: finishes an answer the owner asked for, with a Stop button" />
+        </service>
         <receiver android:name=".web.NetInstallReceiver" android:exported="false" />
         <receiver android:name=".tools.ReminderReceiver" android:exported="false" />
         <receiver android:name=".tools.BootReceiver" android:exported="false">

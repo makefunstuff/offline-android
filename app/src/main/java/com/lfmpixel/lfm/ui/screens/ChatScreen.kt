@@ -71,6 +71,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.lfmpixel.lfm.llm.LoadState
 import com.lfmpixel.lfm.ui.components.Btn
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.semantics.liveRegion
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
@@ -109,8 +113,28 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     // The "unloads in N min" line counts down.
     var tick by remember { mutableStateOf(0L) }
     LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(20_000); tick++ } }
+    // The answer streams in at an even pace: what arrived in a burst is revealed over the next ~120 ms, a few
+    // characters a frame, instead of jumping in chunks. Frames run only while there is something to catch up on.
+    val shown = remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    LaunchedEffect(reduced) {
+        snapshotFlow { streamingState.value?.text?.length ?: -1 }.collectLatest { target ->
+            if (target < 0) { shown.intValue = 0; return@collectLatest }
+            if (reduced || shown.intValue > target) { shown.intValue = target; return@collectLatest }
+            // At most 30 steps a second: each step lays the answer out again, so not every frame at 120 Hz.
+            var last = 0L
+            while (shown.intValue < target) {
+                androidx.compose.runtime.withFrameNanos { t ->
+                    val ms = if (last == 0L) 33f else (t - last) / 1e6f
+                    if (last != 0L && ms < 30f) return@withFrameNanos
+                    last = t
+                    val backlog = target - shown.intValue
+                    shown.intValue += kotlin.math.ceil(backlog * (ms / 120f).coerceAtMost(1f)).toInt().coerceIn(1, backlog)
+                }
+            }
+        }
+    }
     LaunchedEffect(count) {
-        snapshotFlow { streamingState.value?.text?.length }.collect { if (follow && count > 0) list.scrollToItem(count - 1, Int.MAX_VALUE / 2) }
+        snapshotFlow { shown.intValue }.collect { if (follow && count > 0) list.scrollToItem(count - 1, Int.MAX_VALUE / 2) }
     }
     val send: () -> Unit = {
         g.assistant.send(draft); draft = ""; follow = true
@@ -156,7 +180,8 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                     }
                 }
                 items(visible, key = { it.id }) { m ->
-                    Box(Modifier.animateItem(fadeInSpec = null, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
+                    // Your messages, cards and notices fade in; a finished answer takes the streamed one's place as it is.
+                    Box(Modifier.animateItem(fadeInSpec = if (m.role == Role.Assistant) null else itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
                         Role.User -> UserBubble(m)
                         Role.Assistant -> AssistantText(m.text, if (showSpeed) m.meta else withoutSpeed(m.meta), citations = m.searchId != null,
                             read = if (g.readAloud.available) ReadState(reading.id == m.id, reading.id == m.id && reading.preparing) { g.readAloud.toggle(m.id, m.text) } else null)
@@ -168,14 +193,14 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 if (streamingOn) {
                     item(key = "streaming") {
                         val s = streamingState.value ?: return@item
-                        if (s.text.isEmpty()) Txt(s.note.ifEmpty {
+                        if (s.text.isEmpty() || shown.intValue == 0) Typing(s.note.ifEmpty {
                             when {
                                 status.text == LoadState.Loading -> "Loading ${modelState(g).substringBefore(" ·")}…"
                                 s.thinking -> "Thinking…"
                                 else -> "Writing…"
                             }
-                        }, LfmType.small, c.text2)
-                        else AssistantText(s.text, "")
+                        })
+                        else AssistantText(s.text.take(shown.intValue).let { t -> if (t.lastOrNull()?.isHighSurrogate() == true) t.dropLast(1) else t }, "")
                     }
                 }
                 query?.let { q -> item(key = "query") { QueryCard(q) } }
@@ -190,6 +215,11 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                     kind = com.lfmpixel.lfm.ui.components.BtnKind.Primary)
             }
         }
+        // Android says the phone is warm: answers are slower on purpose, and say so.
+        val heat by g.heat.heat.collectAsState()
+        androidx.compose.animation.AnimatedVisibility(heat != com.lfmpixel.lfm.device.Heat.Normal, enter = LfmMotion.appear(), exit = LfmMotion.leave()) {
+            HeatLine(heat, Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp))
+        }
         Box(Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 10.dp)) {
             Composer(draft, { draft = it }, if (working) "Message… it will wait its turn" else "Message…", onSend = send,
                 onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) },
@@ -201,6 +231,45 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
             ?: LaunchedEffect(id) { editing = null }
     }
     if (modelSheet) ModelSheet(g, onModels = { modelSheet = false; nav.go(Route.Models) }) { modelSheet = false }
+}
+
+/** "Phone is warm · answers a little slower", with the reason in Android's words for TalkBack. */
+@Composable
+fun HeatLine(heat: com.lfmpixel.lfm.device.Heat, modifier: Modifier = Modifier) {
+    val c = Lfm.c
+    Row(modifier.semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LIcon("warn", size = 16.dp, tint = c.text2)
+        Txt(heat.label, LfmType.meta, c.text2)
+    }
+}
+
+/**
+ * The typing indicator: three small ink squares that brighten in turn, calmly (1.2 s a cycle), beside what it is
+ * doing. Read out once by TalkBack; still when animations are off.
+ */
+@Composable
+private fun Typing(label: String) {
+    val c = Lfm.c
+    val reduced = LfmMotion.reduced()
+    // Read only while drawing (graphicsLayer), so the dots move without recomposing the row; still with animations off.
+    val phase: androidx.compose.runtime.State<Float> = if (reduced) remember { androidx.compose.runtime.mutableFloatStateOf(0.5f) } else
+        androidx.compose.animation.core.rememberInfiniteTransition(label = "typing").animateFloat(0f, 3f,
+            androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1200, easing = androidx.compose.animation.core.LinearEasing)),
+            label = "phase")
+    Row(Modifier.padding(vertical = 4.dp).semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(3) { i ->
+                // Each square is brightest when the phase passes it, and rests at a third.
+                Box(Modifier.size(6.dp).graphicsLayer {
+                    val d = if (reduced) 1f else (1f - kotlin.math.abs(((phase.value - i + 3f) % 3f) - 0.5f) / 1.5f).coerceIn(0f, 1f)
+                    alpha = 0.3f + 0.7f * d
+                }.background(c.text, RoundedCornerShape(1.5.dp)))
+            }
+        }
+        Txt(label, LfmType.small, c.text2)
+    }
 }
 
 /** "unloads in 4 min" for the chat header. */
@@ -238,8 +307,10 @@ private fun QueuedSheet(g: AppGraph, q: com.lfmpixel.lfm.assistant.Queued, index
     val c = Lfm.c
     var text by remember(q.id) { mutableStateOf(q.text) }
     // While the sheet is open this message (and those after it) waits, so an edit is never overtaken by its turn.
-    androidx.compose.runtime.DisposableEffect(q.id) { g.assistant.hold(q.id); onDispose { g.assistant.hold(null) } }
     val save = { if (text.trim() != q.text) g.assistant.editQueued(q.id, text) }
+    // Closed any way (a lock, leaving the chat): the edit is kept before the message may run.
+    val saveNow by androidx.compose.runtime.rememberUpdatedState(save)
+    androidx.compose.runtime.DisposableEffect(q.id) { g.assistant.hold(q.id); onDispose { saveNow(); g.assistant.hold(null) } }
     FlatSheet(onDismiss = { save(); onClose() }) {
         Txt("Queued message", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
         Txt(if (size == 1) "Runs once the current answer ends." else "Number ${index + 1} of $size. They run in this order.", LfmType.small, c.text2,

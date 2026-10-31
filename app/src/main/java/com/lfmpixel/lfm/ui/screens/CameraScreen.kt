@@ -94,7 +94,9 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /** Opens the system photo picker (photos and videos) or the document picker (PDF, pictures); no storage permission. */
-class Pickers(val media: ((Uri) -> Unit) -> Unit, val document: ((Uri) -> Unit) -> Unit)
+class Pickers(val media: ((Uri) -> Unit) -> Unit, val document: ((Uri) -> Unit) -> Unit,
+              /** Android's "save as" for an export: a file name in, the place the owner chose out. */
+              val save: (name: String, (Uri) -> Unit) -> Unit = { _, _ -> })
 
 /** The question typed or said on the camera screen; the mic writes into it. */
 class CameraQuestion { var text by mutableStateOf("") }

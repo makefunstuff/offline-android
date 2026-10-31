@@ -22,6 +22,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -91,7 +93,7 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Txt("To-dos", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp))
+            Txt("To-dos", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).semantics { heading() })
             val counts = TodoTab.entries.associateWith { t -> all.count { !it.done && todoTab(it, endOfToday) == t } }
             Tabs(TodoTab.entries.map { t -> counts[t].takeIf { it != 0 }?.let { "${t.label} $it" } ?: t.label },
                 TodoTab.entries.first { it == tab }.let { t -> counts[t].takeIf { it != 0 }?.let { "${t.label} $it" } ?: t.label },
@@ -127,7 +129,10 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
 private fun LazyItemScope.TodoRow(e: Entry, urgent: Boolean, endOfToday: Long, actions: EntryActions, onClick: () -> Unit) {
     val c = Lfm.c
     val reduced = LfmMotion.reduced()
-    Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null,
+    Box(Modifier.animateItem(
+        // Rows fade in where they land and fade out as the rest close up (ux-spec section 7).
+        fadeInSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate),
+        fadeOutSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.SHORT, easing = LfmMotion.emphasizedAccelerate),
         placementSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate))) {
         SwipeRow(SwipeAction(if (e.done) "Not done" else "Done", "check") { actions.done(e) }, SwipeAction("Delete", "trash") { actions.delete(e) }) {
             Column(Modifier.fillMaxWidth().clickable(onClick = onClick)) {

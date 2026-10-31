@@ -4,6 +4,16 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,9 +74,46 @@ fun marked(text: String): AnnotatedString {
     }
 }
 
+/** Highlights already drawn in during this run: they show at once when they come back into view. */
+private val drawnIn = java.util.Collections.synchronizedSet(HashSet<String>())
+
+/**
+ * The highlighter as a marker stroke: it draws in from the left behind the words (300 ms, emphasized decelerate)
+ * the first time a highlight shows, and is simply there after that. The words under the stroke turn ink as it
+ * passes, so in dark mode they never sit dark on dark.
+ */
 @Composable
 fun Marked(text: String, style: TextStyle, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
-    Text(marked(text), style = style, modifier = modifier, maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+    val c = Lfm.c
+    val reduced = com.lfmpixel.lfm.ui.theme.LfmMotion.reduced()
+    // Drawn in once per place it shows: a changing text (a download's percent, Talk's state) keeps its stroke.
+    val progress = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (reduced || text in drawnIn) 1f else 0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (progress.value < 1f) progress.animateTo(1f, androidx.compose.animation.core.tween(
+            com.lfmpixel.lfm.ui.theme.LfmMotion.LONG, delayMillis = 60, easing = com.lfmpixel.lfm.ui.theme.LfmMotion.emphasizedDecelerate))
+        drawnIn += text
+    }
+    var layout by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+    val pad = with(androidx.compose.ui.platform.LocalDensity.current) { 3.dp.toPx() }
+    Box(modifier) {
+        // Under: the words in the page's ink. Over: the stroke and the words in ink-on-yellow, clipped to the stroke.
+        Text(text, style = style, color = c.text, maxLines = maxLines, overflow = TextOverflow.Ellipsis, onTextLayout = { layout = it },
+            modifier = Modifier.padding(horizontal = 3.dp))
+        Text(text, style = style, color = c.onHighlight, maxLines = maxLines, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 3.dp).clearAndSetSemantics { }.drawWithContent {
+                val l = layout ?: return@drawWithContent
+                val p = progress.value
+                if (p <= 0f) return@drawWithContent
+                for (i in 0 until l.lineCount) {
+                    val left = l.getLineLeft(i) - pad
+                    val right = l.getLineRight(i) + pad
+                    val top = l.getLineTop(i); val bottom = l.getLineBottom(i)
+                    val end = left + (right - left) * p
+                    drawRect(c.highlight, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Size(end - left, bottom - top))
+                    clipRect(left = left, top = top, right = end, bottom = bottom) { this@drawWithContent.drawContent() }
+                }
+            })
+    }
 }
 
 @Composable
@@ -82,28 +129,63 @@ fun Label(text: String, modifier: Modifier = Modifier) = Txt(text, LfmType.label
 @Composable
 fun SectionLabel(text: String) = Label(text, Modifier.padding(top = 20.dp, bottom = 6.dp))
 
-/** The mic: the one control that is always yellow. 1 px ink edge in light mode, yellow edge in dark. */
+/** How loud the mic hears you now, 0..1, for the mic button's pulse. Provided at the root from the recorder. */
+val LocalMicLevel = androidx.compose.runtime.compositionLocalOf<androidx.compose.runtime.State<Float>> { androidx.compose.runtime.mutableFloatStateOf(0f) }
+
+/**
+ * The mic: the one control that is always yellow. 1 px ink edge in light mode, yellow edge in dark. Listening, it
+ * turns ink with a Stop square, and a calm outline breathes out with your voice; back to idle, the yellow eases in.
+ */
 @Composable
 fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.dp, listening: Boolean = false) {
     val c = Lfm.c
     val shape = RoundedCornerShape(if (size >= 56.dp) 8.dp else 6.dp)
-    Box(
-        modifier
-            .size(size)
-            .clip(shape)
-            .background(if (listening) c.text else c.highlight)
-            .border(1.dp, if (c.dark) c.highlight else c.text, shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
-        contentAlignment = Alignment.Center,
-    ) {
-        LIcon(if (listening) "stop" else "mic", tint = if (listening) c.bg else c.onHighlight)
+    val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
+    val fill by androidx.compose.animation.animateColorAsState(if (listening) c.text else c.highlight,
+        motion.spec(if (listening) motion.TINY else motion.MEDIUM, if (listening) motion.standard else motion.emphasizedDecelerate), label = "mic")
+    val voice = LocalMicLevel.current
+    val pulse by androidx.compose.animation.core.animateFloatAsState(if (listening) voice.value.coerceIn(0f, 1f) else 0f, motion.level(), label = "pulse")
+    val src = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    Box(modifier.size(size), contentAlignment = Alignment.Center) {
+        // The pulse: an outline that grows up to 8 dp out and fades as it goes, only while listening.
+        if (listening) Box(Modifier.matchParentSize().graphicsLayer {
+            val grow = 1f + 0.28f * pulse
+            scaleX = grow; scaleY = grow; alpha = 0.25f + 0.55f * pulse
+        }.border(1.5.dp, c.text, shape))
+        Box(
+            Modifier
+                .matchParentSize()
+                .pressScale(src)
+                .clip(shape)
+                .background(fill)
+                .border(1.dp, if (c.dark) c.highlight else c.text, shape)
+                .clickable(src, androidx.compose.material3.ripple(color = if (listening) c.bg else c.onHighlight), role = Role.Button, onClick = onClick)
+                .semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
+            contentAlignment = Alignment.Center,
+        ) {
+            LIcon(if (listening) "stop" else "mic", tint = if (listening) c.bg else c.onHighlight)
+        }
     }
+}
+
+/**
+ * The pressed state of a button: it dips to 96 % at once and comes back in 150 ms, on top of the ripple. Calm,
+ * and felt within a frame of the touch.
+ */
+@Composable
+fun Modifier.pressScale(src: androidx.compose.foundation.interaction.InteractionSource): Modifier {
+    val pressed by src.collectIsPressedAsState()
+    val reduced = com.lfmpixel.lfm.ui.theme.LfmMotion.reduced()
+    if (reduced) return this
+    val scale by androidx.compose.animation.core.animateFloatAsState(if (pressed) 0.96f else 1f,
+        androidx.compose.animation.core.tween(if (pressed) 60 else com.lfmpixel.lfm.ui.theme.LfmMotion.SHORT,
+            easing = com.lfmpixel.lfm.ui.theme.LfmMotion.standard), label = "press")
+    return graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
 @Composable
 fun IconButtonPlain(icon: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = Lfm.c.text2, desc: String = icon) {
-    Box(modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).clickable(onClick = onClick).semantics { contentDescription = desc },
+    Box(modifier.size(48.dp).clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
         contentAlignment = Alignment.Center) { LIcon(icon, tint = tint) }
 }
 
@@ -116,20 +198,22 @@ fun Btn(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: 
     val shape = RoundedCornerShape(6.dp)
     val bg = if (kind == BtnKind.Primary) c.text else Color.Transparent
     val fg = if (kind == BtnKind.Primary) c.bg else c.text
+    val src = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Row(
         modifier
-            .height(if (small) 32.dp else 44.dp)
+            .heightIn(min = if (small) 32.dp else 44.dp)
+            .pressScale(src)
             .clip(shape)
             .background(bg)
             .border(1.dp, if (kind == BtnKind.Primary) c.text else c.control, shape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = if (small) 10.dp else 14.dp),
+            .clickable(src, androidx.compose.material3.ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = if (small) 10.dp else 14.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val tint = if (enabled) fg else c.text3
         icon?.let { LIcon(it, size = 16.dp, tint = tint) }
-        Txt(text, if (small) LfmType.button.copy(fontSize = LfmType.meta.fontSize) else LfmType.button, tint, maxLines = 1)
+        Txt(text, if (small) LfmType.button.copy(fontSize = LfmType.meta.fontSize) else LfmType.button, tint, maxLines = 2)
     }
 }
 
@@ -139,7 +223,7 @@ fun Header(title: String, onBack: (() -> Unit)?, leftIcon: String = "back", righ
     Column {
         Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) IconButtonPlain(leftIcon, onBack, desc = "Back") else Spacer(Modifier.width(10.dp))
-            Txt(title, LfmType.header, modifier = Modifier.weight(1f).padding(start = 4.dp))
+            Txt(title, LfmType.header, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
             right()
         }
         Divider()
@@ -152,7 +236,8 @@ fun Divider(modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth().height(
 @Composable
 fun Pill(text: String, icon: String? = null, modifier: Modifier = Modifier) {
     val c = Lfm.c
-    Row(modifier.border(1.dp, c.line, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
+    // The control grey, not the line grey: the edge has to show (3:1 against the page) in both themes.
+    Row(modifier.border(1.dp, c.control, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         icon?.let { LIcon(it, size = 16.dp, tint = c.text2) }
         Txt(text, LfmType.meta, c.text2, maxLines = 1)
@@ -169,18 +254,21 @@ fun Tag(text: String, icon: String? = null) {
     }
 }
 
-/** Selected tab is plain ink, not yellow. */
+/** Selected tab is plain ink, not yellow. The ink moves between tabs in 100 ms. */
 @Composable
 fun Tabs(items: List<String>, selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
     val c = Lfm.c
-    Row(modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
+    Row(modifier.padding(vertical = 12.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         items.forEach { t ->
             val on = t == selected
             val shape = RoundedCornerShape(6.dp)
-            Box(Modifier.clip(shape).background(if (on) c.text else Color.Transparent).border(1.dp, if (on) c.text else c.control, shape)
-                .clickable(role = Role.Tab) { onSelect(t) }.padding(horizontal = 14.dp, vertical = 6.dp)) {
-                Txt(t, LfmType.small.copy(fontSize = LfmType.small.fontSize * 0.965f, fontWeight = if (on) LfmType.button.fontWeight else null),
-                    if (on) c.bg else c.text2)
+            val bg by androidx.compose.animation.animateColorAsState(if (on) c.text else Color.Transparent, motion.spec(motion.TINY), label = "tab")
+            val fg by androidx.compose.animation.animateColorAsState(if (on) c.bg else c.text2, motion.spec(motion.TINY), label = "tabText")
+            Box(Modifier.heightIn(min = 36.dp).clip(shape).background(bg).border(1.dp, if (on) c.text else c.control, shape)
+                .selectable(on, role = Role.Tab) { onSelect(t) }.padding(horizontal = 14.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center) {
+                Txt(t, LfmType.small.copy(fontSize = LfmType.small.fontSize * 0.965f, fontWeight = if (on) LfmType.button.fontWeight else null), fg)
             }
         }
     }
@@ -189,38 +277,58 @@ fun Tabs(items: List<String>, selected: String, onSelect: (String) -> Unit, modi
 @Composable
 fun Segmented(items: List<String>, selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
     val c = Lfm.c
+    val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
     val shape = RoundedCornerShape(6.dp)
-    Row(modifier.fillMaxWidth().clip(shape).border(1.dp, c.control, shape)) {
+    Row(modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).clip(shape).border(1.dp, c.control, shape).selectableGroup()) {
         items.forEachIndexed { i, t ->
-            if (i > 0) Box(Modifier.width(1.dp).height(36.dp).background(c.control))
+            if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(c.control))
             val on = t == selected
-            Box(Modifier.weight(1f).height(36.dp).background(if (on) c.text else Color.Transparent).clickable(role = Role.RadioButton) { onSelect(t) },
+            val bg by androidx.compose.animation.animateColorAsState(if (on) c.text else Color.Transparent, motion.spec(motion.TINY), label = "seg")
+            val fg by androidx.compose.animation.animateColorAsState(if (on) c.bg else c.text2, motion.spec(motion.TINY), label = "segText")
+            Box(Modifier.weight(1f).heightIn(min = 36.dp).background(bg).selectable(on, role = Role.RadioButton) { onSelect(t) }
+                .padding(horizontal = 4.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center) {
-                Txt(t, LfmType.small.copy(fontSize = LfmType.meta.fontSize * 1.08f, fontWeight = if (on) LfmType.button.fontWeight else null), if (on) c.bg else c.text2)
+                Txt(t, LfmType.small.copy(fontSize = LfmType.meta.fontSize * 1.08f, fontWeight = if (on) LfmType.button.fontWeight else null), fg,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
     }
 }
 
-/** A square-ish switch: ink when on. */
+/** A square-ish switch: ink when on. The thumb slides in 150 ms; the whole 48 dp square around it takes the tap. */
 @Composable
-fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
+fun Switch(on: Boolean, label: String = "", onChange: (Boolean) -> Unit) {
     val c = Lfm.c
+    val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
     val shape = RoundedCornerShape(6.dp)
-    Box(Modifier.width(40.dp).height(22.dp).clip(shape).background(if (on) c.text else Color.Transparent)
-        .border(1.dp, if (on) c.text else c.control, shape).clickable(role = Role.Switch) { onChange(!on) }) {
-        Box(Modifier.padding(start = if (on) 21.dp else 3.dp, top = 3.dp).size(14.dp).clip(RoundedCornerShape(3.dp)).background(if (on) c.bg else c.text3))
+    val x by androidx.compose.animation.core.animateDpAsState(if (on) 21.dp else 3.dp, motion.spec(motion.SHORT, motion.standard), label = "thumb")
+    val track by androidx.compose.animation.animateColorAsState(if (on) c.text else Color.Transparent, motion.spec(motion.TINY), label = "track")
+    val thumb by androidx.compose.animation.animateColorAsState(if (on) c.bg else c.text3, motion.spec(motion.TINY), label = "thumbColor")
+    val edge by androidx.compose.animation.animateColorAsState(if (on) c.text else c.control, motion.spec(motion.TINY), label = "edge")
+    // [label] names the setting for TalkBack, which then says "Show speed, switch, on".
+    Box(Modifier.size(48.dp).toggleable(on, role = Role.Switch, onValueChange = onChange)
+        .let { if (label.isNotEmpty()) it.semantics { contentDescription = label } else it }, contentAlignment = Alignment.Center) {
+        Box(Modifier.width(40.dp).height(22.dp).clip(shape).background(track).border(1.dp, edge, shape)) {
+            Box(Modifier.padding(start = x, top = 3.dp).size(14.dp).clip(RoundedCornerShape(3.dp)).background(thumb))
+        }
     }
 }
 
 @Composable
-fun CheckBox(checked: Boolean, onChange: (Boolean) -> Unit) {
+fun CheckBox(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
     val c = Lfm.c
     val shape = RoundedCornerShape(4.dp)
-    Box(Modifier.size(48.dp).clickable(role = Role.Checkbox) { onChange(!checked) }, contentAlignment = Alignment.Center) {
-        Box(Modifier.size(18.dp).clip(shape).background(if (checked) c.text else Color.Transparent).border(1.dp, if (checked) c.text else c.control, shape),
+    // With no onChange the row around it takes the tap (and says the state); the box only draws.
+    Box(Modifier.size(48.dp).let { m -> onChange?.let { m.toggleable(checked, role = Role.Checkbox, onValueChange = it) } ?: m },
+        contentAlignment = Alignment.Center) {
+        val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
+        val fill by androidx.compose.animation.animateColorAsState(if (checked) c.text else Color.Transparent, motion.spec(motion.TINY), label = "box")
+        val tick by androidx.compose.animation.core.animateFloatAsState(if (checked) 1f else 0f,
+            motion.spec(if (checked) motion.SHORT else motion.TINY, motion.emphasizedDecelerate), label = "tick")
+        Box(Modifier.size(18.dp).clip(shape).background(fill).border(1.dp, if (checked) c.text else c.control, shape),
             contentAlignment = Alignment.Center) {
-            if (checked) LIcon("check", size = 13.dp, tint = c.bg, stroke = 2.5f)
+            if (tick > 0f) LIcon("check", size = 13.dp, tint = c.bg, stroke = 2.5f,
+                modifier = Modifier.graphicsLayer { alpha = tick; scaleX = 0.6f + 0.4f * tick; scaleY = 0.6f + 0.4f * tick })
         }
     }
 }
