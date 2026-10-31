@@ -92,6 +92,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         graph.assistant.permissionGate = gate
+        graph.web.permissionGate = gate
         graph.launcher.activity = this
         setContent {
             LfmTheme {

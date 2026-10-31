@@ -46,6 +46,8 @@ class WebSearch(
     private val contacts: Contacts?,
 ) {
     val pending = MutableStateFlow<SearchRequest?>(null)
+    /** Asks for the contacts permission the first time a query is checked; set by the visible activity. */
+    var permissionGate: com.lfmpixel.lfm.tools.PermissionGate? = null
 
     /** Can the model be offered web_search right now? (No request is made to find out.) */
     suspend fun available(): Boolean = settings.now().searchMode != SearchMode.Off && net.state() == NetClient.State.On
@@ -70,6 +72,8 @@ class WebSearch(
         val info = try { net.info() } catch (e: NetException) { return off(e.message ?: "LFM Net did not answer") }
         if (!info.ready) return off("No search provider is set up. Set one in LFM Net.")
 
+        // Names in contacts can only be checked if LFM may read them: ask once, here, where it matters.
+        if (prefs.warnPersonalWords && contacts != null && !contacts.canRead()) permissionGate?.ensure(listOf(android.Manifest.permission.READ_CONTACTS))
         val personal = if (prefs.warnPersonalWords) kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { PersonalWords.find(q, known()) } else emptyList()
         var sendQuery = q
         var personalSent = emptyList<String>()

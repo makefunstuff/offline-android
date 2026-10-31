@@ -209,6 +209,8 @@ class LocalCalendar(private val context: Context) {
 data class Contact(val name: String, val numbers: List<String>, val birthday: String?)
 
 class Contacts(private val context: Context) {
+    fun canRead() = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+
     /** Every contact's name, for the personal-word check on search queries. Empty without the permission. */
     suspend fun allNames(): List<String> = withContext(Dispatchers.IO) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return@withContext emptyList()

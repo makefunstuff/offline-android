@@ -112,7 +112,13 @@ class ModelDownloads(
     }
 
     /** Android's daily limit for a data-sync service was reached: pause everything, keeping what arrived. */
-    fun pauseAll() = _items.value.values.forEach { pause(it.model) }
+    fun pauseAll() {
+        val moving = _items.value.values.filter { it.state in setOf(State.Waiting, State.Running, State.NoWifi) }
+        moving.forEach { pause(it.model) }
+        // Marked so they carry on by themselves: when LFM Net is back on, or the next time LFM opens.
+        _items.update { map -> map.mapValues { (k, v) -> if (moving.any { it.model.fileName == k }) v.copy(interrupted = true) else v } }
+        save()
+    }
 
     private fun kick() {
         if (worker?.isActive == true) return

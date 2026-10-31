@@ -230,7 +230,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
                     Switch(on) {
                         // Off means off: downloads in progress pause too (they resume when it is back on).
                         if (!it) g.downloads.pauseAll()
-                        scope.launch { g.settings.setNetEnabled(it); g.net.refresh() }
+                        scope.launch { g.settings.setNetEnabled(it); g.net.refresh(); if (it) g.downloads.resumeInterrupted() }
                     }
                 }
             } else {
