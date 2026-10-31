@@ -86,8 +86,9 @@ private val drawnIn = java.util.Collections.synchronizedSet(HashSet<String>())
 fun Marked(text: String, style: TextStyle, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
     val c = Lfm.c
     val reduced = com.lfmpixel.lfm.ui.theme.LfmMotion.reduced()
-    val progress = androidx.compose.runtime.remember(text) { androidx.compose.animation.core.Animatable(if (reduced || text in drawnIn) 1f else 0f) }
-    androidx.compose.runtime.LaunchedEffect(text) {
+    // Drawn in once per place it shows: a changing text (a download's percent, Talk's state) keeps its stroke.
+    val progress = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (reduced || text in drawnIn) 1f else 0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
         if (progress.value < 1f) progress.animateTo(1f, androidx.compose.animation.core.tween(
             com.lfmpixel.lfm.ui.theme.LfmMotion.LONG, delayMillis = 60, easing = com.lfmpixel.lfm.ui.theme.LfmMotion.emphasizedDecelerate))
         drawnIn += text
@@ -157,7 +158,7 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
                 .pressScale(src)
                 .clip(shape)
                 .background(fill)
-                .border(1.dp, if (c.dark && !listening) c.highlight else c.text, shape)
+                .border(1.dp, if (c.dark) c.highlight else c.text, shape)
                 .clickable(src, androidx.compose.material3.ripple(color = if (listening) c.bg else c.onHighlight), role = Role.Button, onClick = onClick)
                 .semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
             contentAlignment = Alignment.Center,

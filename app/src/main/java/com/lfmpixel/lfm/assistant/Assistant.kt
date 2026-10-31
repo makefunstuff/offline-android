@@ -167,7 +167,8 @@ class Assistant(
                 if (!waitForScreen) mutate(wakeWorker = false) { list -> taken = list.firstOrNull()?.takeIf { it.id != held }; if (taken != null) list.drop(1) else list }
                 val next = taken
                 if (next == null) {
-                    busy.value = queue.value.isNotEmpty()
+                    // Held (Stop from the notification): not busy, so the "answering" notification goes away.
+                    busy.value = queue.value.isNotEmpty() && !waitForScreen
                     wake.receive()
                     continue
                 }
@@ -185,7 +186,7 @@ class Assistant(
         val list = change(old)
         if (list == old) return@synchronized
         queue.value = list
-        busy.value = working.value || list.isNotEmpty()
+        busy.value = working.value || (list.isNotEmpty() && !waitForScreen)
         QueueStore.write(queueFile, list)
         if (wakeWorker) wake.trySend(Unit)
     }
@@ -199,6 +200,7 @@ class Assistant(
     /** Stop from outside the app: ends the answer and holds the queue until Inkling is opened again. */
     fun stopAll() {
         waitForScreen = true
+        busy.value = working.value
         stop()
     }
 

@@ -137,6 +137,9 @@ class CaptureSorterTest {
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(15, 8)), at("remind me to stretch in an hour"))
         assertEquals(When(LocalDate.of(2026, 10, 30), LocalTime.of(14, 38)), at("remind me to move the car in half an hour"))
         assertEquals(When(LocalDate.of(2026, 10, 31), LocalTime.of(7, 30)), at("remind me to water the herbs tomorrow at 7:30"))
+        // "in" inside what to do is not the time.
+        CaptureSorter.sort("remind me to check in with Sam at 6").let { assertEquals("check in with Sam", it.args["text"]); assertEquals("6", it.args["at"]) }
+        CaptureSorter.sort("remind me to plug in the car at 6pm").let { assertEquals("plug in the car", it.args["text"]) }
     }
 }
 

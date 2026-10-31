@@ -120,10 +120,12 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         snapshotFlow { streamingState.value?.text?.length ?: -1 }.collectLatest { target ->
             if (target < 0) { shown.intValue = 0; return@collectLatest }
             if (reduced || shown.intValue > target) { shown.intValue = target; return@collectLatest }
+            // At most 30 steps a second: each step lays the answer out again, so not every frame at 120 Hz.
             var last = 0L
             while (shown.intValue < target) {
                 androidx.compose.runtime.withFrameNanos { t ->
-                    val ms = if (last == 0L) 16f else (t - last) / 1e6f
+                    val ms = if (last == 0L) 33f else (t - last) / 1e6f
+                    if (last != 0L && ms < 30f) return@withFrameNanos
                     last = t
                     val backlog = target - shown.intValue
                     shown.intValue += kotlin.math.ceil(backlog * (ms / 120f).coerceAtMost(1f)).toInt().coerceIn(1, backlog)
@@ -250,16 +252,20 @@ fun HeatLine(heat: com.lfmpixel.lfm.device.Heat, modifier: Modifier = Modifier) 
 private fun Typing(label: String) {
     val c = Lfm.c
     val reduced = LfmMotion.reduced()
-    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "typing")
-    val phase by t.animateFloat(0f, 3f, androidx.compose.animation.core.infiniteRepeatable(
-        androidx.compose.animation.core.tween(1200, easing = androidx.compose.animation.core.LinearEasing)), label = "phase")
+    // Read only while drawing (graphicsLayer), so the dots move without recomposing the row; still with animations off.
+    val phase: androidx.compose.runtime.State<Float> = if (reduced) remember { androidx.compose.runtime.mutableFloatStateOf(0.5f) } else
+        androidx.compose.animation.core.rememberInfiniteTransition(label = "typing").animateFloat(0f, 3f,
+            androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1200, easing = androidx.compose.animation.core.LinearEasing)),
+            label = "phase")
     Row(Modifier.padding(vertical = 4.dp).semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             repeat(3) { i ->
                 // Each square is brightest when the phase passes it, and rests at a third.
-                val d = if (reduced) 1f else (1f - kotlin.math.abs(((phase - i + 3f) % 3f) - 0.5f) / 1.5f).coerceIn(0f, 1f)
-                Box(Modifier.size(6.dp).graphicsLayer { alpha = 0.3f + 0.7f * d }.background(c.text, RoundedCornerShape(1.5.dp)))
+                Box(Modifier.size(6.dp).graphicsLayer {
+                    val d = if (reduced) 1f else (1f - kotlin.math.abs(((phase.value - i + 3f) % 3f) - 0.5f) / 1.5f).coerceIn(0f, 1f)
+                    alpha = 0.3f + 0.7f * d
+                }.background(c.text, RoundedCornerShape(1.5.dp)))
             }
         }
         Txt(label, LfmType.small, c.text2)

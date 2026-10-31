@@ -149,6 +149,13 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         graph.launcher.onScreen = true
         graph.lock.onShown()
+        graph.assistant.onShown()
+    }
+
+    override fun onPause() {
+        // Still visible here, so Android lets a foreground service start: an answer or queue keeps going after we leave.
+        if (graph.assistant.busy.value) com.lfmpixel.lfm.assistant.WorkService.start(this)
+        super.onPause()
     }
 
     override fun onStop() {
@@ -223,6 +230,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
     val reduced = LfmMotion.reduced()
     val lockOpen by g.lock.open.collectAsState()
     val appLocked = p.lockMode == com.lfmpixel.lfm.settings.LockMode.App && !lockOpen
+    // Locking leaves Talk: coming back through the lock should not open the mic by itself.
+    LaunchedEffect(appLocked) { if (appLocked && nav.current == Route.Talk) nav.back() }
     // With a lock on, Recents shows a blank card instead of what was on screen.
     val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
     LaunchedEffect(p.lockMode) { activity?.setRecentsScreenshotEnabled(p.lockMode == com.lfmpixel.lfm.settings.LockMode.Off) }
@@ -302,14 +311,16 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             nav.back()
             backProgress.snapTo(0f)
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-            backProgress.animateTo(0f, androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow))
+            // The handler's own job is cancelled with the swipe: settle back in the screen's scope instead.
+            scope.launch { backProgress.animateTo(0f, androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow)) }
             throw e
         }
     }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
-        // Behind the lock nothing is drawn or read out: the screens stay composed (and keep their state) but hidden.
-        Column(Modifier.fillMaxSize().then(if (appLocked) Modifier.alpha(0f).clearAndSetSemantics { } else Modifier)
+        // Behind the lock nothing is composed at all: no screen, sheet or menu can show or take a tap. The screens'
+        // saveable state (drafts, tabs, scroll) is kept by the state holder, and the place in the app by the stack.
+        if (!appLocked) Column(Modifier.fillMaxSize()
             .background(if (nav.current == Route.Camera) Color.Black else c.bg).statusBarsPadding().navigationBarsPadding()) {
             // ux-spec section 7: the camera opens along the Z axis, pushed screens (editor, chat, settings) along X;
             // the four places of the bottom bar change at once.
@@ -324,7 +335,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     shape = RoundedCornerShape(24.dp * p)
                     clip = true
                 }
-            }, contentKey = { if (it.isTab()) "places" else it }, transitionSpec = {
+            }, contentKey = { when { it.isTab() -> "places"; it is Route.Editor -> "editor" + it.opened; else -> it } }, transitionSpec = {
                 when {
                     targetState == Route.Camera || initialState == Route.Camera -> LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
                     targetState == Route.Talk || initialState == Route.Talk -> LfmMotion.sharedAxisZ(targetState == Route.Talk, reduced)
@@ -332,7 +343,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     else -> LfmMotion.sharedAxisX(nav.forward, reduced)
                 }
             }, label = "screen") { r ->
-                saved.SaveableStateProvider(if (r is Route.Library) "library" else r.toString()) { when (r) {
+                saved.SaveableStateProvider(when (r) { is Route.Library -> "library"; is Route.Editor -> "editor" + r.opened; else -> r.toString() }) { when (r) {
                     Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Talk -> TalkScreen(g, nav, gate)

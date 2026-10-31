@@ -49,14 +49,17 @@ class SerialPermissionGate(
 
     override suspend fun ensure(permissions: List<String>): Boolean {
         if (granted(permissions)) return true
-        one.lock()
-        try {
-            if (granted(permissions)) return true
-            val answer = kotlinx.coroutines.CompletableDeferred<Boolean>()
-            launch(permissions, answer)
-            return answer.await()
-        } finally {
-            one.unlock()
+        // Held until Android answers, even if the caller gives up meanwhile (Stop): the dialog is still up then.
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+            one.lock()
+            try {
+                if (granted(permissions)) return@withContext true
+                val answer = kotlinx.coroutines.CompletableDeferred<Boolean>()
+                launch(permissions, answer)
+                answer.await()
+            } finally {
+                one.unlock()
+            }
         }
     }
 }

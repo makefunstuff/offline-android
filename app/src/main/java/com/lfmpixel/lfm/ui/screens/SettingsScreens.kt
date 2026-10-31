@@ -325,10 +325,13 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
                 Btn("Clear chats", { scope.launch { g.assistant.clearQueue(); g.assistant.newChat(); g.db.messages().deleteAll(); g.db.searches().deleteAll(); g.prep.deleteAll() } }, Modifier.weight(1f), icon = "trash")
             }
             var wipe by remember { mutableStateOf(false) }
+            var wiping by remember { mutableStateOf(false) }
             Btn("Delete everything…", { wipe = true }, Modifier.padding(top = 8.dp).fillMaxWidth(), icon = "trash")
             if (wipe) WipeSheet(g, onClose = { wipe = false }) { models ->
+                if (wiping) return@WipeSheet
+                wiping = true
                 g.scope.launch {
-                    if (mode != com.lfmpixel.lfm.settings.LockMode.Off && !g.lock.confirm("Delete everything")) return@launch
+                    if (mode != com.lfmpixel.lfm.settings.LockMode.Off && !g.lock.confirm("Delete everything")) { wiping = false; return@launch }
                     wipe = false
                     g.wipe(ctx.applicationContext, models)
                     nav.reset(Route.FirstRun)

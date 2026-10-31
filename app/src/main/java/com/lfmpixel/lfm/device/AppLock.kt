@@ -19,7 +19,8 @@ class AppLock(private val context: Context) {
     private val _open = MutableStateFlow(false)
     /** Opened since Inkling last came on screen (always true with the lock off). */
     val open: StateFlow<Boolean> = _open
-    private var hiddenAt = 0L
+    @Volatile private var hiddenAt = 0L
+    @Volatile private var hidden = false
     /** Asks the owner to unlock (BiometricPrompt, in the visible activity); null when Inkling is not on screen. */
     var prompt: (suspend (title: String) -> Boolean)? = null
 
@@ -27,13 +28,20 @@ class AppLock(private val context: Context) {
     fun canLock(): Boolean = context.getSystemService(BiometricManager::class.java)
         ?.canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
 
-    fun locks(what: LockMode): Boolean = mode != LockMode.Off && (mode == LockMode.App || mode == what) && !_open.value
+    /**
+     * Whether [what] is behind the lock now. Away from the screen the lock counts as closed once the grace time has
+     * passed, so an answer still running in the background no longer reads the journal.
+     */
+    fun locks(what: LockMode, now: Long = System.currentTimeMillis()): Boolean =
+        mode != LockMode.Off && (mode == LockMode.App || mode == what) &&
+            (!_open.value || (hidden && shouldClose(mode, hiddenAt, now)))
 
     /** Inkling left the screen. */
-    fun onHidden(now: Long = System.currentTimeMillis()) { hiddenAt = now }
+    fun onHidden(now: Long = System.currentTimeMillis()) { hiddenAt = now; hidden = true }
 
     /** Inkling is on screen again: closed if it was away too long (or never opened since start). */
     fun onShown(now: Long = System.currentTimeMillis()) {
+        hidden = false
         if (shouldClose(mode, hiddenAt, now)) _open.value = false
     }
 
@@ -48,7 +56,7 @@ class AppLock(private val context: Context) {
     }
 
     /** Settings: turning the lock on asks first, so no one can lock the owner out with a lock they can't open. */
-    suspend fun confirm(title: String): Boolean = prompt?.invoke(title) == true
+    suspend fun confirm(title: String): Boolean = (prompt?.invoke(title) == true).also { if (it) _open.value = true }
 
     companion object {
         const val GRACE_MS = 60_000L

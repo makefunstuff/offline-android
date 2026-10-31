@@ -178,27 +178,16 @@ private val kinds = listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, En
 /** Full-screen editor for all four kinds (ux-spec section 5): no Save button; Back, leaving the app and a pause save. */
 @Composable
 fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
-    // A journal entry behind the lock opens only once unlocked; a new one can always be written.
-    if (route.id != null && route.kind == EntryKind.Journal && journalLocked(g)) {
-        Column(Modifier.fillMaxSize()) {
-            Header("Journal", onBack = { nav.back() })
-            Locked(g, "This entry is locked", "Unlock with your fingerprint, face or screen lock to read it.", "Unlock your journal", ask = true)
-        }
-        return
-    }
-    EditorContent(g, nav, route)
-}
-
-@Composable
-private fun EditorContent(g: AppGraph, nav: Nav, route: Route.Editor) {
     val c = Lfm.c
-    val draft = remember(route) { Draft(g, route.id, route.kind) }
-    var loaded by remember(route) { mutableStateOf(route.id == null) }
+    // Keyed by when the editor was opened, not by the route: a new entry's route takes its id once saved (below),
+    // and the same draft carries on.
+    val draft = remember(route.opened) { Draft(g, route.id, route.kind) }
+    var loaded by remember(route.opened) { mutableStateOf(route.id == null) }
     val focus = remember { FocusRequester() }
     val zone = ZoneId.systemDefault()
     val ctx = LocalContext.current
 
-    LaunchedEffect(route) {
+    LaunchedEffect(route.opened) {
         route.id?.let { id -> g.db.entries().get(id)?.let { draft.load(it) } ?: nav.back() }
         loaded = true
         if (route.id == null) runCatching { focus.requestFocus() }
@@ -207,7 +196,12 @@ private fun EditorContent(g: AppGraph, nav: Nav, route: Route.Editor) {
     LaunchedEffect(draft.text.text, draft.extra, draft.entry) {
         if (!loaded || draft.saved) return@LaunchedEffect
         delay(500)
-        g.scope.launch { draft.save() }
+        g.scope.launch {
+            draft.save()
+            // A new entry's editor becomes that entry's, so coming back to it (after a lock, say) opens the entry.
+            val id = draft.id
+            if (route.id == null && id != null && nav.current === route) nav.replace(route.copy(id = id))
+        }
     }
     // Leaving the screen (Back, a tab, a swipe) or the app saves at once, in the app's scope so it outlives the screen.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -221,6 +215,15 @@ private fun EditorContent(g: AppGraph, nav: Nav, route: Route.Editor) {
     }
 
     val e = draft.entry
+    // A journal entry behind the lock (Journal only) shows only once unlocked: whatever route it came by, and also
+    // when it was written here and the lock closed meanwhile. A new, unsaved line can always be written.
+    if (e.kind == EntryKind.Journal && draft.id != null && journalLocked(g)) {
+        Column(Modifier.fillMaxSize()) {
+            Header("Journal", onBack = { nav.back() })
+            Locked(g, "This entry is locked", "Unlock with your fingerprint, face or screen lock to read it.", "Unlock your journal", ask = true)
+        }
+        return
+    }
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             IconButtonPlain("back", { nav.back() }, desc = "Back")

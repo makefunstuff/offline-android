@@ -70,7 +70,7 @@ class AppGraph(context: Context) {
  * run. Nothing outside Inkling is touched (alarms set in the Clock app stay; Android has no call to remove them).
  */
 suspend fun AppGraph.wipe(context: Context, models: Boolean) {
-    assistant.stopAll()
+    assistant.stop()
     assistant.clearQueue()
     talk.close()
     readAloud.stop()
@@ -101,9 +101,5 @@ class LfmApp : Application() {
         super.onCreate()
         graph = AppGraph(this)
         Reminders.createChannel(this)
-        // A turn started on screen keeps running in a foreground service if the owner leaves (WorkService).
-        graph.scope.launch {
-            graph.assistant.working.collect { if (it && graph.launcher.onScreen) com.lfmpixel.lfm.assistant.WorkService.start(this@LfmApp) }
-        }
     }
 }

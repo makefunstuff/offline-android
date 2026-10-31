@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 /**
  * Keeps Inkling running while it works on an answer (spec section 7: long jobs in a foreground service with a stop
  * button), so a scanned PDF read page by page or a queue of messages carries on when you leave the app. It starts
- * with a turn while Inkling is on screen and ends when nothing is left to do. Stop ends the answer and holds the
+ * as Inkling leaves the screen with work under way (MainActivity.onPause) and ends when nothing is left to do. Stop ends the answer and holds the
  * queue until Inkling is opened again.
  */
 class WorkService : Service() {

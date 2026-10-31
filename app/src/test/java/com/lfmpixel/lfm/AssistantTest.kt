@@ -260,6 +260,31 @@ class AssistantTest {
         assertFalse(locked.forModel.contains("anxious"))
         g.lock.start(com.lfmpixel.lfm.settings.LockMode.Off)
         assertTrue(runTool(ToolCall("search_library", mapOf("query" to "dentist"))).forModel.contains("anxious"))
+        // Opened, then away from the screen past the grace time: a turn still running in the background can't read it.
+        g.lock.start(com.lfmpixel.lfm.settings.LockMode.Journal)
+        g.lock.prompt = { true }
+        assertTrue(g.lock.unlock("test"))
+        assertFalse(g.lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal))
+        g.lock.onHidden(now = 1_000)
+        assertFalse(g.lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal, now = 30_000))
+        assertTrue(g.lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal, now = 61_000))
+        g.lock.prompt = null
+        g.lock.start(com.lfmpixel.lfm.settings.LockMode.Off)
+    }
+
+    /** Stop from the notification holds the queue only until Inkling is on screen again. */
+    @Test fun stopAllHoldsTheQueueUntilShownAgain() = runBlocking {
+        g.assistant.stopAll()
+        assertFalse("held is not busy", g.assistant.busy.value)
+        g.assistant.send("Buy oat milk")
+        repeat(30) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(10) }
+        assertEquals(1, g.assistant.queue.value.size)
+        assertFalse(g.assistant.busy.value)
+        g.assistant.onShown()
+        repeat(100) { org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(10); if (g.assistant.queue.value.isEmpty() && !g.assistant.busy.value) return@repeat }
+        waitIdle()
+        assertTrue(g.assistant.queue.value.isEmpty())
+        assertEquals("Buy oat milk", g.db.entries().todos().first().single().title)
     }
 
     @Test fun exportHasEveryKindAndEveryTable() = runBlocking {
