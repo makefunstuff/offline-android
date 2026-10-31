@@ -103,7 +103,7 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
         Txt(greeting(now), LfmType.title, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp).semantics { heading() })
         Column(Modifier.padding(horizontal = 16.dp)) {
             Composer(draft, { draft = it }, "Ask, capture or do…", onSend = {
-                g.assistant.send(draft); draft = ""; nav.go(Route.Chat)
+                g.assistant.send(draft, source = "today"); draft = ""; nav.go(Route.Chat)
             }, onMic = onMic, listening = listening, onCamera = { nav.go(Route.Camera) })
             // One tap to write any kind, keyboard up (ux-spec section 4).
             Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

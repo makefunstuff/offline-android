@@ -25,6 +25,15 @@ data class ModelOutput(val thinking: String, val answer: String, val toolCalls: 
         private val jsonName = Regex(""""name"\s*:\s*"([^"]+)"""")
         private val jsonArg = Regex(""""([A-Za-z_][A-Za-z0-9_]*)"\s*:\s*("((?:[^"\\]|\\.)*)"|-?[0-9.]+|true|false)""")
 
+        /** The words that end a thought out of budget: never shown as part of it. */
+        const val OUT_OF_BUDGET_WORDS = "Time is up; I will answer now."
+
+        /**
+         * Closes a thought that ran out of budget. A bare `</think>` mid-sentence leaves LFM3 thinking on in its
+         * answer; a closing line of its own makes it answer.
+         */
+        const val OUT_OF_BUDGET = "\n\n$OUT_OF_BUDGET_WORDS\n</think>\n\n"
+
         /**
          * @param raw text after the prompt's `<think>` (thinking on) or `<think></think>` (thinking off).
          * @param thinkingOn whether the prompt left a `<think>` open.
@@ -34,12 +43,17 @@ data class ModelOutput(val thinking: String, val answer: String, val toolCalls: 
             var thinking = ""
             var stillThinking = false
             if (thinkingOn) {
+                // The prompt opened the block; a model that opens it again just starts its thought.
+                text = text.trimStart().removePrefix("<think>")
                 val end = text.indexOf("</think>")
                 if (end < 0) {
                     return ModelOutput(text.trim(), "", emptyList(), stillThinking = true)
                 }
-                thinking = text.substring(0, end).trim()
+                thinking = text.substring(0, end).trim().removeSuffix(OUT_OF_BUDGET_WORDS).trim()
                 text = text.substring(end + "</think>".length)
+                // A stray tag after that (LFM3 writes them now and then, and may close a thought twice when its
+                // budget ran out) just goes: the words around it stay in the answer, never hidden in the trace.
+                text = text.replace("</think>", "\n").replace("<think>", "\n")
             } else if (text.startsWith("<think>")) {
                 val end = text.indexOf("</think>")
                 if (end < 0) return ModelOutput(text.removePrefix("<think>").trim(), "", emptyList(), true)

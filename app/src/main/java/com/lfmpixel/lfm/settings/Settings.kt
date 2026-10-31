@@ -29,7 +29,12 @@ enum class AssistOpens(val label: String) { Talk("Talk"), Capture("Voice capture
 
 data class Prefs(
     val firstRunDone: Boolean = false,
-    val thinking: Boolean = false,
+    /** Typed chats think before answering; each chat can turn it off or on (Think, by the message box). */
+    val thinking: Boolean = true,
+    /** Tokens it may think for before it must answer: one of [THINK_BUDGETS]. */
+    val thinkBudget: Int = DEFAULT_THINK_BUDGET,
+    /** Chats whose Think was set by hand, by thread id; the others follow [thinking]. */
+    val chatThinking: Map<Long, Boolean> = emptyMap(),
     val searchMode: SearchMode = SearchMode.AskFirst,
     val warnPersonalWords: Boolean = true,
     /** 0 is Auto: see [com.lfmpixel.lfm.llm.Threads.pick]. */
@@ -57,12 +62,18 @@ data class Prefs(
     val backendSpeeds: Map<String, Map<Backend, BackendSpeed>> = emptyMap(),
 )
 
+/** Thinking budgets offered in Settings, in tokens. */
+val THINK_BUDGETS = listOf(256, 512, 1024, 2048)
+const val DEFAULT_THINK_BUDGET = 1024
+
 private val Context.store by preferencesDataStore("settings")
 
 class Settings(private val context: Context) {
     private object K {
         val firstRun = booleanPreferencesKey("first_run_done")
         val thinking = booleanPreferencesKey("thinking")
+        val thinkBudget = intPreferencesKey("think_budget")
+        val chatThinking = stringPreferencesKey("chat_thinking") // "12=1;13=0"
         val search = stringPreferencesKey("search_mode")
         val warn = booleanPreferencesKey("warn_personal")
         // "threads" held 2, 4 or 6 from before Auto: a picked 2 or 4 is kept for writing; 6, the old default, becomes
@@ -92,7 +103,12 @@ class Settings(private val context: Context) {
 
     private fun Preferences.toPrefs() = Prefs(
         firstRunDone = this[K.firstRun] ?: false,
-        thinking = this[K.thinking] ?: false,
+        thinking = this[K.thinking] ?: true,
+        thinkBudget = this[K.thinkBudget] ?: DEFAULT_THINK_BUDGET,
+        chatThinking = (this[K.chatThinking] ?: "").split(';').mapNotNull { p ->
+            val (k, v) = p.split('=').takeIf { it.size == 2 } ?: return@mapNotNull null
+            k.toLongOrNull()?.let { it to (v == "1") }
+        }.toMap(),
         searchMode = this[K.search]?.let { runCatching { SearchMode.valueOf(it) }.getOrNull() } ?: SearchMode.AskFirst,
         warnPersonalWords = this[K.warn] ?: true,
         threads = this[K.threads] ?: this[K.oldThreads]?.takeIf { it in 1..5 } ?: 0,
@@ -118,6 +134,12 @@ class Settings(private val context: Context) {
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
     suspend fun setThinking(on: Boolean) = context.store.edit { it[K.thinking] = on }
+    suspend fun setThinkBudget(tokens: Int) = context.store.edit { it[K.thinkBudget] = tokens }
+    /** Think on or off for one chat; the last 50 chats set by hand are kept. */
+    suspend fun setChatThinking(thread: Long, on: Boolean) = context.store.edit {
+        val list = (it.toPrefs().chatThinking - thread).toList().takeLast(49) + (thread to on)
+        it[K.chatThinking] = list.joinToString(";") { (k, v) -> "$k=${if (v) 1 else 0}" }
+    }
     suspend fun setSearchMode(m: SearchMode) = context.store.edit { it[K.search] = m.name }
     suspend fun setWarnPersonal(on: Boolean) = context.store.edit { it[K.warn] = on }
     suspend fun setThreads(n: Int) = context.store.edit { it[K.threads] = n }
@@ -136,6 +158,8 @@ class Settings(private val context: Context) {
     suspend fun setBackendSpeeds(file: String, speeds: Map<Backend, BackendSpeed>) = context.store.edit {
         it[K.backendSpeeds] = Backends.encode(it.toPrefs().backendSpeeds + (file to speeds))
     }
+    /** Chats are cleared: their ids come back, so their Think choices go too. */
+    suspend fun clearChatThinking() = context.store.edit { it.remove(K.chatThinking) }
     /** Wipe: every setting back to how it was on first run. */
     suspend fun clear() = context.store.edit { it.clear() }
     suspend fun setShowSpeed(on: Boolean) = context.store.edit { it[K.speed] = on }
