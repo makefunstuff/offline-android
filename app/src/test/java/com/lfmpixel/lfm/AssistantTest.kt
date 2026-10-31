@@ -203,4 +203,13 @@ class AssistantTest {
         assertEquals(id, again.save(leaving = true)?.id)
         assertNull(g.db.entries().get(id))
     }
+
+    @Test fun editorKeepsAFirstLineThatRepeats() = runBlocking {
+        val d = com.lfmpixel.lfm.ui.screens.Draft(g, null, EntryKind.Note)
+        d.text = androidx.compose.ui.text.input.TextFieldValue("Milk\nmilk")
+        d.changed()
+        d.save()
+        val back = com.lfmpixel.lfm.ui.screens.Draft(g, d.id, EntryKind.Note).also { it.load(g.db.entries().get(d.id!!)!!) }
+        assertEquals("Milk\nmilk", back.text.text)
+    }
 }

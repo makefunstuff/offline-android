@@ -84,9 +84,7 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
         entry = e
         val full = when {
             e.body.isBlank() -> e.title
-            e.kind == EntryKind.Note && e.body.lineSequence().first().let { first ->
-                first.equals(e.title, ignoreCase = true) || (e.title.endsWith("…") && first.startsWith(e.title.removeSuffix("…"), ignoreCase = true))
-            } -> e.body
+            e.kind == EntryKind.Note && bodyIsWhole(e.title, e.body) -> e.body
             e.kind == EntryKind.Note -> e.title + "\n" + e.body
             else -> e.body
         }
@@ -159,13 +157,19 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
             title = if (long) first.take(119).trimEnd() + "…" else first,
             body = when {
                 long -> body
-                k == EntryKind.Note -> body.lineSequence().drop(1).joinToString("\n").trim()
+                // Title plus the rest, unless the rest would read back as the whole text: then keep it all.
+                k == EntryKind.Note -> body.lineSequence().drop(1).joinToString("\n").trim().let { rest -> if (bodyIsWhole(first, rest)) body else rest }
                 body.contains('\n') -> body
                 else -> ""
             },
             updatedAt = System.currentTimeMillis(),
         )
     }
+}
+
+/** Notes from the assistant keep the whole text in the body, its first line as the title (shortened with "…"). */
+private fun bodyIsWhole(title: String, body: String) = body.isNotEmpty() && body.lineSequence().first().let { first ->
+    first.equals(title, ignoreCase = true) || (title.endsWith("…") && first.startsWith(title.removeSuffix("…"), ignoreCase = true))
 }
 
 private val kinds = listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, EntryKind.Todo)
@@ -222,7 +226,12 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
         }
         Divider()
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            if (loaded) BasicTextField(draft.text, { draft.text = it; draft.changed() },
+            if (loaded) BasicTextField(draft.text, { v ->
+                    // A tap or a cursor move is not a change; only the text is.
+                    val edited = v.text != draft.text.text
+                    draft.text = v
+                    if (edited) draft.changed()
+                },
                 textStyle = (if (e.kind == EntryKind.Todo) LfmType.answer else LfmType.bodyLarge).copy(color = c.text),
                 cursorBrush = SolidColor(c.text),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),

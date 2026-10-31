@@ -385,7 +385,10 @@ fun SnackHost(snack: com.lfmpixel.lfm.ui.Snack?, onDone: () -> Unit, modifier: M
             verticalAlignment = Alignment.CenterVertically) {
             Txt(s.text, LfmType.body, c.bg, Modifier.weight(1f).padding(vertical = 12.dp), maxLines = 2)
             s.undo?.let { u ->
-                Box(Modifier.heightIn(min = 48.dp).clickable(role = Role.Button) { onDone(); scope.launch { u() } }.padding(horizontal = 14.dp),
+                Box(Modifier.heightIn(min = 48.dp).clickable(role = Role.Button) {
+                    onDone()
+                    if (!s.undone) { s.undone = true; scope.launch { runCatching { u() } } }
+                }.padding(horizontal = 14.dp),
                     contentAlignment = Alignment.Center) { Txt("Undo", LfmType.button, c.bg, decoration = TextDecoration.Underline) }
             }
         }

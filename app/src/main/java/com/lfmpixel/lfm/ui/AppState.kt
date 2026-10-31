@@ -23,7 +23,7 @@ sealed interface Route {
     data object WebSearch : Route
     data object Camera : Route
     /** The full-screen editor: an existing entry, or a new one of [kind]. */
-    data class Editor(val id: Long? = null, val kind: EntryKind = EntryKind.Note) : Route
+    data class Editor(val id: Long? = null, val kind: EntryKind = EntryKind.Note, val opened: Long = System.nanoTime()) : Route
 }
 
 /** Where a voice capture goes: to the assistant, or straight into the library. */
@@ -37,6 +37,8 @@ sealed interface VoiceTarget {
 /** A short message at the bottom with an optional Undo, shown for a few seconds (ux-spec section 6). */
 class Snack(val text: String, val undo: (suspend () -> Unit)? = null) {
     val at = System.nanoTime()
+    /** Undo runs once, however fast it is tapped twice. */
+    var undone = false
 }
 
 class Nav(start: Route) {
