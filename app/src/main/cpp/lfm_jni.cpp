@@ -47,6 +47,8 @@ struct Session {
     double prefill_ms = 0, decode_ms = 0, first_ms = 0;
     int n_prefill = 0, n_decode = 0, n_reused = 0;
     std::chrono::steady_clock::time_point started; // when the call came in, for the time to the first token
+    talk::history_cache talk_cache; // Talk's conversation, read in, so a turn reads only what is new
+    talk::result speech;            // the last speak or Talk turn, stage by stage
 };
 
 using clock_type = std::chrono::steady_clock;
@@ -812,10 +814,17 @@ struct speech_listener {
 };
 
 void after_speech(Session *s, const talk::result &r) {
-    LOGI("speech: rc %d, %d frames, %d text tokens, prompt %.0f ms, generation %.0f ms", r.rc, r.n_frames, r.n_text,
-         r.prompt_ms, r.gen_ms);
+    const double audio_ms = r.sample_rate ? r.n_samples * 1000.0 / r.sample_rate : 0;
+    LOGI("speech: rc %d, prompt %d tokens (+%d reused) %.0f ms, first text %.0f ms, first audio %.0f ms, %d text + %d "
+         "frames in %.0f ms (text %.0f, frames %.0f, depth %.0f, codec %.0f ms), %.1f s of audio, RTF %.2f",
+         r.rc, r.n_prompt, r.n_reused, r.prompt_ms, r.first_text_ms, r.first_audio_ms, r.n_text, r.n_frames, r.gen_ms,
+         r.text_ms, r.frame_ms, r.depth_ms, r.codec_ms, audio_ms / 1000, audio_ms > 0 ? r.gen_ms / audio_ms : 0.0);
+    s->speech = r;
     s->cached.clear(); // speech clears the context
 }
+
+// The codec runs inline (see talk::options).
+talk::options speech_options() { return {}; }
 
 } // namespace
 
@@ -831,7 +840,7 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_speak(JNIEnv *env, jobject, jlong handle, 
     const int gen = g_speech_cancel.load();
     talk::result r = talk::speak(s->ctx, s->mtmd, jbytes(env, jprompt), max_frames,
                                  [&](const float *p, size_t n) { return l.audio(p, n); },
-                                 [&] { return g_speech_cancel.load() != gen; });
+                                 [&] { return g_speech_cancel.load() != gen; }, speech_options());
     after_speech(s, r);
     return r.rc < 0 ? r.rc : r.n_frames;
 }
@@ -846,12 +855,38 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_talkReply(JNIEnv *env, jobject, jlong hand
     if (!s || !s->mtmd) return -1;
     speech_listener l(env, listener);
     const int gen = g_speech_cancel.load();
-    talk::result r = talk::reply(s->ctx, s->mtmd, jbytes(env, jhistory), jbytes(env, jprefix), max_steps, temp, spoken,
-                                 [&](const std::string &p) { return l.text(p); },
+    talk::result r = talk::reply(s->ctx, s->mtmd, &s->talk_cache, jbytes(env, jhistory), jbytes(env, jprefix), max_steps,
+                                 temp, spoken, [&](const std::string &p) { return l.text(p); },
                                  [&](const float *p, size_t n) { return l.audio(p, n); },
-                                 [&] { return g_speech_cancel.load() != gen; });
+                                 [&] { return g_speech_cancel.load() != gen; }, speech_options());
     after_speech(s, r);
     return r.rc < 0 ? r.rc : r.n_frames + r.n_text;
+}
+
+// Reads the start of Talk's next turn in ahead of time (its instructions when Talk opens, or a turn heard while the
+// owner may still go on), so the answer starts sooner. Returns the tokens read in (0: already there), or < 0.
+JNIEXPORT jint JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_talkPrewarm(JNIEnv *env, jobject, jlong handle, jbyteArray jhistory) {
+    auto *s = reinterpret_cast<Session *>(handle);
+    if (s) apply_heat(s);
+    if (!s) return -1;
+    talk::result r = talk::prewarm(s->ctx, &s->talk_cache, jbytes(env, jhistory));
+    if (r.n_prompt > 0 || r.rc < 0) s->cached.clear(); // it used the context (an early return leaves it alone)
+    LOGI("talk prewarm: %d tokens (+%d reused) in %.0f ms", r.n_prompt, r.n_reused, r.prompt_ms);
+    return r.rc < 0 ? r.rc : r.n_prompt;
+}
+
+// The last speak or Talk turn, stage by stage (see LlamaSession.speechStats).
+JNIEXPORT jdoubleArray JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_speechStats(JNIEnv *env, jobject, jlong handle) {
+    auto *s = reinterpret_cast<Session *>(handle);
+    talk::result r = s ? s->speech : talk::result();
+    double v[] = {(double) r.rc, (double) r.n_prompt, (double) r.n_reused, r.prompt_ms, r.first_text_ms, r.first_audio_ms,
+                  (double) r.n_text, (double) r.n_frames, r.gen_ms, r.text_ms, r.frame_ms, r.depth_ms, r.codec_ms,
+                  (double) r.n_samples, (double) r.sample_rate};
+    jdoubleArray out = env->NewDoubleArray(15);
+    env->SetDoubleArrayRegion(out, 0, 15, v);
+    return out;
 }
 
 } // extern "C"

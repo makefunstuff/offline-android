@@ -66,6 +66,7 @@ class AppGraph(context: Context) {
     }
     val bench = com.lfmpixel.lfm.llm.Benchmark(engine, models, settings, scope)
     val edgeBench = com.lfmpixel.lfm.edge.EdgeBench(edge, settings, scope)
+    val voiceBench = com.lfmpixel.lfm.voice.VoiceBench(engine, settings, talk, readAloud, scope)
 }
 
 /**

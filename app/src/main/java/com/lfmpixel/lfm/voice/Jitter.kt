@@ -16,7 +16,9 @@ import kotlin.math.sqrt
  * - Running low while slower: stop at the next pause in the voice (between words or phrases), not mid-word.
  * - Ran dry anyway: that is an underrun; counted, logged, and r is raised so the next wait is longer.
  */
-class Jitter(val rate: Int = 24_000, private val shared: Prior = prior) {
+class Jitter(val rate: Int = 24_000, private val shared: Prior = prior,
+             /** Learn the usual length (Talk); read-aloud's long texts would make Talk wait too long. */
+             private val learnLength: Boolean = true) {
     /** Generation time per second of speech; learned across stretches, and shared with the app's other players. */
     var rtf = shared.rtf
         private set
@@ -47,30 +49,41 @@ class Jitter(val rate: Int = 24_000, private val shared: Prior = prior) {
     fun arrived(n: Int, nowMs: Double) {
         if (firstArrivalMs < 0) { firstArrivalMs = nowMs; firstChunk = n }
         arrivedSamples += n
-        // Measured from the second chunk on, once a second of speech has come: the first comes after the prompt.
+        // Measured from the second chunk on, once half a second of speech has come: the first comes after the prompt.
         val made = (arrivedSamples - firstChunk) * 1000.0 / rate
-        if (made >= 1000) setRtf(0.5 * rtf + 0.5 * ((nowMs - firstArrivalMs) / made).coerceIn(0.05, 10.0))
+        // The measured speed times a margin that each underrun raised: speech comes in bursts (Talk's text steps make
+        // gaps), and the average alone would let the buffer run dry the same way again.
+        if (made >= 500) setRtf(0.5 * rtf + 0.5 * ((nowMs - firstArrivalMs) / made).coerceIn(0.05, 10.0) * shared.margin)
     }
 
     private fun setRtf(v: Double) { rtf = v; shared.rtf = v }
 
     /** The stretch was [totalMs] long in all: learnt as the usual length. */
     fun ended(totalMs: Double) {
-        if (totalMs < 500) return
-        usualMs = 0.7 * usualMs + 0.3 * totalMs
+        // A stretch with no underrun: the margin eases off a little.
+        if (underruns == 0) shared.margin = max(1.0, shared.margin * 0.97)
+        if (totalMs < 500 || !learnLength) return
+        usualMs = (0.7 * usualMs + 0.3 * totalMs).coerceAtMost(MAX_USUAL_MS)
         shared.usualMs = usualMs
     }
 
     /** The whole stretch should last about [totalMs] (from its text); updated as more text comes. */
     fun expect(totalMs: Double) { expectedMs = totalMs }
 
+    /** About [ms] more is coming on top of what has arrived (read-aloud's next piece). */
+    fun expectMore(ms: Double) { expectedMs = arrivedSamples * 1000.0 / rate + ms }
+
     /** Milliseconds of audio that should be waiting before playing on, with [playedMs] played so far. */
     fun needMs(playedMs: Double): Double {
         if (rtf <= 0.95) return BASE_MS
         // The text runs only a little ahead of the voice, so until it is all in, assume at least the usual length.
-        val remaining = max(max(expectedMs, usualMs) - playedMs, 0.0)
+        val remaining = max((if (learnLength) max(expectedMs, usualMs) else expectedMs) - playedMs, 0.0)
         return (remaining * (1 - 1 / rtf) * 1.1 + BASE_MS).coerceIn(BASE_MS, MAX_WAIT_MS)
     }
+
+    /** After running dry mid-stretch: faster than real time, carry on once two frames are in (Talk's text steps make
+     *  short gaps between blocks of frames). */
+    fun resumeMs(playedMs: Double): Double = if (rtf <= 0.95) RESUME_MS else needMs(playedMs)
 
     /** True if [pcm] from [from] for [n] samples is quiet next to the voice so far: a safe place to wait. */
     fun quiet(pcm: FloatArray, from: Int, n: Int): Boolean {
@@ -82,8 +95,8 @@ class Jitter(val rate: Int = 24_000, private val shared: Prior = prior) {
     }
 
     /** Running low ([bufferedMs] waiting) before a [quietSlice]: wait here rather than run dry mid-word. */
-    fun pauseHere(bufferedMs: Double, quietSlice: Boolean, ended: Boolean) =
-        !ended && quietSlice && rtf > 1.0 && bufferedMs < LOW_MS
+    fun pauseHere(bufferedMs: Double, quietSlice: Boolean, ended: Boolean, playedMs: Double) =
+        !ended && quietSlice && rtf > 0.95 && bufferedMs < LOW_MS && bufferedMs < needMs(playedMs)
 
     fun paused(waitMs: Double) { pauses++; waitedMs += waitMs }
 
@@ -91,18 +104,36 @@ class Jitter(val rate: Int = 24_000, private val shared: Prior = prior) {
     fun underrun(waitMs: Double) {
         underruns++
         waitedMs += waitMs
+        shared.margin = min(shared.margin * 1.1, MAX_MARGIN)
         setRtf(max(rtf, 1.05) * 1.1)
     }
 
     /** What every new [Jitter] starts from: this phone's speed and answer length, as last seen. */
-    class Prior(@Volatile var rtf: Double = 1.0, @Volatile var usualMs: Double = 6000.0)
+    class Prior(@Volatile var rtf: Double = 1.0, @Volatile var usualMs: Double = 6000.0,
+                /** Raised by each underrun, eased by clean stretches: how much slower than measured to assume. */
+                @Volatile var margin: Double = 1.0)
 
     companion object {
         const val BASE_MS = 240.0
+        const val MAX_MARGIN = 1.5
         const val LOW_MS = 600.0
+        const val RESUME_MS = 160.0
         const val MAX_WAIT_MS = 8000.0
         const val SLICE_MS = 40
+        /** An answer longer than this is not usual for Talk: it would make every wait long. */
+        const val MAX_USUAL_MS = 12000.0
+        /** This phone's pace (kept in Settings), shared by Talk, read-aloud and the voice benchmark. */
         val prior = Prior()
+        @Volatile private var loaded = false
+
+        /** Reads the pace saved last time, once a run (before the first stretch that needs it). */
+        suspend fun load(settings: com.lfmpixel.lfm.settings.Settings) {
+            if (loaded) return
+            val p = settings.now()
+            prior.rtf = p.voiceRtf
+            prior.usualMs = p.voiceUsualMs
+            loaded = true
+        }
     }
 }
 
@@ -152,18 +183,19 @@ fun simulatePlayback(jitter: Jitter, chunks: List<Pair<Double, FloatArray>>, exp
             }
         }
         // Waits from now until enough is waiting again (or everything has come); returns when that is.
-        fun refill(): Double {
+        fun refill(dry: Boolean = false): Double {
             var w = now
             while (true) {
                 arriveUntil(w)
                 val b = (avail - played) * 1000.0 / rate
-                if (b >= jitter.needMs(played * 1000.0 / rate) || next == chunks.size) return w
+                val p = played * 1000.0 / rate
+                if (b >= (if (dry) jitter.resumeMs(p) else jitter.needMs(p)) || next == chunks.size) return w
                 w = max(w, arriveAt[next])
             }
         }
         if (avail - played <= 0) {
             // Ran dry: a pause if the voice was quiet there, an underrun mid-word.
-            val w = refill()
+            val w = refill(dry = true)
             if (lastQuiet) jitter.paused(w - now) else jitter.underrun(w - now)
             now = w
             continue
@@ -171,9 +203,9 @@ fun simulatePlayback(jitter: Jitter, chunks: List<Pair<Double, FloatArray>>, exp
         val n = min(slice, avail - played)
         val q = jitter.quiet(all, played, n)
         lastQuiet = q
-        if (jitter.pauseHere(bufferedMs, q, ended)) {
+        if (jitter.pauseHere(bufferedMs, q, ended, played * 1000.0 / rate)) {
             val w = refill()
-            jitter.paused(w - now)
+            if (w - now >= 20) jitter.paused(w - now) // as the player counts them
             now = w
         }
         played += n

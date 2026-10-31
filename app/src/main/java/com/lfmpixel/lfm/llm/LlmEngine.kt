@@ -78,6 +78,10 @@ object LlamaNative {
     external fun canSpeak(handle: Long): Boolean
     external fun speak(handle: Long, prompt: ByteArray, maxFrames: Int, listener: SpeechListener): Int
     external fun talkReply(handle: Long, history: ByteArray, prefix: ByteArray, maxSteps: Int, temp: Float, spoken: Boolean, listener: SpeechListener): Int
+    /** Reads the start of Talk's next turn in ahead of time; tokens read (0: already in), or < 0. */
+    external fun talkPrewarm(handle: Long, history: ByteArray): Int
+    /** The last speak or Talk turn, stage by stage; see [SpeechStats]. */
+    external fun speechStats(handle: Long): DoubleArray
     /** Stops any picture being read in (between pictures). */
     external fun cancelPictures()
     /** Stops any speech being made (between audio frames). */
@@ -187,11 +191,13 @@ class LlamaSession private constructor(private val handle: Long, override val pa
         awaitClose { }
     }.buffer(Channel.UNLIMITED).flowOn(dispatcher)
 
-    suspend fun transcribe(pcm16k: FloatArray, systemPrompt: String, maxTokens: Int = 512): String = native {
+    /** Speech to text. [stop] is asked between tokens (an early hearing that turned out not to be needed). */
+    suspend fun transcribe(pcm16k: FloatArray, systemPrompt: String, maxTokens: Int = 512, stop: () -> Boolean = { false }): String = native {
         val out = java.io.ByteArrayOutputStream()
         val prompt = PromptFormat.system(systemPrompt, emptyList()) +
             "${PromptFormat.IM_START}user\n<__media__>${PromptFormat.IM_END}\n${PromptFormat.IM_START}assistant\n<think></think>"
-        val n = LlamaNative.transcribe(handle, pcm16k, prompt.toByteArray(), maxTokens) { out.write(it); true }
+        val n = LlamaNative.transcribe(handle, pcm16k, prompt.toByteArray(), maxTokens) { out.write(it); !stop() }
+        lastStats = readStats()
         if (n < 0) throw LlmException("Transcription failed ($n)")
         out.toString(Charsets.UTF_8).replace(Regex("<think>.*?</think>", RegexOption.DOT_MATCHES_ALL), "").replace("<|im_end|>", "").trim()
     }
@@ -239,12 +245,24 @@ class LlamaSession private constructor(private val handle: Long, override val pa
             override fun onAudio(pcm: FloatArray) = onAudio(pcm)
             override fun onText(bytes: ByteArray) = onText(String(bytes, Charsets.UTF_8))
         })
+        // Kept here, so they are still there if the model is unloaded right after (a very long answer).
+        lastSpeech = SpeechStats.of(LlamaNative.speechStats(handle))
         if (n == -1) throw LlmException("This Omni projector file has no voice. Get mmproj-LFM3-Omni-2B again.")
         if (n == -2) throw LlmException("The conversation is too long; start Talk again")
         if (n < 0 && n != -6) throw LlmException("Could not answer ($n)")
         n >= 0
     }
 
+
+    /** Reads [history] in ahead of Talk's next turn (see talk::prewarm). Returns the tokens it read. */
+    suspend fun talkPrewarm(history: String): Int = native { LlamaNative.talkPrewarm(handle, history.toByteArray()) }
+
+    /** The last speak or Talk turn, stage by stage. */
+    suspend fun speechStats(): SpeechStats = native { SpeechStats.of(LlamaNative.speechStats(handle)) }
+
+    /** The last Talk turn's stages, readable after the session is closed. */
+    @Volatile var lastSpeech = SpeechStats()
+        private set
 
     private fun readStats() = LlamaNative.lastStats(handle).let { GenStats(it[0], it[1].toInt(), it[2], it[3].toInt(), it[4].toInt(), it[5]) }
 
@@ -272,5 +290,26 @@ class LlamaSession private constructor(private val handle: Long, override val pa
                 LlamaNative.free(handle)
             }
         }
+    }
+}
+
+
+/** One speak or Talk turn from Omni, stage by stage (talk::result in talk.h). Times in ms. */
+data class SpeechStats(
+    val rc: Int = 0, val promptTokens: Int = 0, val reusedTokens: Int = 0, val promptMs: Double = 0.0,
+    val firstTextMs: Double = 0.0, val firstAudioMs: Double = 0.0, val textTokens: Int = 0, val frames: Int = 0,
+    val genMs: Double = 0.0, val textMs: Double = 0.0, val frameMs: Double = 0.0, val depthMs: Double = 0.0,
+    val codecMs: Double = 0.0, val samples: Int = 0, val sampleRate: Int = 24_000,
+) {
+    val audioMs get() = if (sampleRate > 0) samples * 1000.0 / sampleRate else 0.0
+    /** Generation time per second of speech: over 1, speech is made slower than it plays. */
+    val rtf get() = if (audioMs > 0) genMs / audioMs else 0.0
+    /** Backbone steps a second (text tokens and audio frames alike). */
+    val stepsPerSecond get() = if (textMs + frameMs > 0) (textTokens + frames) * 1000.0 / (textMs + frameMs) else 0.0
+    val textTps get() = if (textMs > 0) textTokens * 1000.0 / textMs else 0.0
+
+    companion object {
+        fun of(v: DoubleArray) = if (v.size < 15) SpeechStats() else SpeechStats(v[0].toInt(), v[1].toInt(), v[2].toInt(), v[3],
+            v[4], v[5], v[6].toInt(), v[7].toInt(), v[8], v[9], v[10], v[11], v[12], v[13].toInt(), v[14].toInt())
     }
 }

@@ -18,7 +18,8 @@ class ReadAloud(context: android.content.Context, private val models: ModelManag
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state
-    private val out = AudioOut()
+    // This phone's speed as Talk knows it, but not the length: long texts would teach Talk's buffer to wait too long.
+    private val out = AudioOut(learnLength = false)
     private val focus = AudioFocus(context, exclusive = false) { stop() }
     private var job: Job? = null
 
@@ -37,6 +38,7 @@ class ReadAloud(context: android.content.Context, private val models: ModelManag
         job = scope.launch {
             try {
                 val p = settings.now()
+                Jitter.load(settings)
                 // Edge mode: the server's voice, streamed; the phone's Omni if the server can't be reached.
                 val edge = models.edge?.takeIf { it.usable() }
                 if (edge != null) {
@@ -67,6 +69,10 @@ class ReadAloud(context: android.content.Context, private val models: ModelManag
                 focus.take()
                 out.start()
                 for (chunk in SpeechFormat.chunks(speech)) {
+                    // What this piece adds (about 65 ms a character, 200 for Chinese and Japanese): if speech is slower
+                    // than it plays, the waits fall between pieces (sentences) rather than all before the first.
+                    val cjk = chunk.any { Character.isIdeographic(it.code) || it in '\u3040'..'\u30ff' }
+                    out.expectMore(chunk.length * if (cjk) 200.0 else 65.0)
                     models.keepAlive()
                     // About 12.5 frames a second of speech; a generous cap so a long piece cannot run away. Chinese
                     // and Japanese say more per character.

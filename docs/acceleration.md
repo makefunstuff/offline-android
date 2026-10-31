@@ -182,6 +182,66 @@ How to read the labels:
 - **Nexa SDK.**
   - Shown: its NPU path is Qualcomm Hexagon only.
 
+## Voice (Talk and read-aloud): what was chosen, and why
+
+Added 31 October 2026 (LP-30). Voice stays on **llama.cpp's CPU path with LFM3-Omni-2B**, in one model that hears,
+thinks and speaks. What changed is the pipeline around it.
+
+**Where a speech frame's time goes.** Omni speaks in 80 ms frames. Each frame is one backbone step of the 2B model,
+three depthformer passes and the feedback embedding, then the codec. Measured on a desktop CPU
+(`app/src/main/cpp/bench`, 6 cores):
+- backbone step: 18.9 ms, 75% of a frame;
+- depthformer: 5.9 ms, 22%;
+- codec and ISTFT: 1.6 ms, 6%.
+
+The backbone sets the pace. In Talk, it also writes 6 text tokens for every 12 frames.
+
+**Options weighed:**
+- **LiteRT-LM for Omni: no.**
+  - Shown ([model card](https://huggingface.co/litert-community/LFM3-Omni-2B-LiteRT)): the `.litertlm` answers in
+    text only. Speech runs as separate float32 graphs on the CPU, with a Python runner.
+  - Shown: on a Galaxy S26 CPU, a second of speech took 1.15 s, and speech paused on a warm phone in 4 of 9 answers.
+  - Shown: the int8 file is 3.2 GB. The depth decoder fails at float16 on a GPU, and the codec is wrong on the Mac
+    GPU.
+  - So it is no faster than llama.cpp, and it is bigger.
+- **llama.cpp Vulkan for the backbone: no.** It is slower than the CPU on the G5 and has given wrong tokens (above).
+  The main Benchmark still measures Omni on Vulkan, so a fixed driver would show up there.
+- **Split: the GPU text model thinks, Omni only speaks: not now.**
+  - It saves only Omni's text steps: 21% of the steps in a measured answer.
+  - Each sentence then needs Omni's TTS prompt read in again.
+  - Both models decode from the same memory, which is what bounds a token's speed.
+  - It needs LiteRT GPU to be the chat backend on the phone, which the owner's Benchmark has not yet shown.
+  - A follow-up, if the voice benchmark shows Omni's backbone is the limit (RTF over 1) while LiteRT GPU is fast.
+- **Codec on its own thread: tried, off.** It overlaps the backbone, but two thread teams on six cores slowed the
+  backbone (18.9 → 20.2 ms) and the codec (1.6 → 4.8 ms). That cost more than it hid. `talk::options` keeps the
+  switch.
+- **A smaller dedicated TTS (Kokoro, Piper, Pocket TTS): not now.** It would need a new model download and pins,
+  English-first voices, and a second voice. Omni is already there and speaks 19 languages.
+
+**What was done instead:**
+- **Talk keeps the conversation read in** (`talk::history_cache`). It saves the model's state after the history and
+  restores it the next turn, so only the new words are read. Turn 1 reads 22 tokens instead of 93, turn 2 reads 51
+  instead of 134 (desktop: 214 → 73 ms, 286 → 136 ms). The history drops old exchanges three at a time, so its start
+  stays the same.
+- **Prewarm:** Omni loads and reads Talk's instructions in when Talk opens. It reads the conversation in while the
+  owner speaks.
+- **Heard early:** after 300 ms of quiet, the turn so far is transcribed. Then the conversation with those words is
+  read in, while the rest of the 800 ms end-of-turn silence passes. If the owner goes on, that work is dropped.
+- **Jitter buffer** (`voice/Jitter.kt`). It learns how fast speech is made (RTF) and how long the answer will be
+  (from its text, which runs ahead of the voice):
+  - Faster than real time: it starts after 240 ms of audio.
+  - Slower: it waits up front for the share it would lack, 1 − 1/RTF of what is to come. If it still runs low, it
+    waits at a pause in the voice, never mid-word.
+  - A real underrun is counted, logged and raises the next wait.
+- **Speaker thread at `THREAD_PRIORITY_URGENT_AUDIO`**, with a low-latency AudioTrack.
+- **The same output as before:** the speech loop was ported out of llama.cpp's helper (`talk.cpp`) to time each
+  stage. With the cache off, its audio matches the old code's sample for sample.
+
+**Measuring on the phone:**
+- Settings → Models → Voice benchmark gives each stage's time: VAD, ASR, read-in, first text and audio, steps/s,
+  RTF, and playback replayed with the jitter buffer. Copy results sends them on.
+- Each Talk turn also logs one `lfm-voice` line, and the last ones show there too.
+
 ## What was proven, and where
 
 **On the emulator** (Android 16, x86_64, no GPU driver):

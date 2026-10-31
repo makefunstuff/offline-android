@@ -40,12 +40,19 @@ class TurnRecorder {
     /** Forget the room: the next turn learns the background again (a new Talk, another place). */
     fun reset() { end = Endpointer() }
 
+    /** When the last turn ended: the silence that ended it began this long before (ms), for the voice log. */
+    var endSilenceMs = 0
+        private set
+
     /**
      * Records one turn. [onStart] runs when speech begins, [onRestart] when it turned out to be a click. Null when
-     * nothing was said for a while.
+     * nothing was said for a while. [onPause] gets the turn so far once the owner has been quiet for [PAUSE_MS]: they
+     * have probably finished, so it can be heard (transcribed) while the rest of the silence that ends the turn
+     * passes; [onResume] says they went on after all, so that early hearing is no use.
      */
     @SuppressLint("MissingPermission") // callers check RECORD_AUDIO first
-    suspend fun record(onStart: () -> Unit = {}, onRestart: () -> Unit = {}): FloatArray? = withContext(Dispatchers.IO) {
+    suspend fun record(onStart: () -> Unit = {}, onRestart: () -> Unit = {}, onPause: (FloatArray) -> Unit = {},
+                       onResume: () -> Unit = {}): FloatArray? = withContext(Dispatchers.IO) {
         val rate = 16_000
         val block = rate * 30 / 1000
         val min = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT)
@@ -58,6 +65,7 @@ class TurnRecorder {
         val buf = FloatArray(block)
         var clip: FloatArray? = null
         var clipPos = 0
+        var paused = false
         finishNow = false
         try {
             rec.startRecording()
@@ -81,10 +89,27 @@ class TurnRecorder {
                 _level.value = (rms * 8).coerceIn(0f, 1f)
                 val chunk = buf.copyOf()
                 when (end.feed(rms)) {
-                    Endpointer.Event.Started -> { onStart(); turn.addAll(preroll); turn.add(chunk) }
-                    Endpointer.Event.Ended -> { turn.add(chunk); return@withContext join(turn) }
+                    Endpointer.Event.Started -> { onStart(); paused = false; turn.addAll(preroll); turn.add(chunk) }
+                    Endpointer.Event.Ended -> {
+                        turn.add(chunk)
+                        endSilenceMs = end.endMs
+                        // Still the pause that was heard early (any sound since would have called onResume).
+                        return@withContext join(turn)
+                    }
                     Endpointer.Event.Idle -> return@withContext null
-                    Endpointer.Event.None -> if (end.inSpeech) turn.add(chunk) else {
+                    Endpointer.Event.None -> if (end.inSpeech) {
+                        turn.add(chunk)
+                        val quietMs = end.pausedMs
+                        if (!paused && quietMs >= PAUSE_MS) {
+                            paused = true
+                            // Only the speech and the pause's start: what follows is silence that changes nothing.
+                            onPause(join(turn.subList(0, maxOf(1, turn.size - (quietMs - PAUSE_KEEP_MS) / 30))))
+                        } else if (paused && quietMs == 0) {
+                            paused = false
+                            onResume()
+                        }
+                    } else {
+                        if (paused) { paused = false; onResume() }
                         if (turn.isNotEmpty()) { turn.clear(); onRestart() }
                         preroll.addLast(chunk)
                         if (preroll.size > 10) preroll.removeFirst()
@@ -97,6 +122,13 @@ class TurnRecorder {
             rec.release()
             _level.value = 0f
         }
+    }
+
+    companion object {
+        /** Quiet this long inside a turn: hear it already (the turn ends after Endpointer's 800 ms). */
+        const val PAUSE_MS = 300
+        /** Silence kept at the end of what is heard early. */
+        const val PAUSE_KEEP_MS = 150
     }
 
     private fun join(parts: List<FloatArray>): FloatArray {
