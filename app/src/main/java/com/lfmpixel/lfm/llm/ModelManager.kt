@@ -131,5 +131,8 @@ class ModelManager(
         const val VISION_CONTEXT = 16384
     }
 
+    /** Stop, while a picture is being read in: takes effect before the next picture or page. */
+    fun cancelPictures() { if (text != null || omni != null || vision != null) runCatching { LlamaNative.cancelPictures() } }
+
     fun systemInfo(): String = runCatching { LlamaNative.ensureLoaded(nativeLibDir); LlamaNative.systemInfo() }.getOrDefault("")
 }

@@ -167,7 +167,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
                 val (text, seconds) = g.voice.listen()
                 if (text.isBlank()) return@launch
                 when (target) {
-                    VoiceTarget.Question -> cameraQuestion.text = text
+                    // Only while the camera is still open: a late transcript is not kept for the next visit.
+                    VoiceTarget.Question -> if (nav.current == Route.Camera) cameraQuestion.text = text
                     VoiceTarget.Assistant -> { g.assistant.send(text, seconds, "voice"); nav.go(Route.Chat) }
                     is VoiceTarget.Library -> {
                         val tool = when (target.kind) { EntryKind.Note -> "add_note"; EntryKind.Idea -> "add_idea"; EntryKind.Journal -> "add_journal"; EntryKind.Todo -> "add_todo" }

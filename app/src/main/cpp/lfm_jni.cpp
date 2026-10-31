@@ -6,6 +6,7 @@
 #include <jni.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -34,6 +35,10 @@ struct Session {
 };
 
 using clock_type = std::chrono::steady_clock;
+
+// Bumped by Stop. Reading pictures in checks it between pictures; no session handle is touched, so it is safe
+// to call at any time, even while a session is being freed.
+std::atomic<int> g_cancel{0};
 
 double ms_since(clock_type::time_point t) {
     return std::chrono::duration<double, std::milli>(clock_type::now() - t).count();
@@ -369,11 +374,17 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_see(JNIEnv *env, jobject, jlong handle, jo
     s->cached.clear();
     auto t0 = clock_type::now();
     llama_pos n_past = 0;
-    rc = mtmd_helper_eval_chunks(s->mtmd, s->ctx, chunks, 0, 0, (int32_t) llama_n_batch(s->ctx), true, &n_past);
+    const int gen = g_cancel.load();
+    const size_t n_chunks = mtmd_input_chunks_size(chunks);
+    for (size_t i = 0; i < n_chunks && rc == 0; i++) {
+        if (g_cancel.load() != gen) { rc = -6; break; }
+        rc = mtmd_helper_eval_chunk_single(s->mtmd, s->ctx, mtmd_input_chunks_get(chunks, i), n_past, 0,
+                                           (int32_t) llama_n_batch(s->ctx), i == n_chunks - 1, &n_past);
+    }
     mtmd_input_chunks_free(chunks);
     if (rc != 0) {
         llama_memory_clear(llama_get_memory(s->ctx), true);
-        return -3;
+        return rc == -6 ? -6 : -3;
     }
     s->prefill_ms = ms_since(t0);
     s->n_prefill = (int) n_past;
@@ -384,6 +395,11 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_see(JNIEnv *env, jobject, jlong handle, jo
     int n = sample_loop(env, s, smpl, max_tokens, listener);
     llama_sampler_free(smpl);
     return n;
+}
+
+JNIEXPORT void JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_cancelPictures(JNIEnv *, jobject) {
+    g_cancel.fetch_add(1);
 }
 
 // [prefill ms, prefill tokens, decode ms, decode tokens, reused tokens]

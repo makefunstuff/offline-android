@@ -121,6 +121,7 @@ class Assistant(
     /** Stops the turn being worked on; queued messages still run after it. */
     fun stop() {
         job?.cancel()
+        models.cancelPictures()
         pendingConfirm.value?.cancel()
         web?.pending?.value?.cancel()
     }

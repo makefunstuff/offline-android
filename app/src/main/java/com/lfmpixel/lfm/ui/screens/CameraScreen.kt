@@ -123,6 +123,7 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
     var camera by remember { mutableStateOf<Camera?>(null) }
     var noCamera by remember { mutableStateOf(false) }
     var canFlip by remember { mutableStateOf(false) }
+    var provider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
     var busy by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var recording by remember { mutableStateOf(false) }
@@ -157,7 +158,10 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
     // Allowed in Android settings and back: turn the camera on.
     LifecycleResumeEffect(Unit) {
         if (!allowed) allowed = ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        onPauseOrDispose { }
+        onPauseOrDispose {
+            // Frames stop coming while LFM is in the background: drop a clip cut short rather than send it.
+            if (recording) { recording = false; analysis.clearAnalyzer(); synchronized(frames) { frames.clear() } }
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -168,7 +172,8 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
     LaunchedEffect(allowed, back, video) {
         if (!allowed) return@LaunchedEffect
         camera = null
-        val provider = runCatching { ProcessCameraProvider.awaitInstance(ctx) }.getOrNull() ?: run { noCamera = true; return@LaunchedEffect }
+        val provider = runCatching { ProcessCameraProvider.awaitInstance(ctx) }.getOrNull()?.also { provider = it }
+            ?: run { noCamera = true; return@LaunchedEffect }
         val selector = if (back) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
         canFlip = provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) && provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
         if (!provider.hasCamera(selector)) {
@@ -183,7 +188,7 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
         }.getOrElse { noCamera = true; null }
         noCamera = camera == null
     }
-    DisposableEffect(Unit) { onDispose { runCatching { ProcessCameraProvider.getInstance(ctx).get().unbindAll() } } }
+    DisposableEffect(Unit) { onDispose { provider?.unbindAll() } }
     LaunchedEffect(flash, camera, mode) {
         val hasFlash = camera?.cameraInfo?.hasFlashUnit() == true
         capture.flashMode = if (flash && hasFlash) ImageCapture.FLASH_MODE_ON else ImageCapture.FLASH_MODE_OFF

@@ -45,6 +45,8 @@ object LlamaNative {
     external fun generate(handle: Long, prompt: ByteArray, maxTokens: Int, temp: Float, topP: Float, seed: Int, listener: TokenListener): Int
     external fun transcribe(handle: Long, pcm: FloatArray, prompt: ByteArray, maxTokens: Int, listener: TokenListener): Int
     external fun see(handle: Long, images: Array<ByteArray>, sizes: IntArray, prompt: ByteArray, maxTokens: Int, temp: Float, listener: TokenListener): Int
+    /** Stops any picture being read in (between pictures). */
+    external fun cancelPictures()
     external fun lastStats(handle: Long): DoubleArray
 }
 
@@ -128,6 +130,7 @@ class LlamaSession private constructor(private val handle: Long, val path: Strin
                 trySend(String(bytes, Charsets.UTF_8)).isSuccess
             }
             lastStats = readStats()
+            if (n == -6) throw kotlinx.coroutines.CancellationException("Stopped")
             if (n == -2) throw LlmException("Too much to look at in one go: try fewer pages or a shorter clip")
             if (n < 0) throw LlmException("Could not read the picture ($n)")
         }
