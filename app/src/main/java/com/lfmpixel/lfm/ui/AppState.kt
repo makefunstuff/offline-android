@@ -21,12 +21,15 @@ sealed interface Route {
     data object FirstRun : Route
     data class Search(val id: Long) : Route
     data object WebSearch : Route
+    data object Camera : Route
 }
 
 /** Where a voice capture goes: to the assistant, or straight into the library. */
 sealed interface VoiceTarget {
     data object Assistant : VoiceTarget
     data class Library(val kind: EntryKind) : VoiceTarget
+    /** The camera's question field. */
+    data object Question : VoiceTarget
 }
 
 /** The open entry sheet: a new entry of a kind, or an existing one. */

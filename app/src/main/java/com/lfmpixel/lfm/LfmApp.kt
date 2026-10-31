@@ -15,6 +15,7 @@ import com.lfmpixel.lfm.tools.Reminders
 import com.lfmpixel.lfm.tools.ToolEnv
 import com.lfmpixel.lfm.tools.ToolRegistry
 import com.lfmpixel.lfm.tools.defaultTools
+import com.lfmpixel.lfm.see.MediaPrep
 import com.lfmpixel.lfm.voice.OmniTranscriber
 import com.lfmpixel.lfm.web.ModelDownloads
 import com.lfmpixel.lfm.web.NetClient
@@ -44,6 +45,7 @@ class AppGraph(context: Context) {
     val netInstaller = NetInstaller(context)
     val assistant = Assistant(context, db, engine, settings, tools, reminders, calendar, controls, launcher, scope, web)
     val voice = VoiceRecorder(OmniTranscriber(engine))
+    val prep = MediaPrep(context)
 }
 
 class LfmApp : Application() {

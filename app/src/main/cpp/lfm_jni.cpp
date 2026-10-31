@@ -6,6 +6,7 @@
 #include <jni.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -34,6 +35,10 @@ struct Session {
 };
 
 using clock_type = std::chrono::steady_clock;
+
+// Bumped by Stop. Reading pictures in checks it between pictures; no session handle is touched, so it is safe
+// to call at any time, even while a session is being freed.
+std::atomic<int> g_cancel{0};
 
 double ms_since(clock_type::time_point t) {
     return std::chrono::duration<double, std::milli>(clock_type::now() - t).count();
@@ -202,10 +207,11 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_load(JNIEnv *env, jobject, jstring jpath, 
     return reinterpret_cast<jlong>(s);
 }
 
-JNIEXPORT jboolean JNICALL
+// Returns what the projector can take in: 1 audio, 2 pictures (both: 3), or -1 if it did not load.
+JNIEXPORT jint JNICALL
 Java_com_lfmpixel_lfm_llm_LlamaNative_loadProjector(JNIEnv *env, jobject, jlong handle, jstring jpath) {
     auto *s = reinterpret_cast<Session *>(handle);
-    if (!s) return JNI_FALSE;
+    if (!s) return -1;
     std::string path = jstr(env, jpath);
     auto params = mtmd_context_params_default();
     params.use_gpu = false;
@@ -215,9 +221,9 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_loadProjector(JNIEnv *env, jobject, jlong 
     s->mtmd = mtmd_init_from_file(path.c_str(), s->model, params);
     if (!s->mtmd) {
         LOGE("could not load projector %s", path.c_str());
-        return JNI_FALSE;
+        return -1;
     }
-    return mtmd_support_audio(s->mtmd) ? JNI_TRUE : JNI_FALSE;
+    return (mtmd_support_audio(s->mtmd) ? 1 : 0) | (mtmd_support_vision(s->mtmd) ? 2 : 0);
 }
 
 JNIEXPORT void JNICALL
@@ -317,6 +323,83 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_transcribe(JNIEnv *env, jobject, jlong han
     int n = sample_loop(env, s, smpl, max_tokens, listener);
     llama_sampler_free(smpl);
     return n;
+}
+
+// Pictures in, text out (VL or Omni): each picture is packed RGB, one <__media__> marker per picture in the prompt.
+// Video is a few frames sent as pictures, in order.
+JNIEXPORT jint JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_see(JNIEnv *env, jobject, jlong handle, jobjectArray jimages, jintArray jsizes,
+                                          jbyteArray jprompt, jint max_tokens, jfloat temp, jobject listener) {
+    auto *s = reinterpret_cast<Session *>(handle);
+    if (!s || !s->mtmd || !mtmd_support_vision(s->mtmd)) return -1;
+    const int n_images = env->GetArrayLength(jimages);
+    if (env->GetArrayLength(jsizes) != n_images * 2) return -5;
+    std::vector<jint> sizes(n_images * 2);
+    env->GetIntArrayRegion(jsizes, 0, n_images * 2, sizes.data());
+    std::vector<mtmd_bitmap *> bitmaps;
+    for (int i = 0; i < n_images; i++) {
+        auto arr = (jbyteArray) env->GetObjectArrayElement(jimages, i);
+        const int nx = sizes[i * 2], ny = sizes[i * 2 + 1];
+        if (env->GetArrayLength(arr) != nx * ny * 3) {
+            env->DeleteLocalRef(arr);
+            for (auto *b : bitmaps) mtmd_bitmap_free(b);
+            return -5;
+        }
+        jbyte *px = env->GetByteArrayElements(arr, nullptr);
+        if (!px) {
+            env->DeleteLocalRef(arr);
+            for (auto *b : bitmaps) mtmd_bitmap_free(b);
+            return -5;
+        }
+        bitmaps.push_back(mtmd_bitmap_init((uint32_t) nx, (uint32_t) ny, reinterpret_cast<const unsigned char *>(px)));
+        env->ReleaseByteArrayElements(arr, px, JNI_ABORT);
+        env->DeleteLocalRef(arr);
+    }
+    std::string prompt = jbytes(env, jprompt);
+    mtmd_input_chunks *chunks = mtmd_input_chunks_init();
+    mtmd_input_text text{prompt.c_str(), prompt.size(), true, true};
+    std::vector<const mtmd_bitmap *> cbitmaps(bitmaps.begin(), bitmaps.end());
+    int rc = mtmd_tokenize(s->mtmd, chunks, &text, cbitmaps.data(), cbitmaps.size());
+    for (auto *b : bitmaps) mtmd_bitmap_free(b);
+    if (rc != 0) {
+        mtmd_input_chunks_free(chunks);
+        return -4;
+    }
+    if ((int) mtmd_helper_get_n_pos(chunks) + 8 >= (int) llama_n_ctx(s->ctx)) {
+        mtmd_input_chunks_free(chunks);
+        return -2;
+    }
+
+    llama_memory_clear(llama_get_memory(s->ctx), true);
+    s->cached.clear();
+    auto t0 = clock_type::now();
+    llama_pos n_past = 0;
+    const int gen = g_cancel.load();
+    const size_t n_chunks = mtmd_input_chunks_size(chunks);
+    for (size_t i = 0; i < n_chunks && rc == 0; i++) {
+        if (g_cancel.load() != gen) { rc = -6; break; }
+        rc = mtmd_helper_eval_chunk_single(s->mtmd, s->ctx, mtmd_input_chunks_get(chunks, i), n_past, 0,
+                                           (int32_t) llama_n_batch(s->ctx), i == n_chunks - 1, &n_past);
+    }
+    mtmd_input_chunks_free(chunks);
+    if (rc != 0) {
+        llama_memory_clear(llama_get_memory(s->ctx), true);
+        return rc == -6 ? -6 : -3;
+    }
+    s->prefill_ms = ms_since(t0);
+    s->n_prefill = (int) n_past;
+    s->n_reused = 0;
+    s->cached.assign((size_t) n_past, (llama_token) -1);
+
+    llama_sampler *smpl = make_sampler(s->vocab, temp, 0.9f, 42);
+    int n = sample_loop(env, s, smpl, max_tokens, listener);
+    llama_sampler_free(smpl);
+    return n;
+}
+
+JNIEXPORT void JNICALL
+Java_com_lfmpixel_lfm_llm_LlamaNative_cancelPictures(JNIEnv *, jobject) {
+    g_cancel.fetch_add(1);
 }
 
 // [prefill ms, prefill tokens, decode ms, decode tokens, reused tokens]

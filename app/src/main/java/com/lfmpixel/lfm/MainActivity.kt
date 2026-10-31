@@ -44,7 +44,16 @@ import com.lfmpixel.lfm.ui.VoiceTarget
 import com.lfmpixel.lfm.ui.components.Divider
 import com.lfmpixel.lfm.ui.components.LIcon
 import com.lfmpixel.lfm.ui.components.Txt
+import com.lfmpixel.lfm.ui.screens.CameraQuestion
+import com.lfmpixel.lfm.ui.screens.CameraScreen
 import com.lfmpixel.lfm.ui.screens.ChatScreen
+import com.lfmpixel.lfm.ui.screens.Pickers
+import com.lfmpixel.lfm.ui.theme.LfmMotion
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.togetherWith
 import com.lfmpixel.lfm.ui.screens.ConfirmSheet
 import com.lfmpixel.lfm.ui.screens.EntryEditor
 import com.lfmpixel.lfm.ui.screens.FirstRunScreen
@@ -77,6 +86,13 @@ class MainActivity : ComponentActivity() {
     }
     private var onPicked: ((List<android.net.Uri>) -> Unit)? = null
     private val picker = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris -> if (uris.isNotEmpty()) onPicked?.invoke(uris) }
+    private var onPickedOne: ((android.net.Uri) -> Unit)? = null
+    private val mediaPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { onPickedOne?.invoke(it) } }
+    private val documentPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> uri?.let { onPickedOne?.invoke(it) } }
+    private val pickers = Pickers(
+        media = { cb -> onPickedOne = cb; mediaPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) },
+        document = { cb -> onPickedOne = cb; documentPicker.launch(arrayOf("application/pdf", "image/*")) },
+    )
 
     private val gate = object : PermissionGate {
         override suspend fun ensure(permissions: List<String>): Boolean {
@@ -96,7 +112,7 @@ class MainActivity : ComponentActivity() {
         graph.launcher.activity = this
         setContent {
             LfmTheme {
-                Root(graph, gate, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
+                Root(graph, gate, pickers, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
             }
         }
     }
@@ -117,7 +133,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun Root(g: AppGraph, gate: PermissionGate, pickFiles: ((List<android.net.Uri>) -> Unit) -> Unit) {
+private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles: ((List<android.net.Uri>) -> Unit) -> Unit) {
     val c = Lfm.c
     val prefs by g.settings.prefs.collectAsState(null)
     val p = prefs ?: return Box(Modifier.fillMaxSize().background(c.bg))
@@ -127,6 +143,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickFiles: ((List<android.ne
     val voiceState by g.voice.state.collectAsState()
     val listening = voiceState == VoiceState.Listening
     val imports = remember { mutableMapOf<List<android.net.Uri>, ImportRun>() }
+    val cameraQuestion = remember { CameraQuestion() }
+    val reduced = LfmMotion.reduced()
 
     val startImport: () -> Unit = {
         pickFiles { uris ->
@@ -149,6 +167,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickFiles: ((List<android.ne
                 val (text, seconds) = g.voice.listen()
                 if (text.isBlank()) return@launch
                 when (target) {
+                    // Only while the camera is still open: a late transcript is not kept for the next visit.
+                    VoiceTarget.Question -> if (nav.current == Route.Camera) cameraQuestion.text = text
                     VoiceTarget.Assistant -> { g.assistant.send(text, seconds, "voice"); nav.go(Route.Chat) }
                     is VoiceTarget.Library -> {
                         val tool = when (target.kind) { EntryKind.Note -> "add_note"; EntryKind.Idea -> "add_idea"; EntryKind.Journal -> "add_journal"; EntryKind.Todo -> "add_todo" }
@@ -164,11 +184,16 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickFiles: ((List<android.ne
     BackHandler(enabled = nav.stack.size > 1) { nav.back() }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-            Box(Modifier.weight(1f)) {
-                when (val r = nav.current) {
+        Column(Modifier.fillMaxSize().background(if (nav.current == Route.Camera) Color.Black else c.bg).statusBarsPadding().navigationBarsPadding()) {
+            // The camera opens and closes along the Z axis; other screens change at once for now (the motion pass is LP-6).
+            AnimatedContent(nav.current, Modifier.weight(1f), contentKey = { it == Route.Camera }, transitionSpec = {
+                if (targetState == Route.Camera || initialState == Route.Camera) LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
+                else EnterTransition.None togetherWith ExitTransition.None
+            }, label = "screen") { r ->
+                when (r) {
                     Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
+                    Route.Camera -> CameraScreen(g, nav, gate, pickers, cameraQuestion, { voice(VoiceTarget.Question) }, listening)
                     is Route.Library -> LibraryScreen(g, nav, r.tab, { voice(VoiceTarget.Library(it)) }, listening)
                     Route.Todos -> TodosScreen(g, nav, { voice(VoiceTarget.Library(EntryKind.Todo)) }, listening)
                     Route.Settings -> SettingsScreen(g, nav)

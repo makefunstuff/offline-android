@@ -60,9 +60,9 @@ fun Marked(text: String, style: TextStyle, modifier: Modifier = Modifier, maxLin
 
 @Composable
 fun Txt(text: String, style: TextStyle = LfmType.body, color: Color = Lfm.c.text, modifier: Modifier = Modifier,
-        maxLines: Int = Int.MAX_VALUE, decoration: TextDecoration? = null) {
+        maxLines: Int = Int.MAX_VALUE, decoration: TextDecoration? = null, textAlign: androidx.compose.ui.text.style.TextAlign? = null) {
     Text(text, style = style, color = color, modifier = modifier, maxLines = maxLines, overflow = TextOverflow.Ellipsis,
-        textDecoration = decoration)
+        textDecoration = decoration, textAlign = textAlign)
 }
 
 @Composable

@@ -35,6 +35,8 @@ class ModelStore(private val context: Context) {
     fun text(): InstalledModel? = newest(ModelRole.Text)
     fun omni(): InstalledModel? = newest(ModelRole.Omni)
     fun omniProjector(): InstalledModel? = newest(ModelRole.OmniProjector)
+    fun vision(): InstalledModel? = newest(ModelRole.Vision)
+    fun visionProjector(): InstalledModel? = newest(ModelRole.VisionProjector)
 
     fun delete(m: InstalledModel) {
         m.file.delete()

@@ -55,9 +55,9 @@ object ModelCatalog {
     /** Q4 (smaller, faster) and Q8 (more accurate) of each model, as the spec has them; other pinned files can be imported. */
     val groups get() = listOf(
         Group("LFM3-1.7B", "Chat, tools and writing", listOf(byName("LFM3-1.7B-QAD-Q4_0.gguf")!!, byName("LFM3-1.7B-Q8_0.gguf")!!), null),
-        Group("LFM3-Omni-2B", "Voice: hears what you say", listOf(byName("LFM3-Omni-2B-Q4_0.gguf")!!, byName("LFM3-Omni-2B-Q8_0.gguf")!!),
+        Group("LFM3-Omni-2B", "Voice, photos and short videos", listOf(byName("LFM3-Omni-2B-Q4_0.gguf")!!, byName("LFM3-Omni-2B-Q8_0.gguf")!!),
             byName("mmproj-LFM3-Omni-2B-Q4_K_M.gguf")!!),
-        Group("LFM3-VL-2B", "Documents and pictures (coming in Phase 5)", listOf(byName("LFM3-VL-2B-QAD-Q4_0.gguf")!!, byName("LFM3-VL-2B-Q8_0.gguf")!!),
+        Group("LFM3-VL-2B", "Documents: reads pages, scans and PDFs", listOf(byName("LFM3-VL-2B-QAD-Q4_0.gguf")!!, byName("LFM3-VL-2B-Q8_0.gguf")!!),
             byName("mmproj-LFM3-VL-2B-Q8_0.gguf")!!),
     )
 
