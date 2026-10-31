@@ -22,6 +22,7 @@ object NetContract {
     const val TEXT = "text"
     const val BYTES = "bytes"
     const val LOG = "log"
+    const val STATUS = "status"              // Edge mode: the server's HTTP status, 0 if it was never reached
 }
 
 /** One search result. [source] is "web" or "wikipedia". */

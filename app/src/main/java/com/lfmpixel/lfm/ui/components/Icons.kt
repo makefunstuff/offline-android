@@ -58,6 +58,7 @@ object LfmIcons {
         "chip" to listOf(rr(6f, 6f, 12f, 12f, 2f), "M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"),
         "wave" to listOf("M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"),
         "warn" to listOf("M12 4l9 16H3z", "M12 10v4M12 17h.01"),
+        "server" to listOf(rr(4f, 4f, 16f, 7f, 1.5f), rr(4f, 13f, 16f, 7f, 1.5f), "M8 7.5h.01M8 16.5h.01M12 7.5h5M12 16.5h5"),
         "right" to listOf("M9 6l6 6-6 6"),
         "folder" to listOf("M3 6h6l2 2h10v11H3z"),
         "trash" to listOf("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"),

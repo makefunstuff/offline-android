@@ -6,6 +6,8 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.PowerManager
+import android.os.SystemClock
+import com.lfmpixel.lfm.web.NetException
 import android.util.Log
 import com.lfmpixel.lfm.llm.LlmException
 import com.lfmpixel.lfm.llm.ModelManager
@@ -43,8 +45,21 @@ data class TalkTurn(val id: Long, val you: String, val it: String = "", val done
                     /** How long the owner spoke. */
                     val seconds: Int = 0)
 
+/**
+ * How quickly the last answer came, in ms from the end of the owner's turn (when the end of speech was heard):
+ * the words written down, the first word of the answer, the first audio from the voice, the first sound heard.
+ */
+data class TalkTiming(val heardMs: Long, val firstWordMs: Long, val firstAudioMs: Long, val firstSoundMs: Long,
+                      val viaServer: Boolean, val underruns: Int = 0) {
+    override fun toString() = "heard %d ms · first word %d ms · first audio %d ms · first sound %d ms · underruns %d · %s"
+        .format(heardMs, firstWordMs, firstAudioMs, firstSoundMs, underruns, if (viaServer) "server" else "phone")
+}
+
 data class TalkState(
     val phase: TalkPhase = TalkPhase.Off,
+    /** The last answer came from the owner's server (Edge mode), not the phone. */
+    val viaServer: Boolean = false,
+    val timing: TalkTiming? = null,
     val turns: List<TalkTurn> = emptyList(),
     val error: String? = null,
     /** The phone is warm: answers may be slower (Android's thermal status). */
@@ -86,7 +101,7 @@ class Talk(
         if (run == epoch) _state.value = change(_state.value)
     }
 
-    val available get() = models.hasVoice()
+    val available get() = models.hasVoice() || models.edge?.configured?.value == true
 
     /** Starts, or picks up again after a pause or an error. */
     fun start() = synchronized(this) {
@@ -149,8 +164,11 @@ class Talk(
         val p = settings.now()
         set(run) { it.copy(spoken = p.talkSpoken) }
         try {
-            val session = models.omniSession()
-            if (!session.canSpeak()) throw LlmException("This Omni projector file has no voice part. Get mmproj-LFM3-Omni-2B again in Settings → Models.")
+            // Edge mode needs nothing on the phone; Omni loads only for a turn the server can't take.
+            if (models.edge?.usable() != true) {
+                val session = models.omniSession()
+                if (!session.canSpeak()) throw LlmException("This Omni projector file has no voice part. Get mmproj-LFM3-Omni-2B again in Settings → Models.")
+            }
             focus.take()
             while (coroutineContext.isActive) {
                 checkWarm(run)
@@ -164,12 +182,25 @@ class Talk(
                     return
                 }
                 set(run) { it.copy(phase = TalkPhase.Thinking) }
-                models.keepAlive()
+                val endedAt = SystemClock.elapsedRealtime()
                 val lang = settings.now().speechLanguage
+                if (models.edge?.usable() == true) {
+                    val heard = try { models.edge!!.transcribe(pcm, lang.asr) } catch (e: NetException) {
+                        // The server went away: this turn is heard on the phone, if Omni is there.
+                        if (!models.hasVoice()) throw LlmException("Your server can't be reached, and Omni isn't on this phone for Talk offline.")
+                        null
+                    }
+                    if (heard != null) {
+                        if (heard.isBlank() || interrupted) continue
+                        answerViaServer(run, heard, (pcm.size + 8_000) / 16_000, endedAt, SystemClock.elapsedRealtime() - endedAt)
+                        continue
+                    }
+                }
+                models.keepAlive()
                 val said = models.omniSession().transcribe(pcm, "Perform ASR in ${lang.asr}.").trim()
                 // Stop while it was transcribing: listen again instead of answering.
                 if (said.isBlank() || interrupted) continue
-                answer(run, said, (pcm.size + 8_000) / 16_000)
+                answer(run, said, (pcm.size + 8_000) / 16_000, endedAt)
             }
         } catch (e: CancellationException) {
             throw e
@@ -181,11 +212,83 @@ class Talk(
         }
     }
 
-    private suspend fun answer(run: Int, said: String, seconds: Int) {
+    /**
+     * Edge mode's turn: LFM3-1.7B on the server writes the answer (streamed), each sentence goes to the server's
+     * voice (Omni's /tts, streamed) as soon as it ends, and the audio plays through the jitter buffer while the rest
+     * is still being written and spoken. If the server fails mid-answer, the turn ends there (marked stopped).
+     */
+    private suspend fun answerViaServer(run: Int, said: String, seconds: Int, endedAt: Long, heardMs: Long) {
+        val p = settings.now()
+        val edge = models.edge ?: return
+        val id = ++turnId
+        val before = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
+        set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds), viaServer = true) }
+        val spoken = _state.value.spoken
+        val prompt = SpeechFormat.talkHistory(
+            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())), before, said) +
+            SpeechFormat.REPLY_PREFIX
+        val text = StringBuilder()
+        var firstWord = 0L
+        var firstAudio = 0L
+        val chunker = SpeechChunker()
+        val pieces = Channel<String>(Channel.UNLIMITED)
+        val voice = p.speechVoice.name.lowercase()
+        if (spoken) out.start()
+        val startedOut = SystemClock.elapsedRealtime()
+        var finished = false
+        try {
+            kotlinx.coroutines.coroutineScope {
+                // The voice: one piece at a time, in order, each streamed into the player as it is made.
+                val speaker = if (spoken) launch {
+                    for (piece in pieces) {
+                        if (interrupted) break
+                        edge.speak(piece, voice) { pcm ->
+                            if (firstAudio == 0L) { firstAudio = SystemClock.elapsedRealtime(); set(run) { it.copy(phase = TalkPhase.Speaking) } }
+                            out.write(pcm)
+                            !interrupted && run == epoch
+                        }
+                    }
+                } else null
+                com.lfmpixel.lfm.edge.EdgeSession(edge, com.lfmpixel.lfm.edge.EdgeModels.TEXT, null)
+                    .generate(prompt, 300, 0.3f).collect { piece ->
+                        if (interrupted || run != epoch) throw CancellationException("Stopped")
+                        if (firstWord == 0L) firstWord = SystemClock.elapsedRealtime()
+                        text.append(piece)
+                        set(run) { st ->
+                            st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
+                                turns = st.turns.map { if (it.id == id) it.copy(it = text.toString().trim()) else it })
+                        }
+                        if (spoken) chunker.feed(piece).forEach { pieces.send(it) }
+                    }
+                if (spoken) chunker.flush().forEach { pieces.send(it) }
+                pieces.close()
+                speaker?.join()
+            }
+            finished = !interrupted
+        } catch (e: CancellationException) {
+            if (run == epoch && !interrupted) throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "server answer failed", e)
+        } finally {
+            pieces.close()
+            synchronized(this) {
+                _state.value = _state.value.copy(turns = _state.value.turns.map { if (it.id == id && !it.done) it.copy(done = true, stopped = true) else it })
+            }
+        }
+        if (spoken && finished) out.finish() else out.stop()
+        val played = out.last
+        val timing = TalkTiming(heardMs, if (firstWord > 0) firstWord - endedAt else 0, if (firstAudio > 0) firstAudio - endedAt else 0,
+            if (played.toSoundMs > 0) (startedOut - endedAt + played.toSoundMs).toLong() else 0, viaServer = true, underruns = played.underruns)
+        Log.i(TAG, "server answer: $timing: $text")
+        val stopped = interrupted || !finished
+        set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = stopped) else it }) }
+    }
+
+    private suspend fun answer(run: Int, said: String, seconds: Int, endedAt: Long = SystemClock.elapsedRealtime()) {
         val p = settings.now()
         val id = ++turnId
         val before = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
-        set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds)) }
+        set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds), viaServer = false) }
         val spoken = _state.value.spoken
         val history = SpeechFormat.talkHistory(
             SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())), before, said)
@@ -229,7 +332,11 @@ class Talk(
         models.keepAlive()
         if (spoken && finished && !interrupted) out.finish() else out.stop()
         val stopped = interrupted || !finished
-        set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = stopped) else it }) }
+        val sinceEnd = (t0 / 1_000_000 - (System.nanoTime() / 1_000_000 - (SystemClock.elapsedRealtime() - endedAt)))
+        val timing = TalkTiming(sinceEnd, 0, if (firstAudio > 0) sinceEnd + (firstAudio - t0) / 1_000_000 else 0,
+            if (out.last.toSoundMs > 0) sinceEnd + out.last.toSoundMs.toLong() else 0, viaServer = false, underruns = out.last.underruns)
+        Log.i(TAG, "phone answer: $timing")
+        set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = stopped) else it }) }
     }
 
     private fun checkWarm(run: Int) {

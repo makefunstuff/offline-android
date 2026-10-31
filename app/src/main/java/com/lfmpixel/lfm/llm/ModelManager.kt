@@ -49,7 +49,31 @@ class ModelManager(
     private val _status = MutableStateFlow(EngineStatus())
     val status: StateFlow<EngineStatus> = _status
 
+    /** A chat model on the phone. */
     fun hasText() = store.text() != null
+
+    /** Edge mode (set by AppGraph once Inkling Net's client exists). */
+    @Volatile var edge: com.lfmpixel.lfm.edge.Edge? = null
+
+    /** Chat can run: a model on the phone, or a server set up in Edge mode. */
+    fun canChat() = hasText() || edge?.configured?.value == true
+
+    private var edgeText: com.lfmpixel.lfm.edge.EdgeSession? = null
+    private var edgeVision: com.lfmpixel.lfm.edge.EdgeSession? = null
+
+    /**
+     * The server's model for [slot] when Edge mode is on and the server answers, else null (the phone's own models).
+     * The text model falls back to the phone's own for a request the server never got.
+     */
+    suspend fun edgeSession(slot: Slot): com.lfmpixel.lfm.edge.EdgeSession? {
+        val e = edge ?: return null
+        if (benchmarking || !e.usable()) return null
+        return when (slot) {
+            Slot.Text -> edgeText ?: com.lfmpixel.lfm.edge.EdgeSession(e, com.lfmpixel.lfm.edge.EdgeModels.TEXT,
+                if (hasText()) ({ localTextSession() }) else null).also { edgeText = it }
+            else -> edgeVision ?: com.lfmpixel.lfm.edge.EdgeSession(e, com.lfmpixel.lfm.edge.EdgeModels.VISION, null).also { edgeVision = it }
+        }
+    }
     /** The model chat uses: the owner's pick, or the text model added last. */
     suspend fun chatModel(): InstalledModel? = store.text(settings.now().chatModel)
     fun installed(slot: Slot) = when (slot) { Slot.Text -> hasText(); Slot.Omni -> hasVoice(); Slot.Vision -> hasVision() }
@@ -144,8 +168,16 @@ class ModelManager(
         if (benchmarking) throw LlmException("The benchmark in Settings → Models is running; try again when it ends.")
     }
 
+    /** The chat model: on the owner's server in Edge mode while it answers, else on the phone ([localTextSession]). */
+    suspend fun textSession(): TextSession {
+        edgeSession(Slot.Text)?.let { return it }
+        if (!hasText() && edge?.configured?.value == true)
+            throw LlmException("Your server can't be reached, and there is no chat model on this phone. Get LFM3-1.7B in Settings → Models to use Inkling offline.")
+        return localTextSession()
+    }
+
     /** The chat model on its backend: LiteRT-LM's file when a LiteRT backend is chosen, else the GGUF in llama.cpp. */
-    suspend fun textSession(): TextSession = lock.withLock {
+    suspend fun localTextSession(): TextSession = lock.withLock {
         notWhileBenchmarking()
         touch()
         val m = chatModel()
@@ -307,7 +339,7 @@ class ModelManager(
 
     /** Loads one model by hand, so the next question doesn't wait for it. */
     suspend fun load(slot: Slot) {
-        when (slot) { Slot.Text -> textSession(); Slot.Omni -> omniSession(); Slot.Vision -> visionSession() }
+        when (slot) { Slot.Text -> localTextSession(); Slot.Omni -> omniSession(); Slot.Vision -> visionSession() }
     }
 
     /** Lets one model go; the others stay. */

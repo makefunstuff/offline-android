@@ -232,7 +232,7 @@ class ModelDownloads(
         runCatching {
             when (m.role) {
                 // Loaded now only if no chat model is in memory; otherwise it takes over at the next message.
-                ModelRole.Text -> if (e.status.value.text != com.lfmpixel.lfm.llm.LoadState.Ready) e.textSession() else return
+                ModelRole.Text -> if (e.status.value.text != com.lfmpixel.lfm.llm.LoadState.Ready) e.localTextSession() else return
                 ModelRole.Omni, ModelRole.OmniProjector -> if (e.hasVoice()) e.omniSession() else return
                 else -> return
             }

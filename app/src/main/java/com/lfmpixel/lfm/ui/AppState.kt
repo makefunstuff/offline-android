@@ -24,6 +24,8 @@ sealed interface Route {
     data object Camera : Route
     data object Talk : Route
     data object Voice : Route
+    /** Edge mode: the owner's own server. */
+    data object Server : Route
     /** The full-screen editor: an existing entry, or a new one of [kind]. */
     data class Editor(val id: Long? = null, val kind: EntryKind = EntryKind.Note, val opened: Long = System.nanoTime()) : Route
 }

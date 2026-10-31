@@ -22,9 +22,15 @@ interface Transcriber {
 
 /** LFM3-Omni-2B through llama.cpp's mtmd audio input, in this process: no audio leaves the phone. */
 class OmniTranscriber(private val models: ModelManager, private val language: () -> String = { "English" }) : Transcriber {
-    override val available get() = models.hasVoice()
+    override val available get() = models.hasVoice() || models.edge?.configured?.value == true
     override suspend fun transcribe(pcm16k: FloatArray): String {
         if (pcm16k.size < 1600) throw LlmException("Too short to hear anything")
+        // Edge mode: Omni on the owner's server writes it down; the phone's Omni if the server can't be reached.
+        models.edge?.takeIf { it.usable() }?.let { edge ->
+            try { return edge.transcribe(pcm16k, language()) } catch (e: com.lfmpixel.lfm.web.NetException) {
+                if (!models.hasVoice()) throw LlmException("Your server can't be reached, and Omni isn't on this phone: ${e.message}")
+            }
+        }
         return models.omniSession().transcribe(pcm16k, "Perform ASR in ${language()}.")
     }
 }

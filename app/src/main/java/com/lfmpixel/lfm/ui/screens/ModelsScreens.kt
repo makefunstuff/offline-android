@@ -105,6 +105,7 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
                 "Import works fully offline: copy the GGUF to the phone (adb push or USB), then pick it.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
             BackendSection(g)
             BenchmarkSection(g)
+            ServerColumn(g)
             if (downloads.isEmpty()) g.engine.systemInfo().takeIf { it.isNotEmpty() }?.let {
                 SectionLabel("llama.cpp on this phone")
                 Txt(it.trim(), LfmType.meta, c.text2)
@@ -614,6 +615,56 @@ private fun BenchmarkSection(g: AppGraph) {
                     clipboard.setText(androidx.compose.ui.text.AnnotatedString(d.report.text())); copied = true
                 }, Modifier.weight(1f), icon = if (copied) "check" else null)
             }
+        }
+    }
+}
+
+/**
+ * The phone next to the owner's server (Edge mode): writing speed, the first token of a 512-token prompt, and for
+ * voice the first audio after a spoken question. The phone's numbers come from its benchmark above.
+ */
+@Composable
+private fun ServerColumn(g: AppGraph) {
+    val c = Lfm.c
+    val on by g.edge.configured.collectAsState()
+    if (!on) return
+    val state by g.edgeBench.state.collectAsState()
+    val phone = (g.bench.state.collectAsState().value as? Benchmark.State.Done)?.report
+    val saved = g.settings.prefs.collectAsState(null).value?.edgeBench
+    val server = (state as? com.lfmpixel.lfm.edge.EdgeBench.State.Done)?.result ?: saved?.let { com.lfmpixel.lfm.edge.EdgeBench.Result.decode(it) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    fun f(v: Double) = "%.0f".format(java.util.Locale.ENGLISH, v)
+    fun s(ms: Double) = if (ms <= 0) "—" else if (ms < 1000) "${f(ms)} ms" else "%.1f s".format(java.util.Locale.ENGLISH, ms / 1000)
+    SectionLabel("Phone and server")
+    Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Txt("", LfmType.meta, c.text2, Modifier.weight(1.5f))
+            Txt("Phone", LfmType.meta, c.text2, Modifier.weight(1f))
+            Txt("Server", LfmType.meta, c.text2, Modifier.weight(1f))
+        }
+        @Composable fun row(label: String, a: String, b: String) = Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Txt(label, LfmType.small, c.text2, Modifier.weight(1.5f))
+            Txt(a, LfmType.small, modifier = Modifier.weight(1f), maxLines = 1)
+            Txt(b, LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.weight(1f), maxLines = 1)
+        }
+        row("Writing, tokens/s", phone?.let { f(it.main.genTps) } ?: "—", server?.let { f(it.genTps) } ?: "—")
+        row("First token", phone?.let { s(it.main.firstTokenMs) } ?: "—", server?.let { s(it.firstTokenMs) } ?: "—")
+        row("Voice: first audio", "—", server?.let { s(it.firstAudioMs) } ?: "—")
+        server?.let {
+            Txt("Voice on the server: heard in ${s(it.heardMs)}, first word ${s(it.firstWordMs)}, first audio ${s(it.firstAudioMs)} after the question; " +
+                "its voice starts in ${s(it.ttsFirstAudioMs)} and speaks %.1f× faster than it plays.".format(java.util.Locale.ENGLISH, it.ttsSpeed),
+                LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
+        }
+        when (val st = state) {
+            is com.lfmpixel.lfm.edge.EdgeBench.State.Running -> Txt(st.step, LfmType.small, c.text2)
+            is com.lfmpixel.lfm.edge.EdgeBench.State.Failed -> Txt(st.message, LfmType.small, c.text2)
+            else -> {}
+        }
+        Row(Modifier.padding(top = 8.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Btn("Benchmark the server", { g.edgeBench.start() }, Modifier.weight(1f), small = true,
+                enabled = state !is com.lfmpixel.lfm.edge.EdgeBench.State.Running)
+            server?.let { r -> Btn("Copy", { clipboard.setText(androidx.compose.ui.text.AnnotatedString(r.text())) }, small = true) }
         }
     }
 }

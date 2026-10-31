@@ -1,0 +1,144 @@
+package com.lfmpixel.lfm.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import com.lfmpixel.lfm.AppGraph
+import com.lfmpixel.lfm.edge.Edge
+import com.lfmpixel.lfm.edge.EdgeKey
+import com.lfmpixel.lfm.edge.EdgeState
+import com.lfmpixel.lfm.ui.Nav
+import com.lfmpixel.lfm.ui.components.Btn
+import com.lfmpixel.lfm.ui.components.BtnKind
+import com.lfmpixel.lfm.ui.components.Header
+import com.lfmpixel.lfm.ui.components.Label
+import com.lfmpixel.lfm.ui.components.SectionLabel
+import com.lfmpixel.lfm.ui.components.Switch
+import com.lfmpixel.lfm.ui.components.Txt
+import com.lfmpixel.lfm.ui.theme.Lfm
+import com.lfmpixel.lfm.ui.theme.LfmType
+import kotlinx.coroutines.launch
+
+/**
+ * Settings → Your server (Edge mode): the address of the owner's own server on the home network or tailnet, its
+ * key (sealed with the phone's keystore), Test, and whether it answers now.
+ */
+@Composable
+fun ServerScreen(g: AppGraph, nav: Nav) {
+    val c = Lfm.c
+    val prefs by g.settings.prefs.collectAsState(null)
+    val state by g.edge.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    var url by remember { mutableStateOf("") }
+    var key by remember { mutableStateOf("") }
+    var loaded by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<String?>(null) }
+    var testing by remember { mutableStateOf(false) }
+    val p = prefs ?: return
+    LaunchedEffect(Unit) { if (!loaded) { url = p.edgeUrl; loaded = true } }
+    val keySaved = p.edgeKeySealed.isNotEmpty()
+    val problem = Edge.whyNot(url)
+    // An empty key field keeps the saved key.
+    fun keyNow() = key.ifEmpty { EdgeKey.open(p.edgeKeySealed) }
+
+    Column(Modifier.fillMaxSize()) {
+        Header("Your server", onBack = { nav.back() })
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+            Txt("Run chat, pictures, documents and voice on your own computer instead of the phone: much faster, with " +
+                "long chats kept whole. Notes, chats and tools stay on the phone; each request goes through Inkling Net, " +
+                "only to this address, and is listed in Privacy → Network log. If the server can't be reached, the phone's " +
+                "own models answer until it is back.", LfmType.small, c.text2, Modifier.padding(top = 12.dp))
+            Row(Modifier.padding(top = 14.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Use my server", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+                    Txt(serverLabel(p.edgeOn, p.edgeUrl, state), LfmType.label.copy(fontWeight = null), c.text2)
+                }
+                Switch(p.edgeOn, "Use my server") { on -> scope.launch { g.settings.setEdgeOn(on) } }
+            }
+
+            SectionLabel("Server")
+            ServerField("Address", url, { url = it; result = null }, "http://100.124.77.61:18448", KeyboardType.Uri)
+            problem?.let { Txt(it, LfmType.meta, c.text, Modifier.padding(top = 4.dp)) }
+            ServerField("API key", key, { key = it; result = null }, if (keySaved) "Saved · type to replace" else "From ~/.config/local-ai/edge.key",
+                KeyboardType.Password, secret = true)
+            Txt("The key is kept encrypted with this phone's keystore.", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
+            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Btn("Save", {
+                    val u = Edge.normalize(url) ?: return@Btn
+                    scope.launch {
+                        g.settings.setEdgeServer(u, if (key.isNotEmpty()) EdgeKey.seal(key) else p.edgeKeySealed)
+                        if (!p.edgeOn) g.settings.setEdgeOn(true)
+                        url = u; key = ""
+                        result = "Saved"
+                    }
+                }, kind = BtnKind.Primary, enabled = url.isNotBlank() && problem == null)
+                Btn(if (testing) "Testing…" else "Test", {
+                    testing = true
+                    result = null
+                    scope.launch {
+                        result = try { g.edge.test(url, keyNow()) } catch (e: Exception) { "Not reached: ${e.message}" }
+                        testing = false
+                    }
+                }, icon = "server", enabled = !testing && url.isNotBlank() && problem == null)
+            }
+            result?.let { Txt(it, LfmType.small, if (it.startsWith("Not")) c.text else c.text, Modifier.padding(top = 10.dp)) }
+
+            SectionLabel("Now")
+            Txt(when (val s = state) {
+                EdgeState.Off -> "Off: everything runs on this phone."
+                EdgeState.Checking -> "Checking the server…"
+                is EdgeState.Online -> "Answering (${s.ms} ms). Chat, pictures and voice go to it."
+                is EdgeState.Offline -> "Not reached: ${s.reason}. This phone answers; it tries the server again every little while."
+            }, LfmType.small, c.text2)
+            Btn("Check now", { scope.launch { runCatching { g.edge.check() } } }, Modifier.padding(top = 8.dp, bottom = 24.dp), small = true,
+                enabled = p.edgeOn && p.edgeUrl.isNotBlank())
+        }
+    }
+}
+
+@Composable
+private fun ServerField(label: String, value: String, onChange: (String) -> Unit, placeholder: String, type: KeyboardType, secret: Boolean = false) {
+    val c = Lfm.c
+    val shape = RoundedCornerShape(6.dp)
+    Column(Modifier.padding(top = 10.dp)) {
+        Label(label)
+        Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 44.dp).background(c.fill, shape).border(1.dp, c.control, shape)
+            .padding(horizontal = 12.dp, vertical = 10.dp)) {
+            if (value.isEmpty()) Txt(placeholder, LfmType.body, c.text2)
+            BasicTextField(value, onChange, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text), singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = type, autoCorrectEnabled = false),
+                visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = label })
+        }
+    }
+}

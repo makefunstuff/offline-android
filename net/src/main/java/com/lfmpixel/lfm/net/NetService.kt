@@ -8,6 +8,7 @@ import android.os.Binder
 import android.os.Bundle
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
+import com.lfmpixel.lfm.ipc.IEdgeReply
 import com.lfmpixel.lfm.ipc.ILfmNet
 import com.lfmpixel.lfm.ipc.NetContract
 import com.lfmpixel.lfm.ipc.NetRequest
@@ -58,6 +59,18 @@ class NetService : Service() {
                 // Wi-Fi went away mid-download: say so, so LFM waits for it instead of giving up.
                 if (wifiOnly && r.error != null && r.error != "Stopped" && unmetered() == null) putString(NetContract.CODE, NetContract.NO_WIFI)
             }
+        }
+
+        override fun edge(baseUrl: String?, key: String?, method: String?, path: String?, contentType: String?,
+                          body: ParcelFileDescriptor?, to: IEdgeReply?): Bundle {
+            checkCaller()
+            if (to == null) return reply("No reply", emptyList())
+            val r = engine.edge(baseUrl.orEmpty(), key.orEmpty(), method.orEmpty(), path.orEmpty(), contentType,
+                body?.let { ParcelFileDescriptor.AutoCloseInputStream(it) }) { bytes ->
+                // LFM gone or done listening: stop.
+                runCatching { to.data(bytes) }.getOrDefault(false)
+            }
+            return reply(r.error, r.log).apply { putInt(NetContract.STATUS, r.status) }
         }
     }
 
