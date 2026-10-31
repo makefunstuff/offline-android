@@ -45,6 +45,12 @@ data class ModelOutput(val thinking: String, val answer: String, val toolCalls: 
                 if (end < 0) return ModelOutput(text.removePrefix("<think>").trim(), "", emptyList(), true)
                 thinking = text.substring("<think>".length, end).trim()
                 text = text.substring(end + "</think>".length)
+            } else if (text.contains("</think>") && !text.contains("<think>")) {
+                // With thinking off LFM3 sometimes answers, closes a thought it never opened, then answers again
+                // ("Tokyo</think>Tokyo"): the part after is the answer.
+                val end = text.lastIndexOf("</think>")
+                thinking = text.substring(0, end).trim()
+                text = text.substring(end + "</think>".length)
             }
             val calls = mutableListOf<ToolCall>()
             for (block in callBlock.findAll(text)) {

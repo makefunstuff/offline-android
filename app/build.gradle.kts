@@ -118,6 +118,9 @@ dependencies {
     implementation(libs.camera.lifecycle)
     // camera-view's video recorder (and media3, which asks for network state) is not used: frames come from ImageAnalysis.
     implementation(libs.camera.view) { exclude(group = "androidx.camera", module = "camera-video"); exclude(group = "androidx.media3") }
+    // LiteRT-LM runs the chat model on the GPU (docs/acceleration.md). Google's on-device runtime: no Play Services,
+    // no network code of its own, and Inkling has no INTERNET permission anyway (checkDebugNoNetwork).
+    implementation(libs.litertlm.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -143,10 +146,11 @@ androidComponents {
             modules.set(runtime.flatMap { c -> c.incoming.resolutionResult.rootComponent.map { runtimeModules(it) } })
             // okio is DataStore's file I/O; it has no networking of its own. offline-android:ipc is the AIDL to LFM Net.
             // CameraX brings Guava, Dagger (its internal wiring) and annotation-only jars: plain Java, no networking.
+            // LiteRT-LM (the on-device runtime) brings Gson for its JSON tool specs.
             allowed.set(baseAllowList + listOf("com.squareup.okio:", "offline-android:ipc",
                 "com.google.guava:", "com.google.dagger:dagger", "com.google.auto.value:auto-value-annotations",
                 "jakarta.inject:", "javax.inject:", "com.google.code.findbugs:jsr305", "org.checkerframework:checker-qual",
-                "com.google.j2objc:j2objc-annotations"))
+                "com.google.j2objc:j2objc-annotations", "com.google.ai.edge.litertlm:litertlm-android", "com.google.code.gson:gson"))
             report.set(layout.buildDirectory.file("reports/privacy/${variant.name}-dependencies.txt"))
         }
         tasks.matching { it.name == "assemble$name" || it.name == "check" }.configureEach {

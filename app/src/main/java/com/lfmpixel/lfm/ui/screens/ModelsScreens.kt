@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.llm.Benchmark
+import com.lfmpixel.lfm.llm.BackendChoice
 import com.lfmpixel.lfm.llm.CheckResult
 import com.lfmpixel.lfm.llm.InstalledModel
 import com.lfmpixel.lfm.llm.Slot
@@ -102,6 +103,7 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             Btn("Import a file", onImport, Modifier.padding(top = 14.dp).fillMaxWidth(), icon = "folder")
             Txt("Downloads come from Hugging Face with no login, through Inkling Net, and each file is checked against its pinned SHA-256 before it is used. " +
                 "Import works fully offline: copy the GGUF to the phone (adb push or USB), then pick it.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
+            BackendSection(g)
             BenchmarkSection(g)
             if (downloads.isEmpty()) g.engine.systemInfo().takeIf { it.isNotEmpty() }?.let {
                 SectionLabel("llama.cpp on this phone")
@@ -146,11 +148,15 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
                 val have = installed.firstOrNull { it.known == m }
                 val d = downloads[m.fileName]?.takeIf { have == null && it.state != ModelDownloads.State.Done }
                 val inMemory = have != null && status.of(slotOf(m.role)) == LoadState.Ready &&
-                    (m.role != ModelRole.Text || status.textFile == have.file.name)
+                    (slotOf(m.role) != Slot.Text || status.textFile == have.file.name)
                 Divider(Modifier.padding(top = 10.dp))
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Txt(if (m == grp.projector) "Projector ${m.quant}" else m.quant + if (m.quant.startsWith("Q4")) " · smaller, faster" else " · more accurate",
+                        Txt(if (m == grp.projector) "Projector ${m.quant}" else m.quant + when {
+                                m.role == ModelRole.TextLiteRt -> " · LiteRT-LM"
+                                m.quant.startsWith("Q4") -> " · smaller, faster"
+                                else -> " · more accurate"
+                            },
                             LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight))
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Txt(m.sizeLabel + if (m == grp.projector) " · needed with either" else "", LfmType.label.copy(fontWeight = null), c.text2)
@@ -377,7 +383,7 @@ private fun Check(ok: Boolean?, title: String?, detail: String, marked: String? 
 }
 
 fun slotOf(role: ModelRole) = when (role) {
-    ModelRole.Text -> Slot.Text
+    ModelRole.Text, ModelRole.TextLiteRt -> Slot.Text
     ModelRole.Omni, ModelRole.OmniProjector -> Slot.Omni
     ModelRole.Vision, ModelRole.VisionProjector -> Slot.Vision
 }
@@ -512,7 +518,48 @@ fun DeleteModelSheet(g: AppGraph, m: InstalledModel, onClose: () -> Unit) {
     }
 }
 
-/** Settings → Models → Benchmark: speed of the text model on this phone, with Copy results to send the numbers on. */
+/**
+ * Settings → Models → Runs on: Auto (each model on the backend the benchmark found quickest and right), or one
+ * backend for all (docs/acceleration.md). Offered: what this phone and these files allow.
+ */
+@Composable
+private fun BackendSection(g: AppGraph) {
+    val c = Lfm.c
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val prefs by g.settings.prefs.collectAsState(null)
+    val installed by g.models.installed.collectAsState()
+    val status by g.engine.status.collectAsState()
+    val p = prefs ?: return
+    val gpu by produceState<String?>(null) { value = g.engine.gpuName() }
+    val available by produceState(setOf(com.lfmpixel.lfm.llm.Backend.Cpu), installed, gpu) { value = g.engine.available(Slot.Text) }
+    val chosen by produceState(emptyMap<Slot, com.lfmpixel.lfm.llm.Backend>(), p, installed, gpu) {
+        value = Slot.entries.filter { g.engine.installed(it) }.associateWith { g.engine.backendFor(it) }
+    }
+    val choices = BackendChoice.entries.filter { it.backend == null || it.backend in available || it == p.backend }
+    val writing by g.assistant.busy.collectAsState()
+    SectionLabel("Runs on")
+    Segmented(choices.map { it.label }, p.backend.label, { label ->
+        val pick = choices.first { it.label == label }
+        // Not mid-answer: the switch unloads the models.
+        if (!writing && pick != p.backend) scope.launch { g.settings.setBackend(pick); g.engine.unloadAll() }
+    })
+    val now = chosen.entries.joinToString(" · ") { (slot, b) -> "${slot.label}: ${(status.backends[slot] ?: b).short}" }
+    Txt((if (p.backend == BackendChoice.Auto) "Auto puts each model on the quickest backend the benchmark found that answered right; until then, the CPU. "
+        else "Every model runs on ${p.backend.label} where it can; the rest on the CPU. ") +
+        (if (now.isNotEmpty()) "Now: $now. " else "") +
+        when {
+            gpu == null -> ""
+            gpu!!.isEmpty() -> "No Vulkan GPU found."
+            else -> "GPU: ${gpu!!.substringAfter(": ")}."
+        } + when {
+            com.lfmpixel.lfm.llm.Backend.LiteRtCpu !in available -> " LiteRT-LM needs “LFM3-1.7B LiteRT” above."
+            com.lfmpixel.lfm.llm.Backend.LiteRtGpu !in available -> " No OpenCL here, so LiteRT-LM uses the CPU only."
+            else -> ""
+        },
+        LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
+}
+
+/** Settings → Models → Benchmark: speed of each model on each backend, side by side, with Copy results to send the numbers on. */
 @Composable
 private fun BenchmarkSection(g: AppGraph) {
     val c = Lfm.c
@@ -524,22 +571,24 @@ private fun BenchmarkSection(g: AppGraph) {
     Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         when (val s = state) {
-            is Benchmark.State.Idle -> Txt("Measures how fast the chat model reads and writes on this phone. Takes about half a minute.",
+            is Benchmark.State.Idle -> Txt("Measures how fast each model reads and writes on each backend this phone has, and checks its answers. Auto then uses the quickest. Takes a few minutes.",
                 LfmType.small, c.text2)
             is Benchmark.State.Running -> Txt(s.step, LfmType.small, c.text2)
             is Benchmark.State.Failed -> Txt(s.message, LfmType.small, c.text2)
             is Benchmark.State.Done -> {
                 val r = s.report
                 fun f(v: Double) = "%.1f".format(java.util.Locale.ENGLISH, v)
+                BackendTable(r)
+                Divider(Modifier.padding(vertical = 6.dp))
+                Txt("Chat now runs on ${r.chosen[Slot.Text]?.label ?: "the CPU"}", LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight))
                 BenchRow("Writing", "${f(r.main.genTps)} tokens/s")
                 BenchRow("Reading the prompt", "${f(r.main.promptTps)} tokens/s")
                 BenchRow("First token", "%.2f s for ${r.main.promptTokens} tokens".format(java.util.Locale.ENGLISH, r.main.firstTokenMs / 1000))
                 BenchRow("Through the chat", "${f(r.chatTps)} tokens/s")
-                BenchRow("Threads", "${r.main.threads} writing · ${r.main.batchThreads} reading")
-                BenchRow("CPU variant", r.info["cpu variant"].orEmpty())
-                BenchRow("Backend", r.info["backends"].orEmpty().substringBefore(" ("))
-                Txt(r.info["cores"].orEmpty(), LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
-                Txt("Threads tried (tokens/s): " + r.sweep.joinToString(" · ") { "${it.threads}: ${f(it.genTps)}" }, LfmType.meta, c.text2)
+                if (r.main.threads > 0) BenchRow("Threads", "${r.main.threads} writing · ${r.main.batchThreads} reading")
+                r.info["cpu variant"]?.let { BenchRow("CPU variant", it) }
+                r.info["cores"]?.let { Txt(it, LfmType.meta, c.text2, Modifier.padding(top = 4.dp)) }
+                if (r.sweep.isNotEmpty()) Txt("Threads tried on the CPU (tokens/s): " + r.sweep.joinToString(" · ") { "${it.threads}: ${f(it.genTps)}" }, LfmType.meta, c.text2)
                 val setting = g.settings.prefs.collectAsState(null).value?.threads
                 // Not while the assistant writes: changing threads unloads the model.
                 val writing by g.assistant.busy.collectAsState()
@@ -563,6 +612,37 @@ private fun BenchmarkSection(g: AppGraph) {
             }
         }
     }
+}
+
+/** Each model on each backend: writing and reading speed, and whether its answers were right. */
+@Composable
+private fun BackendTable(r: com.lfmpixel.lfm.llm.BenchReport) {
+    val c = Lfm.c
+    fun f(v: Double) = "%.1f".format(java.util.Locale.ENGLISH, v)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Txt("Backend", LfmType.meta, c.text2, Modifier.weight(1.6f))
+        Txt("Write", LfmType.meta, c.text2, Modifier.weight(1f))
+        Txt("Read", LfmType.meta, c.text2, Modifier.weight(1f))
+        Txt("Check", LfmType.meta, c.text2, Modifier.weight(0.9f))
+    }
+    r.backends.groupBy { it.slot }.forEach { (slot, rows) ->
+        Txt(slot.label, LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.padding(top = 6.dp))
+        rows.forEach { b ->
+            val inUse = r.chosen[slot] == b.backend
+            val best = rows.filter { it.speed.ok }.minByOrNull { it.speed.turnSeconds } == b
+            val weight = if (best) LfmType.rowTitle.fontWeight else null
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Txt(b.backend.short + if (inUse) " ●" else "", LfmType.small.copy(fontWeight = weight), modifier = Modifier.weight(1.6f), maxLines = 1)
+                if (b.run == null) Txt("didn't run", LfmType.small, c.text2, Modifier.weight(2.9f), maxLines = 2)
+                else {
+                    Txt(f(b.run.genTps), LfmType.small.copy(fontWeight = weight), modifier = Modifier.weight(1f))
+                    Txt(f(b.run.promptTps), LfmType.small, modifier = Modifier.weight(1f))
+                    Txt(if (b.ok) "right" else "wrong", LfmType.small, if (b.ok) c.text else c.text2, Modifier.weight(0.9f))
+                }
+            }
+        }
+    }
+    Txt("Tokens a second. ● in use; bold the quickest that answered right.", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
 }
 
 @Composable

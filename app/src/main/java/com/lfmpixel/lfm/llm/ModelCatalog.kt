@@ -10,9 +10,14 @@ enum class ModelRole(val label: String) {
     OmniProjector("Omni's ears and eyes"),
     Vision("Documents"),
     VisionProjector("Documents (projector)"),
+    /** The chat model converted for LiteRT-LM, which runs it on the GPU (docs/acceleration.md). */
+    TextLiteRt("Chat, on the GPU"),
 }
 
-/** A model file we know: its exact name, size and SHA-256, pinned from Hugging Face (LiquidAI, 28 Oct 2026). */
+/**
+ * A model file we know: its exact name, size and SHA-256, pinned from Hugging Face (LiquidAI, 28 Oct 2026; the
+ * LiteRT-LM file from litert-community, 29 Oct 2026).
+ */
 data class KnownModel(
     val fileName: String,
     val family: String,
@@ -30,6 +35,7 @@ object ModelCatalog {
     private const val TEXT = "LiquidAI/LFM3-1.7B-GGUF"
     private const val OMNI = "LiquidAI/LFM3-Omni-2B-GGUF"
     private const val VL = "LiquidAI/LFM3-VL-2B-GGUF"
+    private const val LITERT = "litert-community/LFM3-1.7B-LiteRT"
 
     val all = listOf(
         KnownModel("LFM3-1.7B-QAD-Q4_0.gguf", "LFM3-1.7B", "Q4_0", ModelRole.Text, 1049615680, "43a7d09a0e9cba91b63eb7052488b9564569bddfd65754d2e426465e572a7452", TEXT),
@@ -47,6 +53,8 @@ object ModelCatalog {
         KnownModel("LFM3-VL-2B-Q4_K_M.gguf", "LFM3-VL-2B", "Q4_K_M", ModelRole.Vision, 1099627808, "56dac2e192ff0d9ab8507f4f1aeb4aed0463449bbbefaac79497f041c95f21eb", VL),
         KnownModel("LFM3-VL-2B-Q8_0.gguf", "LFM3-VL-2B", "Q8_0", ModelRole.Vision, 1846238496, "e138e54189a751d90ea8c0b236360490613ecd465d28d68fa6094d3db7fa6727", VL),
         KnownModel("mmproj-LFM3-VL-2B-Q8_0.gguf", "VL projector", "Q8_0", ModelRole.VisionProjector, 203031872, "c5c5b58d544a18da919172d2d0368090ea1a4a351b6feb7f8a326a264a5918ab", VL),
+        // MLP gate and up projections int4, the rest int8; a 4,096-token cache (the 2,048 one cuts chats short).
+        KnownModel("LFM3-1.7B_mixed_int4_ekv4096.litertlm", "LFM3-1.7B LiteRT", "mixed int4", ModelRole.TextLiteRt, 1441629120, "327486bf01d0b1eefd727b7aadec8627a2b8db143349262857ac98403109d72b", LITERT),
     )
 
     /** A model as the Models screen lists it: what it is for, the quantisations offered, and the projector it needs. */
@@ -59,6 +67,8 @@ object ModelCatalog {
             byName("mmproj-LFM3-Omni-2B-Q4_K_M.gguf")!!),
         Group("LFM3-VL-2B", "Documents: reads pages, scans and PDFs", listOf(byName("LFM3-VL-2B-QAD-Q4_0.gguf")!!, byName("LFM3-VL-2B-Q8_0.gguf")!!),
             byName("mmproj-LFM3-VL-2B-Q8_0.gguf")!!),
+        Group("LFM3-1.7B LiteRT", "The chat model for LiteRT-LM, which can run it on the GPU. The benchmark below finds out which is quicker.",
+            listOf(byName("LFM3-1.7B_mixed_int4_ekv4096.litertlm")!!), null),
     )
 
     /** What first run downloads: chat and voice (2.4 GB). */
