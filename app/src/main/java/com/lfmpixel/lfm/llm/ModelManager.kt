@@ -123,7 +123,7 @@ class ModelManager(
     }
 
     /** Long jobs (a scanned PDF read page by page) call this between steps so the idle unload waits. */
-    fun keepAlive() = touch()
+    fun keepAlive() { if (_status.value.anyLoaded) touch() }
 
     /** Whether the loaded Omni projector takes pictures; false only once a loaded one was found without. */
     @Volatile var omniSees = true

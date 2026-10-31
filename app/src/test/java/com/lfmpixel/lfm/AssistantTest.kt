@@ -32,6 +32,7 @@ class AssistantTest {
         val app = ApplicationProvider.getApplicationContext<LfmApp>()
         org.robolectric.Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
         g = app.graph
+        g.assistant.onShown()
     }
 
     private fun waitIdle() = runBlocking {
@@ -178,5 +179,28 @@ class AssistantTest {
         assertTrue(titles.containsAll(listOf("Buy oat milk", "Buy bread")))
         assertEquals(2, g.db.messages().threadNow(g.assistant.threadId.value).count { it.role == Role.User })
         assertTrue(g.assistant.queue.value.isEmpty())
+    }
+
+    @Test fun editorNeverCutsALongNote() = runBlocking {
+        val long = "Dictated in one go: " + "the boiler pressure drops overnight and the plumber wants photos first ".repeat(4)
+        val id = g.db.entries().insert(com.lfmpixel.lfm.data.Entry(kind = EntryKind.Note, title = long.take(60) + "…", body = long, source = "voice"))
+        // Opened and left with no change: nothing is written.
+        val d = com.lfmpixel.lfm.ui.screens.Draft(g, id, EntryKind.Note)
+        d.load(g.db.entries().get(id)!!)
+        assertNull(d.save(leaving = true))
+        assertEquals(long, g.db.entries().get(id)!!.body)
+        // Edited: the whole first line survives, in the body, and loads back the same.
+        d.text = androidx.compose.ui.text.input.TextFieldValue(long + " More.")
+        d.changed()
+        d.save(leaving = true)
+        val saved = g.db.entries().get(id)!!
+        assertTrue(saved.title.endsWith("…") && saved.title.length <= 120)
+        val again = com.lfmpixel.lfm.ui.screens.Draft(g, id, EntryKind.Note).also { it.load(saved) }
+        assertEquals(long + " More.", again.text.text)
+        // Emptied and left: deleted, and what it was comes back for Undo.
+        again.text = androidx.compose.ui.text.input.TextFieldValue("")
+        again.changed()
+        assertEquals(id, again.save(leaving = true)?.id)
+        assertNull(g.db.entries().get(id))
     }
 }

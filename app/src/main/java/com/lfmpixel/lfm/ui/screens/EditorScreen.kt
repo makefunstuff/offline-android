@@ -53,7 +53,9 @@ import com.lfmpixel.lfm.ui.components.Tabs
 import com.lfmpixel.lfm.ui.components.Txt
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -71,7 +73,10 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
     var entry by mutableStateOf(Entry(kind = kind, title = ""))
     var text by mutableStateOf(TextFieldValue(""))
     var extra by mutableStateOf("")      // tags (note), topic (idea), list (to-do)
-    var saved by mutableStateOf(true)
+    // Each change bumps [version]; a save records the version it wrote. Nothing is written unless something changed.
+    private var version by mutableStateOf(0)
+    private var savedVersion by mutableStateOf(0)
+    val saved get() = version == savedVersion
     private val lock = Mutex()
 
     /** Body text as the owner wrote it, rebuilt from title and body the way they were stored. */
@@ -89,25 +94,51 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
         extra = when (e.kind) { EntryKind.Idea -> e.topic; EntryKind.Todo -> e.list; else -> e.tags }
     }
 
-    fun changed() { saved = false }
+    fun changed() { version++ }
 
-    suspend fun save(leaving: Boolean = false) = lock.withLock {
-        val body = text.text.trim()
-        val current = id
-        if (body.isEmpty()) {
-            // Left empty: no blank entries. While typing, an emptied entry is kept until the owner leaves.
-            if (leaving && current != null) g.db.entries().delete(current)
-            if (leaving) id = null
-            saved = true
-            return@withLock
+    /** Moves to another kind, keeping the tags, topic or list typed so far. */
+    fun switchKind(k: EntryKind) {
+        val e = foldExtra(entry)
+        extra = when (k) { EntryKind.Idea -> e.topic; EntryKind.Todo -> e.list; EntryKind.Note -> e.tags; else -> "" }
+        entry = e.copy(kind = k)
+        changed()
+    }
+
+    private fun foldExtra(e: Entry) = when (e.kind) {
+        EntryKind.Note -> e.copy(tags = extra.trim().lowercase())
+        EntryKind.Idea -> e.copy(topic = extra.trim())
+        EntryKind.Todo -> e.copy(list = extra.trim())
+        else -> e
+    }
+
+    /**
+     * Writes the draft if it changed. Leaving an entry that was emptied deletes it and returns what it was, for Undo.
+     * Runs to the end even if its caller is cancelled, so a first insert is never done twice.
+     */
+    suspend fun save(leaving: Boolean = false): Entry? = withContext(NonCancellable) {
+        lock.withLock {
+            val at = version
+            if (at == savedVersion) return@withLock null
+            val body = text.text.trim()
+            val current = id
+            if (body.isEmpty()) {
+                // While typing, an emptied entry is kept until the owner leaves; then it goes, with Undo.
+                if (!leaving) return@withLock null
+                val old = current?.let { g.db.entries().get(it) }
+                if (current != null) g.db.entries().delete(current)
+                id = null
+                savedVersion = at
+                return@withLock old
+            }
+            val e = toEntry(body)
+            if (current == null) id = g.db.entries().insert(e.copy(id = 0)) else g.db.entries().update(e.copy(id = current))
+            savedVersion = at
+            null
         }
-        val e = toEntry(body)
-        if (current == null) id = g.db.entries().insert(e.copy(id = 0)) else g.db.entries().update(e.copy(id = current))
-        saved = true
     }
 
     /** Deletes the entry (saving the latest text first, so Undo brings back exactly what was there). */
-    suspend fun discard(): Entry? = lock.withLock {
+    suspend fun discard(): Entry? = withContext(NonCancellable) { lock.withLock {
         val body = text.text.trim()
         var current = id
         if (body.isNotEmpty()) toEntry(body).let { e -> if (current == null) current = g.db.entries().insert(e.copy(id = 0)) else g.db.entries().update(e.copy(id = current!!)) }
@@ -115,19 +146,23 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
         current?.let { g.db.entries().delete(it) }
         id = null
         text = TextFieldValue("")
-        saved = true
+        savedVersion = version
         old
-    }
+    } }
 
     private fun toEntry(body: String): Entry {
         val k = entry.kind
         val first = body.lineSequence().first().trim()
-        return entry.copy(
-            title = first.take(120),
-            body = if (k == EntryKind.Note) body.lineSequence().drop(1).joinToString("\n").trim() else if (body.length > 120 || body.contains('\n')) body else "",
-            tags = if (k == EntryKind.Note) extra.trim().lowercase() else entry.tags,
-            topic = if (k == EntryKind.Idea) extra.trim() else entry.topic,
-            list = if (k == EntryKind.Todo) extra.trim() else entry.list,
+        // A first line too long for a title is shortened with "…" there, and the whole text kept in the body.
+        val long = first.length > 120
+        return foldExtra(entry).copy(
+            title = if (long) first.take(119).trimEnd() + "…" else first,
+            body = when {
+                long -> body
+                k == EntryKind.Note -> body.lineSequence().drop(1).joinToString("\n").trim()
+                body.contains('\n') -> body
+                else -> ""
+            },
             updatedAt = System.currentTimeMillis(),
         )
     }
@@ -154,7 +189,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     LaunchedEffect(draft.text.text, draft.extra, draft.entry) {
         if (!loaded || draft.saved) return@LaunchedEffect
         delay(500)
-        draft.save()
+        g.scope.launch { draft.save() }
     }
     // Leaving the screen (Back, a tab, a swipe) or the app saves at once, in the app's scope so it outlives the screen.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -163,7 +198,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
         lifecycle.addObserver(obs)
         onDispose {
             lifecycle.removeObserver(obs)
-            if (loaded) g.scope.launch { draft.save(leaving = true) }
+            if (loaded) g.scope.launch { draft.save(leaving = true)?.let { old -> nav.show("Empty ${old.kind.label.lowercase()} deleted") { g.db.entries().insert(old) } } }
         }
     }
 
@@ -182,12 +217,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
         Box(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Tabs(kinds.map { it.label }, e.kind.label, { l ->
                 val k = kinds.first { it.label == l }
-                if (k != e.kind) {
-                    // Moving between kinds keeps the text; the extra field means something else per kind.
-                    draft.extra = when (k) { EntryKind.Idea -> e.topic; EntryKind.Todo -> e.list; EntryKind.Note -> e.tags; else -> "" }
-                    draft.entry = e.copy(kind = k)
-                    draft.changed()
-                }
+                if (k != e.kind) draft.switchKind(k)
             }, Modifier.padding(top = 0.dp))
         }
         Divider()
@@ -216,8 +246,11 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                     val options = listOf("Today", "Tomorrow", "Next week", "No date", if (picked !in setOf("Today", "Tomorrow", "Next week", "No date")) picked else "Pick…")
                     Box(Modifier.horizontalScroll(rememberScrollState())) {
                         Tabs(options, picked, { o ->
+                            // A time set before (by voice or chat) is kept when only the day changes.
+                            val time = e.dueAt?.takeIf { e.dueHasTime }?.let { Instant.ofEpochMilli(it).atZone(zone).toLocalTime() }
                             fun set(d: LocalDate?) {
-                                draft.entry = e.copy(dueAt = d?.atTime(9, 0)?.atZone(zone)?.toInstant()?.toEpochMilli(), dueHasTime = false); draft.changed()
+                                draft.entry = e.copy(dueAt = d?.atTime(time ?: java.time.LocalTime.of(9, 0))?.atZone(zone)?.toInstant()?.toEpochMilli(),
+                                    dueHasTime = d != null && time != null); draft.changed()
                             }
                             when (o) {
                                 "Today" -> set(today); "Tomorrow" -> set(today.plusDays(1)); "Next week" -> set(today.plusWeeks(1)); "No date" -> set(null)

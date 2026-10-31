@@ -98,8 +98,10 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
     val c = Lfm.c
     var query by rememberSaveable { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Entry>?>(null) }
-    LaunchedEffect(query) { results = FtsQuery.from(query)?.let { g.db.entries().search(it) } }
     val all by remember { g.db.entries().library() }.collectAsState(null)
+    val todos by remember { g.db.entries().todos() }.collectAsState(null)
+    // Search again whenever entries change, so a swipe in the results shows at once.
+    LaunchedEffect(query, all, todos) { results = FtsQuery.from(query)?.let { g.db.entries().search(it) } }
     val actions = remember { EntryActions(g, nav) }
     val open: (Entry) -> Unit = { nav.go(Route.Editor(it.id, it.kind)) }
 
@@ -128,8 +130,9 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
                         else -> list
                     }
                     val state = androidx.compose.foundation.lazy.rememberLazyListState()
+                    val firstId = shown.firstOrNull()?.id
                     // A newly pinned or new entry goes to the top: show it if the list was at the top.
-                    LaunchedEffect(shown.firstOrNull()?.id) { if (state.firstVisibleItemIndex <= 1) state.animateScrollToItem(0) }
+                    LaunchedEffect(firstId) { if (state.firstVisibleItemIndex <= 1) state.animateScrollToItem(0) }
                     LazyColumn(Modifier.fillMaxSize(), state = state) {
                         if (shown.isEmpty()) item {
                             Box(Modifier.padding(horizontal = 16.dp)) {

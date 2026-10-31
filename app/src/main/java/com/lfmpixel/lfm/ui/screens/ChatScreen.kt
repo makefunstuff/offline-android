@@ -61,6 +61,7 @@ import com.lfmpixel.lfm.ui.theme.LfmMotion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.semantics.contentDescription
@@ -93,8 +94,11 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     // Follow the end while the owner is at the end; once they scroll up, offer a way back instead of pulling them down.
     val atEnd by remember { derivedStateOf { !list.canScrollForward } }
     var follow by remember { mutableStateOf(true) }
-    LaunchedEffect(list.isScrollInProgress) { if (list.isScrollInProgress) follow = atEnd }
-    LaunchedEffect(atEnd) { if (atEnd) follow = true }
+    // While the owner drags, follow only if they are still at the end; reaching the end again resumes it.
+    LaunchedEffect(list) { snapshotFlow { list.isScrollInProgress to atEnd }.collect { (dragging, end) -> if (dragging || end) follow = end } }
+    // The "unloads in N min" line counts down.
+    var tick by remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(20_000); tick++ } }
     LaunchedEffect(count, streaming?.text?.length) { if (follow && count > 0) list.scrollToItem(count - 1, Int.MAX_VALUE / 2) }
     val send: () -> Unit = {
         g.assistant.send(draft); draft = ""; follow = true
@@ -114,7 +118,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                             LoadState.Loading -> Box(dot.border(1.dp, c.text, RoundedCornerShape(2.dp)))
                             else -> Box(dot.border(1.dp, c.text3, RoundedCornerShape(2.dp)))
                         }
-                        Txt(modelState(g) + (status.unloadAt?.takeIf { status.text == LoadState.Ready }?.let { " · ${untilLabel(it)}" } ?: ""),
+                        Txt(modelState(g) + (status.unloadAt?.takeIf { status.text == LoadState.Ready && tick >= 0 }?.let { " · ${untilLabel(it)}" } ?: ""),
                             LfmType.meta, c.text2, maxLines = 1)
                     }
                 }
@@ -218,6 +222,8 @@ private fun Modifier.dashedBorder(color: androidx.compose.ui.graphics.Color, rad
 private fun QueuedSheet(g: AppGraph, q: com.lfmpixel.lfm.assistant.Queued, index: Int, size: Int, onClose: () -> Unit) {
     val c = Lfm.c
     var text by remember(q.id) { mutableStateOf(q.text) }
+    // While the sheet is open this message (and those after it) waits, so an edit is never overtaken by its turn.
+    androidx.compose.runtime.DisposableEffect(q.id) { g.assistant.hold(q.id); onDispose { g.assistant.hold(null) } }
     val save = { if (text.trim() != q.text) g.assistant.editQueued(q.id, text) }
     FlatSheet(onDismiss = { save(); onClose() }) {
         Txt("Queued message", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))

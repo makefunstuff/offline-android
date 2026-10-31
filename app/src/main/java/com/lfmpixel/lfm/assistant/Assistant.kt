@@ -119,18 +119,24 @@ class Assistant(
     private val queueFile = java.io.File(context.filesDir, "queue.json")
     private var nextId = 1L
     private var threadSet = false
+    // The queue only runs once the app is on screen: messages kept from an earlier run never run unattended
+    // (a reminder or a reboot can start the process with no one looking).
+    private val shown = CompletableDeferred<Unit>()
+    /** A queued message being edited: it and those after it wait until the edit is done. */
+    @Volatile private var held: Long? = null
 
     init {
         queue.value = QueueStore.read(queueFile).also { list -> nextId = (list.maxOfOrNull { it.id } ?: 0) + 1 }
         scope.launch {
             val last = db.messages().lastThread()
             if (!threadSet) _thread.value = last
+            shown.await()
             while (true) {
                 var taken: Queued? = null
-                mutate(wakeWorker = false) { list -> taken = list.firstOrNull(); list.drop(1) }
+                mutate(wakeWorker = false) { list -> taken = list.firstOrNull()?.takeIf { it.id != held }; if (taken != null) list.drop(1) else list }
                 val next = taken
                 if (next == null) {
-                    busy.value = false
+                    busy.value = queue.value.isNotEmpty()
                     wake.receive()
                     continue
                 }
@@ -152,6 +158,15 @@ class Assistant(
         QueueStore.write(queueFile, list)
         if (wakeWorker) wake.trySend(Unit)
     }
+
+    /** The app is on screen: queued messages may run. */
+    fun onShown() { shown.complete(Unit) }
+
+    /** Holds a queued message while the owner edits it; null lets the queue go on. */
+    fun hold(id: Long?) { held = id; wake.trySend(Unit) }
+
+    /** Clear chats: messages still waiting go too, with their file. */
+    fun clearQueue() = mutate { emptyList() }
 
     fun newChat() {
         stop()
@@ -214,6 +229,8 @@ class Assistant(
             notice("Something went wrong: ${e.message}")
         } finally {
             streaming.value = null
+            // Idle time counts from the end of a turn, not from when the model was fetched.
+            models.keepAlive()
         }
     }
 

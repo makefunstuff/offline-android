@@ -269,7 +269,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav) {
             Txt("Chats, notes, ideas, journal, to-dos, reminders, searches, the network log and the action history, in the app's private storage. Models in the app's files.",
                 LfmType.small, c.text2)
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Btn("Clear chats", { scope.launch { g.assistant.newChat(); g.db.messages().deleteAll(); g.db.searches().deleteAll(); g.prep.deleteAll() } }, Modifier.weight(1f), icon = "trash")
+                Btn("Clear chats", { scope.launch { g.assistant.clearQueue(); g.assistant.newChat(); g.db.messages().deleteAll(); g.db.searches().deleteAll(); g.prep.deleteAll() } }, Modifier.weight(1f), icon = "trash")
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -318,7 +318,8 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             val installed by g.models.installed.collectAsState()
             val downloads by g.downloads.items.collectAsState()
             val netState by g.net.current.collectAsState()
-            val missing = com.lfmpixel.lfm.llm.ModelCatalog.essentials.filter { m -> installed.none { it.known == m } && downloads[m.fileName] == null }
+            val missing = com.lfmpixel.lfm.llm.ModelCatalog.essentials.filter { m -> installed.none { it.known == m } &&
+                (downloads[m.fileName]?.state ?: com.lfmpixel.lfm.web.ModelDownloads.State.Failed) == com.lfmpixel.lfm.web.ModelDownloads.State.Failed }
             var choose by remember { mutableStateOf(false) }
             when {
                 missing.isEmpty() -> Txt(if (downloads.values.any { it.state != com.lfmpixel.lfm.web.ModelDownloads.State.Done }) "Getting LFM3-1.7B and Omni. They carry on in the background; Models shows how far."

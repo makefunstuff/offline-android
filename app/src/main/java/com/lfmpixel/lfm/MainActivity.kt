@@ -112,6 +112,7 @@ class MainActivity : ComponentActivity() {
         graph.assistant.permissionGate = gate
         graph.web.permissionGate = gate
         graph.launcher.activity = this
+        graph.assistant.onShown()
         setContent {
             LfmTheme {
                 Root(graph, gate, pickers, pickFiles = { cb -> onPicked = cb; picker.launch(arrayOf("*/*")) })
@@ -147,6 +148,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
     val imports = remember { mutableMapOf<List<android.net.Uri>, ImportRun>() }
     val cameraQuestion = remember { CameraQuestion() }
     val reduced = LfmMotion.reduced()
+    // Screens under the one on top keep their saveable state (search, tab, scroll, chat draft) while it is shown.
+    val saved = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
 
     val startImport: () -> Unit = {
         pickFiles { uris ->
@@ -197,7 +200,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
                     else -> LfmMotion.sharedAxisX(nav.forward, reduced)
                 }
             }, label = "screen") { r ->
-                when (r) {
+                saved.SaveableStateProvider(if (r is Route.Library) "library" else r.toString()) { when (r) {
                     Route.Today -> TodayScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Chat -> ChatScreen(g, nav, { voice(VoiceTarget.Assistant) }, listening)
                     Route.Camera -> CameraScreen(g, nav, gate, pickers, cameraQuestion, { voice(VoiceTarget.Question) }, listening)
@@ -213,7 +216,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
                     Route.FirstRun -> FirstRunScreen(g, nav) { nav.go(Route.Models); startImport() }
                     is Route.Search -> SearchScreen(g, nav, r.id)
                     Route.WebSearch -> WebSearchScreen(g, nav)
-                }
+                } }
             }
             SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter))
             }

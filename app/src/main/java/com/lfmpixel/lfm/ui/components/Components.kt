@@ -265,13 +265,12 @@ fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onS
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send), keyboardActions = KeyboardActions(onSend = { onSend() }),
                 maxLines = 5, modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder })
         }
-        if (value.isNotBlank()) {
-            IconButtonPlain("send", onSend, tint = c.text, desc = if (onStop != null) "Queue" else "Send")
-        } else if (onStop != null) {
-            // While an answer is written, Stop sits where Send would be: ink, square, named.
+        if (value.isNotBlank()) IconButtonPlain("send", onSend, tint = c.text, desc = if (onStop != null) "Queue" else "Send")
+        if (onStop != null) {
+            // While an answer is written, Stop sits by the mic: ink, square, named; there even while you type.
             Box(Modifier.size(42.dp).clip(RoundedCornerShape(6.dp)).background(c.text).clickable(role = Role.Button, onClick = onStop)
                 .semantics { contentDescription = "Stop" }, contentAlignment = Alignment.Center) { LIcon("stop", tint = c.bg) }
-        } else if (onCamera != null) {
+        } else if (onCamera != null && value.isBlank()) {
             IconButtonPlain("camera", onCamera, desc = "Camera")
         }
         MicButton(onMic, listening = listening)
@@ -320,6 +319,9 @@ class SwipeAction(val label: String, val icon: String, val run: () -> Unit)
 @Composable
 fun SwipeRow(right: SwipeAction?, left: SwipeAction?, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val c = Lfm.c
+    // The gesture reads the latest actions without restarting, so a recomposition never cuts a swipe off.
+    val rightNow by androidx.compose.runtime.rememberUpdatedState(right)
+    val leftNow by androidx.compose.runtime.rememberUpdatedState(left)
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val offset = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(0f) }
     var width by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(1) }
@@ -334,10 +336,10 @@ fun SwipeRow(right: SwipeAction?, left: SwipeAction?, modifier: Modifier = Modif
             Txt(action.label, LfmType.button, if (past) c.bg else c.text2, Modifier.padding(start = 8.dp))
         }
         Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.value.toInt(), 0) }.background(c.bg)
-            .pointerInput(right, left) {
+            .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
-                        val a = if (offset.value > 0) right else left
+                        val a = if (offset.value > 0) rightNow else leftNow
                         val fire = kotlin.math.abs(offset.value) > width * 0.4f
                         scope.launch {
                             if (fire && a != null) a.run()
@@ -347,7 +349,7 @@ fun SwipeRow(right: SwipeAction?, left: SwipeAction?, modifier: Modifier = Modif
                     onDragCancel = { scope.launch { offset.animateTo(0f) } },
                 ) { change, drag ->
                     val next = offset.value + drag
-                    if ((next > 0 && right == null) || (next < 0 && left == null)) return@detectHorizontalDragGestures
+                    if ((next > 0 && rightNow == null) || (next < 0 && leftNow == null)) return@detectHorizontalDragGestures
                     change.consume()
                     scope.launch { offset.snapTo(next) }
                 }
