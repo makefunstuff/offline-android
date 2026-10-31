@@ -185,7 +185,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, pickFiles:
     Box(Modifier.fillMaxSize().background(c.bg)) {
         Column(Modifier.fillMaxSize().background(if (nav.current == Route.Camera) Color.Black else c.bg).statusBarsPadding().navigationBarsPadding()) {
             // The camera opens and closes along the Z axis; other screens change at once for now (the motion pass is LP-6).
-            AnimatedContent(nav.current, Modifier.weight(1f), transitionSpec = {
+            AnimatedContent(nav.current, Modifier.weight(1f), contentKey = { it == Route.Camera }, transitionSpec = {
                 if (targetState == Route.Camera || initialState == Route.Camera) LfmMotion.sharedAxisZ(targetState == Route.Camera, reduced)
                 else EnterTransition.None togetherWith ExitTransition.None
             }, label = "screen") { r ->

@@ -328,6 +328,7 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_see(JNIEnv *env, jobject, jlong handle, jo
     auto *s = reinterpret_cast<Session *>(handle);
     if (!s || !s->mtmd || !mtmd_support_vision(s->mtmd)) return -1;
     const int n_images = env->GetArrayLength(jimages);
+    if (env->GetArrayLength(jsizes) != n_images * 2) return -5;
     std::vector<jint> sizes(n_images * 2);
     env->GetIntArrayRegion(jsizes, 0, n_images * 2, sizes.data());
     std::vector<mtmd_bitmap *> bitmaps;
@@ -340,6 +341,11 @@ Java_com_lfmpixel_lfm_llm_LlamaNative_see(JNIEnv *env, jobject, jlong handle, jo
             return -5;
         }
         jbyte *px = env->GetByteArrayElements(arr, nullptr);
+        if (!px) {
+            env->DeleteLocalRef(arr);
+            for (auto *b : bitmaps) mtmd_bitmap_free(b);
+            return -5;
+        }
         bitmaps.push_back(mtmd_bitmap_init((uint32_t) nx, (uint32_t) ny, reinterpret_cast<const unsigned char *>(px)));
         env->ReleaseByteArrayElements(arr, px, JNI_ABORT);
         env->DeleteLocalRef(arr);

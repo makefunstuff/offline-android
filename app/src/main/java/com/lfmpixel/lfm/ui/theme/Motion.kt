@@ -48,7 +48,7 @@ object LfmMotion {
         if (reduced) return fadeIn(snap()) togetherWith fadeOut(snap())
         val enter = fadeIn(tween(LONG, delayMillis = 60, easing = emphasizedDecelerate)) +
             scaleIn(tween(LONG, easing = emphasizedDecelerate), initialScale = if (forward) 0.92f else 1.08f)
-        val exit = fadeOut(tween(90, easing = emphasizedAccelerate)) +
+        val exit = fadeOut(tween(SHORT, easing = emphasizedAccelerate)) +
             scaleOut(tween(LONG, easing = emphasizedAccelerate), targetScale = if (forward) 1.08f else 0.92f)
         return enter togetherWith exit
     }

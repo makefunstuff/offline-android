@@ -270,16 +270,22 @@ class Assistant(
     /** Omni or VL looks at the pictures (or VL reads the pages) and answers in the chat. */
     private suspend fun look(req: SeeRequest) {
         val picturesNeeded = req.images.isNotEmpty() || req.pages.any { it.image != null }
-        val model = SeeRules.pick(req.kind, models.hasVoice(), models.hasVision(), models.hasText(), picturesNeeded)
+        val model = SeeRules.pick(req.kind, models.hasVoice() && models.omniSees, models.hasVision(), models.hasText(), picturesNeeded)
             ?: throw LlmException(if (req.kind == SeeKind.Document) "Documents need LFM3-VL-2B. Get it in Settings → Models."
                 else "Photos and video need LFM3-Omni-2B or LFM3-VL-2B. Get one in Settings → Models.")
         val started = System.nanoTime()
         streaming.value = Streaming("", false, if (req.kind == SeeKind.Document) "Reading…" else "Looking…")
-        val session = when (model) {
+        var session = when (model) {
             SeeModel.Omni -> models.omniSession()
             SeeModel.Vision -> models.visionSession()
             SeeModel.Text -> models.textSession()
         }
+        // An Omni projector without vision is only known once loaded: then VL looks instead.
+        if (model == SeeModel.Omni && !models.omniSees) {
+            if (!models.hasVision()) throw LlmException("This Omni projector file has no vision. Get LFM3-VL-2B in Settings → Models.")
+            session = models.visionSession()
+        }
+        val looker = if (session.path == models.visionPath()) SeeModel.Vision else model
         val raw = StringBuilder()
         val onPiece: (String) -> Unit = { raw.append(it); streaming.value = Streaming(SeeRules.clean(raw.toString()), false) }
         if (req.pages.isEmpty()) {
@@ -289,6 +295,7 @@ class Assistant(
             val texts = req.pages.mapIndexed { i, p ->
                 if (p.image == null) p.text else {
                     streaming.value = Streaming("", false, "Reading page ${i + 1} of ${req.pages.size}…")
+                    models.keepAlive()
                     val sb = StringBuilder()
                     session.see(listOf(p.image), SeeRules.prompt(SeeKind.Document, SeeRules.READ_PAGE, 1), 1024, temp = 0f)
                         .collect { sb.append(it) }
@@ -296,7 +303,8 @@ class Assistant(
                 }
             }
             streaming.value = Streaming("", false, "Thinking about ${req.pages.size} ${if (req.pages.size == 1) "page" else "pages"}…")
-            val ctx = if (model == SeeModel.Vision) ModelManager.VISION_CONTEXT else settings.now().contextTokens
+            models.keepAlive()
+            val ctx = if (looker == SeeModel.Vision) ModelManager.VISION_CONTEXT else settings.now().contextTokens
             // About 3 characters a token, leaving room for the answer.
             var text = SeeRules.documentText(texts, (ctx - 1200) * 3)
             var prompt = SeeRules.documentPrompt(text, req.question)
@@ -311,7 +319,7 @@ class Assistant(
         val more = if (req.pagesSkipped > 0) " · first ${req.pages.size} pages" else ""
         db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.Assistant, text = answer,
             raw = "<think></think>" + answer,
-            meta = "%s · on this phone · %.0f s%s".format(Locale.ENGLISH, model.label, secs, more)))
+            meta = "%s · on this phone · %.0f s%s".format(Locale.ENGLISH, looker.label, secs, more)))
         streaming.value = null
         if (answer.isBlank()) notice("The model gave no answer. Try again, or ask another way.")
     }

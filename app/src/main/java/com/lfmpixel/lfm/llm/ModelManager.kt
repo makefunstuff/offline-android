@@ -32,6 +32,7 @@ class ModelManager(
 
     fun hasText() = store.text() != null
     fun hasVoice() = store.omni() != null && store.omniProjector() != null
+    fun visionPath() = store.vision()?.file?.path
     fun hasVision() = store.vision() != null && store.visionProjector() != null
 
     suspend fun textSession(): LlamaSession = lock.withLock {
@@ -69,6 +70,7 @@ class ModelManager(
                 s.close()
                 throw LlmException(if (caps < 0) "Omni's projector file could not be loaded" else "Omni's projector loaded, but it has no audio input")
             }
+            omniSees = caps and LlamaNative.PROJ_VISION != 0
             omni = s
             _status.value = _status.value.copy(omni = LoadState.Ready)
             s
@@ -101,6 +103,13 @@ class ModelManager(
             throw e
         }
     }
+
+    /** Long jobs (a scanned PDF read page by page) call this between steps so the idle unload waits. */
+    fun keepAlive() = touch()
+
+    /** Whether the loaded Omni projector takes pictures; false only once a loaded one was found without. */
+    @Volatile var omniSees = true
+        private set
 
     private fun touch() {
         idleJob?.cancel()

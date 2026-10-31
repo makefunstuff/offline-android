@@ -74,6 +74,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val reduced = LfmMotion.reduced()
+    // New lines appear at once (a streamed answer is already on screen); moves and removals animate.
     val itemFade = if (reduced) null else tween<Float>(LfmMotion.MEDIUM, easing = LfmMotion.standard)
     val itemMove = if (reduced) null else tween<androidx.compose.ui.unit.IntOffset>(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate)
     val visible = messages.filter { !(it.role == Role.Assistant && it.text.isBlank()) }
@@ -98,7 +99,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
             }
             items(visible, key = { it.id }) { m ->
-                Box(Modifier.animateItem(fadeInSpec = itemFade, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
+                Box(Modifier.animateItem(fadeInSpec = null, placementSpec = itemMove, fadeOutSpec = itemFade)) { when (m.role) {
                     Role.User -> UserBubble(m)
                     Role.Assistant -> AssistantText(m.text, m.meta, citations = m.searchId != null)
                     Role.Tool -> if (m.searchId != null) SearchCard(m) { nav.go(Route.Search(it)) }

@@ -11,6 +11,10 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
+import android.util.Size
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.lifecycle.awaitInstance
 import androidx.camera.view.PreviewView
@@ -124,9 +128,14 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
     var recording by remember { mutableStateOf(false) }
     var recordedMs by remember { mutableIntStateOf(0) }
     val frames = remember { mutableListOf<Bitmap>() }
-    val executor = remember { Executors.newSingleThreadExecutor() }
+    val executor = cameraExecutor
     val previewView = remember { PreviewView(ctx).apply { scaleType = PreviewView.ScaleType.FILL_CENTER; implementationMode = PreviewView.ImplementationMode.COMPATIBLE } }
-    val capture = remember { ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build() }
+    // About 2 MP is plenty: photos go to the model at 768 px and pages at 1280 px.
+    val capture = remember {
+        ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .setResolutionSelector(ResolutionSelector.Builder().setResolutionStrategy(
+                ResolutionStrategy(Size(1920, 1440), ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER)).build()).build()
+    }
     val analysis = remember {
         ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888).build()
@@ -137,12 +146,17 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
     DisposableEffect(Unit) {
         val window = (view.context as? android.app.Activity)?.window
         val ctl = window?.let { WindowCompat.getInsetsController(it, view) }
-        val before = ctl?.isAppearanceLightStatusBars
+        val status = ctl?.isAppearanceLightStatusBars
+        val navBar = ctl?.isAppearanceLightNavigationBars
         ctl?.isAppearanceLightStatusBars = false
         ctl?.isAppearanceLightNavigationBars = false
-        onDispose { before?.let { ctl.isAppearanceLightStatusBars = it; ctl.isAppearanceLightNavigationBars = it } }
+        onDispose { status?.let { ctl.isAppearanceLightStatusBars = it }; navBar?.let { ctl.isAppearanceLightNavigationBars = it } }
     }
-    DisposableEffect(Unit) { onDispose { executor.shutdown() } }
+    // Allowed in Android settings and back: turn the camera on.
+    LifecycleResumeEffect(Unit) {
+        if (!allowed) allowed = ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        onPauseOrDispose { }
+    }
 
     LaunchedEffect(Unit) {
         if (!allowed) { allowed = gate.ensure(listOf(Manifest.permission.CAMERA)); asked = true }
@@ -342,15 +356,18 @@ private fun RoundIcon(icon: String, desc: String, onClick: () -> Unit, plain: Bo
     }
 }
 
+/** One thread for camera callbacks, for the app's life: a callback after the screen closes still has somewhere to run. */
+private val cameraExecutor by lazy { Executors.newSingleThreadExecutor() }
+
 private suspend fun takePicture(capture: ImageCapture, executor: java.util.concurrent.Executor): Bitmap =
     suspendCancellableCoroutine { cont ->
         capture.takePicture(executor, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
                 val b = image.use { upright(it) }
-                cont.resume(b)
+                if (cont.isActive) cont.resume(b)
             }
             override fun onError(e: ImageCaptureException) {
-                cont.resumeWithException(com.lfmpixel.lfm.llm.LlmException("The camera could not take the picture"))
+                if (cont.isActive) cont.resumeWithException(com.lfmpixel.lfm.llm.LlmException("The camera could not take the picture"))
             }
         })
     }
