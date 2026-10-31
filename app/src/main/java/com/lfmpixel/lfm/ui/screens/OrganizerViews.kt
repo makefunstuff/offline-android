@@ -139,11 +139,12 @@ class Organize(private val g: AppGraph, private val nav: Nav) {
         val ids = steps.map { s ->
             g.db.entries().insert(Entry(kind = EntryKind.Todo, title = s.text.take(120), parentId = task.id, minutes = s.minutes, source = "steps"))
         }
-        val sized = if (task.minutes == 0) task.copy(minutes = steps.sumOf { it.minutes }.coerceAtMost(240)) else task
-        if (sized !== task) g.db.entries().update(sized)
+        // The to-do as it is now, not the copy the caller held (an open editor may have saved since): only its size changes.
+        val current = g.db.entries().get(task.id)
+        if (current != null && current.minutes == 0) g.db.entries().setMinutes(current.id, steps.sumOf { it.minutes }.coerceAtMost(240))
         nav.show(if (ids.size == 1) "1 step added" else "${ids.size} steps added") {
             ids.forEach { g.db.entries().delete(it) }
-            if (sized !== task) g.db.entries().update(task)
+            if (current != null && current.minutes == 0) g.db.entries().setMinutes(current.id, 0)
         }
     }
 

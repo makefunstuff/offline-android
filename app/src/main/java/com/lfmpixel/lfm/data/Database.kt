@@ -58,6 +58,7 @@ interface EntryDao {
     /** Takes [ids] out of the plan of the day they were in. */
     @Query("UPDATE entries SET planOrder = 0 WHERE planOrder > 0 AND id NOT IN (:keep) AND dueAt >= :from AND dueAt < :to")
     suspend fun unplanOthers(keep: List<Long>, from: Long, to: Long)
+    @Query("UPDATE entries SET minutes = :minutes WHERE id = :id") suspend fun setMinutes(id: Long, minutes: Int)
     @Query("SELECT * FROM entries ORDER BY updatedAt DESC LIMIT 1") suspend fun lastEdited(): Entry?
     @Query("SELECT COUNT(*) FROM entries WHERE createdAt >= :since") suspend fun countSince(since: Long): Int
 

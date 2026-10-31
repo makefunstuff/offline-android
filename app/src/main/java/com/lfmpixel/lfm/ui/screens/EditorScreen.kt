@@ -370,7 +370,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                         SizeChips(e.minutes, com.lfmpixel.lfm.assistant.Sizes.guess(draft.text.text)) { m -> draft.entry = e.copy(minutes = m); draft.changed() }
                         draft.id?.let { id ->
                             Label("Steps", Modifier.padding(top = 14.dp, bottom = 2.dp))
-                            StepsList(g, nav, e.copy(id = id)) { keyboard?.hide(); g.scope.launch { draft.save() }; stepsSheet = true }
+                            StepsList(g, nav, e.copy(id = id)) { keyboard?.hide(); g.scope.launch { draft.save(); stepsSheet = true } }
                         }
                     }
                 }
