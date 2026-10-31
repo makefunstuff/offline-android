@@ -184,7 +184,9 @@ fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: M
     val numbers = remember(text, citations) { citation.findAll(text).map { it.groupValues[1] }.toSet() }
     val annotated = remember(text, citations, markKeyFact, c) { buildAnnotatedString {
         var marked = false
-        text.split("**").let { parts -> if (parts.size % 2 == 0) listOf(text) else parts }.forEachIndexed { i, part ->
+        // A bold still being written (its closing ** not in yet) is bold already, so no stray asterisks show and the
+        // words don't change weight under the reader once it closes.
+        text.split("**").let { parts -> if (parts.size % 2 == 0) parts + "" else parts }.forEachIndexed { i, part ->
             val bold = i % 2 == 1
             val styleFor = when {
                 bold && markKeyFact && !marked -> { marked = true; SpanStyle(background = c.highlight, color = c.onHighlight, fontWeight = FontWeight.SemiBold) }
