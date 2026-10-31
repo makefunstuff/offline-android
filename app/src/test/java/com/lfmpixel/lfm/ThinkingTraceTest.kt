@@ -53,15 +53,12 @@ class ThinkingTraceTest {
         assertEquals("Thinking on", partial.thinking)
     }
 
-    @Test fun aSecondEndTagAfterTheBudgetMovesItsThoughtIntoTheTrace() {
-        // Closed for it, the model may go on thinking and close the block again itself.
-        val raw = "First part of the thought" + ModelOutput.OUT_OF_BUDGET + "and the rest of it.</think>\n\nThe answer."
-        val out = ModelOutput.parse(raw, thinkingOn = true)
-        assertEquals("First part of the thought\n\nand the rest of it.", out.thinking)
-        assertEquals("The answer.", out.answer)
-        assertFalse(out.answer.contains("think"))
-        // It may open a block again first: the tag is not shown either way.
-        assertEquals("First\n\nmore", ModelOutput.parse("First" + ModelOutput.OUT_OF_BUDGET + "<think>more</think>Done.", true).thinking)
+    @Test fun aSecondEndTagAfterTheBudgetNeverHidesWords() {
+        // Closed for it, the model may close the block again itself: the tag goes, every word stays in the answer.
+        val out = ModelOutput.parse("First part" + ModelOutput.OUT_OF_BUDGET + "1. Salmon</think> 2. Stir-fry", thinkingOn = true)
+        assertEquals("First part", out.thinking)
+        assertEquals("1. Salmon 2. Stir-fry", out.answer)
+        assertEquals("Done.", ModelOutput.parse("First" + ModelOutput.OUT_OF_BUDGET + "<think>Done.", true).answer)
     }
 
     @Test fun aStrayEndTagInTheAnswerKeepsTheAnswer() {

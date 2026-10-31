@@ -49,22 +49,10 @@ data class ModelOutput(val thinking: String, val answer: String, val toolCalls: 
                 if (end < 0) {
                     return ModelOutput(text.trim(), "", emptyList(), stillThinking = true)
                 }
-                thinking = text.substring(0, end).trim()
-                val outOfBudget = thinking.endsWith(OUT_OF_BUDGET_WORDS)
-                thinking = thinking.removeSuffix(OUT_OF_BUDGET_WORDS).trim()
+                thinking = text.substring(0, end).trim().removeSuffix(OUT_OF_BUDGET_WORDS).trim()
                 text = text.substring(end + "</think>".length)
-                if (outOfBudget && text.contains("</think>")) {
-                    // Closed for it out of budget, the model may think on and close the block itself: what came
-                    // before its own tag is thought too, so the trace keeps it and the answer doesn't. Unless
-                    // nothing follows the tag: then it was a stray one after the answer.
-                    val more = text.substringBeforeLast("</think>")
-                    val after = text.substringAfterLast("</think>")
-                    if (after.isNotBlank() && !more.contains("<tool_call>")) {
-                        more.replace("<think>", "").replace("</think>", "").trim().takeIf { it.isNotEmpty() }?.let { thinking = "$thinking\n\n$it" }
-                        text = after
-                    }
-                }
-                // Any other stray tag (LFM3 writes them now and then) just goes; the words around it stay.
+                // A stray tag after that (LFM3 writes them now and then, and may close a thought twice when its
+                // budget ran out) just goes: the words around it stay in the answer, never hidden in the trace.
                 text = text.replace("</think>", "").replace("<think>", "")
             } else if (text.startsWith("<think>")) {
                 val end = text.indexOf("</think>")
