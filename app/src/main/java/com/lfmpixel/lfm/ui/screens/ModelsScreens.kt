@@ -136,7 +136,7 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
             Txt("Download on Wi-Fi only", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             Txt(if (prefs?.downloadWifiOnly != false) "Waits for Wi-Fi; never uses mobile data" else "Also over mobile data", LfmType.label.copy(fontWeight = null), c.text2)
         }
-        com.lfmpixel.lfm.ui.components.Switch(prefs?.downloadWifiOnly != false) { scope.launch { g.settings.setDownloadWifiOnly(it) } }
+        com.lfmpixel.lfm.ui.components.Switch(prefs?.downloadWifiOnly != false, "Download on Wi-Fi only") { scope.launch { g.settings.setDownloadWifiOnly(it) } }
     }
     ModelCatalog.groups.forEach { grp ->
         Column(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp)) {

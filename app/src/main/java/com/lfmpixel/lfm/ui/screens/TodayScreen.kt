@@ -108,11 +108,12 @@ fun TodayScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
             }
             Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // A hot phone comes first, where it is seen: answers are slower on purpose.
+                val heat by g.heat.heat.collectAsState()
+                if (heat != com.lfmpixel.lfm.device.Heat.Normal) Pill(heat.label.substringBefore(" ·"), "warn")
                 Pill("On this phone", "shield")
                 ModelPill(g) { nav.go(Route.Models) }
                 Pill("Search: ${prefs?.searchMode?.label?.lowercase() ?: "ask first"}", "globe")
-                val heat by g.heat.heat.collectAsState()
-                if (heat != com.lfmpixel.lfm.device.Heat.Normal) Pill(heat.label.substringBefore(" ·"), "warn")
             }
             SectionLabel(if (count == 0) "Today · nothing planned" else "Today · $count ${if (count == 1) "thing" else "things"}")
             items.forEach { AgendaRow(it, it == next, zone) }

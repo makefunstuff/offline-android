@@ -296,7 +296,7 @@ fun Segmented(items: List<String>, selected: String, onSelect: (String) -> Unit,
 
 /** A square-ish switch: ink when on. The thumb slides in 150 ms; the whole 48 dp square around it takes the tap. */
 @Composable
-fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
+fun Switch(on: Boolean, label: String = "", onChange: (Boolean) -> Unit) {
     val c = Lfm.c
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
     val shape = RoundedCornerShape(6.dp)
@@ -304,7 +304,9 @@ fun Switch(on: Boolean, onChange: (Boolean) -> Unit) {
     val track by androidx.compose.animation.animateColorAsState(if (on) c.text else Color.Transparent, motion.spec(motion.TINY), label = "track")
     val thumb by androidx.compose.animation.animateColorAsState(if (on) c.bg else c.text3, motion.spec(motion.TINY), label = "thumbColor")
     val edge by androidx.compose.animation.animateColorAsState(if (on) c.text else c.control, motion.spec(motion.TINY), label = "edge")
-    Box(Modifier.size(48.dp).toggleable(on, role = Role.Switch, onValueChange = onChange), contentAlignment = Alignment.Center) {
+    // [label] names the setting for TalkBack, which then says "Show speed, switch, on".
+    Box(Modifier.size(48.dp).toggleable(on, role = Role.Switch, onValueChange = onChange)
+        .let { if (label.isNotEmpty()) it.semantics { contentDescription = label } else it }, contentAlignment = Alignment.Center) {
         Box(Modifier.width(40.dp).height(22.dp).clip(shape).background(track).border(1.dp, edge, shape)) {
             Box(Modifier.padding(start = x, top = 3.dp).size(14.dp).clip(RoundedCornerShape(3.dp)).background(thumb))
         }

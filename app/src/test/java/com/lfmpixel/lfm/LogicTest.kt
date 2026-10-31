@@ -212,3 +212,29 @@ class Phase7LogicTest {
         assertTrue("never hidden yet", !L.shouldClose(app, 0, 1_000_000))
     }
 }
+
+/** ux-spec section 8: text at least 4.5:1, control edges at least 3:1, in both themes. */
+class ContrastTest {
+    private fun lum(c: androidx.compose.ui.graphics.Color): Double {
+        fun ch(v: Float) = if (v <= 0.04045f) v / 12.92 else Math.pow((v + 0.055) / 1.055, 2.4)
+        return 0.2126 * ch(c.red) + 0.7152 * ch(c.green) + 0.0722 * ch(c.blue)
+    }
+    private fun ratio(a: androidx.compose.ui.graphics.Color, b: androidx.compose.ui.graphics.Color): Double {
+        val (x, y) = lum(a) to lum(b)
+        return (maxOf(x, y) + 0.05) / (minOf(x, y) + 0.05)
+    }
+
+    @Test fun paletteMeetsTheBar() {
+        for (c in listOf(com.lfmpixel.lfm.ui.theme.LightColors, com.lfmpixel.lfm.ui.theme.DarkColors)) {
+            for (bg in listOf(c.bg, c.fill)) {
+                assertTrue("text ${c.dark}", ratio(c.text, bg) >= 4.5)
+                assertTrue("text2 ${c.dark}", ratio(c.text2, bg) >= 4.5)
+                assertTrue("text3 ${c.dark}", ratio(c.text3, bg) >= 4.5)
+                assertTrue("control edges ${c.dark}", ratio(c.control, bg) >= 3.0)
+            }
+            assertTrue("ink on the highlighter", ratio(c.onHighlight, c.highlight) >= 4.5)
+            // Ink buttons: the page colour on ink.
+            assertTrue(ratio(c.bg, c.text) >= 4.5)
+        }
+    }
+}

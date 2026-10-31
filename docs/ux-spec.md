@@ -187,8 +187,8 @@ Unchanged in structure; they get the shared header and the same states.
 
 ## 7. Motion rules
 
-Motion explains where things came from and went; it never decorates. LP-6 does the full pass; everything built in
-LP-12 already follows these rules. Implemented in `ui/theme/Motion.kt`.
+Motion explains where things came from and went; it never decorates. LP-6 did the full pass; everything follows
+these rules. Implemented in `ui/theme/Motion.kt`.
 
 | Use | Duration | Easing | Notes |
 |---|---|---|---|
@@ -202,7 +202,12 @@ LP-12 already follows these rules. Implemented in `ui/theme/Motion.kt`.
 | Swipe release | spring, no bounce | — | follows the finger; the action colour shows past 40 % |
 
 - Nothing animates for longer than 300 ms, and nothing loops except "is working" indicators.
-- Streaming text is not animated; it appears as it arrives.
+- Streaming text is revealed evenly (LP-6, the owner asked for it): a burst of tokens is shown over about 120 ms
+  rather than jumping in; a "working" indicator of three squares stands in until the first words.
+- Predictive back: while the back swipe is held the screen scales toward 90 % and rounds its corners (M3 back preview);
+  releasing goes back with the shared-axis slide, cancelling springs back without a bounce.
+- The highlighter draws in from the left (300 ms) the first time it shows in a run; the mic's outline follows the
+  voice level while listening.
 - With Android's "Remove animations" on, every transition snaps (`LfmMotion.reduced()`).
 
 ## 8. Accessibility

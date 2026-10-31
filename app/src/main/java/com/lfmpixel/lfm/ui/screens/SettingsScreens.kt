@@ -125,7 +125,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                     Txt("Think before answering", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
                     Txt("Better answers and tool calls, a little slower", LfmType.label.copy(fontWeight = null), c.text2)
                 }
-                Switch(p.thinking) { scope.launch { g.settings.setThinking(it) } }
+                Switch(p.thinking, "Think before answering") { scope.launch { g.settings.setThinking(it) } }
             }
             SectionLabel("Web search")
             Segmented(SearchMode.entries.map { it.label }, p.searchMode.label, { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
@@ -135,7 +135,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                     Txt("Warn about personal words", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
                     Txt("Names, places, numbers, e-mails", LfmType.label.copy(fontWeight = null), c.text2)
                 }
-                Switch(p.warnPersonalWords) { scope.launch { g.settings.setWarnPersonal(it) } }
+                Switch(p.warnPersonalWords, "Warn about personal words") { scope.launch { g.settings.setWarnPersonal(it) } }
             }
             Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -143,7 +143,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                     Txt("Show speed", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
                     Txt("Tokens a second and time to the first token, under each answer", LfmType.label.copy(fontWeight = null), c.text2)
                 }
-                Switch(p.showSpeed) { scope.launch { g.settings.setShowSpeed(it) } }
+                Switch(p.showSpeed, "Show speed") { scope.launch { g.settings.setShowSpeed(it) } }
             }
             Label("Thread count", Modifier.padding(top = 20.dp, bottom = 6.dp))
             // A count the benchmark picked that is not one of these shows too.
@@ -247,7 +247,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
             if (installed) {
                 val on = prefs?.netEnabled ?: true
                 Guarantee("globe", "Inkling Net handles search", if (on) "Search words, result addresses, model downloads" else "Off: nothing is searched or downloaded") {
-                    Switch(on) {
+                    Switch(on, "Inkling Net") {
                         // Off means off: downloads in progress pause too (they resume when it is back on).
                         if (!it) g.downloads.pauseAll()
                         scope.launch { g.settings.setNetEnabled(it); g.net.refresh(); if (it) g.downloads.resumeInterrupted() }
@@ -272,7 +272,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
                 }
             }
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Btn("Export…", {
+                Btn("Export log…", {
                     scope.launch {
                         val all = g.db.netLog().all()
                         val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
