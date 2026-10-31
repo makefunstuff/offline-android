@@ -59,6 +59,21 @@ class AppGraph(context: Context) {
     val talk = com.lfmpixel.lfm.voice.Talk(context, engine, settings, scope)
     val readAloud = com.lfmpixel.lfm.voice.ReadAloud(context, engine, settings, scope)
     val prep = MediaPrep(context)
+    /** The small classifiers on the server, and Look (the camera described live). */
+    val labels = com.lfmpixel.lfm.edge.Labels(edge)
+    val look = com.lfmpixel.lfm.see.Look(edge, scope).also { l ->
+        talk.seeing = { l.seeing() }
+        talk.lookAnswer = { said ->
+            if (!l.active) null
+            else labels.intent(said)?.takeIf { it.intent == com.lfmpixel.lfm.edge.IntentLabel.LOOK }?.let { l.answer(said) }
+        }
+        talk.tools = object : com.lfmpixel.lfm.voice.TalkTools {
+            override fun specs() = tools.specsJson()
+            override suspend fun run(call: com.lfmpixel.lfm.llm.ToolCall) = assistant.execute(call, "voice", afterWebText = false)
+        }
+        assistant.seeing = { l.seeing() }
+        assistant.labels = labels
+    }
     val lock = com.lfmpixel.lfm.device.AppLock(context).also { l ->
         scope.launch {
             var first = true

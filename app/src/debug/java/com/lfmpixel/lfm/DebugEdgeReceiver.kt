@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 
 /**
  * adb shell am broadcast -a com.lfmpixel.lfm.DEBUG_EDGE [--es url http://192.168.1.138:18101] [--es keyfile edge.key] [--ez on true] [--ez bench true]
+ *   [--es answer lfm3-1.7b]  (the answer model's id: another served model stands in for Qwen, to test its path)
  * Sets Edge mode as Settings → Your server would (the key read from a file in the app's files, then deleted), and
  * with bench runs the server benchmark and logs it (tag lfm-edge).
  */
@@ -25,6 +26,7 @@ class DebugEdgeReceiver : BroadcastReceiver() {
                 g.settings.setEdgeServer(url, sealed)
             }
             if (intent.hasExtra("on")) g.settings.setEdgeOn(intent.getBooleanExtra("on", true))
+            intent.getStringExtra("answer")?.let { g.edge.answerId = it.ifBlank { com.lfmpixel.lfm.edge.EdgeModels.ANSWER }; g.edge.answerFailed() }
             Log.i("lfm-edge", "debug: edge ${g.settings.now().edgeOn} at ${g.settings.now().edgeUrl}; check: " +
                 runCatching { "${g.edge.check()} ms" }.getOrElse { "failed: ${it.message}" })
             if (intent.getBooleanExtra("bench", false)) {

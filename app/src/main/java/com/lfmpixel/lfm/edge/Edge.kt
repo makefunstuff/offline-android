@@ -41,6 +41,34 @@ object EdgeModels {
     const val OMNI = "lfm3-omni-2b"
     const val TEXT_CONTEXT = 32_768
     const val LONG_CONTEXT = 262_144
+    /**
+     * The answer model, when the server serves it (homelab HOME-1): Qwen3.8-27B writes chat and Talk answers
+     * and their tool calls, with native tool calling. The LFM3 models keep speech, pictures and the small jobs.
+     */
+    const val ANSWER = "qwen3.8-27b"
+    /** As the server runs it (HOME-1: --ctx-size 32768). */
+    const val ANSWER_CONTEXT = 32_768
+
+    /** How a model is named under an answer and in the timings. */
+    fun label(id: String): String = when {
+        id.startsWith("qwen3.8-27b") -> "Qwen3.8-27B"
+        id.startsWith(TEXT) -> "LFM3-1.7B"
+        id == VISION -> "LFM3-VL-2B"
+        id == OMNI -> "LFM3-Omni-2B"
+        else -> id
+    }
+}
+
+/**
+ * Speech in and out on the server. Today Omni's /v1/audio/transcriptions and /tts ([Edge]); homelab's shared voice and
+ * video service (HOME-1: realtime duplex, a speech formatter) can take its place behind this, with nothing else changed.
+ */
+interface ServerVoice {
+    /** Speech to text: [pcm16k] is 16 kHz mono float. */
+    suspend fun transcribe(pcm16k: FloatArray, language: String): String
+
+    /** Text to speech, streamed: [onAudio] gets 24 kHz mono float PCM as it is made and returns false to stop. False if stopped. */
+    suspend fun speak(text: String, voice: String, onAudio: (FloatArray) -> Boolean): Boolean
 }
 
 /**
@@ -51,7 +79,7 @@ object EdgeModels {
  * When the server can't be reached the state turns [EdgeState.Offline] and the phone's own models answer; it is
  * checked again with a growing pause (15 s up to 2 min) and used again as soon as it answers.
  */
-class Edge(private val net: NetClient, private val settings: Settings, private val scope: CoroutineScope) {
+class Edge(private val net: NetClient, private val settings: Settings, private val scope: CoroutineScope) : ServerVoice {
     private val _state = MutableStateFlow<EdgeState>(EdgeState.Off)
     val state: StateFlow<EdgeState> = _state
     private var retry: Job? = null
@@ -93,6 +121,50 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         if (_state.value is EdgeState.Off || _state.value is EdgeState.Checking) runCatching { check() }
         return _state.value is EdgeState.Online
     }
+
+    /** The answer model's id: [EdgeModels.ANSWER]; debug builds may name another to test the path (DEBUG_EDGE). */
+    @Volatile var answerId: String = EdgeModels.ANSWER
+    @Volatile private var served: Map<String, String> = emptyMap()
+    @Volatile private var servedAt = 0L
+    @Volatile private var wokeAt = 0L
+
+    /** The server's models and their state ("loaded", "unloaded", "loading"), asked at most every [maxAgeMs]. */
+    suspend fun models(maxAgeMs: Long = 30_000): Map<String, String> {
+        if (SystemClock.elapsedRealtime() - servedAt < maxAgeMs) return served
+        val s = server() ?: return emptyMap()
+        val out = ByteArrayOutputStream()
+        request(s, "GET", "/v1/models", null, null, "Your server: models") { out.write(it); true }
+        val data = JSONObject(out.toString(Charsets.UTF_8.name())).getJSONArray("data")
+        served = (0 until data.length()).associate { i ->
+            data.getJSONObject(i).let { it.getString("id") to (it.optJSONObject("status")?.optString("value") ?: "loaded") }
+        }
+        servedAt = SystemClock.elapsedRealtime()
+        return served
+    }
+
+    /** The answer model now ready on the server, or null: then [EdgeModels.TEXT] answers. */
+    suspend fun answerModel(): String? {
+        val m = runCatching { models() }.getOrNull() ?: return null
+        val id = answerId
+        val st = m[id] ?: return null
+        if (st == "loaded") return id
+        // Served but asleep (the router unloads it when idle): woken in the background, LFM3 answers meanwhile.
+        if (SystemClock.elapsedRealtime() - wokeAt > 120_000) {
+            wokeAt = SystemClock.elapsedRealtime()
+            scope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                runCatching {
+                    val s = server() ?: return@runCatching
+                    val json = JSONObject().put("model", id).put("prompt", "Hi").put("max_tokens", 1).toString()
+                    request(s, "POST", "/v1/completions", "application/json", json.toByteArray(), "Your server: wake the answer model") { true }
+                    servedAt = 0
+                }
+            }
+        }
+        return null
+    }
+
+    /** The answer model failed a request: asked again on the next check, not on every message meanwhile. */
+    fun answerFailed() { served = served - answerId; servedAt = SystemClock.elapsedRealtime() }
 
     /** Whether a failed request should be answered on the phone instead: the server was not reached, or broke. */
     fun fallsBack(e: Exception): Boolean = e is NetException &&
@@ -145,7 +217,8 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
      * later. An error the server sent (a bad request, a model loading) leaves it Online: the caller falls back once.
      */
     fun failed(e: Throwable) {
-        if (e is Exception && !fallsBack(e)) return
+        // An error the server sent (a 5xx from one model) falls that request back, but the server is still there.
+        if (e is Exception && (!fallsBack(e) || (e is NetException && e.code == EDGE_REFUSED))) return
         val reason = e.message ?: "No answer"
         val was = _state.value
         if (was !is EdgeState.Offline) {
@@ -179,8 +252,11 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         }
     }
 
+    /** The server's voice: Omni today, behind [ServerVoice]. */
+    val voice: ServerVoice get() = this
+
     /** Speech to text on the server (Omni): [pcm16k] is 16 kHz mono float. */
-    suspend fun transcribe(pcm16k: FloatArray, language: String): String {
+    override suspend fun transcribe(pcm16k: FloatArray, language: String): String {
         val s = server() ?: throw NetException("No server is set up")
         val boundary = "inkling" + System.nanoTime()
         val body = ByteArrayOutputStream()
@@ -202,7 +278,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
      * Text to speech on the server (Omni's /tts), streamed: [onAudio] gets 24 kHz mono float PCM as it is made, and
      * returns false to stop. Returns false if stopped.
      */
-    suspend fun speak(text: String, voice: String, onAudio: (FloatArray) -> Boolean): Boolean {
+    override suspend fun speak(text: String, voice: String, onAudio: (FloatArray) -> Boolean): Boolean {
         val s = server() ?: throw NetException("No server is set up")
         val json = JSONObject().put("model", EdgeModels.OMNI).put("input", text).put("voice", voice)
             .put("response_format", "pcm").put("stream", true).toString()

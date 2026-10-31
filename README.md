@@ -228,6 +228,24 @@ server doesn't answer on the host's loopback, so not `10.0.2.2`) and its API key
   Debug builds: `adb shell am broadcast -p com.lfmpixel.lfm -a com.lfmpixel.lfm.DEBUG_EDGE --es url http://192.168.1.138:18101
   --es keyfile edge.key --ez on true --ez bench true` (the key file pushed into the app's files first; logcat tag `lfm-edge`).
 
+## Smart answers, Look, small classifiers (LP-45)
+
+Design and ranking: [docs/notebook-spec.md](docs/notebook-spec.md), section B.
+
+- **Answers from Qwen.** In Edge mode, chat, Talk and a note's margin are answered by `qwen3.8-27b` when the server
+  has it loaded (homelab HOME-1), with **native tool calling**: the same tools (to-dos, reminders, events, notes,
+  search, the organizer's actions), the same confirmation sheet and undo, in Talk too. Omni only listens and speaks.
+  When Qwen isn't loaded (or fails before writing) LFM3-1.7B on the server answers, then the phone. The line under
+  an answer and Talk's timings (Settings → Show speed) name the model that wrote it. `edge/ChatPrompt.kt` converts
+  the phone's LFM3 prompt to chat messages and tools and the reply back. Server voice calls go through one
+  interface, `ServerVoice` (`edge/Edge.kt`), for HOME-1's shared voice service.
+- **Look.** In Talk, the camera button shows the camera's view and what LFM3-VL-2B sees in it, live; Talk answers
+  about it ("what am I holding?" goes straight to the VL model on the newest frame). `see/Look.kt`.
+- **Classifiers** on LFM3-1.7B / LFM3-VL-2B with JSON-schema output (`edge/Labels.kt`): the Ink line's kind and time
+  words as you type, photo filing (receipt, whiteboard, document → read and filed as a tagged note), Talk intent
+  with Look on.
+- Debug: `--es answer lfm3-1.7b` on `DEBUG_EDGE` makes another served model stand in for Qwen, to test its path.
+
 ## Lock, export, delete, heat (Phase 7)
 
 - **Lock** (Settings → Privacy → Lock): Off, Whole app, or Journal only, opened with the phone's own fingerprint, face
@@ -308,8 +326,9 @@ read out when they change; progress bars report their value; buttons, tabs and r
 - `device/`: `Heat` (Android's thermal status to thread caps and waits) and `AppLock` (the optional lock).
 - `data/Export.kt`: Export all; `wipe` in `LfmApp.kt`: Delete everything. `assistant/WorkService.kt`: an answer keeps
   going in a foreground service when you leave.
-- `edge/`: Edge mode. `Edge` (the server's state, checks, speech in and out), `EdgeSession` (the server's model as a
-  `TextSession`, with the phone's as fallback), `EdgeKey` (the key in the keystore), `EdgeBench`.
+- `edge/`: Edge mode. `Edge` (the server's state, checks, its models, speech in and out as `ServerVoice`),
+  `EdgeSession` (the server's model as a `TextSession`, Qwen for answers, with the phone's as fallback), `ChatPrompt`
+  (LFM3 prompts to native chat and tools and back), `Labels` (the small classifiers), `EdgeKey`, `EdgeBench`.
 - `ui/`: Compose screens in the calm Signal, Ink + highlighter style; `ui/theme/Motion.kt` holds the motion tokens.
 - `app/src/debug/`: debug-only hooks used for emulator testing: feed a recorded clip through the voice path, ask
   about a file in the app's folder as the pickers do (`DEBUG_SEE`), add sample library content, and play a clip into

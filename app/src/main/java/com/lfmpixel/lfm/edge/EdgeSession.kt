@@ -18,6 +18,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.toList
 import org.json.JSONArray
 import org.json.JSONObject
@@ -33,15 +34,34 @@ class EdgeUnreachable(message: String) : LlmException(message)
  *
  * If the server can't be reached before anything was written, [local] answers instead (the phone's own model), and
  * [Edge] turns Offline until the server is back. [usedLocal] then says so, for the "on this phone" label.
+ *
+ * With [answers] (chat, Talk, a note's margin), the server's answer model writes instead when it is loaded
+ * ([Edge.answerModel], Qwen): the same prompt goes to /v1/chat/completions as messages and native tools
+ * ([ChatPrompt]), and its reply comes back as LFM3 raw text. If it fails before writing, [model] answers that prompt.
  */
 class EdgeSession(
     private val edge: Edge,
     private val model: String,
     private val local: (suspend () -> TextSession?)?,
+    private val answers: Boolean = false,
 ) : TextSession {
     override val path = "edge:$model"
     override val backend = Backend.Cpu
-    override val contextTokens = if (model == EdgeModels.TEXT) EdgeModels.LONG_CONTEXT else 131_072
+    /** The answer model's window while it answers (prompts are fitted to it), else the long LFM3 model's. */
+    override val contextTokens get() = when {
+        answers && answerReady -> EdgeModels.ANSWER_CONTEXT
+        model == EdgeModels.TEXT -> EdgeModels.LONG_CONTEXT
+        else -> 131_072
+    }
+    @Volatile private var answerReady = false
+    /** The answer model (Qwen) takes the next prompt, as last asked ([refresh]). */
+    val answersBig get() = answers && answerReady
+    /** The server model that wrote the last answer ([EdgeModels.label] names it), or "" when the phone did. */
+    @Volatile var answeredBy = ""
+        private set
+
+    /** Asks the server whether the answer model is ready, for [contextTokens] and the next [generate]. */
+    suspend fun refresh(): String? = if (!answers) null else edge.answerModel().also { answerReady = it != null }
     override val isClosed get() = false
     override val where: String get() = if (usedLocal) "on this phone (server not reached)" else "on your server"
 
@@ -59,6 +79,34 @@ class EdgeSession(
         if (model == EdgeModels.TEXT && LiteRtSession.estimateTokens(prompt) + maxTokens > EdgeModels.TEXT_CONTEXT - 256) EdgeModels.TEXT_LONG else model
 
     override fun generate(prompt: String, maxTokens: Int, temp: Float, topP: Float): Flow<String> = callbackFlow {
+        val big = refresh()
+        if (big != null) {
+            val chat = ChatPrompt.toChat(prompt)
+            val json = JSONObject().put("model", big).put("messages", chat.messages).put("max_tokens", maxTokens)
+                .put("temperature", temp.toDouble()).put("top_p", topP.toDouble()).put("stream", true).put("cache_prompt", true)
+                .put("chat_template_kwargs", JSONObject().put("enable_thinking", chat.thinking))
+                .put("stream_options", JSONObject().put("include_usage", true))
+            if (chat.tools.length() > 0) json.put("tools", chat.tools)
+            val stream = ChatStream(chat.thinking)
+            var wroteBig = false
+            val r = runStream(json.toString(), "/v1/chat/completions", "Your server: answer") { ev ->
+                val text = stream.feed(ev)
+                if (text.isNotEmpty()) { wroteBig = true; trySend(text).isSuccess } else true
+            }
+            if (r == null || wroteBig) {
+                val tail = stream.finish()
+                if (tail.isNotEmpty()) send(tail)
+                usedLocal = false
+                answeredBy = big
+                r?.let { throw LlmException("Your server: ${it.message}") }
+                close()
+                awaitClose { }
+                return@callbackFlow
+            }
+            // Nothing written: the LFM3 model on the server takes the same prompt (and the phone after it).
+            edge.answerFailed()
+            answerReady = false
+        }
         val json = JSONObject().put("model", modelFor(prompt, maxTokens)).put("prompt", prompt).put("max_tokens", maxTokens)
             .put("temperature", temp.toDouble()).put("top_p", topP.toDouble()).put("seed", 42).put("stream", true)
             .put("cache_prompt", true).put("stop", JSONArray().put(PromptFormat.IM_END))
@@ -73,10 +121,12 @@ class EdgeSession(
             val s = local?.invoke()?.takeIf { it.countTokens(prompt) + maxTokens <= it.contextTokens }
                 ?: throw EdgeUnreachable("Your server can't be reached: ${r.message}")
             usedLocal = true
+            answeredBy = ""
             s.generate(prompt, maxTokens, temp, topP).collect { send(it) }
             lastStats = s.stats()
         } else {
             usedLocal = false
+            answeredBy = modelFor(prompt, maxTokens)
             r?.let { throw LlmException("Your server: ${it.message}") }
         }
         close()
@@ -97,8 +147,10 @@ class EdgeSession(
             edge.sse(s, path, json, label) { ev ->
                 ev.optJSONObject("timings")?.let { timings = it }
                 ev.optJSONObject("usage")?.let { usage = it }
-                val hasText = ev.optJSONArray("choices")?.optJSONObject(0)?.let {
-                    it.optString("text").isNotEmpty() || it.optJSONObject("delta")?.optString("content").orEmpty().isNotEmpty()
+                val hasText = ev.optJSONArray("choices")?.optJSONObject(0)?.let { c ->
+                    val d = c.optJSONObject("delta")
+                    c.optString("text").isNotEmpty() || (d != null && listOf("content", "reasoning_content").any { !d.isNull(it) && d.optString(it).isNotEmpty() }) ||
+                        d?.has("tool_calls") == true
                 } == true
                 if (hasText && first == 0L) first = SystemClock.elapsedRealtimeNanos()
                 onEvent(ev)
@@ -122,16 +174,21 @@ class EdgeSession(
      * picture (SeeRules.prompt); it is turned into chat messages with the pictures as JPEG in their places.
      */
     fun see(images: List<RgbImage>, prompt: String, maxTokens: Int, temp: Float): Flow<String> = callbackFlow {
-        val json = JSONObject().put("model", EdgeModels.VISION).put("messages", chatMessages(prompt, images.map(::jpegDataUrl)))
+        val t0 = SystemClock.elapsedRealtime()
+        val urls = images.map { jpegDataUrl(it, if (images.size > 1) 75 else 85) }
+        android.util.Log.i(Edge.TAG, "pictures: ${images.size} as JPEG, ${urls.sumOf { it.length } * 3 / 4 / 1024} KB in ${SystemClock.elapsedRealtime() - t0} ms")
+        val json = JSONObject().put("model", EdgeModels.VISION).put("messages", chatMessages(prompt, urls))
             .put("max_tokens", maxTokens).put("temperature", temp.toDouble()).put("stream", true).put("reasoning_effort", "none")
         val r = runStream(json.toString(), "/v1/chat/completions", "Your server: pictures") { ev ->
-            val text = ev.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("delta")?.optString("content").orEmpty()
+            // A first delta with "content": null reads as "null" through optString.
+            val d = ev.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("delta")
+            val text = d?.takeIf { !it.isNull("content") }?.optString("content").orEmpty()
             if (text.isNotEmpty()) trySend(text).isSuccess else true
         }
         r?.let { throw LlmException("Your server: ${it.message}") }
         close()
         awaitClose { }
-    }.buffer(Channel.UNLIMITED)
+    }.buffer(Channel.UNLIMITED).flowOn(kotlinx.coroutines.Dispatchers.Default)
 
     override fun stats(): GenStats = lastStats
 
@@ -149,7 +206,7 @@ class EdgeSession(
         return BenchRun(st.prefillMs, st.prefillTokens, st.firstTokenMs, st.decodeMs, st.decodeTokens, 0.0, 0, 0)
     }
 
-    override suspend fun runInfo(): String = "runs on: your server (${edge.server()?.url ?: "not set"})\nmodel: $model\n" +
+    override suspend fun runInfo(): String = "runs on: your server (${edge.server()?.url ?: "not set"})\nmodel: ${refresh() ?: model}\n" +
         "context: $contextTokens tokens\n"
 
     override suspend fun close() {}
@@ -177,14 +234,15 @@ class EdgeSession(
             return out
         }
 
-        fun jpegDataUrl(img: RgbImage): String {
+        /** [quality] 85 for a photo or page; video frames, many and small, 75. */
+        fun jpegDataUrl(img: RgbImage, quality: Int = 85): String {
             val px = IntArray(img.width * img.height) { i ->
                 val o = i * 3
                 (0xff shl 24) or ((img.rgb[o].toInt() and 0xff) shl 16) or ((img.rgb[o + 1].toInt() and 0xff) shl 8) or (img.rgb[o + 2].toInt() and 0xff)
             }
             val bmp = Bitmap.createBitmap(px, img.width, img.height, Bitmap.Config.ARGB_8888)
             val out = ByteArrayOutputStream()
-            bmp.compress(Bitmap.CompressFormat.JPEG, 90, out)
+            bmp.compress(Bitmap.CompressFormat.JPEG, quality, out)
             bmp.recycle()
             return "data:image/jpeg;base64," + Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
         }

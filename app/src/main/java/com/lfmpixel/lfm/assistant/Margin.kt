@@ -46,7 +46,7 @@ object Margin {
 
     /** The answer so far, each time it grows; the model's raw output is cleaned of tags and stray markdown. */
     fun write(engine: ModelManager, note: String, ask: MarginAsk, question: String = ""): Flow<String> = flow {
-        val session = engine.textSession()
+        val session = engine.answerSession()
         // The cut by characters is a guess (CJK takes about a token a character): shorten until it fits in tokens.
         var text = note
         var p = prompt(text, ask, question)

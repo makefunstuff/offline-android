@@ -59,6 +59,7 @@ class ModelManager(
     fun canChat() = hasText() || edge?.configured?.value == true
 
     private var edgeText: com.lfmpixel.lfm.edge.EdgeSession? = null
+    private var edgeAnswer: com.lfmpixel.lfm.edge.EdgeSession? = null
     private var edgeVision: com.lfmpixel.lfm.edge.EdgeSession? = null
 
     /**
@@ -168,7 +169,22 @@ class ModelManager(
         if (benchmarking) throw LlmException("The benchmark in Settings → Models is running; try again when it ends.")
     }
 
-    /** The chat model: on the owner's server in Edge mode while it answers, else on the phone ([localTextSession]). */
+    /**
+     * The model that answers the owner (chat, Talk, a note's margin): in Edge mode the server's answer model when it is
+     * loaded (Qwen, with LFM3-1.7B on the server and then the phone behind it), else as [textSession].
+     */
+    suspend fun answerSession(): TextSession {
+        val e = edge
+        if (e != null && !benchmarking && e.usable()) {
+            val s = edgeAnswer ?: com.lfmpixel.lfm.edge.EdgeSession(e, com.lfmpixel.lfm.edge.EdgeModels.TEXT,
+                { if (hasText()) localTextSession() else null }, answers = true).also { edgeAnswer = it }
+            s.refresh()
+            return s
+        }
+        return textSession()
+    }
+
+    /** The small, fast model (LFM3-1.7B): sorting, labels, the organizer's jobs. On the server in Edge mode, else the phone. */
     suspend fun textSession(): TextSession {
         edgeSession(Slot.Text)?.let { return it }
         if (!hasText() && edge?.configured?.value == true)
