@@ -135,7 +135,10 @@ class MemoryEvolvesTest {
             "Remember that I'm away until Sunday")) assertNull(t, MemoryCommand.parse(t))
         for (t in listOf("Remember I have a call at 4", "Remember I have yoga on Thursday", "Remember, dentist on Friday", "Remember: milk",
             "Remember: eggs and milk", "Remember, keys and wallet", "Remember my flight is at 6am", "Remember that the party is on Saturday",
-            "Remember I’m picking up the kids at 3")) assertNull(t, MemoryCommand.parse(t))
+            "Remember I’m picking up the kids at 3", "Remember I'm having dinner with Ana", "Remember I'm working late", "Remember I'm off Friday",
+            "Remember: write the report", "Remember: buy a gift for my sister Ana", "Remember: keep the receipt", "Remember I have yoga Thursday",
+            "Remember that the party is this Saturday", "Remember that the report is due Friday", "Remember that the parcel arrives by 5",
+            "Remember my exam is Monday", "Remember that the shop is closed until Monday")) assertNull(t, MemoryCommand.parse(t))
         for (t in listOf("Remember I have two cats", "Remember I don't eat pork", "Wren, remember I take the bus", "Remember we have a dog called Rex",
             "Remember, keep your answers short", "Remember I'm learning Japanese", "Remember I'm working at Google", "Remember I'm living in Berlin",
             "Remember my name is Jay"))
