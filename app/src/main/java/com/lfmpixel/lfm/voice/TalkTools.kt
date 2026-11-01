@@ -177,32 +177,39 @@ object WebNeed {
         """share price|bitcoin|score|scores|won|win|results?|fixtures?|kick[- ]?off|opening (?:hours|times)|open|close|closes|""" +
         """traffic|flights?|delayed|election|polls?|release date|showtimes?)\b""", opt)
     private val now = Regex("""\b(latest|current|currently|right now|recent|recently|today|tonight|tomorrow|this (?:week|weekend|year)|yesterday|20[2-9]\d)\b""", opt)
-    private val question = Regex("""^(?:who|whose|what|what's|whats|when|where|which|how|is|are|was|were|did|does|do|will|has|have|any)\b""", opt)
+    private val question = Regex("""^(?:who|whose|what|what's|whats|when|when's|where|which|how|is|are|was|were|did|does|do|will|has|have|any)\b""", opt)
+    /** Asked as a request: "check the weather", "tell me the news", "look up flights to Rome". */
+    private val request = Regex("""^(?:tell me(?: about)?|look up|look for|search(?: for| the web for| online for)?|find out(?: if| whether)?|check|google)\b[\s,]*""", opt)
+    private val greeting = Regex("""^(?:(?:hey|hi|ok|okay|so|um|uh|wren|please|can you|could you|would you|will you|do you know|i want to know|i'd like to know)\b[\s,]*)+""", opt)
     /** The app's own things: the notebook and tools answer those. */
     private val mine = Regex("""\b(remind|reminders?|note|notes|notebook|to-?dos?|calendar|agenda|appointments?|alarms?|timers?|journal|diary|""" +
-        """shopping list|list|battery|what(?:'s| is) on|date|what day|time is it|text|message|call|email|send|set|add|play)\b""", opt)
-    private val about = Regex("""\b(you|your|i|i'm|i've|me|my|mine|we|our|us)\b""", opt)
-    private val filler = Regex("""^(?:(?:hey|hi|ok|okay|so|um|uh|wren|please|can you|could you|would you|tell me|do you know|i want to know|i'd like to know|look up|search for|find out|check)\b[\s,]*)+""", opt)
+        """shopping list|list|battery|what(?:'s| is) on|the date|what date|today's date|what day|time is it|text|message|call|email|send|add|play)\b""", opt)
+    /** About the owner; "near me" asks about the world around them. */
+    private val about = Regex("""\b(you|your|i|i'm|i've|me|my|mine|we|our)\b""", opt)
+    private val nearMe = Regex("""\b(?:near|around|close to) me\b""", opt)
 
     fun needs(said: String): Boolean {
+        val greeted = said.trim().replace(greeting, "").trim()
         val asked = query(said)
-        if (asked.isEmpty() || !question.containsMatchIn(asked) || mine.containsMatchIn(asked) || about.containsMatchIn(asked)) return false
+        if (asked.isEmpty() || !(question.containsMatchIn(greeted) || request.containsMatchIn(greeted))) return false
+        if (mine.containsMatchIn(asked) || about.containsMatchIn(asked.replace(nearMe, ""))) return false
         return fresh.containsMatchIn(asked) || now.containsMatchIn(asked)
     }
 
     /** What to search for: the question, without the words around a request. */
-    fun query(said: String): String = said.trim().replace(filler, "").trim().trimEnd('?', '.', '!')
+    fun query(said: String): String = said.trim().replace(greeting, "").trim().replace(request, "").trim().trimEnd('?', '.', '!')
 }
 
 /** A yes or no said out loud; null if it was neither. Anything unsure or with a "not" in it is no. */
 object YesNo {
     private val opt = setOf(RegexOption.IGNORE_CASE)
-    private val fine = Regex("""\bno (?:problem|worries)\b""", opt)
+    /** Yes, in words that also hold a "no" or a "not". */
+    private val fine = Regex("""\b(?:no (?:problem|worries)|not a problem|why not|(?:i )?don't mind|don't worry)\b""", opt)
     private val no = Regex("""\b(no|nope|nah|not|don't|do not|dont|cancel|stop|never ?mind|leave it|skip it|wait|hold on|maybe|unsure|nein|non|nee|nie)\b|n't\b""", opt)
     private val yes = Regex("""\b(yes|yeah|yep|yup|ya|sure|ok|okay|please|go ahead|go on|do it|of course|absolutely|correct|right|fine|sounds good|ja|oui|si|sí|tak|sì)\b""", opt)
 
     fun parse(heard: String): Boolean? {
-        val h = heard.replace(fine, "")
+        val h = heard.replace(fine, " yes ")
         return when {
             no.containsMatchIn(h) -> false
             yes.containsMatchIn(h) -> true

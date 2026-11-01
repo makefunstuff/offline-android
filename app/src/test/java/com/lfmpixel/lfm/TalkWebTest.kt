@@ -209,7 +209,9 @@ class TalkWebTest {
     @Test fun whatNeedsTheWeb() {
         listOf("What's the weather in Leeds tomorrow?", "Is the Co-op on Kirkgate open now?", "Who won the match last night?",
             "What's the latest on the election?", "How much does a flight to Rome cost", "Who is the current prime minister?",
-            "What are the opening hours of the library", "Any news today?").forEach { assertTrue(it, WebNeed.needs(it)) }
+            "What are the opening hours of the library", "Any news today?", "Can you check the weather?", "Tell me the news",
+            "Look up the weather in Leeds", "Search for flights to Rome", "Find out if the Co-op is open", "What's the weather near me?",
+            "Who won the US Open?", "What time does the sun set today?", "When's the release date of the new phone?").forEach { assertTrue(it, WebNeed.needs(it)) }
         listOf("Remind me to buy milk tomorrow", "What's on my calendar today?", "How are you today?", "Tell me a joke",
             "What time is it?", "What's 12 times 7", "Add oat milk to the shopping list", "What's the date today?",
             // Statements, commands and the owner's own things never go to a search provider.
@@ -227,6 +229,8 @@ class TalkWebTest {
         assertEquals(false, YesNo.parse("Not right now"))
         assertEquals(false, YesNo.parse("Okay, wait"))
         assertEquals(true, YesNo.parse("Sure, no problem"))
+        assertEquals(true, YesNo.parse("Yeah, why not"))
+        assertEquals(true, YesNo.parse("Yes, I don't mind"))
         assertNull(YesNo.parse("Hmm"))
         assertNull(YesNo.parse(""))
     }
