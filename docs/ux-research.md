@@ -94,7 +94,13 @@ Bigger bets:
 8. **Focus with company** (S, but it needs the ember first): a quiet body-double presence.
 9. **The day arc** (M): Daylight's horizon as a strip on Today.
 
-## 6. Recommendation
+## 6. Recommendation and the owner's pick
+
+**The owner picked Daylight** (1 November 2026). Follow-up tasks build Daylight; the change list above still holds
+where it isn't Hearth-specific (one voice, sound and haptics, offers with a budget, rituals, What I know, nudges, lock
+screen and widget, the day arc becomes home).
+
+The research recommended:
 
 Hearth, with Daylight's day arc. Quick wins 1–5 first (about a week), then offers with a budget and the rituals.
 LiteRT on the phone (LFMP-8) keeps answers fast offline, on-device embeddings (LFMP-10) find old notes, the memory
