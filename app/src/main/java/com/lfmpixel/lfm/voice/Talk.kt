@@ -47,7 +47,9 @@ data class TalkTurn(val id: Long, val you: String, val it: String = "", val done
                     /** How long the owner spoke. */
                     val seconds: Int = 0,
                     /** What the turn did with the app's tools, shown under the caption with Undo and Show. */
-                    val actions: List<TalkAction> = emptyList())
+                    val actions: List<TalkAction> = emptyList(),
+                    /** The web searches it made, with their sources. */
+                    val web: List<TalkSearch> = emptyList())
 
 /** One thing a Talk turn did: "Reminder set", "Dentist at 15:00". [undo] is the action log's way back ("entry:12"), "" if none. */
 data class TalkAction(val actionId: Long?, val ok: Boolean, val label: String, val title: String, val undo: String)
@@ -62,15 +64,6 @@ data class TalkTiming(val heardMs: Long, val firstWordMs: Long, val firstAudioMs
                       val model: String = "", val tools: Int = 0) {
     override fun toString() = "heard %d ms · first word %d ms · first audio %d ms · first sound %d ms · underruns %d · %s · %s · %d tools"
         .format(heardMs, firstWordMs, firstAudioMs, firstSoundMs, underruns, if (viaServer) "server" else "phone", model, tools)
-}
-
-/**
- * The app's tools for Talk's answer model (Qwen, on the server): their specs, and a run that previews, confirms when the
- * owner wants that, runs and logs each call, as in the chat (Assistant.execute). Set by AppGraph.
- */
-interface TalkTools {
-    fun specs(): List<String>
-    suspend fun run(call: com.lfmpixel.lfm.llm.ToolCall): com.lfmpixel.lfm.tools.ToolResult
 }
 
 /** One Talk turn, stage by stage: logged (tag lfm-voice) and kept for Settings → Models → Benchmark. Times in ms. */
@@ -158,6 +151,10 @@ class Talk(
     private val focus = AudioFocus(context, exclusive = true) { pause() }
     /** The app's tools, for the answer model in Edge mode. */
     @Volatile var tools: TalkTools? = null
+    /** Web search for Omni on the phone, which has no tools: looked up before it answers. */
+    @Volatile var phoneLookup: PhoneLookup? = null
+    /** Web text was read in this Talk: from then on every action and search asks first (spec section 4). */
+    @Volatile private var webRead = false
     /** What Wren learned and the notes near what was said (memory/MemoryStore.kt); set by AppGraph. */
     @Volatile var memory: com.lfmpixel.lfm.memory.MemoryStore? = null
     /** What the camera sees now (Look), for the answer: a short line and how old it is, or null. */
@@ -237,6 +234,7 @@ class Talk(
         recorder.reset()
         synchronized(this) { _state.value = TalkState(spoken = _state.value.spoken) }
         exchanges.clear()
+        webRead = false
         models.edge?.gateway?.talkClosed()
     }
 
@@ -393,20 +391,51 @@ class Talk(
         var model = ""
         var ran = 0
         val chunker = SpeechChunker()
-        val pieces = Channel<String>(Channel.UNLIMITED)
+        // Pieces to say, in order; one with [Piece.heard] waits until everything before it has been heard (a question).
+        val pieces = Channel<Piece>(Channel.UNLIMITED)
         val voice = p.speechVoice.name.lowercase()
         if (spoken) out.start()
         val startedOut = SystemClock.elapsedRealtime()
         var finished = false
         var failure: Exception? = null
+        // "Speaking" from the first audio, and again after a question was answered.
+        var voiced = false
+        /** Shows and says [words] (the model's, or Talk's own). */
+        suspend fun say(words: String) {
+            if (firstWord == 0L) firstWord = SystemClock.elapsedRealtime()
+            text.append(words)
+            set(run) { st ->
+                st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
+                    turns = st.turns.map { if (it.id == id) it.copy(it = text.toString().trim()) else it })
+            }
+            if (spoken) chunker.feed(words).forEach { pieces.send(Piece(it)) }
+        }
+        val turnTools = TalkToolTurn(
+            ask = { q ->
+                if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ')
+                say("$q ")
+                if (spoken) {
+                    chunker.flush().forEach { pieces.send(Piece(it)) }
+                    val heard = kotlinx.coroutines.CompletableDeferred<Unit>()
+                    pieces.send(Piece("", heard))
+                    heard.await()
+                }
+                hearYesNo(run) { pcm -> edge.voice.transcribe(pcm, p.speechLanguage.asr) }.also { if (spoken) out.start(); voiced = false }
+            },
+            looking = { if (text.isBlank()) say(TalkWeb.LOOKING + " ") },
+            onSearch = { found -> set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(web = it.web + found) else it }) } },
+            afterWebText = webRead)
         try {
             kotlinx.coroutines.coroutineScope {
-                // The voice: one piece at a time, in order, each streamed into the player as it is made.
+                // The voice: one piece at a time, in order, each streamed into the player as it is made. Stopped, the
+                // rest is passed over (a question waiting on it still hears that it is over).
                 val speaker = if (spoken) launch {
                     for (piece in pieces) {
-                        if (interrupted) break
-                        edge.voice.speak(piece, voice) { pcm ->
-                            if (firstAudio == 0L) { firstAudio = SystemClock.elapsedRealtime(); set(run) { it.copy(phase = TalkPhase.Speaking) } }
+                        piece.heard?.let { h -> if (!interrupted && run == epoch) out.finish(); h.complete(Unit) }
+                        if (piece.heard != null || interrupted) continue
+                        edge.voice.speak(piece.text, voice) { pcm ->
+                            if (firstAudio == 0L) firstAudio = SystemClock.elapsedRealtime()
+                            if (!voiced) { voiced = true; set(run) { it.copy(phase = TalkPhase.Speaking) } }
                             out.write(pcm)
                             !interrupted && run == epoch
                         }
@@ -421,7 +450,7 @@ class Talk(
                     Log.i(TAG, "talk: $model answers about the camera's view")
                     set(run) { st -> st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
                         turns = st.turns.map { if (it.id == id) it.copy(it = direct) else it }) }
-                    if (spoken) chunker.feed(direct).forEach { pieces.send(it) }
+                    if (spoken) chunker.feed(direct).forEach { pieces.send(Piece(it)) }
                 } else {
                 // The answer model (Qwen) when the server has it loaded, else LFM3-1.7B: either one with the app's tools.
                 // No phone model behind it: if the server fails, this turn goes back to Omni on the phone, voice and all.
@@ -433,62 +462,34 @@ class Talk(
                 Log.i(TAG, "talk: $writer answers on your server" + if (big) "" else " (${edge.answerId} not loaded there)")
                 set(run) { it.copy(answering = "$writer on your server") }
                 val toolBox = tools
-                val history = if (toolBox == null) prompt else null
+                val webOn = toolBox?.web() == true
                 val msgs = mutableListOf<com.lfmpixel.lfm.llm.PromptMessage>()
                 if (toolBox != null) {
                     earlier.forEach { t ->
                         msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, t.you)
                         msgs += exchanges[t.id] ?: listOf(com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, t.it))
                     }
-                    msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, SpeechFormat.talkUser(said, seeing?.invoke()) + recall?.turn.orEmpty())
+                    msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, SpeechFormat.talkUser(said, seeing?.invoke(),
+                        needsWeb = webOn && WebNeed.needs(said)) + recall?.turn.orEmpty())
                 }
-                val from = msgs.size
-                for (round in 0 until 3) {
-                    val raw = StringBuilder()
-                    var cut = false
-                    val p2 = history ?: com.lfmpixel.lfm.llm.PromptFormat.build(SpeechFormat.talkToolSystem(p.speechLanguage) + recall?.system.orEmpty(),
-                        toolBox!!.specs(), msgs, thinking = false)
-                    session.generate(p2, if (toolBox != null) 400 else 300, 0.3f).collect { piece ->
-                        if (interrupted || run != epoch) throw CancellationException("Stopped")
-                        raw.append(piece)
-                        // What is said and shown: the words before any tool call (calls come whole, at the end).
-                        if (cut) return@collect
-                        // LFM3-1.7B, after a tool's result, sometimes closes a thought it never opened and says it all
-                        // again: what follows a stray </think> is never said.
-                        val stop = listOf("<tool_call>", "</think>").firstOrNull { it in piece }
-                        val words = if (stop != null) { cut = true; piece.substringBefore(stop) } else piece
-                        if (words.isEmpty()) return@collect
-                        if (firstWord == 0L) firstWord = SystemClock.elapsedRealtime()
-                        text.append(words)
-                        set(run) { st ->
-                            st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
-                                turns = st.turns.map { if (it.id == id) it.copy(it = text.toString().trim()) else it })
-                        }
-                        if (spoken) chunker.feed(words).forEach { pieces.send(it) }
-                    }
-                    model = com.lfmpixel.lfm.edge.EdgeModels.label(session.answeredBy)
-                    val out = com.lfmpixel.lfm.llm.ModelOutput.parse(raw.toString(), false)
-                    if (toolBox == null || out.toolCalls.isEmpty()) {
-                        // Kept only when a tool ran: a plain answer is just its words, as before.
-                        if (toolBox != null && msgs.size > from) exchanges[id] = msgs.drop(from) +
-                            com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, "<think></think>$raw")
-                        break
-                    }
-                    msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, "<think></think>$raw")
-                    for (call in out.toolCalls) {
-                        if (interrupted || run != epoch) throw CancellationException("Stopped")
-                        val r = toolBox.run(call)
-                        ran++
+                val rounds = TalkRounds({ prompt, max -> session.generate(prompt, max, 0.3f) }, { interrupted || run != epoch }, { say(it) },
+                    result = { r ->
                         // Logged actions (and failures) show under the caption; look-ups like daily_brief don't.
                         if (r.cardLabel.isNotEmpty() && (r.actionId != null || !r.ok)) set(run) { st ->
                             st.copy(turns = st.turns.map { if (it.id == id) it.copy(actions = it.actions + TalkAction(r.actionId, r.ok, r.cardLabel, r.cardTitle, r.undo)) else it })
                         }
-                        msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Tool, r.forModel)
-                    }
-                    if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ')
+                    },
+                    roundOver = { if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ') })
+                try {
+                    rounds.answer(if (toolBox == null) prompt else null, SpeechFormat.talkToolSystem(p.speechLanguage, web = webOn) + recall?.system.orEmpty(),
+                        toolBox, turnTools, msgs)?.let { exchanges[id] = it }
+                } finally {
+                    ran = rounds.ran
+                    webRead = turnTools.afterWebText
+                    model = com.lfmpixel.lfm.edge.EdgeModels.label(session.answeredBy)
                 }
                 }
-                if (spoken) chunker.flush().forEach { pieces.send(it) }
+                if (spoken) chunker.flush().forEach { pieces.send(Piece(it)) }
                 pieces.close()
                 speaker?.join()
             }
@@ -523,6 +524,27 @@ class Talk(
         return true
     }
 
+    /** A piece of an answer to say; [heard] (with no text) completes once everything before it has been heard. */
+    private class Piece(val text: String, val heard: kotlinx.coroutines.CompletableDeferred<Unit>? = null)
+
+    /**
+     * The owner's spoken yes or no to a question just heard: the mic opens for one turn, [hear] writes it down. Silence,
+     * or anything but a clear yes, is no. Stopped meanwhile, the turn ends there.
+     */
+    private suspend fun hearYesNo(run: Int, hear: suspend (FloatArray) -> String): Boolean {
+        // Stopped while it asked: the mic must not take the owner's next words as the answer.
+        if (interrupted || run != epoch) throw CancellationException("Stopped")
+        set(run) { it.copy(phase = TalkPhase.Listening) }
+        val pcm = recorder.record(onStart = { set(run) { it.copy(phase = TalkPhase.Hearing) } },
+            onRestart = { set(run) { it.copy(phase = TalkPhase.Listening) } })
+        if (interrupted || run != epoch) throw CancellationException("Stopped")
+        set(run) { it.copy(phase = TalkPhase.Thinking) }
+        val heard = pcm?.let { runCatching { hear(it) }.getOrNull() }.orEmpty()
+        if (interrupted || run != epoch) throw CancellationException("Stopped")
+        Log.i(TAG, "talk: asked, heard “$heard”")
+        return YesNo.parse(heard) == true
+    }
+
     /** The finished exchanges, oldest first, as Omni reads them back. */
     private fun doneTurns() = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
 
@@ -555,11 +577,36 @@ class Talk(
         val before = doneTurns()
         set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds), viaServer = false) }
         val spoken = _state.value.spoken
-        val history = SpeechFormat.talkHistory(system(), before, said)
         // "Speaking" from the first sound, not the first audio: the buffer may wait a while first.
         out.onSound = { set(run) { it.copy(phase = TalkPhase.Speaking) } }
-        if (spoken) out.start()
         val text = StringBuilder()
+        // Omni has no tools: a question that needs the web is looked up first, out loud ("Let me check."), and the
+        // results go with what was said.
+        val lang = settings.now().speechLanguage
+        val turnTools = TalkToolTurn(
+            ask = { q -> sayOnPhone(run, id, text, "$q ", spoken); hearYesNo(run) { pcm -> models.omniSession().transcribe(pcm, "Perform ASR in ${lang.asr}.").trim() } },
+            looking = { sayOnPhone(run, id, text, TalkWeb.LOOKING + " ", spoken) },
+            onSearch = { found -> set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(web = it.web + found) else it }) } },
+            afterWebText = webRead)
+        val plan = try {
+            (phoneLookup?.plan(said, turnTools) ?: PhoneLookup.None).also { if (it is PhoneLookup.Say) sayOnPhone(run, id, text, it.text, spoken) }
+        } catch (e: CancellationException) {
+            // Stopped while it asked or looked: the turn ends there, and Talk listens again.
+            if (run == epoch && !interrupted) throw e
+            out.stop()
+            set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = true) else it }) }
+            return
+        } catch (e: Exception) {
+            Log.w(TAG, "talk: web look-up failed", e)
+            PhoneLookup.None
+        } finally { webRead = turnTools.afterWebText }
+        if (plan is PhoneLookup.Say) {
+            set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(done = true) else it }) }
+            return
+        }
+        val history = SpeechFormat.talkHistory(system(), before, said + ((plan as? PhoneLookup.Read)?.note ?: ""))
+        val ownWords = text.length
+        if (spoken) out.start()
         val t0 = System.nanoTime()
         var firstAudio = 0L
         var steps = 0
@@ -602,7 +649,7 @@ class Talk(
         val complete = spoken && finished && !interrupted
         // A stopped answer: its own numbers once its player has let go (what it played, and any underruns).
         val played = if (!spoken) AudioOut.Played() else if (complete) out.last else out.awaitStopped()
-        if (complete && text.isNotBlank() && played.audioMs > 1000) msPerChar = 0.7 * msPerChar + 0.3 * played.audioMs / text.length
+        if (complete && text.length > ownWords && played.audioMs > 1000) msPerChar = 0.7 * msPerChar + 0.3 * played.audioMs / (text.length - ownWords)
         val sound = if (spoken && played.toSoundMs > 0) (t0 - ended) / 1e6 + played.toSoundMs else 0.0
         val turn = heard.copy(speech = speech, played = played, endToSoundMs = sound, spoken = spoken, stopped = !finished || interrupted)
         Log.i(AudioOut.TAG, "turn: " + turn.line())
@@ -614,6 +661,29 @@ class Talk(
             sound.toLong(), viaServer = false, underruns = played.underruns, model = "LFM3-Omni-2B")
         Log.i(TAG, "phone answer: $timing")
         set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = stopped) else it }) }
+    }
+
+    /**
+     * Omni on the phone says [line] (Talk's own words: "Let me check.", a question) and shows it in turn [id]'s caption,
+     * then waits until it has been heard.
+     */
+    private suspend fun sayOnPhone(run: Int, id: Long, text: StringBuilder, line: String, spoken: Boolean) {
+        text.append(line)
+        set(run) { st -> st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
+            turns = st.turns.map { if (it.id == id) it.copy(it = text.toString().trim()) else it }) }
+        if (!spoken) return
+        val p = settings.now()
+        val words = SpeechFormat.clean(line)
+        out.start()
+        interruptible = true
+        try {
+            models.omniSession().speak(SpeechFormat.ttsPrompt(words, p.speechLanguage, p.speechVoice), 40 + words.length * 2) { pcm ->
+                out.write(pcm)
+                !interrupted && run == epoch
+            }
+        } finally { interruptible = false }
+        if (interrupted || run != epoch) { out.stop(); throw CancellationException("Stopped") }
+        out.finish()
     }
 
     private fun checkWarm(run: Int) {

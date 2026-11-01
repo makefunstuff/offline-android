@@ -324,9 +324,24 @@ private fun Captions(g: AppGraph, nav: Nav, turns: List<TalkTurn>, modifier: Mod
                     Txt(said, if (latest) LfmType.caption else LfmType.voice, c.text, Modifier.padding(top = 6.dp)
                         .semantics { if (latest) liveRegion = LiveRegionMode.Polite })
                 }
+                t.web.forEach { w -> SearchLine(w) { nav.go(Route.Search(w.searchId)) } }
                 t.actions.forEach { a -> ActionLine(g, nav, a) }
             }
         }
+    }
+}
+
+/** "Searched the web · weather Leeds", its sources ("1 bbc.co.uk · 2 metoffice.gov.uk") and Sources: what a spoken answer came from. */
+@Composable
+private fun SearchLine(w: com.lfmpixel.lfm.voice.TalkSearch, onSources: () -> Unit) {
+    val c = Lfm.c
+    Row(Modifier.padding(top = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LIcon("globe", size = 16.dp, tint = c.text2)
+        Column(Modifier.weight(1f)) {
+            Txt(listOf(w.label, w.query).filter { it.isNotEmpty() }.joinToString(" · "), LfmType.small, c.text2, maxLines = 2)
+            if (w.sources.isNotEmpty()) Txt(w.sources.take(3).joinToString(" · ") { "${it.n} ${it.host}" }, LfmType.small, c.text2, maxLines = 1)
+        }
+        if (w.sources.isNotEmpty()) SmallAction("Sources", 76.dp, onSources)
     }
 }
 
@@ -350,10 +365,10 @@ private fun ActionLine(g: AppGraph, nav: Nav, a: com.lfmpixel.lfm.voice.TalkActi
 }
 
 @Composable
-private fun SmallAction(text: String, onClick: () -> Unit) {
+private fun SmallAction(text: String, width: androidx.compose.ui.unit.Dp = 56.dp, onClick: () -> Unit) {
     val c = Lfm.c
     Box(Modifier.clip(LfmShape.control).clickable(role = Role.Button, onClick = onClick)
-        .size(width = 56.dp, height = 44.dp), contentAlignment = Alignment.Center) {
+        .size(width = width, height = 44.dp), contentAlignment = Alignment.Center) {
         Txt(text, LfmType.action, c.action)
     }
 }

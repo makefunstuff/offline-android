@@ -37,7 +37,7 @@ private const val NO_REPLY = " · asked, no reply yet"
  * the network log, and nothing goes at all while Offline is on (Settings → Privacy): the module itself checks that
  * before each request and between the pieces of one under way.
  */
-class NetClient(context: Context, private val settings: Settings, private val db: LfmDatabase, private val scope: CoroutineScope) {
+class NetClient(context: Context, private val settings: Settings, private val db: LfmDatabase, private val scope: CoroutineScope) : SearchNet {
     enum class State { Offline, On }
 
     /** Offline, as last read from Settings; the network module asks this before every request. */
@@ -59,7 +59,7 @@ class NetClient(context: Context, private val settings: Settings, private val db
         }
     }
 
-    suspend fun state(): State {
+    override suspend fun state(): State {
         offline = !settings.now().netEnabled
         return (if (offline) State.Offline else State.On).also { current.value = it }
     }
@@ -70,18 +70,18 @@ class NetClient(context: Context, private val settings: Settings, private val db
     fun config(): NetConfig = network.settings.load()
     fun save(c: NetConfig) = network.settings.save(c)
 
-    suspend fun info(): NetInfo = network.info()
+    override suspend fun info(): NetInfo = network.info()
 
     data class Results(val provider: String, val hits: List<SearchHit>)
 
-    suspend fun search(query: String): Results {
+    override suspend fun search(query: String): Results {
         val r = exchange(started("search provider", "", "“$query”", query), query) { network.search(query).let { it to it.log } }
         r.error?.let { throw NetException(it) }
         return Results(r.provider, r.hits)
     }
 
     /** One result page's HTML (slimmed), or an error. [label] names it in the network log. */
-    suspend fun fetch(url: String, label: String): String {
+    override suspend fun fetch(url: String, label: String): String {
         val r = exchange(started(url.substringAfter("://").substringBefore('/'), url, label, ""), "") { network.fetch(url).let { it to it.log } }
         r.error?.let { throw NetException(it) }
         return r.text
