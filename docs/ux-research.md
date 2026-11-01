@@ -10,7 +10,8 @@ Written 1 November 2026, after walking the current build (LFMP-6) in the emulato
 **Decision: Daylight.** The owner chose direction C, Daylight, over the recommended Hearth. Its spec is
 [ux-spec.md](ux-spec.md); LFMP-13 builds its first release. The worry below, that Daylight "hides too much to be the
 daily habit", is answered there: the sky is the top of Today, not a screen in front of it, so everything stays one tap
-or one scroll away.
+or one scroll away. **Update (LFMP-20):** the owner still found Daylight generic and cluttered; the look is now **Horizon Almanac**
+(Daylight's sky with Almanac's precision, no boxes, a blue order of importance), specified in [ux-spec.md](ux-spec.md).
 
 ## 1. Verdict on today's app
 
