@@ -72,10 +72,6 @@ class NetClient(context: Context, private val settings: Settings, private val db
 
     suspend fun info(): NetInfo = network.info()
 
-    /** The old Inkling Net's settings, handed over once (NetHandoff). */
-    fun importLegacy(values: Map<String, Any?>) = network.settings.importLegacy(values)
-    fun imported() = network.settings.imported()
-
     data class Results(val provider: String, val hits: List<SearchHit>)
 
     suspend fun search(query: String): Results {

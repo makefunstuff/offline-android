@@ -124,12 +124,9 @@ them to Wren, which checks each against a pinned SHA-256 before use. Manual impo
 for a fully offline phone.
 
 **Moving from two apps.** The update keeps Wren's package name, so every chat, note, model and setting stays. The
-Edge server (address and sealed key) was always in Wren. The search provider, its key and the proxy were in the
-old Inkling Net's own storage, which Wren cannot read; so Wren carries one last Inkling Net (`:handoff`, version
-2, same key, no network, no screen) inside its APK. Settings → Web search and Privacy show "Bring over Inkling Net's
-settings": one tap, Android asks to update Inkling Net, the hand-off answers Wren (and only Wren, checked by
-package and signing key) with those settings, and the card turns into "Uninstall Inkling Net". The old "Inkling Net
-on/off" switch was stored as `net_enabled` and becomes Offline unchanged.
+old "Inkling Net on/off" switch was stored as `net_enabled` and becomes Offline unchanged. The one-time hand-off
+that brought the old Inkling Net's search settings over (LFMP-9) is gone since LFMP-27: Wren is the only app, and a
+search provider is set again in Settings → Web search if it was never brought over.
 
 ### Edge mode: your own server (LP-32)
 

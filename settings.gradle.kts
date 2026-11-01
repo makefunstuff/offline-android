@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "offline-android"
-include(":app", ":net", ":handoff")
+include(":app", ":net")

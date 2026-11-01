@@ -206,9 +206,6 @@ class MainActivity : ComponentActivity() {
         // Downloads cut off by a restart carry on.
         graph.net.refresh()
         graph.downloads.resumeInterrupted()
-        // Back from Android's install or uninstall prompt: see what is there now (the old Inkling Net, its hand-off).
-        if (graph.handoff.status.value == com.lfmpixel.lfm.web.NetHandoff.Status.Working) graph.handoff.status.value = com.lfmpixel.lfm.web.NetHandoff.Status.Needed
-        graph.scope.launch { graph.handoff.refresh() }
     }
 
     companion object {

@@ -65,7 +65,6 @@ import com.lfmpixel.lfm.ui.components.Switch
 import com.lfmpixel.lfm.ui.components.Txt
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
-import com.lfmpixel.lfm.web.NetHandoff
 import com.lfmpixel.lfm.net.NetConfig
 import com.lfmpixel.lfm.net.WebProvider
 import androidx.compose.ui.text.input.KeyboardType
@@ -313,15 +312,11 @@ fun WebSearchScreen(g: AppGraph, nav: Nav) {
     val scope = rememberCoroutineScope()
     var test by remember { mutableStateOf<String?>(null) }
     var cfg by remember { mutableStateOf(g.net.config()) }
-    val handoff by g.handoff.status.collectAsState()
-    // A hand-off that lands while this screen is open shows at once.
-    androidx.compose.runtime.LaunchedEffect(handoff) { cfg = g.net.config() }
     val set: (NetConfig) -> Unit = { cfg = it; g.net.save(it) }
     val p = prefs ?: return
     Column(Modifier.fillMaxSize()) {
         Header("Web search", onBack = { nav.back() })
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            HandoffCard(g)
             if (!p.netEnabled) Txt("Wren is offline (Settings → Privacy): nothing is searched until you turn that off.",
                 LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), c.text, Modifier.padding(top = 12.dp))
             SectionLabel("Search mode")
@@ -381,39 +376,6 @@ fun WebSearchScreen(g: AppGraph, nav: Nav) {
             Txt("What leaves the phone: the search words, then the addresses of the pages it opens. Never your chats, notes, contacts or location. " +
                 "The provider and the opened sites see your IP address unless a proxy is set.", LfmType.meta, c.text2, Modifier.padding(top = 14.dp))
             Spacer(Modifier.height(24.dp))
-        }
-    }
-}
-
-/**
- * Moving from two apps to one: while the old Inkling Net is on the phone, bring its settings over (one tap, Android
- * asks to update it), then offer to uninstall it. Nothing shows once it is gone.
- */
-@Composable
-fun HandoffCard(g: AppGraph) {
-    val c = Lfm.c
-    val scope = rememberCoroutineScope()
-    val st by g.handoff.status.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(Unit) { g.handoff.refresh() }
-    if (st == NetHandoff.Status.None) return
-    Column(Modifier.padding(top = 12.dp).fillMaxWidth().callout(c).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            LIcon("globe", size = 18.dp)
-            Txt(if (st == NetHandoff.Status.Done) "Inkling Net can be uninstalled" else "Bring over Inkling Net's settings",
-                LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
-        }
-        Txt(if (st == NetHandoff.Status.Done) "Search, downloads and your server now run inside Wren, and its settings are here. The old helper app does nothing any more."
-            else "Wren now does search, downloads and your server itself. Your search provider, keys and proxy are still in the old Inkling Net: " +
-                "Android will ask to update it once so it can hand them over.", LfmType.small, c.text2, Modifier.padding(top = 6.dp))
-        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            when (val s = st) {
-                NetHandoff.Status.Done -> Btn("Uninstall Inkling Net", { g.launcher.start(g.handoff.uninstallIntent()) }, small = true, kind = BtnKind.Primary, icon = "trash")
-                else -> {
-                    Btn(if (s == NetHandoff.Status.Working) "Bringing over…" else "Bring over settings", { scope.launch { g.handoff.install() } },
-                        small = true, kind = BtnKind.Primary, icon = "download", enabled = s != NetHandoff.Status.Working)
-                    (s as? NetHandoff.Status.Failed)?.let { Txt(it.why, LfmType.meta, c.text2, Modifier.weight(1f)) }
-                }
-            }
         }
     }
 }

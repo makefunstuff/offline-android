@@ -6,11 +6,6 @@ server) is in one small module, `:net`, the only code the build lets open a conn
 mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-android>. In the code and below, "LFM" still names
 the app; the package name did not change, so updates keep all data and models.
 
-**Updating from the two-app Inkling (Inkling + Inkling Net):** install the new Wren over the old one; nothing is
-lost. Open Settings → Web search (or Privacy) and tap **Bring over settings**: Android asks once to update Inkling
-Net, which then hands your search provider, keys and proxy to Wren. Then tap **Uninstall Inkling Net**: it is no
-longer needed. Your server's address and key were always in Wren. If Inkling Net was off, Wren starts Offline.
-
 ## Daylight (LFMP-13)
 
 Today opens on a sky that follows the hour, with the time, the day in one sentence, and today's plans on a horizon
@@ -56,8 +51,7 @@ git clone https://github.com/makefunstuff/offline-android.git && cd offline-andr
 
 **Release builds** are signed with your own key, never the public debug key. Make one once (keep it and its passwords
 safe: an update must be signed with the same key) and point `keystore.properties` at it, at the top of the repo.
-That file and `*.jks` are in `.gitignore`; never commit them. The Inkling Net hand-off inside Wren is signed with it too,
-as Android requires to take it as an update of the old Inkling Net. Without the file, `assembleRelease` makes unsigned APKs.
+That file and `*.jks` are in `.gitignore`; never commit them. Without the file, `assembleRelease` makes unsigned APKs.
 
 ```bash
 keytool -genkeypair -v -keystore ~/keys/inkling-release.jks -alias inkling -keyalg RSA -keysize 4096 -validity 10000
@@ -316,7 +310,6 @@ read out when they change; progress bars report their value; buttons, tabs and r
   from its latest results, `download` only pinned files (`PinnedFiles`) from huggingface.co and its CDN over https,
   `edge` only the owner's server (`EdgeRules`). No cookies, cache or referrer; the user agent of a current Chrome on
   Android; optional SOCKS proxy (Orbot). `NetSettings` keeps the provider, keys and proxy.
-- `handoff/`: the last Inkling Net, carried inside Wren to move the old helper's settings over once (no network).
 - `llm/`: prompt format for LFM3's chat template, tool-call parser, model catalog with pinned hashes, import, loading.
 - `assistant/`: the loop (model → tool calls → confirm → run → log → back to the model), and simple rules that sort
   captures when no model is loaded.
@@ -329,7 +322,7 @@ read out when they change; progress bars report their value; buttons, tabs and r
 - `see/`: Ask about this. `SeeRules` (which model looks, frame times, sizes, prompts), `MediaPrep` (photos, video
   frames, PDF pages and text layers into RGB for the model). The camera screen is `ui/screens/CameraScreen.kt` (CameraX).
 - `web/`: Wren's side of `:net`: `NetClient` (Offline, logs every request), `WebSearch` (the search flow),
-  `PersonalWords`, `ArticleText` (reads pages), `ModelDownloads` + `DownloadService`, `NetHandoff` (from two apps to one).
+  `PersonalWords`, `ArticleText` (reads pages), `ModelDownloads` + `DownloadService`.
 - `device/`: `Heat` (Android's thermal status to thread caps and waits) and `AppLock` (the optional lock).
 - `data/Export.kt`: Export all; `wipe` in `LfmApp.kt`: Delete everything. `assistant/WorkService.kt`: an answer keeps
   going in a foreground service when you leave.
