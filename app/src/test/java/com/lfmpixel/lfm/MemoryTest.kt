@@ -79,6 +79,15 @@ class MemoryTest {
         assertEquals("Dr Park (Mondays only) is your dentist", FactMerge.merge(edited, fact("Kim is your dentist", FactKind.Person, "person:dentist", at = t0 + 9 * day)).single().text)
     }
 
+    @Test fun twoFriendsAddUpButANewBossReplaces() {
+        fun learn(vararg lines: String) = lines.foldIndexed(emptyList<Fact>()) { i, acc, l ->
+            FactRules.find(l).fold(acc) { a, f -> FactMerge.merge(a, Fact(kind = f.kind, text = f.text, key = f.key, source = Source("entry:$i", "Note", t0 + i * day))) }
+        }.map { it.text }
+        assertEquals(listOf("Tom is your friend", "Sam is your friend"), learn("Coffee with my friend Tom.", "My friend Sam called."))
+        assertEquals(listOf("Kim is your boss"), learn("My boss is Ravi.", "My new boss is Kim."))
+        assertFalse(Sensitive.looks("Bill is your friend"))
+    }
+
     @Test fun dedupeAndPrune() {
         val a = fact("You love oat flat whites", FactKind.Like).copy(id = 1)
         val b = fact("you love oat flat whites", FactKind.Like, at = t0 + day, ref = "chat:4").copy(id = 2)
@@ -122,6 +131,8 @@ class MemoryTest {
         val list = listOf(Correction(1, CorrectionKind.Kind, "buy a new desk lamp", "Todo", "Idea", t0))
         assertEquals("Idea", Corrections.match("buy a desk lamp for the study", list, CorrectionKind.Kind)?.to)
         assertNull(Corrections.match("call the plumber", list, CorrectionKind.Kind))
+        // A shared verb alone is not enough.
+        assertNull(Corrections.match("buy eggs", listOf(Correction(3, CorrectionKind.Kind, "buy milk", "Todo", "Note", t0)), CorrectionKind.Kind))
         // The newer of two matching corrections wins.
         val two = list + Correction(2, CorrectionKind.Kind, "buy a new desk lamp", "Idea", "Todo", t0 + day)
         assertEquals("Todo", Corrections.match("buy a new desk lamp", two, CorrectionKind.Kind)?.to)

@@ -95,8 +95,8 @@ data class Correction(val id: Long = 0, val kind: CorrectionKind, val text: Stri
  */
 object Sensitive {
     private val words = Regex("""\b(?:doctor|gp|hospital|clinic|diagnos\w*|medic\w*|pills?|prescription|therap\w*|symptoms?|illness|disease|surgery|""" +
-        """depress\w*|anxiety|adhd meds|bank|account number|iban|salary|debt|loan|mortgage|tax(?:es)?|bills?|credit card|""" +
-        """password|passcode|pin|login|lawyer|court|speeding fine|parking fine|police|divorce|sex\w*|dating)\b""", RegexOption.IGNORE_CASE)
+        """depress\w*|anxiety|adhd meds|bank|account number|iban|salary|debt|loan|mortgage|tax(?:es)?|(?-i:bills?)|credit card|""" +
+        """password|passcode|(?-i:pin)|login|lawyer|court|speeding fine|parking fine|police|divorce|sex\w*|dating)\b""", RegexOption.IGNORE_CASE)
 
     fun looks(text: String) = words.containsMatchIn(text)
 
@@ -138,11 +138,11 @@ object FactRules {
         for (sentence in text.split(Regex("""(?<=[.!?])\s+|\n+""")).map { it.trim() }.filter { it.length >= 6 }) {
             relation.findAll(sentence).forEach { m ->
                 val rel = m.groupValues[1].lowercase(); val name = m.groupValues[2].trim()
-                if (name.lowercase() !in notNames) out += Found(FactKind.Person, "${name.cap()} is your $rel", "person:$rel")
+                if (name.lowercase() !in notNames) out += Found(FactKind.Person, "${name.cap()} is your $rel", personKey(rel, name))
             }
             relationAfter.findAll(sentence).forEach { m ->
                 val name = m.groupValues[1].trim(); val rel = m.groupValues[2].lowercase()
-                if (name.lowercase() !in notNames) out += Found(FactKind.Person, "$name is your $rel", "person:$rel")
+                if (name.lowercase() !in notNames) out += Found(FactKind.Person, "$name is your $rel", personKey(rel, name))
             }
             birthday.find(sentence)?.let { m -> out += Found(FactKind.Person, "${m.groupValues[1]}'s birthday is ${m.groupValues[2].trim()}", "birthday:${m.groupValues[1].lowercase()}") }
             live.find(sentence)?.let { m -> out += Found(FactKind.Place, "You live in ${m.groupValues[1].trim().cap()}", "place:home") }
@@ -171,6 +171,11 @@ object FactRules {
         }
         return out.distinctBy { it.text.lowercase() }
     }
+
+    /** Relations one has one of at a time: a new name replaces the old. Others (friends, kids, cats) add up. */
+    private val single = setOf("wife", "husband", "partner", "girlfriend", "boyfriend", "mum", "mom", "mother", "dad", "father",
+        "boss", "manager", "dentist", "doctor", "therapist", "landlord")
+    private fun personKey(rel: String, name: String) = if (rel in single) "person:$rel" else "person:$rel:${name.lowercase()}"
 
     private val notNames = setOf("is", "was", "the", "a", "and", "i", "me", "my", "he", "she", "they", "it", "said", "came", "called")
     private fun String.cap() = replaceFirstChar { it.uppercase() }
@@ -342,10 +347,11 @@ object Recall {
  * matching correction wins. The closest ones are also shown to the server's classifier as examples.
  */
 object Corrections {
-    const val WORDS = 0.5
+    /** At least this, and more than the first word in common: one correction of "buy milk" must not take every "buy …". */
+    const val WORDS = 0.6
 
     fun match(text: String, list: List<Correction>, kind: CorrectionKind): Correction? =
-        list.filter { it.kind == kind }.map { it to similarity(text, it.text) }.filter { it.second >= WORDS }
+        list.filter { it.kind == kind }.map { it to similarity(text, it.text) }.filter { it.second >= WORDS && Words.overlap(text, it.first.text) >= 0.3 }
             .maxWithOrNull(compareBy<Pair<Correction, Double>> { it.second }.thenBy { it.first.at })?.first
 
     /** Shared words, with the first word (the verb: "buy", "call") counted twice: it decides most kinds. */

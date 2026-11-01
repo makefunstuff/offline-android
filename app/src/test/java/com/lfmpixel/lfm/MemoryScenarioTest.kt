@@ -150,7 +150,7 @@ class MemoryScenarioTest {
         // Sealed: nothing readable in the table.
         val rows = db.learned().ofType(MemoryStore.FACT)
         assertEquals(texts.size, rows.size)
-        assertFalse(rows.any { it.sealed.contains("Ana") || it.sealed.contains("Leeds") })
+        assertFalse(rows.any { r -> texts.any { r.sealed.contains(it) } || r.sealed.contains("sister") || r.sealed.contains("\"kind\"") })
 
         // An answer's prompt carries what was learned: the profile, and the notes near the question.
         val q = "What should I get my sister for her birthday?"

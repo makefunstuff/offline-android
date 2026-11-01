@@ -55,6 +55,8 @@ class MemoryStore(
     private val _lastRun = MutableStateFlow("")
     val lastRun: StateFlow<String> = _lastRun
     val working = MutableStateFlow(false)
+    /** Bumped by [forget]: a nightly pass that started before it writes nothing more. */
+    @Volatile private var epoch = 0
 
     /** Watermarks: entries changed and chat messages written after these were not read yet. */
     private var meta = Meta()
@@ -106,7 +108,12 @@ class MemoryStore(
      */
     suspend fun learnNow(): Int = lock.withLock {
         loadLocked()
-        if (!learning()) return@withLock 0
+        if (!learning()) {
+            // Off means nothing written now is learned later either: the marks move on.
+            if (meta.entriesSeen < now()) { meta = meta.copy(entriesSeen = now(), chatSeen = now(), modelSeen = now()); runCatching { saveMeta() } }
+            db.learned().ofType(SAID).takeIf { it.isNotEmpty() }?.let { r -> db.learned().delete(r.map { it.id }) }
+            return@withLock 0
+        }
         val t = now()
         var facts = _facts.value
         var found = 0
@@ -155,6 +162,7 @@ class MemoryStore(
     suspend fun nightly(session: (suspend () -> TextSession?)? = null): String {
         if (!learning()) return "Learning is off"
         working.value = true
+        val started = epoch
         try {
             fun ms() = System.nanoTime() / 1_000_000
             val t0 = ms()
@@ -174,9 +182,10 @@ class MemoryStore(
                     val prompt = PromptFormat.build(FactPrompt.SYSTEM, emptyList(), listOf(PromptMessage(PromptMessage.Role.User, FactPrompt.user(lines))), thinking = false)
                     val out = StringBuilder()
                     val ok = runCatching { withTimeoutOrNull(60_000) { s.generate(prompt, 300, temp = 0.2f).collect { out.append(it) } } }.isSuccess
-                    if (!ok) break
+                    if (!ok || epoch != started) break
                     read += batch.size
                     lock.withLock {
+                        if (epoch != started) return "Stopped: everything learned was forgotten"
                         var facts = _facts.value
                         for ((kind, text, n) in FactPrompt.parse(out.toString().substringAfter("</think>"))) {
                             val e = batch.getOrNull(n - 1) ?: continue
@@ -191,6 +200,7 @@ class MemoryStore(
             }
             val t2 = ms()
             val (before, after, embedded) = lock.withLock {
+                if (epoch != started) return "Stopped: everything learned was forgotten"
                 val entries = db.entries().all()
                 val before = _facts.value.size
                 var facts = FactMerge.prune(FactMerge.dedupe(_facts.value), entries.mapTo(HashSet()) { it.id }, now())
@@ -213,6 +223,7 @@ class MemoryStore(
             val report = "Read ${read} entries with the model; $byRules facts by rules, $byModel by the model; " +
                 "$before → $after facts after merging; $embedded embedded. Took ${t3 - t0} ms (rules ${t1 - t0}, model ${t2 - t1}, tidy ${t3 - t2})."
             lock.withLock {
+                if (epoch != started) return "Stopped: everything learned was forgotten"
                 meta = meta.copy(lastNight = now(), patterns = _patterns.value, report = report)
                 _lastRun.value = report
                 saveMeta()
@@ -300,9 +311,10 @@ class MemoryStore(
 
     /**
      * Forget everything learned: every fact, correction, pattern and waiting Talk line, and the key that sealed them.
-     * Notes are untouched. The watermarks go too, so with learning on the notes are read afresh.
+     * Notes are untouched, and are not read again: the watermarks move to now. A pass under way stops.
      */
     suspend fun forget() = lock.withLock {
+        epoch++
         db.learned().deleteAll()
         sealer.forget()
         _facts.value = emptyList(); _corrections.value = emptyList(); _patterns.value = emptyList(); _lastRun.value = ""

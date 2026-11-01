@@ -58,7 +58,10 @@ import java.util.Locale
 fun KnowsScreen(g: AppGraph, nav: Nav) {
     val c = Lfm.c
     val prefs by g.settings.prefs.collectAsState(null)
-    val facts by g.memory.facts.collectAsState()
+    val allFacts by g.memory.facts.collectAsState()
+    // While the journal is locked, what was learned from it stays hidden here too.
+    val journalLocked = g.lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal)
+    val facts = if (journalLocked) allFacts.filter { !it.journal } else allFacts
     val corrections by g.memory.corrections.collectAsState()
     val patterns by g.memory.patterns.collectAsState()
     val lastRun by g.memory.lastRun.collectAsState()
@@ -89,6 +92,9 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
                     "health, money and the locked journal stay out of the standing profile.", LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
             }
             val byKind = facts.groupBy { it.kind }
+            if (journalLocked && allFacts.size > facts.size) item {
+                Txt("${allFacts.size - facts.size} learned from your journal are hidden while it is locked.", LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
+            }
             if (facts.isEmpty()) item { Empty("Nothing yet", "As you write (\"my sister Ana…\", \"I prefer mornings\"), what lasts shows here, with where it came from.") }
             for (kind in FactKind.entries) {
                 val list = byKind[kind] ?: continue
