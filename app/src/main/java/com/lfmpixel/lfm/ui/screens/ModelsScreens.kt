@@ -105,6 +105,7 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             Txt("Downloads come from Hugging Face with no login, through Inkling Net, and each file is checked against its pinned SHA-256 before it is used. " +
                 "Import works fully offline: copy the file to the phone (adb push or USB), then pick it.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
             LeftoverFiles(g)
+            SearchIndexSection(g)
             BackendSection(g)
             BenchmarkSection(g)
             ServerColumn(g)
@@ -403,11 +404,23 @@ private fun Check(ok: Boolean?, title: String?, detail: String, marked: String? 
     }
 }
 
+/** Search by meaning: how many entries are indexed, how big the index is, and how fast (docs/embeddings.md). */
+@Composable
+private fun SearchIndexSection(g: AppGraph) {
+    val st by g.semantic.status.collectAsState()
+    if (!st.ready) return
+    SectionLabel("Search by meaning")
+    val speed = listOfNotNull(st.msPerEntry.takeIf { it > 0 }?.let { "%.0f ms a note".format(java.util.Locale.ENGLISH, it) },
+        st.lastSearchMs.takeIf { it > 0 }?.let { "last search $it ms" })
+    Txt(listOf("${st.indexed} of ${st.entries} notes indexed${if (st.working) " (working)" else ""}", "${formatBytes(st.bytes)} on this phone")
+        .plus(speed).joinToString(" · "), LfmType.label.copy(fontWeight = null), Lfm.c.text2)
+}
+
 fun slotOf(role: ModelRole) = when (role) {
     ModelRole.Text, ModelRole.Tokenizer -> Slot.Text
     ModelRole.Omni, ModelRole.OmniSpeech -> Slot.Omni
     ModelRole.Vision -> Slot.Vision
-    ModelRole.Decide -> Slot.Text
+    ModelRole.Decide, ModelRole.Embed -> Slot.Text
 }
 
 private val idleChoices = listOf(0 to "Never", 1 to "1 min", 5 to "5 min", 15 to "15 min", 30 to "30 min")

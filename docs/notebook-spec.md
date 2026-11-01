@@ -422,3 +422,28 @@ was written, so the owner's data carries over as is. The Room schema stays at ve
 
 No new permission. The share target receives text only; nothing is fetched from a shared link. The main app keeps no
 `INTERNET` permission; `checkDebugNoNetwork` and `checkDebugDependencies` still guard it.
+
+## 5. Search by meaning (LFMP-10)
+
+On-device embeddings: EmbeddingGemma 2 text 270m on LiteRT-LM turns each entry into 256 numbers; entries close in
+meaning have close numbers. How it runs and the numbers: [embeddings.md](embeddings.md). Uses, best first:
+
+1. **Semantic search (built).** Notebook search and `search_library` (so Talk and chat too) find entries by meaning as
+   well as words: "where did my tooth doctor move" finds the note "Dentist". Keyword hits show at once; matches by
+   meaning join them when typing pauses, fused by rank (an entry found both ways comes first). On our made-up
+   notebook, keyword search found the right entry for 1 of 30 such questions; the hybrid for 30 of 30.
+2. **Related notes and "you wrote this before" (next).** On save, the nearest entries above a high similarity show as
+   "Related" under the note, and a near-copy of an open to-do asks "Same as …?" instead of adding a second one. Cheap:
+   the vectors are already there. Helps an ADHD notebook the most after search: the same thought gets captured twice.
+3. **Grounded Talk answers (next).** Before LFM3 answers a question about the owner's own life, the 3–5 nearest entries
+   go into its prompt with their dates (small local RAG). Needs care with the 4,096-token context and with the
+   journal lock.
+4. **Auto-tags and grouping (later).** Cluster ideas by topic; suggest a tag from the nearest tagged entries. d1
+   already sorts captures, so this adds less.
+5. **Photo search (not now).** Needs the text-vision 440m file (388 MB, 2.4 times the text one). LFM3-VL already
+   describes pictures; embedding that description as text gives most of the benefit with no second model.
+
+Rules: indexed in the background, a moment after any entry is written, edited or deleted, and only what changed
+(a hash of each entry's text); not while the phone is hot. Vectors live in the `vectors` table of the notes' own
+database (Room version 7), so Delete everything removes them and nothing new is exported. Nothing is sent anywhere.
+Without the model, search is keyword search as before.

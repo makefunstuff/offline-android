@@ -106,8 +106,12 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
     var results by remember { mutableStateOf<List<Entry>?>(null) }
     val all by remember { g.db.entries().library() }.collectAsState(null)
     val todos by remember { g.db.entries().todos() }.collectAsState(null)
-    // Search again whenever entries change, so a swipe in the results shows at once.
-    LaunchedEffect(query, all, todos) { results = FtsQuery.from(query)?.let { g.db.entries().search(it) } }
+    // Search again whenever entries change, so a swipe in the results shows at once. Keyword hits show at once; once
+    // typing pauses, matches by meaning join them (SemanticIndex).
+    LaunchedEffect(query, all, todos) {
+        results = FtsQuery.from(query)?.let { g.db.entries().search(it) }
+        if (results != null) { kotlinx.coroutines.delay(300); results = g.semantic.search(query) }
+    }
     val actions = remember { EntryActions(g, nav) }
     val open: (Entry) -> Unit = { nav.go(Route.Editor(it.id, it.kind)) }
     // Journal only lock: its entries are left out of every list and search until it is unlocked.

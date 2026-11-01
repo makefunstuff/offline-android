@@ -32,6 +32,8 @@ class ToolEnv(
     val now: () -> LocalDateTime = { LocalDateTime.now() },
     /** The journal is locked: library searches leave it out. */
     val hideJournal: () -> Boolean = { false },
+    /** Library search: keywords, and meaning too once the search model is here (data/SemanticIndex.kt). */
+    val search: suspend (query: String, limit: Int) -> List<Entry> = { q, n -> FtsQuery.from(q)?.let { db.entries().search(it, n) }.orEmpty() },
 ) {
     fun whenOf(args: Map<String, String>, key: String): When =
         args[key]?.let { TimeArgs.parse(it, now()) } ?: throw ToolArgsException("I couldn't read the time \"${args[key] ?: ""}\"")
@@ -111,16 +113,17 @@ class AddEntryTool(private val env: ToolEnv, private val kind: EntryKind) : Tool
 }
 
 class SearchLibraryTool(private val env: ToolEnv) : Tool {
-    override val spec = ToolSpec("search_library", "Search the owner's notes, ideas, journal and to-dos by keywords.",
-        listOf(Param("query", "string", "Keywords")))
+    override val spec = ToolSpec("search_library", "Search the owner's notes, ideas, journal and to-dos by meaning and keywords.",
+        listOf(Param("query", "string", "What to look for, in a few words")))
     override val label = "Search your library"
     override val defaultPolicy = ToolPolicy.Do
     override val readOnly = true
     override suspend fun preview(args: Map<String, String>) = Preview("Search your library?", "search", "Search", listOf(Field("query", "Words", args.need("query"))))
     override suspend fun run(args: Map<String, String>): ToolResult {
-        val q = FtsQuery.from(args.need("query")) ?: return ToolResult(true, "[]")
+        val query = args.need("query")
+        if (FtsQuery.from(query) == null) return ToolResult(true, "[]")
         val hide = env.hideJournal()
-        val found = env.db.entries().search(q, if (hide) 24 else 6).filter { !hide || it.kind != EntryKind.Journal }.take(6)
+        val found = env.search(query, if (hide) 24 else 6).filter { !hide || it.kind != EntryKind.Journal }.take(6)
         val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
         val lines = found.joinToString("\n") { e ->
             val day = Instant.ofEpochMilli(e.createdAt).atZone(env.zone).toLocalDate().format(fmt)

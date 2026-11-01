@@ -17,6 +17,8 @@ object PinnedFiles {
     private const val VL_REV = "580859278a59710b3c93b298982f3f9e884d80e8"
     private const val D1 = "litert-community/d1-omni-600M-LiteRT"
     private const val D1_REV = "afce506e80dee25c007a88e6ab24fd62fd456eab"
+    private const val EMBED = "litert-community/embeddinggemma-2-text-270m-litert-lm"
+    private const val EMBED_REV = "9be6e8b90982095dc05c2bd162e4b954ee4dbac7"
 
     val all = listOf(
         File("LFM3-1.7B_mixed_int4_ekv4096.litertlm", TEXT, 1441629120, rev = TEXT_REV),
@@ -34,6 +36,7 @@ object PinnedFiles {
         File("d1-omni-600M_tokenizer.json", D1, 4733371, "tokenizer.json", D1_REV),
         File("d1-omni-600M_LICENSE", D1, 10572, "LICENSE", D1_REV),
         File("d1-omni-600M_NOTICE", D1, 1233, "NOTICE", D1_REV),
+        File("embeddinggemma-2-text-270m.litertlm", EMBED, 164626432, rev = EMBED_REV),
     )
 
     /** Exact match only: no paths, no other repos. */

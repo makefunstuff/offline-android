@@ -43,7 +43,11 @@ class AppGraph(context: Context) {
     val launcher = ExternalLauncher(context)
     // Late: the lock is made below; the journal is left out of library searches while it is locked.
     private val journalHidden: () -> Boolean = { lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal) }
-    val toolEnv = ToolEnv(db, reminders, calendar, contacts, controls, launcher, focus, hideJournal = { journalHidden() })
+    /** Search by meaning: EmbeddingGemma 2's vectors of every entry, kept up to date in the background. */
+    val semantic = com.lfmpixel.lfm.data.SemanticIndex(db, { engine.embedder() }, { models.embedder()?.file?.name }, heat.heat, scope)
+        .also { it.start(models.installed) }
+    val toolEnv = ToolEnv(db, reminders, calendar, contacts, controls, launcher, focus, hideJournal = { journalHidden() },
+        search = { q, n -> semantic.search(q, n) })
     val tools = ToolRegistry(defaultTools(toolEnv), toolEnv)
     val net = NetClient(context, settings, db, scope)
     /** Edge mode: the owner's server, through Inkling Net. */

@@ -1,0 +1,73 @@
+# Made-up notebook for the semantic search test (docs/embeddings.md). Not anyone's real notes.
+# N id kind title body
+# Q query relevant-ids(comma) — each query shares few or no words with the notes it should find.
+N	1	Note	Dentist	Dr. Varga's office moved to Kossuth street, second floor. Bring the insurance card next time.
+N	2	Idea	Balcony herbs	Grow basil, mint and chives in the window boxes; they need about six hours of sun.
+N	3	Journal	Rough Tuesday	Couldn't focus at all, skipped lunch, felt foggy and snapped at Mia. Slept badly the night before.
+N	4	Note	Wi-Fi at mum's	Network: Kerti-5G, password on the router sticker under the TV.
+N	5	Idea	Birthday gift for Leo	He keeps talking about bouldering; a beginner chalk bag and a day pass at the climbing gym.
+N	6	Note	Car service	Oil change due at 120,000 km, the garage on Fő út does it cheapest. Tyres swap in October.
+N	7	Journal	Good run	Ran 5 km along the river without stopping for the first time. Legs heavy but felt proud.
+N	8	Note	Landlord	Rent goes up 8% from January. Contract renewal must be signed before 15 December.
+N	9	Idea	Side project: plant watering bot	ESP32, a soil moisture sensor and a little pump; send a ping when the pot is dry.
+N	10	Note	Medication	Take 20 mg in the morning with food; refill prescription every 30 days at the pharmacy on Bartók.
+N	11	Note	Recipe: lentil soup	Red lentils, carrot, cumin, a tin of tomatoes, simmer 25 minutes, lemon at the end.
+N	12	Journal	Talk with Anna	We argued about the holiday plans again; I felt unheard but we agreed to decide by Friday.
+N	13	Idea	Morning routine	Phone stays in the kitchen until after breakfast; water, stretch, then one small task.
+N	14	Note	Tax return	Deadline 20 May. Need the employer's certificate and the receipts for the home office desk.
+N	15	Note	Bike lock code	4-7-1-9, the blue lock, not the old one.
+N	16	Idea	Learn Spanish	Fifteen minutes of Duolingo on the tram, and a conversation meetup on Thursdays.
+N	17	Journal	Anxious before the review	Heart racing before the performance review, rehearsed my points three times.
+N	18	Note	Cat vet	Pixel needs the yearly vaccine in March; the vet is on Bem rakpart, closes at 6.
+N	19	Note	Flight to Lisbon	TAP flight on 14 June at 9:40, booking code QX7P2L, one cabin bag only.
+N	20	Idea	Declutter the hallway	One box for donations, one for the bin, a hook rail for bags so they stop piling on the floor.
+N	21	Note	Electricity bill	Pay by the 10th; the account number is on the MVM app. Last month was 18,400 Ft.
+N	22	Journal	Hyperfocus day	Spent nine hours rewriting the scheduler, forgot to eat, it finally works.
+N	23	Note	Mia's school	Parents' evening 3 November at 17:00, room 12. Ask about the maths homework load.
+N	24	Idea	Budget app idea	Envelope budgeting with weekly envelopes that refill on Monday; show money left per day.
+N	25	Note	Gym schedule	Leg day Monday, upper body Wednesday, swim Friday 7am at the Széchenyi pool.
+N	26	Journal	Feeling burnt out	Everything feels heavy, no motivation, staring at the screen for hours. Need real rest.
+N	27	Note	Plumber	Kitchen sink drips; Gábor the plumber, call after 8, he charges 12,000 for a visit.
+N	28	Idea	Podcast about ADHD tools	Interview people about the systems that actually stuck for them, one tool per episode.
+N	29	Note	Passport	Expires August next year; the renewal appointment can be booked at the government office online.
+N	30	Note	Book list	Atomic Habits, Four Thousand Weeks, The Body Keeps the Score, Project Hail Mary.
+N	31	Journal	Lovely Sunday	Picnic at Margaret Island with Anna and Mia, warm sun, ate too many pastries.
+N	32	Idea	Standing desk	A desk converter for the home office so I stop slouching in the afternoon.
+N	33	Note	Coffee order for the team	Two flat whites, an oat latte for Bence, one espresso, a chai for Dóra.
+N	34	Note	Insurance	Home insurance with Allianz, policy 88-2231-07, renews in April, covers water damage.
+N	35	Journal	Can't sleep	Lay awake until 3am replaying the meeting; tried breathing exercises, didn't help.
+N	36	Idea	Weekly review ritual	Sunday evening: empty the inbox, look at next week's calendar, pick three priorities.
+N	37	Note	Router reset	If the internet drops, unplug the router for 30 seconds; support number 1414.
+N	38	Note	Grandma's birthday	12 February, she likes orchids and the walnut cake from the bakery on Ráday.
+N	39	Idea	Meal prep Sundays	Cook rice, roast vegetables and a big pot of chili for the week's lunches.
+N	40	Journal	Proud of finishing	Handed in the report two days early for once; the timer trick worked.
+Q	where did my tooth doctor move	1
+Q	what present should I get my nephew	5
+Q	days I was exhausted and unmotivated	26,3
+Q	when do I need to fly to Portugal	19
+Q	how much is the apartment going up	8
+Q	pills and the drugstore	10
+Q	soup recipe	11
+Q	internet login at my mother's place	4
+Q	arduino gardening gadget	9
+Q	fight with my partner	12
+Q	nights I couldn't fall asleep	35,3
+Q	vet appointment for the cat	18
+Q	things to plant on the balcony	2
+Q	when is the tax deadline	14
+Q	exercise plan for the week	25,7
+Q	ideas to get organised at home	20,36
+Q	pay the power bill	21
+Q	leaky tap in the kitchen	27
+Q	travel documents that expire	29
+Q	books I want to read	30
+Q	nervous before work meeting	17
+Q	cooking ahead for the week	39,11
+Q	learning a new language	16
+Q	times I felt good about myself	7,40
+Q	what to buy grandmother	38
+Q	who fixes pipes	27
+Q	money and spending plan	24,21
+Q	posture and ergonomics	32
+Q	school event for my daughter	23
+Q	what does the house policy cover	34

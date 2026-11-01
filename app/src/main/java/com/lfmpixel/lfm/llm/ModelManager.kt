@@ -282,6 +282,18 @@ class ModelManager(
         }.also { decide = it }
     }
 
+    @Volatile private var embedder: GemmaEmbedder? = null
+
+    /**
+     * EmbeddingGemma 2 for search by meaning, or null when its file is not here. Loaded on first use (the index or a
+     * search) on the CPU, kept until the idle unload: about 330 MB.
+     */
+    suspend fun embedder(): Embedder? = decideLock.withLock {
+        val m = store.embedder() ?: return@withLock null
+        touch()
+        embedder ?: GemmaEmbedder.open(m.file.path, liteRtCache.path, threads()).also { embedder = it }
+    }
+
     /** Long jobs (a scanned PDF read page by page) call this between steps so the idle unload waits. */
     fun keepAlive() { if (_status.value.anyLoaded) touch() }
 
@@ -307,6 +319,7 @@ class ModelManager(
         runCatching { omni?.close() }; omni = null
         runCatching { vision?.close() }; vision = null
         runCatching { decide?.close() }; decide = null
+        runCatching { embedder?.close() }; embedder = null
         _status.value = EngineStatus()
     }
 
