@@ -62,6 +62,7 @@ fun DialCanvas(sky: Sky, layout: HorizonLayout, horizon: androidx.compose.ui.uni
     Canvas(modifier) {
         val geo = SkyPainter.DialGeometry(size.width / 2, horizon.toPx(), radius.toPx())
         drawIntoCanvas { SkyPainter.drawDial(it.nativeCanvas, size.width, size.height, density, sky, layout, geo, selected, sunAt,
-            labelPx = LfmType.dialHour.fontSize.toPx()) }
+            // Grows with the font, up to half again, so the 12 never reaches the header row.
+            labelPx = LfmType.dialHour.fontSize.toPx().coerceAtMost(LfmType.dialHour.fontSize.value * density * 1.5f)) }
     }
 }

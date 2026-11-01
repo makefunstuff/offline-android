@@ -153,28 +153,32 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
     val c = Lfm.c
     val shape = LfmShape.round
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
-    val fill by androidx.compose.animation.animateColorAsState(if (listening) (if (floating) c.mic else c.text) else if (primary) c.mic else if (floating) c.text else c.text.copy(alpha = 0.08f),
+    val fill by androidx.compose.animation.animateColorAsState(if (listening) (if (floating) c.bg else c.text) else if (primary) c.mic else if (floating) c.text else c.text.copy(alpha = 0.08f),
         motion.spec(if (listening) motion.TINY else motion.MEDIUM, if (listening) motion.standard else motion.emphasizedDecelerate), label = "mic")
     val voice = LocalMicLevel.current
     val pulse by androidx.compose.animation.core.animateFloatAsState(if (listening) voice.value.coerceIn(0f, 1f) else 0f, motion.level(), label = "pulse")
     val src = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    // On the pill (navy in light, near-white in dark) the listening mic turns the page's colour, so it reads as on in
+    // both themes; its ring is the action blue, which shows on the page around the pill.
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         // The pulse: an outline that grows up to 8 dp out and fades as it goes, only while listening.
         if (listening) Box(Modifier.matchParentSize().graphicsLayer {
             val grow = 1f + 0.28f * pulse
             scaleX = grow; scaleY = grow; alpha = 0.25f + 0.55f * pulse
-        }.border(2.dp, if (floating) c.mic else c.action, shape))
+        }.border(2.dp, c.action, shape))
         Box(
             Modifier
                 .matchParentSize()
                 .pressScale(src)
                 .clip(shape)
                 .background(fill)
-                .clickable(src, androidx.compose.material3.ripple(color = if (floating) c.bg else if (listening) c.bg else if (primary) c.onMic else c.text), role = Role.Button, onClick = onClick)
+                // An edge in the action blue, so the page-coloured circle holds its shape where it meets the page.
+                .let { if (listening && floating) it.border(2.dp, c.action, shape) else it }
+                .clickable(src, androidx.compose.material3.ripple(color = if (floating) (if (listening) c.text else c.bg) else if (listening) c.bg else if (primary) c.onMic else c.text), role = Role.Button, onClick = onClick)
                 .semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
             contentAlignment = Alignment.Center,
         ) {
-            LIcon(if (listening) "stop" else "mic", tint = if (listening && floating) c.onMic else if (listening || floating) c.bg else if (primary) c.onMic else c.text)
+            LIcon(if (listening) "stop" else "mic", tint = if (listening && floating) c.text else if (listening || floating) c.bg else if (primary) c.onMic else c.text)
         }
     }
 }
