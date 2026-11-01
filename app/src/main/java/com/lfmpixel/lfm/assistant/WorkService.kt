@@ -32,6 +32,8 @@ class WorkService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // Again here: an older instance's onDestroy may have run after start() set it.
+        started = true
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Answers in progress", NotificationManager.IMPORTANCE_LOW))
         foreground()

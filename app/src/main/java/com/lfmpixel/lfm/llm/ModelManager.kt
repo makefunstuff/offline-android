@@ -327,16 +327,22 @@ class ModelManager(
 
     suspend fun unloadAll() = lock.withLock {
         idleJob?.cancel()
-        val t = text; val o = omni; val v = vision; val d = decide; val e = embedder
-        text = null; omni = null; vision = null; decide = null; embedder = null
-        _status.value = EngineStatus()
-        // The closes wait for a call under way and free native memory: off the main thread (the idle unload runs there),
-        // and to the end, though the idle job cancelled itself above (so this throws CancellationException on the way
-        // back, with nothing left to do). Each one goes even if another's close fails.
-        withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
-            runCatching { t?.close() }; runCatching { o?.close() }; runCatching { v?.close() }; runCatching { d?.close() }; runCatching { e?.close() }
+        // All of it to the end, though the idle job (which runs this) cancelled itself just above: a wait for decideLock
+        // or a close must not stop the unload halfway (the job's CancellationException comes once it is all done).
+        withContext(kotlinx.coroutines.NonCancellable) {
+            val t = text; val o = omni; val v = vision
+            text = null; omni = null; vision = null
+            // d1 and the embedder are loaded under decideLock: taken here too, so one loading now is not left behind.
+            val (d, e) = decideLock.withLock { (decide to embedder).also { decide = null; embedder = null } }
+            _status.value = EngineStatus()
+            // The closes wait for a call under way and free native memory: off the main thread (the idle unload runs
+            // there). Each one goes even if another's close fails.
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { t?.close() }; runCatching { o?.close() }; runCatching { v?.close() }; runCatching { d?.close() }; runCatching { e?.close() }
+            }
         }
     }
+
 
     /** Loads one model by hand, so the next question doesn't wait for it. */
     suspend fun load(slot: Slot) {
