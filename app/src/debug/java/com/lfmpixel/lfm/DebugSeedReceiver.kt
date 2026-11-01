@@ -37,6 +37,10 @@ class DebugSeedReceiver : BroadcastReceiver() {
                     Entry(kind = EntryKind.Todo, title = "Fix payment test on Android 14", list = "Work", source = "chat", createdAt = day(1)),
                     Entry(kind = EntryKind.Todo, title = "Book dentist", dueAt = due(4, 15), dueHasTime = true, createdAt = day(1)),
                     Entry(kind = EntryKind.Todo, title = "Water the herbs", list = "Home", done = true, doneAt = System.currentTimeMillis(), dueAt = due(0), createdAt = day(1)),
+                    // Today's horizon (Daylight): a few things at set times.
+                    Entry(kind = EntryKind.Todo, title = "Call Sam about the seeds", dueAt = due(0, 9) + 30 * 60_000, dueHasTime = true, createdAt = day(1)),
+                    Entry(kind = EntryKind.Todo, title = "Dentist, bring the blue folder", dueAt = due(0, 15), dueHasTime = true, createdAt = day(2)),
+                    Entry(kind = EntryKind.Todo, title = "Dinner with Ana", list = "Home", dueAt = due(0, 19), dueHasTime = true, createdAt = day(2)),
                 ).forEach { e.insert(it) }
             } finally {
                 done.finish()

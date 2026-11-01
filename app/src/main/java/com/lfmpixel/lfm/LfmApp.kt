@@ -87,6 +87,10 @@ class AppGraph(context: Context) {
             settings.prefs.collect { p -> if (first) { first = false; l.start(p.lockMode) } else l.mode = p.lockMode }
         }
     }
+    /** Daylight's sounds and haptics; Settings → Soft sounds turns the sounds off. */
+    val feel = com.lfmpixel.lfm.daylight.Feel(context, scope).also { f ->
+        scope.launch { settings.prefs.collect { f.soundsOn = it.softSounds } }
+    }
     val bench = com.lfmpixel.lfm.llm.Benchmark(engine, models, settings, scope)
     val edgeBench = com.lfmpixel.lfm.edge.EdgeBench(edge, settings, scope)
     val voiceBench = com.lfmpixel.lfm.voice.VoiceBench(engine, settings, talk, readAloud, scope)

@@ -338,6 +338,7 @@ class Assistant(
         val net = if (webOn) "It can search the web with web_search: use it when a question needs current facts, prices, news or " +
             "anything you are unsure of; answer from your own knowledge otherwise. " else "with no internet access. "
         return "You are Inkling, a private assistant that runs entirely on the owner's phone" + (if (webOn) ". " else ", ") + net +
+            com.lfmpixel.lfm.daylight.Persona.PROMPT + " " +
             "Answer briefly and plainly. When the owner asks you to remember, note, remind, add, set, text, call or change " +
             "something, call a tool. \"Remind me\" means set_reminder; use set_alarm only when they say alarm. Things to buy " +
             "are to-dos on the Shopping list. For something already there (done, move, snooze, delete) use complete_todo, " +

@@ -11,6 +11,15 @@ lost. Open Settings → Web search (or Privacy) and tap **Bring over settings**:
 Net, which then hands your search provider, keys and proxy to Inkling. Then tap **Uninstall Inkling Net**: it is no
 longer needed. Your server's address and key were always in Inkling. If Inkling Net was off, Inkling starts Offline.
 
+## Daylight (LFMP-13)
+
+Today opens on a sky that follows the hour, with the time, the day in one sentence, and today's plans on a horizon
+the sun walks toward (tap one to see it). Talk shows captions over the sky, with a presence mark that follows the
+voice, and Undo and Show under anything it did. Soft sounds can be turned off in Settings. Add the **Inkling · Today**
+widget for the horizon and the next thing on the home screen (and the lock screen, where the phone allows it). Spec:
+[docs/ux-spec.md](docs/ux-spec.md). Debug builds can move Daylight's clock:
+`adb shell am broadcast -p com.lfmpixel.lfm -a com.lfmpixel.lfm.DEBUG_CLOCK --es at 18:40` (`--es at off` to reset).
+
 ## Using it (LP-12)
 
 - **Capture**: Today's Note · Idea · Journal · To-do buttons open the editor with the keyboard up. The editor saves as

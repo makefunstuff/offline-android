@@ -82,6 +82,15 @@ object LfmType {
     val label = TextStyle(fontFamily = f, fontSize = 12.5.sp, lineHeight = 17.sp, fontWeight = FontWeight.Medium)
     val meta = TextStyle(fontFamily = f, fontSize = 12.sp, lineHeight = 16.sp)
     val button = TextStyle(fontFamily = f, fontSize = 14.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
+
+    // Daylight (docs/ux-spec.md, "Type"): Inkling's own words in the phone's serif (Noto Serif, nothing bundled);
+    // the time large and light, with even figures.
+    private val serif = FontFamily.Serif
+    /** One sentence of the day; Inkling's line in a caption. */
+    val voice = TextStyle(fontFamily = serif, fontSize = 21.sp, lineHeight = 28.sp, letterSpacing = (-0.005).em)
+    /** Talk's caption of what Inkling says now. */
+    val caption = TextStyle(fontFamily = serif, fontSize = 26.sp, lineHeight = 34.sp, letterSpacing = (-0.01).em)
+    val clock = TextStyle(fontFamily = f, fontSize = 64.sp, lineHeight = 66.sp, fontWeight = FontWeight.Light, letterSpacing = (-0.03).em, fontFeatureSettings = "tnum")
 }
 
 @Composable

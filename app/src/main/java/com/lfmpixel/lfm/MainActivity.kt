@@ -25,6 +25,10 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -166,6 +170,8 @@ class MainActivity : ComponentActivity() {
         graph.launcher.onScreen = false
         graph.lock.onHidden()
         graph.focus.left(System.currentTimeMillis())
+        // Plans may have changed while Inkling was open: the horizon widget catches up.
+        com.lfmpixel.lfm.daylight.HorizonWidget.refresh(this)
         super.onStop()
     }
 
@@ -366,7 +372,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
         // saveable state (drafts, tabs, scroll) is kept by the state holder, and the place in the app by the stack.
         if (!appLocked) Column(Modifier.fillMaxSize()
             .drawBehind { drawRect(ground) }.statusBarsPadding().navigationBarsPadding()) {
-            // ux-spec section 7: the camera opens along the Z axis, pushed screens (editor, chat, settings) along X;
+            // ux-spec-v1 section 7: the camera opens along the Z axis, pushed screens (editor, chat, settings) along X;
             // the four places of the bottom bar change at once.
             // Every screen sits above the keyboard: the inset is taken here once (screens that also ask for it get none
             // twice), and the bottom bar, which would be under the keyboard anyway, steps aside while it is up.
@@ -422,6 +428,25 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             }
         }
         if (appLocked) Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) { LockScreen(g) }
+        // Daylight: the sky of the hour runs under the status bar on every screen (not the camera's black), and the
+        // status icons take its ink.
+        if (nav.current != Route.Camera) {
+            val now by com.lfmpixel.lfm.daylight.rememberNow()
+            val sky = com.lfmpixel.lfm.daylight.skyAt(now)
+            Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Color(sky.top)))
+            // Talk is all sky: its horizon colour runs under the navigation bar too.
+            if (nav.current == Route.Talk && !appLocked) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .windowInsetsBottomHeight(WindowInsets.navigationBars).background(Color(sky.horizon)))
+            val view = androidx.compose.ui.platform.LocalView.current
+            LaunchedEffect(sky.lightInk) {
+                activity?.window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = !sky.lightInk }
+            }
+        } else {
+            val view = androidx.compose.ui.platform.LocalView.current
+            LaunchedEffect(Unit) {
+                activity?.window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = false }
+            }
+        }
     }
     if (appLocked) return
     confirm?.let { ConfirmSheet(it) }

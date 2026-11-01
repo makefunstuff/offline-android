@@ -212,7 +212,7 @@ private fun bodyIsWhole(title: String, body: String) = body.isNotEmpty() && body
 
 private val kinds = listOf(EntryKind.Note, EntryKind.Idea, EntryKind.Journal, EntryKind.Todo)
 
-/** Full-screen editor for all four kinds (ux-spec section 5): no Save button; Back, leaving the app and a pause save. */
+/** Full-screen editor for all four kinds (ux-spec-v1 section 5): no Save button; Back, leaving the app and a pause save. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
@@ -396,7 +396,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
         // While writing, a slim bar rides on the keyboard: how long the text is, and Done to put the keyboard away
         // (the caret stays where it was, so tapping the text carries on there).
         val keyboardUp = WindowInsets.isImeVisible
-        // Its height comes and goes smoothly too, so the page's edge never jumps (ux-spec section 7: appear, leave).
+        // Its height comes and goes smoothly too, so the page's edge never jumps (ux-spec-v1 section 7: appear, leave).
         androidx.compose.animation.AnimatedVisibility(keyboardUp && writing,
             enter = fadeIn(LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate)) + expandVertically(LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate)),
             exit = fadeOut(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate)) + shrinkVertically(LfmMotion.spec(LfmMotion.SHORT, LfmMotion.emphasizedAccelerate))) {

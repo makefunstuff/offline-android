@@ -46,7 +46,7 @@ sealed interface VoiceTarget {
     data object Dump : VoiceTarget
 }
 
-/** A short message at the bottom with an optional Undo, shown for a few seconds (ux-spec section 6). */
+/** A short message at the bottom with an optional Undo, shown for a few seconds (ux-spec-v1 section 6). */
 class Snack(val text: String, val undo: (suspend () -> Unit)? = null) {
     val at = System.nanoTime()
     /** Undo runs once, however fast it is tapped twice. */

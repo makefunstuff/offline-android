@@ -200,7 +200,7 @@ fun LazyItemScope.EntryRow(e: Entry, showKind: Boolean, onClick: () -> Unit, act
     val right = if (e.kind == EntryKind.Todo) SwipeAction(if (e.done) "Not done" else "Done", "check") { actions.done(e) }
         else SwipeAction(if (e.pinned) "Unpin" else "Pin", "pin") { actions.pin(e) }
     Box(Modifier.animateItem(
-        // Rows fade in where they land and fade out as the rest close up (ux-spec section 7).
+        // Rows fade in where they land and fade out as the rest close up (ux-spec-v1 section 7).
         fadeInSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate),
         fadeOutSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.SHORT, easing = LfmMotion.emphasizedAccelerate),
         placementSpec = if (reduced) null else androidx.compose.animation.core.tween(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate))) {

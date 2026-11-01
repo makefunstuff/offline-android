@@ -106,6 +106,10 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_capture" />
         </receiver>
+        <receiver android:name=".daylight.HorizonWidget" android:exported="true" android:label="Inkling · Today">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_horizon" />
+        </receiver>
         <service android:name=".web.DownloadService" android:exported="false" android:foregroundServiceType="dataSync" />
         <service android:name=".assistant.WorkService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

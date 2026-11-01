@@ -409,7 +409,7 @@ private val idleChoices = listOf(0 to "Never", 1 to "1 min", 5 to "5 min", 15 to
 
 /**
  * What is in memory and what it takes, Load and Unload for each model, when they unload by themselves, and which
- * model chat uses (ux-spec section 5, model control). On the Models screen and in the chat header's sheet.
+ * model chat uses (ux-spec-v1 section 5, model control). On the Models screen and in the chat header's sheet.
  */
 @Composable
 fun ModelControl(g: AppGraph) {

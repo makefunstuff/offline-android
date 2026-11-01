@@ -213,7 +213,7 @@ internal fun NowCard(g: AppGraph, nav: Nav, now: NextAction.Now?, planEmpty: Boo
             Column(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
                 if (n == null) {
                     Label("Now")
-                    Txt("Nothing next. Write a line below, or plan your day.", LfmType.body, c.onPeach, Modifier.padding(top = 4.dp))
+                    Txt("Nothing waiting on you. Jot a line below, or let me help plan the day.", LfmType.body, c.onPeach, Modifier.padding(top = 4.dp))
                     if (planEmpty) SoftBtn("Plan my day", onPlan, c.bg, c.onPeach, Modifier.padding(top = 10.dp), icon = "sparkle")
                     return@Column
                 }

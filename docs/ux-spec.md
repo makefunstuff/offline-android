@@ -1,226 +1,155 @@
-# Inkling: UX spec (v1)
+# Inkling: Daylight (UX spec v2)
 
-The app that was called LFM is now **Inkling**: the owner's private, on-device assistant for the Pixel 10 Pro. This
-spec says how it should feel to use, screen by screen, and is the yardstick for the UI and UX work in LP-12. The look
-stays as in [spec.md](spec.md) section 7 (calm Signal, Ink + highlighter); this file covers structure, flows, states,
-editing, motion and accessibility. Where the two disagree on behaviour, this file wins.
+The owner found the v1 look "pretty meh and generic" and asked for something inspired by films like *Her*, "helpful
+every single day". LFMP-12 researched three directions ([ux-research.md](ux-research.md)); the owner picked
+**Daylight**: calm and ambient, home is a sky that follows the hour, plans sit on a horizon and the sun walks toward
+them, time is always visible, lock screen first. This file is Daylight's design spec. The v1 rules for flows, editing,
+motion timing and accessibility ([ux-spec-v1.md](ux-spec-v1.md), sections 3–8) still hold where this file is silent.
 
-Written 31 October 2026 after walking every flow of the Phase 1–5 build in the emulator. The analysis, with
-screenshots, is in the LP-12 artifact; the friction list is summed up in section 1.
+Written 1 November 2026 (LFMP-13, first release).
 
-## 1. What was wrong (analysis)
+## 1. The one problem to solve: calm, but one tap from everything
 
-The owner's words: "Notes and other stuff too clunky, also there is no message enqueue mechanism, no possibility to
-load/unload models, and also UX is lacking." Walking each flow confirmed that and found more.
+The research's worry was that Daylight "hides too much to be the daily habit". Daylight answers it with three rules:
 
-| # | Where | Friction | Seen in | Best-in-class does |
-|---|---|---|---|---|
-| 1 | Note editor | A bottom-sheet form with Save; **Back or a swipe down throws away what you typed** | Keep, Bear, Apple Notes | Full-screen editor, autosave, Back saves |
-| 2 | Note editor | The text field isn't focused: open, then tap again before typing | Keep, Things | Keyboard up at once |
-| 3 | Capture | Four kinds, four places; a new to-do is a form with a typed date ("e.g. tomorrow 17:00") | Things Quick Entry, Todoist | One quick-add line; date chips |
-| 4 | Lists | No swipe actions, no pinning, delete has no undo | Keep, Gmail, Things | Swipe to done/delete, pin, Undo snackbar |
-| 5 | Library search | Search icon → field appears unfocused → tap again; no filters | Keep, Bear | Search field always there, filter chips |
-| 6 | Chat | **Sending while it answers does nothing**; text just sits there, no sign why | Claude, ChatGPT (Stop), Claude Code (queue) | Queue the message, show it queued |
-| 7 | Chat | "Stop" is a small underlined word under the composer | Claude, ChatGPT | A clear Stop button where Send is |
-| 8 | Chat | New chat silently drops anything waiting | — | Waiting messages move to the new chat |
-| 9 | Chat | No sign of which model is loaded, or whether the first answer will wait for a load | LM Studio, PocketPal AI | Model and its state in the header |
-| 10 | Models | **No load or unload**, no memory use, no choice of chat model; auto-unload is fixed at 5 min and hidden | LM Studio (eject, TTL), PocketPal (load/offload, RAM) | Per-model Load/Unload with memory, idle timer, default pick |
-| 11 | Models | Delete is a bare trash icon next to the row, no confirm, for a 1 GB file | Any file manager | Confirm what is lost |
-| 12 | First run | Nine Download buttons to choose from; the recommended set is three separate taps | PocketPal, AI Edge Gallery | One "Get the recommended models" |
-| 13 | Settings | "Battery & heat" looks tappable but does nothing; Voice opens Models | — | Every row does what it says |
-| 14 | Everywhere | The emulator's slow CPU shows long waits with only "…" | — | A named state: "Loading LFM3-1.7B…", "Thinking…" |
-| 15 | Icon and name | A white L in a black square; "LFM" is the model's name, not the app's | — | A name and mark of its own |
+1. **The sky is the top of Today, not a screen in front of it.** Under the sky sit Talk, Look and Ask, then the whole
+   page as before: Now, the plan, the timeline, the page's lines and the Ink line. Glance, or scroll one thumb's
+   length.
+2. **Every mark on the sky does something.** A plan on the horizon opens its line, with Open; the time and the
+   sentence are read out by TalkBack; the day before, brain dump and settings sit in the sky's corner.
+3. **The sky never replaces a word.** The sentence says what the picture shows, so nothing depends on reading colour.
 
-## 2. Name and icon
+## 2. Palette by hour
 
-Four options were drawn, each as an adaptive icon (ink background, white mark, the highlighter in yellow) with a
-themed monochrome version:
+The sky is blended minute by minute between four looks (`daylight/Sky.kt`). Text on it uses one of two inks, picked so
+it reads at 4.5:1 against both ends of the sky at every minute, in light and dark theme (unit-tested).
 
-| Name | Idea | Mark |
-|---|---|---|
-| **Inkling** (chosen) | A first hint of an idea; ink, as in the palette | A white lower-case *i* whose dot is a yellow highlighter stroke |
-| Margin | Where you scribble notes | Three text lines with a yellow bar in the margin |
-| Kept | Kept on this phone | A white K over a yellow underline |
-| Hush | Quiet and private | A speech bubble with a yellow stroke inside |
+| Part | Reached | Sky top → horizon | Sun | Ink |
+| --- | --- | --- | --- | --- |
+| Night | 20:30 – 05:00 | `#0E1630` → `#26305A` | moon `#DCE3F5`, a crescent | light `#F6F3EE` |
+| Dawn | 06:30 | `#9FB4D9` → `#F8CDB0` (peach) | `#FF9D5C` | dark `#0B1A2B` |
+| Day | 08:30 – 16:30 | `#8EC5F0` → `#E9F4FC` | `#FFD400`, the icon's highlighter | dark |
+| Dusk | 18:30 | `#3E3A78` (indigo) → `#F09A6B` (apricot) | `#FF7A45` | light |
 
-**Inkling** wins: it says notes and ideas, it fits Ink + highlighter, it reads well as an assistant's name ("Ask
-Inkling"), and its mark survives at 48 px and as a monochrome themed icon. The helper app became **Inkling Net** (merged into Inkling by LFMP-9).
-Package names, the repo name (offline-android) and the model names (LFM3-…) stay as they are, so an update keeps all
-data and models.
+- **Dark theme** keeps the hour but dims the sky toward `#05070D` (45 % at the top, 50 % at the horizon).
+- Between a light and a dark look the sky leans a touch darker until the light ink reads; the ink turns twice a day,
+  at first and last light.
+- **The sky strip.** Every screen has the hour's sky under the status bar, and the status icons take its ink, so
+  Library or Settings still say what time of day it is. The camera keeps its black.
+- The page below the sky keeps v1's paper and ink, and the highlighter yellow stays the one accent.
 
-## 3. Navigation model
+## 3. Type
 
-Four places in a bottom bar, as before; everything else is pushed on top and Back returns.
+- **Inkling's own words** (the day's sentence, Talk's captions, the widget's line) are in the phone's serif (Noto
+  Serif via `FontFamily.Serif`). Nothing is bundled, so there is no font licence to track.
+- **Your words and the controls** stay in Roboto.
+- **The time** is large and light: Roboto Light 64 sp with even (tabular) figures. Daylight shows the time on Today,
+  in the widget, and under the status bar's sky.
+- Sizes: sentence 21/28 sp; Talk caption 26/34 sp, earlier captions 21 sp at 60 % opacity.
 
-```
-Today ─ Chat ─ Library ─ To-dos         (bottom bar)
-  │       │       │         │
-  │       │       │         └─ Editor (to-do)
-  │       │       └─ Editor (note, idea, journal)
-  │       └─ Search page · Camera · Model sheet · Queued message sheet
-  └─ Settings ─ Models · Web search · Tools · Action history · Privacy
-```
+## 4. Motion
 
-- **Chat** is full screen (no bottom bar), like a messaging app; its header has Back, the model status and New chat.
-- **The editor** is full screen, one for all four kinds.
-- **Sheets** are only for short decisions: confirm a tool, a queued message, the model sheet, delete a model.
-- **Back** never loses anything: the editor saves, the composer keeps its draft, sheets close.
-- **Undo** follows every change you can't see coming back: a snackbar at the bottom for 5 s.
+- **Nothing moves by itself.** The sky, the sun and the horizon are redrawn when the minute changes and no more
+  often (`rememberNow`): no idle animation, no wake-ups, nothing for the battery.
+- The only loops: Talk's presence mark breathes while it thinks (1.8 s, ease in-out), and that stops with "Remove
+  animations" on.
+- The presence mark follows the real audio level with a no-bounce spring; with animations off it holds still and a
+  ring shows the state.
+- A picked plan's line fades through in 150 ms. Everything else keeps v1's motion tokens (`ui/theme/Motion.kt`).
 
-## 4. Key flows and their step counts
+## 5. Sound and haptics
 
-Steps are taps (typing counts as none). Before → after.
+Four cues (`daylight/Feel.kt`), each two soft notes made in code (no sound files to license), quiet (peak 0.16) and
+under 300 ms:
 
-| Flow | Before | After |
-|---|---|---|
-| New note from the Library | + → tap field → type → Save = 3, lost on Back | + → type = 1, Back saves |
-| New note, idea, journal line or to-do from Today | none (only via the assistant) | Kind chip → type = 1 |
-| New to-do due today | To-dos → + → tap field → type → tap Due → type "today" → Save = 5 | To-dos → type in "Add a to-do" → Enter = 1 |
-| Edit a note | open → tap field → edit → Save = 3, lost on Back | open → tap → edit = 2, Back saves |
-| Switch a note to a to-do | open → To-do → Save = 3 | long-press → Move to To-dos = 2, Undo |
-| Delete a note | open → Delete = 2, no undo | swipe left = 1, Undo |
-| Tick a to-do | tap box = 1, no undo | tap box or swipe right = 1, Undo |
-| Pin a note | not possible | swipe right = 1 |
-| Search the Library | search icon → tap field → type = 2 | tap search field → type = 1 |
-| Send two messages in a row | not possible while it answers | type → Send → type → Send |
-| Stop an answer | find "Stop" below the composer = 1 | Stop button (where Send is) = 1 |
-| Load or unload a model | not possible | header status → Load/Unload = 2 |
-| Pick the chat model | not possible (the newest file wins) | chat header → pick it = 2 (with two or more on the phone) |
-| First run, recommended models | 3 Download taps + Continue = 4 | Get the recommended models = 1, Continue = 2 |
+| Cue | When | Sound | Haptic |
+| --- | --- | --- | --- |
+| Listen | Talk opens its ear (not every turn) | E5 → A5, rising | gesture start |
+| Done | a Talk turn did something | A5 → C#6 | confirm |
+| Undo | something was put back | G5 → D5, falling | reject |
+| Tick | a plan on the horizon is picked | none | clock tick |
 
-## 5. Screens
+Sounds play only with **Settings → Soft sounds** on and the ringer on normal (never on vibrate or silent). Haptics go
+through the view, so they follow the phone's own touch-feedback setting.
 
-Each screen lists layout, states (empty, loading, error) and gestures. Margins are 16 dp; rows are at least 48 dp tall.
+## 6. Voice
+
+One personality for Talk and the chat (`Persona.PROMPT`, added to every prompt that speaks to the owner):
+
+> Warm, calm and brief, like a friend who keeps good time. Plain words; no exclamation marks, flattery, emoji or pep
+> talk. Never scold, never count what was missed: offer one next step instead. If you do not know, say so plainly.
+
+The app's copy follows it: first person where Inkling speaks ("I'm listening", "I'll file it"), the day in sentences
+("Afternoon. Dentist at 15:00, in 25 minutes. Then one more."), nothing counted against the owner.
+
+## 7. Screens
 
 ### Today
 
-- **Layout.** Date and a settings button; greeting; the composer ("Ask, capture or do…") with camera and mic; under it
-  **capture chips** Note · Idea · Journal · To-do (one tap opens the editor of that kind with the keyboard up); status
-  chips ("On this phone", search mode, the chat model's state); Today's agenda (next item marked); "Just captured" (3).
-- **Empty.** "Nothing planned. Say or type what's coming up." No model: a card "No model yet · Get models".
-- **Gestures.** Tap an agenda row or capture to open it.
+From the top: the sky (340 dp), then the ways in, then the page.
 
-### Chat
+- **In the sky:** "Today · Sunday 1 November" with the day before, brain dump and settings; the time; **one sentence
+  of the day** (`DaySentence`), never counts. It leads with the next timed thing ("Dentist at 15:00, in 25 minutes")
+  when it is within 90 minutes, otherwise the day's weight ("A light day: …"), otherwise "The day is yours."
+- **The horizon:** today's events, reminders and timed to-dos as dots on the horizon line, the waking day 07:00–22:00
+  left to right (stretched to fit early or late plans and now). The sun stands on its arc at now; the stretch it still
+  has to walk to the next plan is drawn in the sun's colour, which makes time visible for time blindness. Past plans
+  fade; the next one has a ring.
+- **Under the horizon:** the next plan ("Next · 15:00 · in 25 minutes", its title), or the one tapped, with **Open**
+  for to-dos.
+- **The ways in:** Talk, Look, Ask, one tap each.
+- **Below:** the seal line, Where was I, Now, the plan, the timeline, carried to-dos, the page and the Ink line, as in
+  v1. Other days keep v1's plain header and line of counts.
 
-- **Layout.** Header: Back, **model status** ("LFM3-1.7B · ready", "loading…", "not loaded", "unloads in 3 min" when
-  set), New chat. Thread. Queued messages at the end of the thread, after the answer being written. Composer pinned
-  at the bottom.
-- **Composer.** Always enabled. While an answer is written: the right side shows **Stop** (ink square) next to the
-  mic; once you type, Send appears and queues. The placeholder says "Message… it will wait its turn" while busy.
-- **Queued messages.** Shown as your bubbles with a dashed edge and "Queued · 1", "Queued · 2". Tap one for the
-  queued-message sheet: edit the text, Move up, Move down, Send next, Remove. They run in order once the current
-  answer ends; Stop ends only the current answer. **New chat keeps them**: they move to the new chat and run there.
-  Queued text is kept on the phone, so it survives the app being closed.
-- **States.** Loading the model: "Loading LFM3-1.7B…" in the thread. Thinking: "Thinking…". Error: a notice line
-  with what to do. Empty chat: three example prompts you can tap.
-- **Scroll.** Stays at the bottom while you are at the bottom; if you scrolled up, a "Latest ↓" button appears
-  instead of jumping.
+### Talk
 
-### Model sheet (from the chat header) and Settings → Models
+Captions over the sky of the hour (top-to-horizon gradient), the header and controls in the sky's ink.
 
-- **Loaded now**: each model in memory with its memory use (estimate, from file size and context), and **Unload**.
-  The phone's free memory is shown under the list.
-- **Chat model**: with two or more text models on the phone (say Q4_0 and Q8_0), a radio list picks the one chat
-  uses; a loaded one is swapped at once. Projectors are listed with their model, not on their own.
-- **Unloading** waits for an answer being written with that model, and says so ("Unloads when the current answer
-  ends").
-- **Auto-unload**: Never · 1 · 5 · 15 · 30 min idle. Tied to the Battery & heat row in Settings.
-- **Download / Import** below, as before; Delete asks first ("Delete LFM3-1.7B Q8_0? Frees 1.85 GB. You'd download
-  it again to use it."). A loaded model is unloaded before it is deleted.
-- **States.** Loading shows a progress line and disables Load; a failed load shows the reason on that row.
+- **The presence mark** is the hour's sun: it swells with your voice while listening (with a thin ring: the ear is
+  open), with its own voice while speaking, breathes while thinking, and is a quiet ring when paused.
+- **Captions:** your words small, Inkling's answer large in the serif; earlier exchanges smaller and faded above.
+- **Under a result:** "✓ Reminder set · Dentist at 15:00" with **Undo** (from the action log) and **Show** (the note or
+  to-do in the editor; reminders and events on Today; anything else in Action history).
 
-### Library
+### Look
 
-- **Layout.** Title, then a **search field** that is always there; **filter chips**: All · Notes · Ideas · Journal ·
-  Pinned. Pinned items first, then newest first. Ideas keep their topic groups when the Ideas chip is on; Journal keeps
-  its day groups and the day's prompt.
-- **Row.** Kind icon (in All), title (first line), two lines of body, tags, time; a pin mark when pinned.
-- **Gestures.** Tap to open. Swipe right: pin/unpin. Swipe left: delete, with Undo. Long-press: the same actions
-  in a menu (for those who don't swipe).
-- **Buttons.** Ink **+** (new of the current kind, Note in All) and the yellow mic, bottom right.
-- **Empty.** Per filter: "No notes yet. Tap + or the mic." Search with no match: "Nothing matches “x”."
+The camera stays full-bleed black (the one screen without the sky strip); Look's live description keeps its own tile
+inside Talk. Its look changes come in a later task.
 
-### Editor (note, idea, journal, to-do)
+### Library, Plans, Settings
 
-- **Layout.** Full screen. Top bar: Back, "Saved", Pin, Delete; under it the **kind chips** Note · Idea · Journal · To-do. Body: one
-  big text field; the first line is the title. Under it, by kind: Tags (note), Topic (idea), Mood (journal), and for a
-  to-do **due chips** Today · Tomorrow · Next week · No date · Pick… plus List. A quiet "Saved" or "Saving…" word in
-  the top bar. A new entry opens with the keyboard up; an existing one opens to read, and a tap puts the cursor there.
-- **Saving.** Every change is saved half a second after you stop typing, and at once on Back, on leaving the app and
-  on switching kind. A new entry is created on the first character; an entry left empty is removed. Nothing is lost
-  on Back, swipe, rotation or the app being killed.
-- **Delete** goes back to the list with an Undo snackbar.
+Paper and ink as in v1, under the hour's sky strip. Settings gains **Soft sounds**. A full Daylight pass of these
+screens (sky-tinted headers, the serif for Inkling's margin notes) is a follow-up.
 
-### To-dos
+### Lock screen and widget
 
-- **Layout.** Title; tabs Today · Upcoming · Someday (counts in brackets); a **quick-add line** at the top of the
-  list: "Add a to-do". Enter adds it (due today on Today, tomorrow on Upcoming, no date on Someday) and keeps the
-  keyboard up for the next one. Rows: checkbox, title (the most urgent marked), due and list.
-- **Gestures.** Tap the box or swipe right: done, with Undo. Swipe left: delete, with Undo. Tap: editor.
-- **Empty.** "Nothing due today" with the quick-add line still there.
+**Inkling · Today**, a 4×2 widget (`daylight/HorizonWidget.kt`), declared for the home screen and the keyguard:
 
-### Settings
+- the hour's sky with the horizon, today's plans and the sun, drawn by the same painter as the app;
+- the time as a live clock;
+- "Next · 15:00 Dentist" (said with its time, never "in 20 minutes", so a picture up to 30 minutes old still tells the
+  truth), or the day's sentence;
+- a tap opens Today.
 
-- Rows: Models (what is loaded, the chat model), Web search, Tools, Action history, Privacy, Voice (Omni's state;
-  opens Models), **Battery & heat** (threads and auto-unload; opens Models), Thinking.
-- No highlighter on Settings (spec.md section 7).
+It is redrawn every 30 minutes and whenever Inkling is left. Android phones show keyguard widgets only where the
+launcher offers lock-screen widgets; a true lock-screen surface (Talk and Look from the lock screen), now possible
+with LFMP-9's single app, is not in this release.
 
-### First run
+## 8. No-nag rules (kept from the research)
 
-- One screen, two steps. Step 1: **Get the recommended models** (LFM3-1.7B and Omni with its projector, 2.4 GB) as
-  the primary button; "Choose models yourself" opens the full list; "Import files instead". Step 2: search mode.
-  Continue. Downloads carry on in the background and show on Today until done.
+- Rituals the owner turned on are not offers; beyond them, at most three unasked offers a day, never during Focus, Do
+  Not Disturb or after 22:00. This release adds **no** offers.
+- Each offer says why; "Not this" stops that kind of offer.
+- **Nothing red, nothing counted, nothing repeated.** The day's sentence never counts to-dos in digits, never says
+  "overdue", "missed" or "behind" (unit-tested), and past plans only fade.
+- Sounds are rare and quiet; nothing ever buzzes on its own.
 
-### Camera, Search page, Privacy, Tools, Action history
+## 9. Later (bigger bets, ranked)
 
-Unchanged in structure; they get the shared header and the same states.
-
-## 6. Editing rules (everywhere)
-
-1. Text you typed is never lost: not on Back, not on swipe, not on a crash or the app being killed (drafts are saved
-   as you type; the chat composer keeps its draft per app run).
-2. No Save buttons for your own text; confirmation sheets for the assistant's actions keep their explicit button.
-3. Every destructive action on your content (delete, done, move kind) can be undone for 5 s from a snackbar, and
-   deletes of model files ask first because they can't be undone.
-4. The keyboard comes up wherever the next thing you do is type (new entry, search, quick add).
-5. Enter in a single-line field does the obvious thing (add, search); in the editor it is a new line.
-
-## 7. Motion rules
-
-Motion explains where things came from and went; it never decorates. LP-6 did the full pass; everything follows
-these rules. Implemented in `ui/theme/Motion.kt`.
-
-| Use | Duration | Easing | Notes |
-|---|---|---|---|
-| Small state change (chip, switch, button state) | 100 ms (SHORT) | standard | colour/opacity only |
-| Something appears in place (snackbar, queued bubble, saved line) | 150–250 ms | emphasized decelerate | fade + 8 dp rise |
-| Something leaves (snackbar, removed row) | 150 ms | emphasized accelerate | fade + shrink height |
-| List reorder (pin, done, queue order) | 250 ms (MEDIUM) | emphasized decelerate | `animateItem` placement |
-| Push a full screen (editor, chat, sub-screens) | 300 ms (LONG) | emphasized | shared axis X: in from 10 % right with fade; Back reverses |
-| Switch places in the bottom bar | none | — | instant, as in Signal: they are places, not steps |
-| Full-screen mode change (camera) | 300 ms | emphasized | shared axis Z (as now) |
-| Swipe release | spring, no bounce | — | follows the finger; the action colour shows past 40 % |
-
-- Nothing animates for longer than 300 ms, and nothing loops except "is working" indicators.
-- Streaming text is revealed evenly (LP-6, the owner asked for it): a burst of tokens is shown over about 120 ms
-  rather than jumping in; a "working" indicator of three squares stands in until the first words.
-- Predictive back: while the back swipe is held the screen scales toward 90 % and rounds its corners (M3 back preview);
-  releasing goes back with the shared-axis slide, cancelling springs back without a bounce.
-- The highlighter draws in from the left (300 ms) the first time it shows in a run; the mic's outline follows the
-  voice level while listening.
-- With Android's "Remove animations" on, every transition snaps (`LfmMotion.reduced()`).
-
-## 8. Accessibility
-
-- Touch targets at least 48 × 48 dp; icon-only buttons have a content description ("Stop", "Pin", "New note").
-- Text contrast at least 4.5:1 in both themes (the palette's greys pass); yellow is never text.
-- Every swipe action is also a TalkBack custom action; in the Library it is also in the long-press menu, and on
-  To-dos the checkbox and the editor do the same.
-- States are said, not only shown: "Queued, 2 of 3", "LFM3-1.7B loaded, 1.2 GB".
-- Font scaling up to 200 % keeps layouts usable: rows wrap rather than clip; the composer grows to 5 lines.
-- Snackbars stay 5 s, longer (10 s) with TalkBack on.
-
-## 9. Out of scope for LP-12
-
-Live Talk, read-aloud, widgets and the Quick Settings tile (Phase 6); the full motion pass (LP-6); lock and export
-(Phase 7).
+1. **Offers, with a budget**: one engine for unasked offers, at most three a day, each with a reason.
+2. **Morning and evening rituals**: a drafted day at the first glance, a one-line evening.
+3. **Lock-screen Talk and Look** (one app since LFMP-9, so it can be built now).
+4. **What I know**: the readable, correctable memory page (LFMP-11).
+5. **Point-of-performance nudges**: leave-by and bring-this from calendar plus memory.
+6. **Remembers in the margin**: related old notes via on-device embeddings (LFMP-10).
+7. **Daylight for Library, Plans and Settings**, and Focus with a quiet presence.

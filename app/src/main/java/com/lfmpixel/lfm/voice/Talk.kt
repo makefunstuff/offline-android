@@ -44,7 +44,12 @@ enum class TalkPhase(val label: String) {
 /** One exchange: what the owner said and what Omni answered (still growing while it speaks). */
 data class TalkTurn(val id: Long, val you: String, val it: String = "", val done: Boolean = false, val stopped: Boolean = false,
                     /** How long the owner spoke. */
-                    val seconds: Int = 0)
+                    val seconds: Int = 0,
+                    /** What the turn did with the app's tools, shown under the caption with Undo and Show. */
+                    val actions: List<TalkAction> = emptyList())
+
+/** One thing a Talk turn did: "Reminder set", "Dentist at 15:00". [undo] is the action log's way back ("entry:12"), "" if none. */
+data class TalkAction(val actionId: Long?, val ok: Boolean, val label: String, val title: String, val undo: String)
 
 /**
  * How quickly the last answer came, in ms from the end of the owner's turn (when the end of speech was heard):
@@ -179,10 +184,22 @@ class Talk(
         if (run == epoch) _state.value = change(_state.value)
     }
 
-    val available get() = models.hasVoice() || models.edge?.configured?.value == true
+    val available get() = demo || models.hasVoice() || models.edge?.configured?.value == true
+
+    /**
+     * Debug builds only (DebugTalkReceiver): Talk with no voice model, for trying the screen on an emulator. It sits
+     * listening and shows the turns handed to [demoTurn]; release builds never set it.
+     */
+    @Volatile var demo = false
+
+    fun demoTurn(you: String, answer: String, actions: List<TalkAction>) = synchronized(this) {
+        _state.value = _state.value.copy(phase = TalkPhase.Listening,
+            turns = _state.value.turns + TalkTurn(System.nanoTime(), you, answer, done = true, actions = actions))
+    }
 
     /** Starts, or picks up again after a pause or an error. */
     fun start() = synchronized(this) {
+        if (demo) { _state.value = _state.value.copy(phase = TalkPhase.Listening, error = null); return }
         if (job?.isActive == true) return
         _state.value = _state.value.copy(phase = TalkPhase.Loading, error = null)
         val run = epoch
@@ -443,6 +460,10 @@ class Talk(
                         if (interrupted || run != epoch) throw CancellationException("Stopped")
                         val r = toolBox.run(call)
                         ran++
+                        // Logged actions (and failures) show under the caption; look-ups like daily_brief don't.
+                        if (r.cardLabel.isNotEmpty() && (r.actionId != null || !r.ok)) set(run) { st ->
+                            st.copy(turns = st.turns.map { if (it.id == id) it.copy(actions = it.actions + TalkAction(r.actionId, r.ok, r.cardLabel, r.cardTitle, r.undo)) else it })
+                        }
                         msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Tool, r.forModel)
                     }
                     if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ')

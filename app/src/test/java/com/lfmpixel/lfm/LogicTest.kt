@@ -231,7 +231,7 @@ class Phase7LogicTest {
     }
 }
 
-/** ux-spec section 8: text at least 4.5:1, control edges at least 3:1, in both themes. */
+/** ux-spec-v1 section 8: text at least 4.5:1, control edges at least 3:1, in both themes. */
 class ContrastTest {
     private fun lum(c: androidx.compose.ui.graphics.Color): Double {
         fun ch(v: Float) = if (v <= 0.04045f) v / 12.92 else Math.pow((v + 0.055) / 1.055, 2.4)
