@@ -94,7 +94,7 @@ class AppGraph(context: Context) {
     val feel = com.lfmpixel.lfm.daylight.Feel(context, scope).also { f ->
         scope.launch { settings.prefs.collect { f.soundsOn = it.softSounds } }
     }
-    /** What Inkling learned (notebook-spec section 6): sealed in the notes' database, read into answers. */
+    /** What Wren learned (notebook-spec section 6): sealed in the notes' database, read into answers. */
     val memory = com.lfmpixel.lfm.memory.MemoryStore(db, com.lfmpixel.lfm.memory.KeystoreSealer, { engine.embedder() },
         { q, n -> semantic.search(q, n) }, journalLocked = { journalHidden() }, learning = { settings.now().learning }, scope = scope).also { m ->
         m.start(db.messages().lastId())
@@ -116,8 +116,8 @@ class AppGraph(context: Context) {
 
 /**
  * Delete everything (Settings → Privacy): every note, chat, reminder, search, log line and setting, pictures kept for
- * the chat, the queue, Inkling's own calendar, and, if [models] is set, the model files. The app is then as on first
- * run. Nothing outside Inkling is touched (alarms set in the Clock app stay; Android has no call to remove them).
+ * the chat, the queue, Wren's own calendar, and, if [models] is set, the model files. The app is then as on first
+ * run. Nothing outside Wren is touched (alarms set in the Clock app stay; Android has no call to remove them).
  */
 suspend fun AppGraph.wipe(context: Context, models: Boolean) {
     assistant.stop()

@@ -40,7 +40,7 @@ data class BenchReport(
 
     fun text(): String = buildString {
         fun f(v: Double, d: Int = 1) = "%.${d}f".format(Locale.ENGLISH, v)
-        appendLine("Inkling benchmark · ${at.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ENGLISH))}")
+        appendLine("Wren benchmark · ${at.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ENGLISH))}")
         appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} · ${Build.SOC_MANUFACTURER} ${Build.SOC_MODEL} · Android ${Build.VERSION.RELEASE}")
         appendLine("Runtime: ${gpu}")
         appendLine("Model: $model")

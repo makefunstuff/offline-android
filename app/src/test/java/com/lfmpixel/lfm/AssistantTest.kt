@@ -272,7 +272,7 @@ class AssistantTest {
         g.lock.start(com.lfmpixel.lfm.settings.LockMode.Off)
     }
 
-    /** Stop from the notification holds the queue only until Inkling is on screen again. */
+    /** Stop from the notification holds the queue only until Wren is on screen again. */
     @Test fun stopAllHoldsTheQueueUntilShownAgain() = runBlocking {
         g.assistant.stopAll()
         assertFalse("held is not busy", g.assistant.busy.value)
@@ -298,12 +298,12 @@ class AssistantTest {
         java.util.zip.ZipInputStream(out.toByteArray().inputStream()).use { z ->
             while (true) { val e = z.nextEntry ?: break; files[e.name] = z.readBytes().toString(Charsets.UTF_8) }
         }
-        assertEquals(setOf("README.txt", "notes.md", "ideas.md", "journal.md", "todos.md", "chats.md", "inkling.json"), files.keys)
+        assertEquals(setOf("README.txt", "notes.md", "ideas.md", "journal.md", "todos.md", "chats.md", "wren.json"), files.keys)
         assertTrue(files["notes.md"]!!.contains("## Boiler") && files["notes.md"]!!.contains("Pressure 1.2 bar") && files["notes.md"]!!.contains("#home"))
         assertTrue(files["todos.md"]!!.contains("## [x] Buy oat milk"))
         assertTrue(files["journal.md"]!!.contains("good day"))
         assertTrue(files["chats.md"]!!.contains("**You:** Hello there"))
-        val json = org.json.JSONObject(files["inkling.json"]!!)
+        val json = org.json.JSONObject(files["wren.json"]!!)
         assertEquals(3, json.getJSONArray("entries").length())
         assertEquals("Pressure 1.2 bar", json.getJSONArray("entries").getJSONObject(0).getString("body"))
         com.lfmpixel.lfm.data.Export.TABLES.forEach { assertTrue(it, json.has(it)) }

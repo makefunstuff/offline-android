@@ -63,7 +63,7 @@ class WebSearch(
         val q = query.replace(Regex("\\s+"), " ").trim().take(200)
         if (q.isEmpty()) return SearchOutcome("Error: empty search", null, "Could not search", "No search words", "")
         if (prefs.searchMode == SearchMode.Off) return off("Web search is off. It can be turned on in Settings.")
-        if (net.state() == NetClient.State.Offline) return off("Inkling is offline (Settings → Privacy), so nothing was searched.")
+        if (net.state() == NetClient.State.Offline) return off("Wren is offline (Settings → Privacy), so nothing was searched.")
         val info = net.info()
         if (!info.ready) return off("No search provider is set up. Set one in Settings → Web search.")
 

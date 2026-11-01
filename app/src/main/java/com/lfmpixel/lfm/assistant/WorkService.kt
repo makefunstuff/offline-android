@@ -22,10 +22,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Keeps Inkling running while it works on an answer (spec section 7: long jobs in a foreground service with a stop
+ * Keeps Wren running while it works on an answer (spec section 7: long jobs in a foreground service with a stop
  * button), so a scanned PDF read page by page or a queue of messages carries on when you leave the app. It starts
- * as Inkling leaves the screen with work under way (MainActivity.onPause) and ends when nothing is left to do. Stop ends the answer and holds the
- * queue until Inkling is opened again.
+ * as Wren leaves the screen with work under way (MainActivity.onPause) and ends when nothing is left to do. Stop ends the answer and holds the
+ * queue until Wren is opened again.
  */
 class WorkService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -45,13 +45,13 @@ class WorkService : Service() {
                     val title = when {
                         heat.holdsEverything -> "Waiting for the phone to cool"
                         s?.note?.isNotEmpty() == true -> s.note.removeSuffix("…")
-                        s != null && s.text.isEmpty() -> "Inkling is thinking"
-                        else -> "Inkling is answering"
+                        s != null && s.text.isEmpty() -> "Wren is thinking"
+                        else -> "Wren is answering"
                     }
                     title to (if (q.isNotEmpty()) "${q.size} more waiting" else "On this phone")
                 }
             }.distinctUntilChanged().collectLatest { words ->
-                // Only up to the last start: one that came in meanwhile (Inkling left again) is answered in onStartCommand.
+                // Only up to the last start: one that came in meanwhile (Wren left again) is answered in onStartCommand.
                 if (words == null) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(lastStart); return@collectLatest }
                 shown = words
                 nm.notify(ID, note(words.first, words.second))
@@ -68,7 +68,7 @@ class WorkService : Service() {
         .build()
 
     private var lastStart = 0
-    private var shown = "Inkling is answering" to ""
+    private var shown = "Wren is answering" to ""
 
     /**
      * Every startForegroundService must be answered with startForeground, also one that lands while the service is
@@ -84,7 +84,7 @@ class WorkService : Service() {
         val g = (application as LfmApp).graph
         when (intent?.action) {
             ACTION_STOP -> g.assistant.stopAll()
-            // Inkling is on screen again: the notice is not needed (onCreate already answered the start it came after).
+            // Wren is on screen again: the notice is not needed (onCreate already answered the start it came after).
             ACTION_BACK -> { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId); return START_NOT_STICKY }
             else -> foreground()
         }
@@ -104,13 +104,13 @@ class WorkService : Service() {
         /** Started and not yet destroyed: [back] has something to end. */
         @Volatile private var started = false
 
-        /** Only while Inkling is on screen: Android refuses a foreground service started from the background. */
+        /** Only while Wren is on screen: Android refuses a foreground service started from the background. */
         fun start(context: Context) {
             runCatching { context.startForegroundService(Intent(context, WorkService::class.java)); started = true }
         }
 
         /**
-         * Inkling is back on screen. Not stopService: back within moments (a permission dialog, the share sheet, the
+         * Wren is back on screen. Not stopService: back within moments (a permission dialog, the share sheet, the
          * shade), it could land before onCreate's startForeground, and Android closes an app whose foreground service
          * stops before that. A start of its own goes after the first, so the service ends itself once it is foreground.
          */

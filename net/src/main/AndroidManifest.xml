@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The only part of Inkling that may use the network (docs/spec.md section 3). Its permissions merge into Inkling's;
+<!-- The only part of Wren that may use the network (docs/spec.md section 3). Its permissions merge into Wren's;
      :app:checkDebugNetworkConfinement fails the build if any other code or library opens a connection. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />

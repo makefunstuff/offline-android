@@ -9,8 +9,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 /**
- * Everything Inkling keeps, in one ZIP the owner saves where they choose (spec section 3: data leaves only when you
- * tap Export). Markdown to read, and `inkling.json` with every row of every table, to keep or move. Models,
+ * Everything Wren keeps, in one ZIP the owner saves where they choose (spec section 3: data leaves only when you
+ * tap Export). Markdown to read, and `wren.json` with every row of every table, to keep or move. Models,
  * pictures and settings are not in it.
  */
 object Export {
@@ -30,16 +30,16 @@ object Export {
                 zip.write(text.toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
             }
-            file("README.txt", "Exported from Inkling on ${day.format(now)}.\n\n" +
+            file("README.txt", "Exported from Wren on ${day.format(now)}.\n\n" +
                 "notes.md, ideas.md, journal.md, todos.md and chats.md are for reading.\n" +
-                "inkling.json holds every row of every table (${TABLES.joinToString(", ")}), with times in milliseconds since 1970.\n" +
+                "wren.json holds every row of every table (${TABLES.joinToString(", ")}), with times in milliseconds since 1970.\n" +
                 "Models, pictures and settings are not included.\n")
             for (kind in EntryKind.entries) {
                 val list = entries.filter { it.kind == kind }
                 file(kind.fileName(), entriesMarkdown(kind, list, day))
             }
             file("chats.md", chatsMarkdown(messages, day))
-            file("inkling.json", tablesJson(db))
+            file("wren.json", tablesJson(db))
         }
     }
 
@@ -75,7 +75,7 @@ object Export {
             for (m in thread) {
                 val line = when (m.role) {
                     Role.User -> "**You:** " + (if (m.media.isNotEmpty()) "[${m.mediaLabel.ifEmpty { m.media }}] " else "") + m.text
-                    Role.Assistant -> "**Inkling:** " + m.text
+                    Role.Assistant -> "**Wren:** " + m.text
                     Role.Tool -> "_" + listOf(m.cardLabel, m.cardTitle, m.cardDetail).filter { it.isNotEmpty() }.joinToString(" · ") + "_"
                     Role.Notice -> "_" + m.text + "_"
                 }
@@ -86,7 +86,7 @@ object Export {
 
     /** Every table, row by row, column names as they are in the database. */
     private fun tablesJson(db: LfmDatabase): String {
-        val root = org.json.JSONObject().put("app", "Inkling").put("version", db.openHelper.readableDatabase.version)
+        val root = org.json.JSONObject().put("app", "Wren").put("version", db.openHelper.readableDatabase.version)
         val sql = db.openHelper.readableDatabase
         for (t in TABLES) {
             val rows = org.json.JSONArray()

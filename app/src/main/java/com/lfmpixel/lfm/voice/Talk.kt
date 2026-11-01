@@ -158,7 +158,7 @@ class Talk(
     private val focus = AudioFocus(context, exclusive = true) { pause() }
     /** The app's tools, for the answer model in Edge mode. */
     @Volatile var tools: TalkTools? = null
-    /** What Inkling learned and the notes near what was said (memory/MemoryStore.kt); set by AppGraph. */
+    /** What Wren learned and the notes near what was said (memory/MemoryStore.kt); set by AppGraph. */
     @Volatile var memory: com.lfmpixel.lfm.memory.MemoryStore? = null
     /** What the camera sees now (Look), for the answer: a short line and how old it is, or null. */
     @Volatile var seeing: (() -> String?)? = null

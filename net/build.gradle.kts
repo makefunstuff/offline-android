@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.library)
 }
 
-// The network module: the only code in Inkling that may open a connection (docs/spec.md section 3). Search, fetch,
+// The network module: the only code in Wren that may open a connection (docs/spec.md section 3). Search, fetch,
 // pinned model downloads and Edge requests to the owner's server; :app:checkDebugNetworkConfinement fails the build
 // if any other module or library uses the network.
 android {

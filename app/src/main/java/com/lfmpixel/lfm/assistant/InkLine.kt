@@ -6,7 +6,7 @@ import java.time.LocalDate
 /** Where a line written on the Daily Page goes (notebook-spec proposal 2). */
 enum class InkKind(val label: String, val icon: String) {
     Note("Note", "note"), Todo("To-do", "todo"), Idea("Idea", "bulb"), Journal("Journal", "book"),
-    Reminder("Reminder", "bell"), Ask("Ask Inkling", "chat"),
+    Reminder("Reminder", "bell"), Ask("Ask Wren", "chat"),
 }
 
 /** The Ink line's guess for a line: its kind, and the text that goes in once the signifier words are taken off. */
@@ -17,7 +17,9 @@ data class InkGuess(val kind: InkKind, val text: String, val reminderAt: String 
  * model, so the glyph can follow every key; a line ending in "?" is a question for the assistant.
  */
 object InkLine {
-    private val askStart = Regex("""^(?:ask|inkling)[:,]\s*""", RegexOption.IGNORE_CASE)
+    // "Wren" is also a person's name, so "Wren, birthday Friday", "Ask Wren about the dress" and "Hey Wren's party"
+    // stay notes: the assistant is asked as "ask Wren," or "hey Wren," (comma or colon); "Inkling," still works.
+    private val askStart = Regex("""^(?:(?:ask|inkling)[:,]|(?:ask|hey)[,\s]+wren[:,])\s*""", RegexOption.IGNORE_CASE)
     /** A day told in the first person reads as a journal line, beyond the sorter's "I feel…". */
     private val diary = Regex("""^(?:felt|today was|today i|tonight i|this morning i|slept|woke up|i woke|grateful for|i'm grateful|i am grateful)\b""", RegexOption.IGNORE_CASE)
 

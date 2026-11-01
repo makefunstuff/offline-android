@@ -45,7 +45,7 @@ data class VoiceReport(
         fun f(v: Double) = "%.0f".format(Locale.ENGLISH, v)
         fun f1(v: Double) = "%.1f".format(Locale.ENGLISH, v)
         fun f2(v: Double) = "%.2f".format(Locale.ENGLISH, v)
-        appendLine("Inkling voice benchmark · ${at.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ENGLISH))}")
+        appendLine("Wren voice benchmark · ${at.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ENGLISH))}")
         appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} · ${Build.SOC_MANUFACTURER} ${Build.SOC_MODEL} · Android ${Build.VERSION.RELEASE}")
         appendLine("Omni on $backend · load ${f1(loadMs / 1000)} s")
         appendLine("You stop → voice starts (estimate, answer 1): ${f(stopToSoundMs)} ms")

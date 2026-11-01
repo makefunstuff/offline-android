@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Capture from anywhere (docs/notebook-spec.md, A.1 proposal 3): long-press Inkling's icon. -->
+<!-- Capture from anywhere (docs/notebook-spec.md, A.1 proposal 3): long-press Wren's icon. -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut android:shortcutId="line" android:enabled="true" android:icon="@drawable/ic_tile_capture"
         android:shortcutShortLabel="@string/shortcut_line">

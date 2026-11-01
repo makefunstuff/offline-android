@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The optional lock (spec section 3): the whole app or only the journal, opened with the phone's own fingerprint,
- * face or screen lock. Once opened it stays open while Inkling is in use, and closes again when Inkling has been
+ * face or screen lock. Once opened it stays open while Wren is in use, and closes again when Wren has been
  * out of sight for [GRACE_MS] (long enough to finish a hand-off in Messages and come back).
  */
 class AppLock(private val context: Context) {
@@ -17,17 +17,17 @@ class AppLock(private val context: Context) {
         set(value) { field = value; if (value == LockMode.Off) _open.value = true }
     // Closed until the saved mode is known (start): with the lock on, nothing shows before it is opened.
     private val _open = MutableStateFlow(false)
-    /** Opened since Inkling last came on screen (always true with the lock off). */
+    /** Opened since Wren last came on screen (always true with the lock off). */
     val open: StateFlow<Boolean> = _open
     private val _closings = MutableStateFlow(0)
     /** Counts each time the lock closed after a time away, even if it was not open: "it locked while you were here". */
     val closings: StateFlow<Int> = _closings
     @Volatile private var hiddenAt = 0L
     @Volatile private var hidden = false
-    /** Asks the owner to unlock (BiometricPrompt, in the visible activity); null when Inkling is not on screen. */
+    /** Asks the owner to unlock (BiometricPrompt, in the visible activity); null when Wren is not on screen. */
     var prompt: (suspend (title: String) -> Boolean)? = null
 
-    /** Whether the phone has a fingerprint, face or screen lock to open Inkling with. */
+    /** Whether the phone has a fingerprint, face or screen lock to open Wren with. */
     fun canLock(): Boolean = context.getSystemService(BiometricManager::class.java)
         ?.canAuthenticate(AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
 
@@ -39,10 +39,10 @@ class AppLock(private val context: Context) {
         mode != LockMode.Off && (mode == LockMode.App || mode == what) &&
             (!_open.value || (hidden && shouldClose(mode, hiddenAt, now)))
 
-    /** Inkling left the screen. */
+    /** Wren left the screen. */
     fun onHidden(now: Long = System.currentTimeMillis()) { hiddenAt = now; hidden = true }
 
-    /** Inkling is on screen again: closed if it was away too long (or never opened since start). */
+    /** Wren is on screen again: closed if it was away too long (or never opened since start). */
     fun onShown(now: Long = System.currentTimeMillis()) {
         hidden = false
         if (shouldClose(mode, hiddenAt, now)) { _open.value = false; _closings.value++ }

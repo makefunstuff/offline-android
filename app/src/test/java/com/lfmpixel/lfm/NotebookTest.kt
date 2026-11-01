@@ -9,6 +9,7 @@ import com.lfmpixel.lfm.ui.screens.brief
 import com.lfmpixel.lfm.ui.screens.isQuote
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,6 +26,16 @@ class InkLineTest {
         assertEquals(InkKind.Note, InkLine.guess("Garden: tulips by the fence").kind)
         assertEquals(InkKind.Ask, InkLine.guess("best time to plant tulips?").kind)
         assertEquals(InkKind.Ask, InkLine.guess("ask: plan my Sunday").kind)
+        assertEquals("plan my Sunday", InkLine.guess("Ask Wren, plan my Sunday").text)
+        assertEquals(InkKind.Ask, InkLine.guess("hey wren: what's next").kind)
+        assertEquals(InkKind.Ask, InkLine.guess("Inkling, plan my Sunday").kind)
+        assertEquals(InkKind.Note, InkLine.guess("Wren, birthday Friday").kind)
+        assertEquals("plan my day", InkLine.guess("Hey, Wren, plan my day").text)
+        assertNotEquals(InkKind.Ask, InkLine.guess("Ask Wren about the dress").kind)
+        assertEquals("Hey Wrenna is coming Friday", InkLine.guess("Hey Wrenna is coming Friday").text)
+        assertNotEquals(InkKind.Ask, InkLine.guess("Ask Wrenna about the dress").kind)
+        assertEquals("Hey Wren's party is Friday", InkLine.guess("Hey Wren's party is Friday").text)
+        assertNotEquals(InkKind.Ask, InkLine.guess("Hey Wren is coming Friday").kind)
         InkLine.guess("remind me at 6 to call Ana").let {
             assertEquals(InkKind.Reminder, it.kind); assertEquals("call Ana", it.text)
             assertEquals("today 18:00", InkLine.whenLabel(it.reminderAt, java.time.LocalDateTime.of(2026, 10, 31, 14, 0)))
@@ -116,8 +127,8 @@ class MarginTest {
 
     @Test fun cleansAndMarksWhatGoesIntoTheNote() {
         assertEquals("A short sum.", Margin.clean("**A short sum.**"))
-        assertEquals("Inkling, summed up:\nA short sum.", Margin.forNote(MarginAsk.Sum, "A short sum."))
-        assertEquals("Inkling, kept going:\nAnd then it rained.", Margin.forNote(MarginAsk.Continue, " And then it rained. "))
+        assertEquals("Wren, summed up:\nA short sum.", Margin.forNote(MarginAsk.Sum, "A short sum."))
+        assertEquals("Wren, kept going:\nAnd then it rained.", Margin.forNote(MarginAsk.Continue, " And then it rained. "))
     }
 }
 

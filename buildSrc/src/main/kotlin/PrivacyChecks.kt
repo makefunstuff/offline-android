@@ -78,7 +78,7 @@ fun runtimeModules(root: org.gradle.api.artifacts.result.ResolvedComponentResult
 val baseAllowList = listOf("androidx.", "org.jetbrains.kotlin", "org.jetbrains.kotlinx", "org.jetbrains:annotations",
     "org.jspecify", "com.google.guava:listenablefuture", "com.google.errorprone:error_prone_annotations")
 
-/** Copies a built APK (the Inkling Net hand-off) into Inkling's assets as [assetName]. */
+/** Copies a built APK (the Inkling Net hand-off) into Wren's assets as [assetName]. */
 abstract class BundleApk : DefaultTask() {
     @get:org.gradle.api.tasks.InputDirectory
     abstract val apkDir: org.gradle.api.file.DirectoryProperty

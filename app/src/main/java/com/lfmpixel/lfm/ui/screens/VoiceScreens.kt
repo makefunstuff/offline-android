@@ -115,7 +115,7 @@ fun VoiceSettingsScreen(g: AppGraph, nav: Nav) {
             Txt("Holding the power button and the corner swipe open:", LfmType.small, c.text2, Modifier.padding(bottom = 8.dp))
             Segmented(AssistOpens.entries.map { it.label }, p.assistOpens.label,
                 { l -> scope.launch { g.settings.setAssistOpens(AssistOpens.entries.first { it.label == l }) } })
-            WayIn("Phone's assistant", if (isAssistant) "Inkling is the phone's assistant" else "Gemini or another app answers the power button now",
+            WayIn("Phone's assistant", if (isAssistant) "Wren is the phone's assistant" else "Gemini or another app answers the power button now",
                 if (isAssistant) "Change" else "Set", Modifier.padding(top = 12.dp)) {
                 runCatching { ctx.startActivity(Intent(android.provider.Settings.ACTION_VOICE_INPUT_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                     .onFailure { nav.show("Open Android Settings → Apps → Default apps → Digital assistant app") }
@@ -134,7 +134,7 @@ fun VoiceSettingsScreen(g: AppGraph, nav: Nav) {
             WayIn("Home-screen widget", "Capture, Talk and a new note", "Add", Modifier.padding(top = 8.dp)) {
                 val awm = ctx.getSystemService(AppWidgetManager::class.java)
                 if (awm?.isRequestPinAppWidgetSupported == true) awm.requestPinAppWidget(ComponentName(ctx, CaptureWidget::class.java), null, null)
-                else nav.show("Long-press the home screen → Widgets → Inkling")
+                else nav.show("Long-press the home screen → Widgets → Wren")
             }
             Spacer(Modifier.height(24.dp))
         }

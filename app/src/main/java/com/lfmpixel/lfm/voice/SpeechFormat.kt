@@ -36,7 +36,7 @@ object SpeechFormat {
 
     /** Talk's instructions: short spoken answers, in the owner's language. */
     fun talkSystem(language: SpeechLanguage, today: String) =
-        "You are Inkling, a private assistant that runs on the owner's phone. You are talking out loud with the owner. " +
+        "You are Wren, a private assistant that runs on the owner's phone. You are talking out loud with the owner. " +
             com.lfmpixel.lfm.daylight.Persona.PROMPT + " " +
             "Answer in ${language.ttsName}, in one to three short spoken sentences, without lists, Markdown or web links. " +
             "If you do not know, say so. Today is $today."
@@ -47,7 +47,7 @@ object SpeechFormat {
      * the server can keep this start read in.
      */
     fun talkToolSystem(language: SpeechLanguage, now: java.time.ZonedDateTime = java.time.ZonedDateTime.now()) =
-        "You are Inkling, the owner's private assistant and notebook. You are talking out loud with the owner. " +
+        "You are Wren, the owner's private assistant and notebook. You are talking out loud with the owner. " +
             com.lfmpixel.lfm.daylight.Persona.PROMPT + " " +
             "Answer in ${language.ttsName}, in one to three short spoken sentences, without lists, Markdown or web links. " +
             "When they ask you to remember, note, add, remind, plan, set or change something, call a tool; \"remind me\" is " +

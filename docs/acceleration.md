@@ -3,8 +3,8 @@
 > **Superseded in part by LFMP-8 (1 November 2026):** the phone now runs every model on LiteRT, and llama.cpp and
 > GGUF are gone from it. See [model-pool.md](model-pool.md). The research below is kept for its reasons and numbers.
 
-Research as of 31 October 2026, for Inkling on a Pixel 10 Pro (Tensor G5: Imagination PowerVR D-Series DXT-48-1536
-GPU, Google TPU). Inkling has no Play Services, and only its `:net` module may use the network (LFMP-9), and that rules some options out.
+Research as of 31 October 2026, for Wren on a Pixel 10 Pro (Tensor G5: Imagination PowerVR D-Series DXT-48-1536
+GPU, Google TPU). Wren has no Play Services, and only its `:net` module may use the network (LFMP-9), and that rules some options out.
 
 ## Recommendation
 
@@ -51,7 +51,7 @@ How to read the labels:
 
   It was converted with litert-torch and LiteRT-LM 0.18.1, and the card gives the conversion script. The same
   organisation has [LFM3-VL-2B-LiteRT](https://huggingface.co/litert-community/LFM3-VL-2B-LiteRT) and
-  [LFM3-Omni-2B-LiteRT](https://huggingface.co/litert-community/LFM3-Omni-2B-LiteRT). Inkling uses
+  [LFM3-Omni-2B-LiteRT](https://huggingface.co/litert-community/LFM3-Omni-2B-LiteRT). Wren uses
   `LFM3-1.7B_mixed_int4_ekv4096.litertlm`, pinned by SHA-256 `327486bf…2b8db143349262857ac98403109d72b`
   (1,441,629,120 bytes). The hash was checked on this machine after download.
 - **Accelerator.** The GPU through OpenCL (ML Drift), with the whole graph on the GPU; or the CPU through XNNPACK. The
@@ -72,15 +72,15 @@ How to read the labels:
   limits commercial use by organisations with revenue of $10M or more.
 - **Network and Play Services.** It comes as a Maven AAR, `com.google.ai.edge.litertlm:litertlm-android:0.19.0`. That
   pulls in only Gson, kotlin-reflect and coroutines: no Play Services and no network code. `checkDebugNetworkConfinement`
-  checks that, native code included (since LFMP-9 Inkling has `INTERNET`, confined to `:net`). The GPU needs
+  checks that, native code included (since LFMP-9 Wren has `INTERNET`, confined to `:net`). The GPU needs
   `<uses-native-library>` entries for `libOpenCL.so` and `libvndksupport.so`, both with `required="false"`.
-- **Tool calls and streaming.** It streams. Tool calls arrive as LFM3's XML text, and Inkling parses those itself (as
-  it does for llama.cpp). Inkling sends raw prompts through `Session`, not LiteRT-LM's `Conversation`, so the prompt
+- **Tool calls and streaming.** It streams. Tool calls arrive as LFM3's XML text, and Wren parses those itself (as
+  it does for llama.cpp). Wren sends raw prompts through `Session`, not LiteRT-LM's `Conversation`, so the prompt
   format is the same as llama.cpp's.
 - **Caveats, each handled in `LiteRtSession`:**
   - **Leaked state between sessions.** LFM3's short convolutions keep a running state. LiteRT-LM carries that state
     from one session of an engine into the next, which corrupts answers
-    ([#3165](https://github.com/google-ai-edge/LiteRT-LM/issues/3165), still open). Inkling keeps one session while
+    ([#3165](https://github.com/google-ai-edge/LiteRT-LM/issues/3165), still open). Wren keeps one session while
     each prompt extends the last, and starts a fresh engine for any other prompt. The emulator test below shows a new
     conversation gives the same answer as on a freshly loaded model.
   - **Context is the file's 4,096 tokens**, half of llama.cpp's default, so a chat on LiteRT-LM remembers fewer turns.
@@ -93,16 +93,16 @@ How to read the labels:
     session cancelled, and the next prompt fails ("Prefill task finished in cancelled state", tried on the emulator).
     So the next prompt starts a fresh engine; Auto counts that cost.
   - **Pictures and speech stay on llama.cpp.** Omni and VL run there, because Talk and the camera depend on
-    llama.cpp's mtmd and Inkling's own speech code.
+    llama.cpp's mtmd and Wren's own speech code.
 
 ### llama.cpp on the CPU: kept, the fallback
 
-- **Models.** Every LFM3 GGUF Inkling already uses: text, Omni and VL. MIT license, offline.
+- **Models.** Every LFM3 GGUF Wren already uses: text, Omni and VL. MIT license, offline.
 - **Speed.**
   - About 9 tok/s from the owner on the Pixel 10 Pro.
   - 12–14 tok/s decode and 100–145 tok/s prefill for LFM3-1.7B in a field report
     ([LocalIntelligence PR #102](https://github.com/riceharvest/LocalIntelligence/pull/102)).
-- **Tool calls and streaming.** Both work: Inkling's own parser, and streaming.
+- **Tool calls and streaming.** Both work: Wren's own parser, and streaming.
 
 ### llama.cpp on the GPU (Vulkan): built in, gated
 
@@ -113,7 +113,7 @@ How to read the labels:
   CPU (LocalIntelligence #102). Pull request [#20565](https://github.com/ggml-org/llama.cpp/pull/20565) measured 4–5
   tok/s.
 - **Shown: wrong output.** Full offload on a Pixel 10 Pro produced wrong tokens unless coopmat and integer dot product
-  were turned off ([#28502](https://github.com/ggml-org/llama.cpp/issues/28502)). Inkling turns them off
+  were turned off ([#28502](https://github.com/ggml-org/llama.cpp/issues/28502)). Wren turns them off
   (`GGML_VK_DISABLE_*`). Imagination's own pull request for PowerVR support,
   [#29315](https://github.com/ggml-org/llama.cpp/pull/29315), is still open.
 - **So it is gated twice.** The Benchmark asks three check questions on every backend, and Auto never picks one that
@@ -155,7 +155,7 @@ How to read the labels:
   - It was a Kotlin wrapper around llama.cpp with GGUF bundles, and has no LFM3 checkpoints.
   - Liquid now points Android apps at llama.cpp
     ([migration guide](https://docs.liquid.ai/deployment/on-device/llama-cpp/migrating-from-leap-sdk.md)).
-- It would add nothing over what Inkling already does.
+- It would add nothing over what Wren already does.
 
 ### ExecuTorch: no
 

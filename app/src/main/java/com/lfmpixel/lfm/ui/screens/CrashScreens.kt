@@ -74,15 +74,15 @@ fun CrashesScreen(g: AppGraph, nav: Nav) {
         Header("Crash reports", onBack = { nav.back() })
         LazyColumn(Modifier.padding(horizontal = 16.dp)) {
             item {
-                Txt("When Inkling closes unexpectedly, what went wrong is written down here, on this phone only. Nothing is sent: " +
+                Txt("When Wren closes unexpectedly, what went wrong is written down here, on this phone only. Nothing is sent: " +
                     "copy or share one yourself if you want help with it. A report can quote words from a note or a chat: read it " +
                     "before you share it. The last ten are kept.", LfmType.small, c.text2, Modifier.padding(vertical = 12.dp))
             }
-            if (reports.isEmpty()) item { Empty("No crashes", "Inkling has not closed unexpectedly since this was added.") }
+            if (reports.isEmpty()) item { Empty("No crashes", "Wren has not closed unexpectedly since this was added.") }
             items(reports, key = { it.file.name }) { r ->
                 val expanded = open == r.file.name
                 Column(Modifier.fillMaxWidth().clickable(role = Role.Button) { open = if (expanded) null else r.file.name }.padding(vertical = 10.dp)) {
-                    Txt(crashWhen(r.at) + if (r.fatal) " · Inkling closed" else " · caught, kept running", LfmType.meta, c.text2)
+                    Txt(crashWhen(r.at) + if (r.fatal) " · Wren closed" else " · caught, kept running", LfmType.meta, c.text2)
                     Txt(r.title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), maxLines = if (expanded) Int.MAX_VALUE else 2,
                         modifier = Modifier.padding(top = 2.dp))
                     if (expanded) {
@@ -90,10 +90,10 @@ fun CrashesScreen(g: AppGraph, nav: Nav) {
                         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Btn("Copy", {
                                 ctx.getSystemService(android.content.ClipboardManager::class.java)
-                                    ?.setPrimaryClip(android.content.ClipData.newPlainText("Inkling crash report", r.text))
+                                    ?.setPrimaryClip(android.content.ClipData.newPlainText("Wren crash report", r.text))
                                 nav.show("Copied")
                             }, Modifier.weight(1f), icon = "copy", small = true)
-                            Btn("Share…", { g.launcher.share("Inkling crash report", r.text) }, Modifier.weight(1f), small = true)
+                            Btn("Share…", { g.launcher.share("Wren crash report", r.text) }, Modifier.weight(1f), small = true)
                             Btn("Delete", { scope.launch { withContext(Dispatchers.IO) { Crashes.log?.delete(r) }; open = null; changed++ } }, Modifier.weight(1f), icon = "trash", small = true)
                         }
                     }
@@ -107,7 +107,7 @@ fun CrashesScreen(g: AppGraph, nav: Nav) {
     }
 }
 
-/** On the launch after a crash: "Inkling closed unexpectedly last time · View", on paper, until seen or closed. */
+/** On the launch after a crash: "Wren closed unexpectedly last time · View", on paper, until seen or closed. */
 @Composable
 fun CrashNote(onView: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val c = Lfm.c
@@ -116,7 +116,7 @@ fun CrashNote(onView: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modi
         Box(Modifier.fillMaxWidth().callout(c)
             .padding(start = 16.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Txt("Inkling closed unexpectedly last time", LfmType.small, c.text, Modifier.weight(1f))
+                Txt("Wren closed unexpectedly last time", LfmType.small, c.text, Modifier.weight(1f))
                 Box(Modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onView).padding(horizontal = 10.dp),
                     contentAlignment = Alignment.Center) { Txt("View", LfmType.action, c.action) }
                 IconButtonPlain("x", onClose, desc = "Close")

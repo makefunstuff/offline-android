@@ -40,7 +40,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 /*
- * Daylight's shared surfaces (docs/ux-spec.md): the sky band every screen's header sits on, Inkling's wash card, the
+ * Daylight's shared surfaces (docs/ux-spec.md): the sky band every screen's header sits on, Wren's wash card, the
  * sheet, the menu and the day picker. Screens use these instead of Material's stock ones, so nothing falls back to a
  * look of its own (DaylightGuardTest).
  */
@@ -111,7 +111,7 @@ fun SunMark(modifier: Modifier = Modifier) {
 }
 
 /**
- * A group that must stand out (a privacy warning, "Inkling is offline"): the wash with the highlighter's bar down its
+ * A group that must stand out (a privacy warning, "Wren is offline"): the wash with the highlighter's bar down its
  * start edge, instead of an outline.
  */
 fun Modifier.callout(c: com.lfmpixel.lfm.ui.theme.LfmColors): Modifier = this.clip(LfmShape.card).background(c.wash).drawBehind {
@@ -119,7 +119,7 @@ fun Modifier.callout(c: com.lfmpixel.lfm.ui.theme.LfmColors): Modifier = this.cl
 }
 
 /**
- * One of Inkling's own blocks on the page (Now, today's plan, Where was I): no box, no fill. Generous space and the
+ * One of Wren's own blocks on the page (Now, today's plan, Where was I): no box, no fill. Generous space and the
  * type's size do the grouping, so the page reads as a few lines, not a stack of cards.
  */
 @Composable

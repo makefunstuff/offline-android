@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Inkling: a white lower-case i whose dot is a stroke of yellow highlighter (docs/ux-spec-v1.md section 2). -->
+<!-- Wren, the small bird that builds its nest from scraps, as a second brain is built from your notes: a navy wren,
+     tail up, on the horizon under the yellow sun. Everything sits inside the 66dp safe circle. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFD400" android:pathData="M43,35.5 L65,31.5 L67,43 L45,47 Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M48,55.5 Q48,54 49.5,54 H58.5 Q60,54 60,55.5 V80.5 Q60,82 58.5,82 H49.5 Q48,82 48,80.5 Z" />
+    <path android:fillColor="#FFD400" android:pathData="M62.5,38 a7.5,7.5 0 1,0 15,0 a7.5,7.5 0 1,0 -15,0 Z" />
+    <path android:fillColor="#0E2340" android:pathData="M39,63 a13,10 0 1,0 26,0 a13,10 0 1,0 -26,0 Z" />
+    <path android:fillColor="#0E2340" android:pathData="M42,61 L33,46 Q35,43.5 37.5,44.5 L46,58 Z" />
+    <path android:fillColor="#0E2340" android:pathData="M67.5,52.5 L76,55 L67.5,57 Z" />
+    <path android:fillColor="#0E2340" android:pathData="M55,55 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0 Z" />
+    <path android:fillColor="#F6F9FC" android:pathData="M62.5,53.5 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z" />
+    <path android:strokeColor="#0E2340" android:strokeWidth="2.2" android:strokeLineCap="round" android:pathData="M50,72 L49,77 M56,72 L57,77" />
+    <path android:strokeColor="#0E2340" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M34,77.5 H74" />
 </vector>

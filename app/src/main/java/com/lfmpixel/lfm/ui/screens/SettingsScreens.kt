@@ -125,7 +125,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
             Group {
                 val facts by g.memory.facts.collectAsState()
                 androidx.compose.runtime.LaunchedEffect(Unit) { g.memory.load() }
-                ListRow("What Inkling knows", if (!p.learning) "Learning is off" else if (facts.isEmpty()) "Learns from your notes, on this phone"
+                ListRow("What Wren knows", if (!p.learning) "Learning is off" else if (facts.isEmpty()) "Learns from your notes, on this phone"
                     else "${facts.size} things learned · see, edit, forget", "sparkle", { nav.go(Route.Knows) }) { Chevron() }
                 GroupDivider()
                 ListRow("Privacy", (if (p.netEnabled) "" else "Offline · ") + "Network log, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
@@ -294,7 +294,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
                 LfmType.small, c.text2)
             HandoffCard(g)
             SectionLabel("Network log · today")
-            if (log.isEmpty()) Txt(if (prefs?.netEnabled == false) "No requests: Inkling is offline." else "No requests today.", LfmType.small, c.text2)
+            if (log.isEmpty()) Txt(if (prefs?.netEnabled == false) "No requests: Wren is offline." else "No requests today.", LfmType.small, c.text2)
             log.forEach { e ->
                 Divider()
                 Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -313,7 +313,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
                     scope.launch {
                         val all = g.db.netLog().all()
                         val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                        g.launcher.share("Inkling network log", all.joinToString("\n") { e ->
+                        g.launcher.share("Wren network log", all.joinToString("\n") { e ->
                             listOf(Instant.ofEpochMilli(e.at).atZone(ZoneId.systemDefault()).format(fmt), e.host, e.url, e.sent, "${e.bytes} bytes",
                                 if (e.ok) "ok" else "failed").joinToString("\t")
                         }.ifEmpty { "No requests." })
@@ -338,8 +338,8 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
             })
             Txt(when (mode) {
                 com.lfmpixel.lfm.settings.LockMode.Off -> "Lock the whole app, or only the journal, with your fingerprint, face or screen lock."
-                com.lfmpixel.lfm.settings.LockMode.App -> "Inkling opens with your fingerprint, face or screen lock, and locks again a minute after you leave it."
-                com.lfmpixel.lfm.settings.LockMode.Journal -> "The journal opens with your fingerprint, face or screen lock; it is left out of lists, search and the assistant until then. It locks again a minute after you leave Inkling."
+                com.lfmpixel.lfm.settings.LockMode.App -> "Wren opens with your fingerprint, face or screen lock, and locks again a minute after you leave it."
+                com.lfmpixel.lfm.settings.LockMode.Journal -> "The journal opens with your fingerprint, face or screen lock; it is left out of lists, search and the assistant until then. It locks again a minute after you leave Wren."
             }, LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             SectionLabel("Kept on this phone")
             Txt("Chats, notes, ideas, journal, to-dos, reminders, searches, the network log and the action history, in the app's private storage. Models in the app's files.",
@@ -348,7 +348,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
                 Btn("Export all…", {
                     scope.launch {
                         if (mode != com.lfmpixel.lfm.settings.LockMode.Off && !g.lock.confirm("Export your data")) return@launch
-                        val name = "inkling-export-" + java.time.LocalDate.now() + ".zip"
+                        val name = "wren-export-" + java.time.LocalDate.now() + ".zip"
                         pickers.save(name) { uri ->
                             g.scope.launch {
                                 val ok = runCatching {
@@ -389,7 +389,7 @@ private fun WipeSheet(g: AppGraph, onClose: () -> Unit, onDelete: (models: Boole
     FlatSheet(onDismiss = onClose) {
         Txt("Delete everything?", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.semantics { heading() })
         Txt("Notes, ideas, journal, to-dos, chats, reminders, searches, the network log, the action history, pictures, " +
-            "Inkling's calendar and every setting. It can't be undone; export first if you want a copy.", LfmType.small, c.text2,
+            "Wren's calendar and every setting. It can't be undone; export first if you want a copy.", LfmType.small, c.text2,
             Modifier.padding(top = 6.dp))
         Row(Modifier.padding(top = 10.dp).fillMaxWidth().toggleable(models, role = androidx.compose.ui.semantics.Role.Checkbox) { models = it },
             verticalAlignment = Alignment.CenterVertically) {

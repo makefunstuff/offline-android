@@ -1,4 +1,4 @@
-# Inkling: Horizon Almanac (UX spec v3)
+# Wren: Horizon Almanac (UX spec v3)
 
 The owner found Daylight (v2, LFMP-13 and LFMP-17) still "meh", generic, cluttered and not ADHD-friendly. LFMP-20
 drew three bolder takes on the same sky (Horizon, Glow, Almanac); the owner asked for something between Horizon and
@@ -8,6 +8,14 @@ flows, editing, motion timing and accessibility ([ux-spec-v1.md](ux-spec-v1.md),
 file is silent.
 
 Written 1 November 2026 (LFMP-20). Daylight's sky, sounds, voice and no-nag rules carry over unchanged.
+
+**Name and icon (LFMP-21).** The owner felt "Inkling" and its *i* did not say diary, second brain and planner, and
+picked **Wren** for the app and its assistant: a small bird that builds its nest out of scraps, as a second brain is
+built from your notes. Short and easy to say aloud. The icon is a navy wren, tail up, standing on the horizon under
+the yellow sun, on the day sky; the themed icon is the same bird, sun and horizon in one colour, the eye cut out.
+Typing "ask Wren, …", "hey Wren, …" or the old "Inkling, …" on the Ink line asks it; "Wren, …", "Ask Wren about …" and
+"Hey Wren's …" stay notes, since Wren is also a person's name. The package name is unchanged, so the installed app
+updates in place with its data.
 
 ## 1. ADHD first: one thing, at a glance
 
@@ -52,7 +60,7 @@ The page under the sky is one blue in four steps (`ui/theme/Theme.kt`):
 | `bg` | `#F6F9FC` | `#0A1019` | sky-tinted paper |
 | `text` | `#0E2340` navy | `#E8F0F9` | what you read: the time, the task, titles |
 | `action` | `#2A66AE` | `#8EC5F0` | the one thing to tap, as a word (Start, Undo, Open) |
-| `text2` | `#3F6B98` | `#9DC2E6` | Inkling's voice, labels, the other action words |
+| `text2` | `#3F6B98` | `#9DC2E6` | Wren's voice, labels, the other action words |
 | `text3` | `#546E8D` | `#8098B6` | the quietest: unpicked tabs and places |
 | `wash` | `#EAF1F8` | `#121B27` | the few surfaces left |
 | `highlight` | `#FFD400` | `#FFD400` | the one warm colour: the sun, time left, the highlighter, the sun's dot, a ticked to-do |
@@ -94,7 +102,7 @@ Three voices, all the phone's own fonts (nothing bundled, no licence to track):
 
 - **What matters now** in Roboto Condensed Bold (`sans-serif-condensed`): the time (60 sp, even figures), the one
   task (`task`, 30 sp), titles (32–34 sp) and headers (21 sp).
-- **Inkling's own words** in the phone's serif (Noto Serif): the day's sentence, Talk's captions, chat answers, empty
+- **Wren's own words** in the phone's serif (Noto Serif): the day's sentence, Talk's captions, chat answers, empty
   states and welcomes, in the `text2` blue.
 - **Your words and the controls** in Roboto; action words bold (`action`, 16 sp).
 
@@ -132,7 +140,7 @@ One personality for Talk and the chat (`Persona.PROMPT`, added to every prompt t
 > Warm, calm and brief, like a friend who keeps good time. Plain words; no exclamation marks, flattery, emoji or pep
 > talk. Never scold, never count what was missed: offer one next step instead. If you do not know, say so plainly.
 
-The app's copy follows it: first person where Inkling speaks ("I'm listening", "I'll file it"), the day in sentences
+The app's copy follows it: first person where Wren speaks ("I'm listening", "I'll file it"), the day in sentences
 ("Afternoon. Dentist at 15:00, in 25 minutes. Then one more."), nothing counted against the owner.
 
 ## 7. Screens
@@ -145,7 +153,7 @@ From the top: the sky (as tall as its words need), then the page.
   stretched for early or late plans) with an hour tick each hour, plans as bold marks, the sun at now and the stretch
   to the next plan in yellow; the time inside the dial, its foot on the horizon. Every header on the sky elsewhere
   ends with the SunMark.
-- **Under the horizon:** Inkling's one sentence of the day (`DaySentence`, never counts), then the next plan, or the
+- **Under the horizon:** Wren's one sentence of the day (`DaySentence`, never counts), then the next plan, or the
   one tapped on the dial, with **Open** for to-dos; nothing when no plan is left.
 - **Below:** the seal line; Where was I; **Now**: "Now, for about 15 min", the task in the condensed bold with the
   highlighter, then Start · Done · Not now as words; today's plan; the timeline; still open; the page; the Ink line.
@@ -153,7 +161,7 @@ From the top: the sky (as tall as its words need), then the page.
 
 ### Talk
 
-Captions over the sky of the hour. The presence is the sun inside a dial of ticks (see Motion); Inkling's answer large
+Captions over the sky of the hour. The presence is the sun inside a dial of ticks (see Motion); Wren's answer large
 in the serif; "Reminder · Dentist at 15:00" with Undo and Show as action words. The main control is the pastel mic, or
 a navy round Stop while it works.
 
@@ -169,13 +177,13 @@ The camera stays full-bleed black with its own glass controls.
 ### Notebook, Plans, Settings and the rest
 
 Paper under the hour's sky, each with its header on the sky. Settings groups sit on the wash with no edge; choices are
-words. A group that must stand out (a privacy warning, "Inkling is offline") has the highlighter's bar down its start
+words. A group that must stand out (a privacy warning, "Wren is offline") has the highlighter's bar down its start
 edge (`callout`). Menus are the wash with a faint shadow; picking a day is a sheet with the highlighter on the chosen
 day.
 
 ### Lock screen and widget
 
-**Inkling · Today**, a 4×2 widget (`daylight/HorizonWidget.kt`), declared for the home screen and the keyguard. It keeps
+**Wren · Today**, a 4×2 widget (`daylight/HorizonWidget.kt`), declared for the home screen and the keyguard. It keeps
 Daylight's horizon (a wide strip suits the widget better than the dial):
 
 - the hour's sky with the horizon, today's plans and the sun (`SkyPainter.draw`);
@@ -184,7 +192,7 @@ Daylight's horizon (a wide strip suits the widget better than the dial):
   truth), or the day's sentence;
 - a tap opens Today.
 
-It is redrawn every 30 minutes and whenever Inkling is left. Android phones show keyguard widgets only where the
+It is redrawn every 30 minutes and whenever Wren is left. Android phones show keyguard widgets only where the
 launcher offers lock-screen widgets; a true lock-screen surface (Talk and Look from the lock screen), now possible
 with LFMP-9's single app, is not in this release.
 

@@ -37,7 +37,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * Pictures of Inkling's screens, light and dark, on the JVM (Robolectric, no emulator), written to
+ * Pictures of Wren's screens, light and dark, on the JVM (Robolectric, no emulator), written to
  * build/outputs/roborazzi/ to look at. Each screen is drawn as the app frames it: the hour's sky strip on top, the
  * bottom bar under the four places. Nothing is compared against a stored picture (dates and the hour change); a
  * screen that fails to draw fails the test. The look itself is guarded by DaylightGuardTest.

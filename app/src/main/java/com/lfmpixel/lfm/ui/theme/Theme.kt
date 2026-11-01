@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.sp
 /**
  * Horizon Almanac's page (docs/ux-spec.md, "Colour"): sky-tinted paper under the hour's sky, and one blue in four steps
  * for the order of importance: [text] (navy) for what you read, [action] for the one thing to tap, [text2] for
- * Inkling's voice and quiet labels, [text3] for the quietest. The highlighter yellow is the one warm colour (the sun,
+ * Wren's voice and quiet labels, [text3] for the quietest. The highlighter yellow is the one warm colour (the sun,
  * the time left, the stroke under what matters now); [mic] is its pastel, for the talk button. [wash] is the pale of
  * the day sky's horizon, under the few things that still need a surface (the message box, a search line).
  * The sky's colours are in daylight/Sky.kt; these are the only other colours the app draws with (DaylightGuardTest).
@@ -80,7 +80,7 @@ object CameraColors {
     val glassLight = Color(0x66000000)
 }
 
-/** Inkling's own calendar in the phone's Calendar app: the page's ink, as ARGB. */
+/** Wren's own calendar in the phone's Calendar app: the page's ink, as ARGB. */
 const val CALENDAR_ARGB = 0xFF0B0B0C.toInt()
 
 /** The paint the line icons are built with; [androidx.compose.material3.Icon] tints it over, so it never shows. */
@@ -124,7 +124,7 @@ object LfmShape {
 
 /**
  * Three voices (docs/ux-spec.md, "Type"): Roboto Condensed Bold for what matters now (the time, the one task, titles);
- * the phone's serif for Inkling's own words; Roboto for your words and the controls. All three are the phone's own
+ * the phone's serif for Wren's own words; Roboto for your words and the controls. All three are the phone's own
  * fonts (nothing bundled, no licence to track); FontFamily.Default is Roboto on the Pixel.
  */
 object LfmType {
@@ -160,17 +160,17 @@ object LfmType {
     val tag = TextStyle(fontFamily = f, fontSize = 11.5.sp, lineHeight = 16.sp)
     val preview = TextStyle(fontFamily = f, fontSize = 13.sp, lineHeight = 18.sp)
 
-    // Daylight (docs/ux-spec.md, "Type"): Inkling's own words in the phone's serif (Noto Serif, nothing bundled);
+    // Daylight (docs/ux-spec.md, "Type"): Wren's own words in the phone's serif (Noto Serif, nothing bundled);
     // the time large and light, with even figures.
     private val serif = FontFamily.Serif
-    /** One sentence of the day; Inkling's line in a caption. */
+    /** One sentence of the day; Wren's line in a caption. */
     val voice = TextStyle(fontFamily = serif, fontSize = 21.sp, lineHeight = 28.sp, letterSpacing = (-0.005).em)
-    /** Talk's caption of what Inkling says now. */
+    /** Talk's caption of what Wren says now. */
     val caption = TextStyle(fontFamily = serif, fontSize = 26.sp, lineHeight = 34.sp, letterSpacing = (-0.01).em)
     val clock = TextStyle(fontFamily = condensed, fontSize = 60.sp, lineHeight = 62.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.01).em, fontFeatureSettings = "tnum")
-    /** Inkling's longer words: a chat answer, a recap, a web answer. */
+    /** Wren's longer words: a chat answer, a recap, a web answer. */
     val voiceBody = TextStyle(fontFamily = serif, fontSize = 17.sp, lineHeight = 26.sp)
-    /** Inkling's one big sentence on a screen of its own: first run, Privacy. */
+    /** Wren's one big sentence on a screen of its own: first run, Privacy. */
     val voiceTitle = TextStyle(fontFamily = serif, fontSize = 30.sp, lineHeight = 37.sp, letterSpacing = (-0.015).em)
     /** Focus's minutes in the middle of the disc. */
     val timer = TextStyle(fontFamily = condensed, fontSize = 44.sp, lineHeight = 46.sp, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum")

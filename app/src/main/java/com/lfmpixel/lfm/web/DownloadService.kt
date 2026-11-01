@@ -62,7 +62,7 @@ class DownloadService : Service() {
     /**
      * Every startForegroundService is answered with startForeground, also one that lands while the service is stopping.
      * Android 15+ refuses it once the day's 6 hours of data sync are used: then the service goes and the download runs
-     * while Inkling is open, as when the start itself is refused (ModelDownloads.kick).
+     * while Wren is open, as when the start itself is refused (ModelDownloads.kick).
      */
     private fun foreground(): Boolean = try {
         startForeground(ID, note("Starting download", 0, 0), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC); true

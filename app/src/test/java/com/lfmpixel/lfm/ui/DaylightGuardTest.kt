@@ -5,7 +5,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Keeps Inkling one look (docs/ux-spec.md, Horizon Almanac): colours, type sizes and corners come from the theme
+ * Keeps Wren one look (docs/ux-spec.md, Horizon Almanac): colours, type sizes and corners come from the theme
  * (ui/theme), stock Material pieces only through the shared components (ui/components), and nothing of the old look
  * (the organizer's tints, Material's default theme, the platform's dialogs) comes back. Each failure names the file,
  * the line and what to use instead.

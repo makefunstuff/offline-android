@@ -89,11 +89,11 @@ Edge mode, for their own server (below).
 
 v1 made "no network" an operating-system fact by leaving out the `INTERNET` permission. v2 first kept that fact by
 splitting the product into two apps: Inkling (all personal data, no `INTERNET`) and Inkling Net (a small helper with
-`INTERNET` and no personal data). LFMP-9 (2026-11-01) merged them back into **one app, Inkling, with `INTERNET`**: the
-owner found two apps not worth their cost. The trade, stated plainly: Android no longer refuses Inkling's sockets, so
+`INTERNET` and no personal data). LFMP-9 (2026-11-01) merged them back into **one app, Wren, with `INTERNET`**: the
+owner found two apps not worth their cost. The trade, stated plainly: Android no longer refuses Wren's sockets, so
 the privacy now rests on rules in the code that the build checks, not on the operating system.
 
-| | **Inkling** |
+| | **Wren** |
 |---|---|
 | Holds | Models, chats, notes, ideas, journal, to-dos, contacts and calendar access, the network log, and the search settings (provider address, key, proxy) |
 | `INTERNET` permission | Yes, declared by the network module `:net` itself |
@@ -112,22 +112,22 @@ How each guarantee is enforced:
 | No other permissions slip in | `:app:checkDebugPermissions`: the merged manifest may ask only for the permissions listed in `app/build.gradle.kts` |
 | Links and maps never leak silently | Opening a link in the browser or a place in Maps hands it to another app. A single launcher class is the only code allowed to start such intents, and it runs only from your tap on a card that shows the full address |
 | No telemetry, crash reports or accounts | No Firebase, Play Services, analytics or crash SDKs; `:app:checkDebugDependencies` checks the dependency allow-list, and the confinement check refuses Firebase and Play Services classes too |
-| You see every request | Each `:net` call returns the requests it made (time, host, what was sent, size); Inkling keeps them in the log under Settings → Privacy, a placeholder first, so one cut off midway is listed too |
+| You see every request | Each `:net` call returns the requests it made (time, host, what was sent, size); Wren keeps them in the log under Settings → Privacy, a placeholder first, so one cut off midway is listed too |
 | You control search | Search is Off, Ask first (default) or Automatic, for Wikipedia and web alike; each query can be edited before it goes; any query written after reading web text always asks |
 | Each kind on its own | Search has its mode, downloads start only from your tap (Wi-Fi only by default), Edge mode has its own switch; Offline turns them all off at once |
-| Data stays on the phone | `allowBackup="false"` and data-extraction rules that exclude everything from cloud backup and device-to-device transfer; data leaves Inkling only when you tap Export, Share or Copy, or when a tool writes into another app (below) |
-| Tool writes are not hidden syncs | An event, contact or alarm written by a tool belongs to that app: Google Calendar or Contacts sync it to your Google account if you use one. So Inkling writes events to its own **on-phone calendar** (a local calendar, never synced) unless you pick another calendar, and the confirmation card names the calendar |
+| Data stays on the phone | `allowBackup="false"` and data-extraction rules that exclude everything from cloud backup and device-to-device transfer; data leaves Wren only when you tap Export, Share or Copy, or when a tool writes into another app (below) |
+| Tool writes are not hidden syncs | An event, contact or alarm written by a tool belongs to that app: Google Calendar or Contacts sync it to your Google account if you use one. So Wren writes events to its own **on-phone calendar** (a local calendar, never synced) unless you pick another calendar, and the confirmation card names the calendar |
 | Optional lock | Biometric lock for the whole app or only the Journal |
 
 **Model downloads.** `:net` downloads the pinned LiteRT files from Hugging Face (huggingface.co, no login) and hands
-them to Inkling, which checks each against a pinned SHA-256 before use. Manual import through the file picker stays,
+them to Wren, which checks each against a pinned SHA-256 before use. Manual import through the file picker stays,
 for a fully offline phone.
 
-**Moving from two apps.** The update keeps Inkling's package name, so every chat, note, model and setting stays. The
-Edge server (address and sealed key) was always in Inkling. The search provider, its key and the proxy were in the
-old Inkling Net's own storage, which Inkling cannot read; so Inkling carries one last Inkling Net (`:handoff`, version
+**Moving from two apps.** The update keeps Wren's package name, so every chat, note, model and setting stays. The
+Edge server (address and sealed key) was always in Wren. The search provider, its key and the proxy were in the
+old Inkling Net's own storage, which Wren cannot read; so Wren carries one last Inkling Net (`:handoff`, version
 2, same key, no network, no screen) inside its APK. Settings → Web search and Privacy show "Bring over Inkling Net's
-settings": one tap, Android asks to update Inkling Net, the hand-off answers Inkling (and only Inkling, checked by
+settings": one tap, Android asks to update Inkling Net, the hand-off answers Wren (and only Wren, checked by
 package and signing key) with those settings, and the card turns into "Uninstall Inkling Net". The old "Inkling Net
 on/off" switch was stored as `net_enabled` and becomes Offline unchanged.
 
@@ -374,7 +374,7 @@ minutes (Omni and text reload in seconds). Search and fetches are small network 
 - Room with SQLite full-text search (FTS4 through Room; FTS5 needs a bundled SQLite build such as androidx `BundledSQLiteDriver`) for notes, ideas, journal, to-dos and chats (on-phone search); DataStore for settings.
 - CameraX, `AudioRecord` 16 kHz, `AudioTrack` 24 kHz, `PdfRenderer`, Photo Picker.
 - `VoiceInteractionService` to be the default assistant; a Quick Settings tile and a Glance widget.
-- `:net`: the network module inside Inkling (OkHttp, no other libraries); the only code allowed to open a connection (since LFMP-9; before, a separate app).
+- `:net`: the network module inside Wren (OkHttp, no other libraries); the only code allowed to open a connection (since LFMP-9; before, a separate app).
 - minSdk 36 (Android 16); sideloaded APKs, not the Play Store.
 
 ## 8. Build plan (follow-up tasks)
@@ -388,7 +388,7 @@ minutes (Omni and text reload in seconds). Search and fetches are small network 
 3. **Phase 2, capture and library.** Notes, ideas, journal, to-dos, FTS search, voice capture with Omni, sorting.
 4. **Phase 3, tools.** Tool registry, confirmation sheet, reminders, alarms, calendar, contacts, messages, calls,
    settings; action history and undo.
-5. **Phase 4, LFM Net and search.** Helper app (merged into Inkling as `:net` by LFMP-9), providers, query preview, personal-data check, page reading, sources,
+5. **Phase 4, LFM Net and search.** Helper app (merged into Wren as `:net` by LFMP-9), providers, query preview, personal-data check, page reading, sources,
    network log, model downloads.
 6. **Phase 5, see.** Camera, photos, video clips, documents (VL).
 7. **Phase 6, talk.** Live Talk and read-aloud; default-assistant role; Quick Settings tile and widget.

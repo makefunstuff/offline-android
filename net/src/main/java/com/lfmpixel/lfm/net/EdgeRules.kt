@@ -10,7 +10,7 @@ import java.net.InetAddress
  * address a name resolves to, so a name can't point it elsewhere).
  */
 object EdgeRules {
-    /** The only paths Inkling will open on the server: health, models, text, speech in and speech out. */
+    /** The only paths Wren will open on the server: health, models, text, speech in and speech out. */
     val PATHS = setOf("/health", "/v1/models", "/v1/completions", "/v1/chat/completions", "/v1/audio/transcriptions", "/tts")
 
     /**

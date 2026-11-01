@@ -42,7 +42,7 @@ fun journalLocked(g: AppGraph): Boolean {
 
 /**
  * What a locked place shows: a lock, a line on what is behind it, and Unlock (the phone's fingerprint, face or screen
- * lock). [ask] opens the prompt at once, as the whole-app lock does when Inkling comes on screen.
+ * lock). [ask] opens the prompt at once, as the whole-app lock does when Wren comes on screen.
  */
 @Composable
 fun Locked(g: AppGraph, title: String, body: String, prompt: String, modifier: Modifier = Modifier, ask: Boolean = false) {
@@ -68,6 +68,6 @@ fun Locked(g: AppGraph, title: String, body: String, prompt: String, modifier: M
 @Composable
 fun LockScreen(g: AppGraph) {
     SkyPage(Modifier.fillMaxSize()) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Locked(g, "Inkling is locked", "Unlock with your fingerprint, face or screen lock.", "Unlock Inkling", ask = true)
+        Locked(g, "Wren is locked", "Unlock with your fingerprint, face or screen lock.", "Unlock Wren", ask = true)
     } }
 }

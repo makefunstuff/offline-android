@@ -86,7 +86,7 @@ class NetSettings(context: Context) {
         val IMPORTED = listOf("provider", "searxng_url", "searxng_user", "searxng_password", "brave_key", "mojeek_key", "wikipedia", "wiki_lang", "proxy")
     }
 
-    /** Edge mode: the server saved in Settings (its address only; the key is kept sealed in Inkling's settings). */
+    /** Edge mode: the server saved in Settings (its address only; the key is kept sealed in Wren's settings). */
     fun pinEdge(url: String) = prefs.edit().putString("edge_pin", url.trim()).apply()
     fun pinnedEdge(): String? = prefs.getString("edge_pin", null)?.takeIf { it.isNotBlank() }
 }

@@ -38,7 +38,7 @@ suspend fun todayPlans(g: AppGraph, now: LocalDateTime): List<Plan> {
 /**
  * Daylight's widget, lock screen first (docs/ux-spec.md, "Lock screen and widget"): the sky of the hour with today's
  * horizon and the sun, the time, and the next thing in a line. A tap opens Today. It is redrawn every 30 minutes and
- * whenever Inkling is left; the time is a live clock, and the next thing is said with its time, never "in 20 minutes",
+ * whenever Wren is left; the time is a live clock, and the next thing is said with its time, never "in 20 minutes",
  * so a picture up to half an hour old still tells the truth.
  */
 class HorizonWidget : AppWidgetProvider() {
@@ -56,7 +56,7 @@ class HorizonWidget : AppWidgetProvider() {
         onUpdate(context, manager, intArrayOf(id))
 
     companion object {
-        /** Redraws every horizon widget (Inkling was left, so a plan may have changed). */
+        /** Redraws every horizon widget (Wren was left, so a plan may have changed). */
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, HorizonWidget::class.java))
@@ -92,7 +92,7 @@ class HorizonWidget : AppWidgetProvider() {
                 setTextColor(R.id.clock, sky.ink)
                 setTextColor(R.id.line, sky.ink)
                 setTextViewText(R.id.line, line)
-                setContentDescription(R.id.root, "Inkling, today. $line")
+                setContentDescription(R.id.root, "Wren, today. $line")
                 setOnClickPendingIntent(R.id.root, PendingIntent.getActivity(context, 5,
                     MainActivity.intent(context, MainActivity.OPEN_NOW), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
             }

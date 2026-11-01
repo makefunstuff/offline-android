@@ -49,7 +49,7 @@ abstract class CheckNetworkConfinement : DefaultTask() {
     @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val libraryFiles: ConfigurableFileCollection
 
-    /** Every native library that goes into the APK (64-bit only, as Inkling ships), the app's own among them. */
+    /** Every native library that goes into the APK (64-bit only, as Wren ships), the app's own among them. */
     @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val packagedNatives: ConfigurableFileCollection
 
