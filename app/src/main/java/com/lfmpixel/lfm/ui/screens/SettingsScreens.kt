@@ -120,6 +120,11 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 ListRow("Action history", "Everything the assistant did, with undo", "history", { nav.go(Route.History) }) { Chevron() }
             }
             Group {
+                val facts by g.memory.facts.collectAsState()
+                androidx.compose.runtime.LaunchedEffect(Unit) { g.memory.load() }
+                ListRow("What Inkling knows", if (!p.learning) "Learning is off" else if (facts.isEmpty()) "Learns from your notes, on this phone"
+                    else "${facts.size} things learned · see, edit, forget", "sparkle", { nav.go(Route.Knows) }) { Chevron() }
+                GroupDivider()
                 ListRow("Privacy", (if (p.netEnabled) "" else "Offline · ") + "Network log, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
             }
             Group {

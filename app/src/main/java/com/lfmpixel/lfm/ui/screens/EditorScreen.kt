@@ -117,8 +117,12 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
     private val lock = Mutex()
 
     /** Body text as the owner wrote it, rebuilt from title and body the way they were stored. */
+    /** The entry as it was opened: leaving with another kind or list is a correction the memory keeps. */
+    private var opened: Entry? = null
+
     fun load(e: Entry, caret: IntArray = intArrayOf()) {
         entry = e
+        if (opened == null) opened = e
         val full = when {
             e.body.isBlank() -> e.title
             e.kind == EntryKind.Note && bodyIsWhole(e.title, e.body) -> e.body
@@ -169,8 +173,22 @@ class Draft(private val g: AppGraph, var id: Long?, kind: EntryKind) {
             val e = toEntry(body)
             if (current == null) id = g.db.entries().insert(e.copy(id = 0)) else g.db.entries().update(e.copy(id = current))
             savedVersion = at
+            if (leaving) opened?.let { o -> learnFrom(o, e) }
             null
         }
+    }
+
+    /**
+     * The owner moved an entry that was sorted for them (from the Ink line, chat or voice) to another kind, or a to-do
+     * to another list: the memory keeps it, so the next one like it is sorted that way.
+     */
+    private suspend fun learnFrom(o: Entry, e: Entry) {
+        if (o.source == "share") return
+        val text = e.title
+        if (o.kind != e.kind) g.memory.corrected(com.lfmpixel.lfm.memory.CorrectionKind.Kind, text, o.kind.name, e.kind.name)
+        if (o.kind == EntryKind.Todo && e.kind == EntryKind.Todo && !o.list.equals(e.list, true) && e.list.isNotBlank())
+            g.memory.corrected(com.lfmpixel.lfm.memory.CorrectionKind.List, text, o.list, e.list)
+        opened = e
     }
 
     /** Deletes the entry (saving the latest text first, so Undo brings back exactly what was there). */

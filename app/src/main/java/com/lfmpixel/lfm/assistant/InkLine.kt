@@ -67,6 +67,14 @@ object InkLine {
         return InkGuess(kind, line.trim())
     }
 
+    /**
+     * The guess with what the owner taught it ([learned], an InkKind from a correction, memory/Memory.kt): it wins over
+     * the rules and the label, except that a reminder needs a time the line names. The line then goes in as written.
+     */
+    fun withLearned(line: String, sorted: InkGuess, learned: InkKind?): InkGuess =
+        if (learned == null || learned == sorted.kind || (learned == InkKind.Reminder && sorted.reminderAt.isEmpty())) sorted
+        else InkGuess(learned, line.trim(), sorted.reminderAt)
+
     /** The kinds a tap on the glyph steps through: a reminder only when the line names a time. */
     fun cycle(guessed: InkKind): List<InkKind> =
         listOf(InkKind.Note, InkKind.Todo, InkKind.Idea, InkKind.Journal) + listOfNotNull(InkKind.Reminder.takeIf { guessed == it }) + InkKind.Ask

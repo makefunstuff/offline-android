@@ -24,6 +24,8 @@ import com.lfmpixel.lfm.voice.VoiceRecorder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /** Everything the app is made of, wired by hand. */
@@ -91,6 +93,21 @@ class AppGraph(context: Context) {
     val feel = com.lfmpixel.lfm.daylight.Feel(context, scope).also { f ->
         scope.launch { settings.prefs.collect { f.soundsOn = it.softSounds } }
     }
+    /** What Inkling learned (notebook-spec section 6): sealed in the notes' database, read into answers. */
+    val memory = com.lfmpixel.lfm.memory.MemoryStore(db, com.lfmpixel.lfm.memory.KeystoreSealer, { engine.embedder() },
+        { q, n -> semantic.search(q, n) }, journalLocked = { journalHidden() }, learning = { settings.now().learning }, scope = scope).also { m ->
+        m.start(db.messages().lastId())
+        assistant.memory = m
+        talk.memory = m
+        labels.corrections = { if (settings.now().learning) m.corrections.value else emptyList() }
+        toolEnv.learnedList = { title -> m.learnedList(title) }
+        // Each Talk turn the owner said is kept, sealed, for the next pass.
+        scope.launch {
+            val seen = HashSet<Long>()
+            talk.state.collect { st -> st.turns.filter { it.done && it.id !in seen }.forEach { seen += it.id; m.heard(it.you) } }
+        }
+        scope.launch { settings.prefs.map { it.learning }.distinctUntilChanged().collect { com.lfmpixel.lfm.memory.LearnJob.schedule(context, it) } }
+    }
     val bench = com.lfmpixel.lfm.llm.Benchmark(engine, models, settings, scope)
     val edgeBench = com.lfmpixel.lfm.edge.EdgeBench(edge, settings, scope)
     val voiceBench = com.lfmpixel.lfm.voice.VoiceBench(engine, settings, talk, readAloud, scope)
@@ -112,6 +129,7 @@ suspend fun AppGraph.wipe(context: Context, models: Boolean) {
         context.getSystemService(android.app.NotificationManager::class.java)?.cancelAll()
         runCatching { calendar.deleteOwnCalendar() }
         db.clearAllTables()
+        memory.forget()
         prep.deleteAll()
         java.io.File(context.filesDir, "queue.json").delete()
         context.cacheDir.listFiles().orEmpty().forEach { it.deleteRecursively() }

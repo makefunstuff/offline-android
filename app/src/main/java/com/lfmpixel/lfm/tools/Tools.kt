@@ -35,6 +35,9 @@ class ToolEnv(
     /** Library search: keywords, and meaning too once the search model is here (data/SemanticIndex.kt). */
     val search: suspend (query: String, limit: Int) -> List<Entry> = { q, n -> FtsQuery.from(q)?.let { db.entries().search(it, n) }.orEmpty() },
 ) {
+    /** The list the owner moved to-dos like this one to before (memory/Memory.kt, corrections), or null. */
+    @Volatile var learnedList: suspend (title: String) -> String? = { null }
+
     fun whenOf(args: Map<String, String>, key: String): When =
         args[key]?.let { TimeArgs.parse(it, now()) } ?: throw ToolArgsException("I couldn't read the time \"${args[key] ?: ""}\"")
     fun label(w: When) = TimeArgs.label(w, now().toLocalDate())
@@ -88,13 +91,18 @@ class AddEntryTool(private val env: ToolEnv, private val kind: EntryKind) : Tool
         val text = args.need("text")
         val due = if (kind == EntryKind.Todo && args.opt("due").isNotEmpty()) env.whenOf(args, "due") else null
         val title = args.opt("title").ifEmpty { firstLine(text) }
+        // A to-do like one the owner moved to another list goes there, unless a list was named other than the rules' guess.
+        val list = args.opt("list").let { named ->
+            if (kind != EntryKind.Todo || (named.isNotEmpty() && !named.equals(com.lfmpixel.lfm.assistant.CaptureSorter.sort(text).args["list"], true))) named
+            else env.learnedList(text) ?: named
+        }
         val e = Entry(
             kind = kind,
             title = (if (kind == EntryKind.Note) title else firstLine(text, 120)).replaceFirstChar { it.uppercase() },
             body = if (kind == EntryKind.Note || text.length > 120) text else "",
             tags = args.opt("tags").lowercase().replace(",", " ").split(' ').filter { it.isNotBlank() }.take(3).joinToString(" "),
             topic = args.opt("topic").replaceFirstChar { it.uppercase() },
-            list = args.opt("list").replaceFirstChar { it.uppercase() },
+            list = list.replaceFirstChar { it.uppercase() },
             mood = when (args.opt("mood")) { "good" -> 1; "low" -> 2; else -> 0 },
             dueAt = due?.epochMillis(env.zone),
             dueHasTime = due?.time != null,

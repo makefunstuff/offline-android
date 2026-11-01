@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -157,6 +158,8 @@ class Talk(
     private val focus = AudioFocus(context, exclusive = true) { pause() }
     /** The app's tools, for the answer model in Edge mode. */
     @Volatile var tools: TalkTools? = null
+    /** What Inkling learned and the notes near what was said (memory/MemoryStore.kt); set by AppGraph. */
+    @Volatile var memory: com.lfmpixel.lfm.memory.MemoryStore? = null
     /** What the camera sees now (Look), for the answer: a short line and how old it is, or null. */
     @Volatile var seeing: (() -> String?)? = null
     /** With Look on: the answer to a question about the view, from the VL model, or null for the answer model to take it. */
@@ -365,9 +368,13 @@ class Talk(
         val before = earlier.map { it.you to it.it }
         set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds), viaServer = true) }
         val spoken = _state.value.spoken
+        // The profile goes in the system prompt (it rarely changes, so the server keeps it read in); the notes and facts
+        // near what was said go with this turn. A spoken answer can't wait long for them: 600 ms at most.
+        val recall = memory?.let { m -> withTimeoutOrNull(600) { runCatching { m.context(said, TALK_CONTEXT) }.getOrNull() } }
+        recall?.let { Log.i(TAG, "talk: recall ${it.system.length} + ${it.turn.length} chars in ${it.ms} ms") }
         val prompt = SpeechFormat.talkHistory(
-            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())), before, said) +
-            SpeechFormat.REPLY_PREFIX
+            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())) + recall?.system.orEmpty(),
+            before, said + recall?.turn.orEmpty()) + SpeechFormat.REPLY_PREFIX
         val text = StringBuilder()
         var firstWord = 0L
         var firstAudio = 0L
@@ -421,13 +428,13 @@ class Talk(
                         msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, t.you)
                         msgs += exchanges[t.id] ?: listOf(com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, t.it))
                     }
-                    msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, SpeechFormat.talkUser(said, seeing?.invoke()))
+                    msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, SpeechFormat.talkUser(said, seeing?.invoke()) + recall?.turn.orEmpty())
                 }
                 val from = msgs.size
                 for (round in 0 until 3) {
                     val raw = StringBuilder()
                     var cut = false
-                    val p2 = history ?: com.lfmpixel.lfm.llm.PromptFormat.build(SpeechFormat.talkToolSystem(p.speechLanguage),
+                    val p2 = history ?: com.lfmpixel.lfm.llm.PromptFormat.build(SpeechFormat.talkToolSystem(p.speechLanguage) + recall?.system.orEmpty(),
                         toolBox!!.specs(), msgs, thinking = false)
                     session.generate(p2, if (toolBox != null) 400 else 300, 0.3f).collect { piece ->
                         if (interrupted || run != epoch) throw CancellationException("Stopped")
@@ -507,8 +514,10 @@ class Talk(
     /** The finished exchanges, oldest first, as Omni reads them back. */
     private fun doneTurns() = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
 
+    /** Omni on the phone: a short profile only (its context is small, and a stable start stays read in). */
     private suspend fun system(): String =
-        SpeechFormat.talkSystem(settings.now().speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date()))
+        SpeechFormat.talkSystem(settings.now().speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())) +
+            (memory?.let { m -> runCatching { m.context("", 4096, notes = false).system }.getOrNull() }.orEmpty())
 
     private class Heard(val text: String, val started: Long, val ended: Long, val tokens: Int, val audioInMs: Double)
 
@@ -603,5 +612,7 @@ class Talk(
     companion object {
         private const val TAG = "lfm-talk"
         const val PHONE_ANSWER = "Omni on this phone"
+        /** The memory budget for a spoken answer on the server: a mid-size one ([com.lfmpixel.lfm.memory.Recall.budget]), so the prompt stays quick. */
+        const val TALK_CONTEXT = 8_000
     }
 }

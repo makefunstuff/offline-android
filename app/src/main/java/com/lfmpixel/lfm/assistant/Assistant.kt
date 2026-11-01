@@ -138,6 +138,11 @@ class Assistant(
     @Volatile var seeing: (() -> String?)? = null
     /** The server's small classifiers (photo filing); set by AppGraph. */
     @Volatile var labels: com.lfmpixel.lfm.edge.Labels? = null
+    /** What Inkling learned, and the notes near each question, for the prompt (memory/MemoryStore.kt); set by AppGraph. */
+    @Volatile var memory: com.lfmpixel.lfm.memory.MemoryStore? = null
+    /** The memory's blocks for the turn being answered: into the system prompt, and after the owner's last message. */
+    private var recall = com.lfmpixel.lfm.memory.MemoryStore.Context("", "", 0)
+    private var recallFor = -1L
     private val zone get() = ZoneId.systemDefault()
 
     private val _thread = MutableStateFlow(1L)
@@ -346,7 +351,7 @@ class Assistant(
             "as local ISO time like 2026-10-30T18:00. After a tool runs, confirm in a few words. Never say something was " +
             "done unless a tool did it. If you do not know, or a question is about the owner's notes and you have not looked, " +
             "say so or search the library: do not guess. Time zone: $tz." +
-            (seeing?.invoke()?.let { " The camera is on; it sees: $it" } ?: "")
+            (seeing?.invoke()?.let { " The camera is on; it sees: $it" } ?: "") + recall.system
     }
 
     private val stamp = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH)
@@ -354,7 +359,8 @@ class Assistant(
     private fun toPrompt(m: ChatMessage): PromptMessage? = when (m.role) {
         // The text model can't see the picture; it reads what was asked and, next, what Omni or VL answered.
         Role.User -> PromptMessage(PromptMessage.Role.User,
-            (if (m.media.isNotEmpty()) "[${m.media.lowercase()} shown: ${m.mediaLabel}] " else "") + m.text + "\n\n(Now: " + Instant.ofEpochMilli(m.createdAt).atZone(zone).format(stamp) + ")")
+            (if (m.media.isNotEmpty()) "[${m.media.lowercase()} shown: ${m.mediaLabel}] " else "") + m.text + "\n\n(Now: " + Instant.ofEpochMilli(m.createdAt).atZone(zone).format(stamp) + ")" +
+                (if (m.id == recallFor) recall.turn else ""))
         Role.Assistant -> PromptMessage(PromptMessage.Role.Assistant, m.raw)
         Role.Tool -> PromptMessage(PromptMessage.Role.Tool, m.raw)
         Role.Notice -> null
@@ -373,6 +379,14 @@ class Assistant(
         val thinkBudget = minOf(prefs.thinkBudget, models.answerSession().contextTokens / 4)
         val answerBudget = 512
         val maxTokens = if (thinking) thinkBudget + answerBudget else answerBudget
+        // What Inkling knows and the notes nearest to what was asked, sized to the answering model's context. Only the
+        // last message the owner wrote carries the notes; the profile sits in the system prompt.
+        val asked = db.messages().threadNow(_thread.value).lastOrNull { it.role == Role.User }
+        recall = asked?.let { a -> memory?.let { m -> runCatching { m.context(a.text, models.answerSession().contextTokens) }.getOrNull() } }
+            ?: com.lfmpixel.lfm.memory.MemoryStore.Context("", "", 0)
+        recallFor = asked?.id ?: -1
+        if (recall.system.isNotEmpty() || recall.turn.isNotEmpty())
+            android.util.Log.i("lfm-memory", "recall: ${recall.system.length} + ${recall.turn.length} chars in ${recall.ms} ms")
         repeat(4) { round ->
             val thread = db.messages().threadNow(_thread.value)
             // Once web text is in the conversation, every action and every new query asks first (spec section 4).

@@ -82,14 +82,27 @@ interface VectorDao {
 data class VectorKey(val entryId: Long, val hash: Long, val model: String)
 
 @Dao
+interface LearnedDao {
+    @Insert suspend fun insert(r: LearnedRow): Long
+    @Update suspend fun update(r: LearnedRow)
+    @Query("SELECT * FROM learned WHERE type = :type ORDER BY id") suspend fun ofType(type: String): List<LearnedRow>
+    @Query("DELETE FROM learned WHERE id IN (:ids)") suspend fun delete(ids: List<Long>)
+    @Query("DELETE FROM learned") suspend fun deleteAll()
+}
+
+@Dao
 interface MessageDao {
     @Insert suspend fun insert(m: ChatMessage): Long
     @Update suspend fun update(m: ChatMessage)
     @Query("SELECT * FROM messages WHERE threadId = :thread ORDER BY id") fun thread(thread: Long): Flow<List<ChatMessage>>
     @Query("SELECT * FROM messages WHERE threadId = :thread ORDER BY id") suspend fun threadNow(thread: Long): List<ChatMessage>
     @Query("SELECT COALESCE(MAX(threadId), 1) FROM messages") suspend fun lastThread(): Long
+    /** Changes whenever a message is written: what wakes the memory's quick pass. */
+    @Query("SELECT MAX(id) FROM messages") fun lastId(): Flow<Long?>
     @Query("DELETE FROM messages") suspend fun deleteAll()
     @Query("SELECT * FROM messages ORDER BY threadId, id") suspend fun all(): List<ChatMessage>
+    /** What the owner wrote in chats since [since], oldest first: what the memory reads. */
+    @Query("SELECT * FROM messages WHERE role = 'User' AND createdAt > :since ORDER BY id") suspend fun userSince(since: Long): List<ChatMessage>
 }
 
 @Dao
@@ -140,9 +153,9 @@ class Converters {
 }
 
 @Database(entities = [Entry::class, EntryFts::class, ChatMessage::class, ActionRecord::class, Reminder::class, NetLogEntry::class,
-    SearchRecord::class, EntryVector::class], version = 7, exportSchema = true,
+    SearchRecord::class, EntryVector::class, LearnedRow::class], version = 8, exportSchema = true,
     autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5),
-        AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7)])
+        AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7), AutoMigration(from = 7, to = 8)])
 @TypeConverters(Converters::class)
 abstract class LfmDatabase : RoomDatabase() {
     abstract fun entries(): EntryDao
@@ -152,6 +165,7 @@ abstract class LfmDatabase : RoomDatabase() {
     abstract fun netLog(): NetLogDao
     abstract fun searches(): SearchDao
     abstract fun vectors(): VectorDao
+    abstract fun learned(): LearnedDao
 
     companion object {
         fun open(context: Context): LfmDatabase =
