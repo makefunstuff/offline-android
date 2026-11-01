@@ -1,7 +1,7 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.lfmpixel.lfm.ui.components.callout
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +28,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.crash.CrashLog
@@ -113,13 +112,13 @@ fun CrashesScreen(g: AppGraph, nav: Nav) {
 fun CrashNote(onView: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val c = Lfm.c
     Box(modifier.padding(horizontal = 12.dp, vertical = 8.dp).semantics { liveRegion = LiveRegionMode.Polite }) {
-        // Paper with the control-grey edge (as the menu), so it stands apart from the wash cards it may sit over.
-        Box(Modifier.fillMaxWidth().background(c.bg, LfmShape.card).border(1.dp, c.control, LfmShape.card)
+        // A callout (the wash with the highlighter's bar), so it stands apart without an outline.
+        Box(Modifier.fillMaxWidth().callout(c)
             .padding(start = 16.dp, end = 4.dp, top = 2.dp, bottom = 2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Txt("Inkling closed unexpectedly last time", LfmType.small, c.text, Modifier.weight(1f))
                 Box(Modifier.heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onView).padding(horizontal = 10.dp),
-                    contentAlignment = Alignment.Center) { Txt("View", LfmType.button, c.text, decoration = TextDecoration.Underline) }
+                    contentAlignment = Alignment.Center) { Txt("View", LfmType.action, c.action) }
                 IconButtonPlain("x", onClose, desc = "Close")
             }
         }
