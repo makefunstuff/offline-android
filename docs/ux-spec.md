@@ -130,7 +130,7 @@ inside Talk. Its look changes come in a later task.
 ### Library, Plans, Settings and the rest
 
 Paper and ink under the hour's sky, each with its header on the sky (LFMP-17). Settings gains **Soft sounds**. Menus
-are paper with a 1 dp line and no shadow; picking a day is a sheet with the highlighter on the chosen day, not the
+are paper with a 1 dp edge in the control grey (3:1) and no shadow; picking a day is a sheet with the highlighter on the chosen day, not the
 phone's own dialog. The capture widget sits on the day sky (the night sky in the dark theme).
 
 ### Lock screen and widget

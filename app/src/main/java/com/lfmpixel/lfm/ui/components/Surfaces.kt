@@ -101,12 +101,12 @@ fun FlatSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit
     }
 }
 
-/** A long-press or ⋯ menu: paper, a 1 dp line, the page's corners, no shadow. */
+/** A long-press or ⋯ menu: paper, a 1 dp edge in the control grey (3:1 against the page), the page's corners, no shadow. */
 @Composable
 fun Menu(expanded: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val c = Lfm.c
     DropdownMenu(expanded, onDismiss, shape = LfmShape.card, containerColor = c.bg, tonalElevation = 0.dp, shadowElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, c.line), content = content)
+        border = androidx.compose.foundation.BorderStroke(1.dp, c.control), content = content)
 }
 
 /** One line of a [Menu], with its icon. */
