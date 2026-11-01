@@ -23,14 +23,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- An answer, a scanned document or a queue of messages keeps going while you leave the app (WorkService). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- Moving from two apps: to update the old Inkling Net to its hand-off version from the copy inside this app, then
-         to offer its uninstall (NetHandoff). Android asks you first, each time. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <queries>
-        <!-- The old Inkling Net, to bring its settings over and offer its uninstall. -->
-        <package android:name="com.lfmpixel.lfm.net" />
         <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent>
         <intent><action android:name="android.intent.action.SENDTO" /><data android:scheme="smsto" /></intent>
         <intent><action android:name="android.intent.action.DIAL" /></intent>
@@ -116,7 +110,6 @@
                 android:value="On-device AI: finishes an answer the owner asked for, with a Stop button" />
         </service>
         <service android:name=".memory.LearnJob" android:exported="false" android:permission="android.permission.BIND_JOB_SERVICE" />
-        <receiver android:name=".web.NetHandoffReceiver" android:exported="false" />
         <receiver android:name=".tools.ReminderReceiver" android:exported="false" />
         <receiver android:name=".assistant.FocusReceiver" android:exported="false" />
         <receiver android:name=".tools.BootReceiver" android:exported="false">

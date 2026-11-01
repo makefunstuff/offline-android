@@ -62,30 +62,6 @@ class NetSettings(context: Context) {
         .putString("proxy", c.proxy.trim())
         .apply()
 
-    /**
-     * The old Inkling Net's settings, as its hand-off version exported them (same keys as here). Taken only if nothing
-     * was set up here yet; either way the move is marked done.
-     */
-    fun importLegacy(values: Map<String, Any?>) {
-        val here = load()
-        val e = prefs.edit()
-        if (here.provider == WebProvider.None && !here.wikipedia && here.proxy.isBlank()) {
-            IMPORTED.forEach { k ->
-                when (val v = values[k]) {
-                    is String -> e.putString(k, v)
-                    is Boolean -> e.putBoolean(k, v)
-                }
-            }
-        }
-        e.putBoolean("imported", true).apply()
-    }
-
-    fun imported() = prefs.getBoolean("imported", false)
-
-    private companion object {
-        val IMPORTED = listOf("provider", "searxng_url", "searxng_user", "searxng_password", "brave_key", "mojeek_key", "wikipedia", "wiki_lang", "proxy")
-    }
-
     /** Edge mode: the server saved in Settings (its address only; the key is kept sealed in Wren's settings). */
     fun pinEdge(url: String) = prefs.edit().putString("edge_pin", url.trim()).apply()
     fun pinnedEdge(): String? = prefs.getString("edge_pin", null)?.takeIf { it.isNotBlank() }

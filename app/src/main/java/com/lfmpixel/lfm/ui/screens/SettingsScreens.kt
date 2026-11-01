@@ -292,7 +292,6 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
             Txt("Web search: ${prefs?.searchMode?.label ?: "…"} (Settings → Web search). Model downloads: only when you tap Download" +
                 (if (prefs?.downloadWifiOnly != false) ", on Wi-Fi" else "") + ". Your server: " + (if (prefs?.edgeOn == true) "on" else "off") + " (Settings → Your server).",
                 LfmType.small, c.text2)
-            HandoffCard(g)
             SectionLabel("Network log · today")
             if (log.isEmpty()) Txt(if (prefs?.netEnabled == false) "No requests: Wren is offline." else "No requests today.", LfmType.small, c.text2)
             log.forEach { e ->

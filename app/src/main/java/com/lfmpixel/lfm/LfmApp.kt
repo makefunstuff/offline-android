@@ -56,8 +56,6 @@ class AppGraph(context: Context) {
     val edge = com.lfmpixel.lfm.edge.Edge(net, settings, scope).also { engine.edge = it }
     val web = WebSearch(db, settings, net, contacts)
     val downloads = ModelDownloads(context, models, net, settings, engine, scope)
-    /** Moving from the old two apps: brings Inkling Net's settings over once. */
-    val handoff = com.lfmpixel.lfm.web.NetHandoff(context, net)
     val assistant = Assistant(context, db, engine, settings, tools, reminders, calendar, controls, launcher, scope, web, heat.heat)
     val voice = VoiceRecorder(OmniTranscriber(engine))
     val talk = com.lfmpixel.lfm.voice.Talk(context, engine, settings, scope)

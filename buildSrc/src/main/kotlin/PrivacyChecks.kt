@@ -77,24 +77,3 @@ fun runtimeModules(root: org.gradle.api.artifacts.result.ResolvedComponentResult
 /** Libraries any module may use: AndroidX, Kotlin and their annotations. */
 val baseAllowList = listOf("androidx.", "org.jetbrains.kotlin", "org.jetbrains.kotlinx", "org.jetbrains:annotations",
     "org.jspecify", "com.google.guava:listenablefuture", "com.google.errorprone:error_prone_annotations")
-
-/** Copies a built APK (the Inkling Net hand-off) into Wren's assets as [assetName]. */
-abstract class BundleApk : DefaultTask() {
-    @get:org.gradle.api.tasks.InputDirectory
-    abstract val apkDir: org.gradle.api.file.DirectoryProperty
-
-    @get:Input
-    abstract val assetName: org.gradle.api.provider.Property<String>
-
-    @get:org.gradle.api.tasks.OutputDirectory
-    abstract val outDir: org.gradle.api.file.DirectoryProperty
-
-    @TaskAction
-    fun copy() {
-        val apk = apkDir.get().asFile.listFiles().orEmpty().singleOrNull { it.name.endsWith(".apk") }
-            ?: throw GradleException("Expected one APK in ${apkDir.get().asFile}")
-        val out = outDir.get().asFile
-        out.deleteRecursively(); out.mkdirs()
-        apk.copyTo(java.io.File(out, assetName.get()))
-    }
-}
