@@ -318,7 +318,7 @@ class MemoryEvolvesTest {
         memory.command("Remember that I live in Leeds")
         memory.command("Remember that I live in York")
         assertEquals("You live in Leeds", memory.facts.value.single { it.key == "place:home" }.was)
-        assertTrue(memory.command("Forget that I live in Leeds")!!.startsWith("Okay"))
+        assertTrue(memory.command("Forget that I lived in Leeds")!!.startsWith("Okay"))
         assertEquals("", memory.facts.value.single { it.key == "place:home" }.was)
         assertEquals("You live in York", memory.facts.value.single { it.key == "place:home" }.text)
         // Remembering it again by request brings it back.

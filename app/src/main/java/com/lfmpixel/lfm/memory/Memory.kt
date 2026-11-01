@@ -210,7 +210,13 @@ object Words {
         return x.intersect(y).size.toDouble() / x.union(y).size
     }
 
-    fun stem(w: String) = if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) w.dropLast(1) else w
+    /** Plural s, and a simple past ("lived" → "live", "worked" → "work") so a fact said in the past still matches. */
+    fun stem(w: String) = when {
+        w.length > 5 && w.endsWith("ied") -> w.dropLast(3) + "y"
+        w.length > 4 && w.endsWith("ed") && !w.endsWith("eed") -> if (w[w.length - 3] in "vcgsz" ) w.dropLast(1) else w.dropLast(2)
+        w.length > 3 && w.endsWith("s") && !w.endsWith("ss") -> w.dropLast(1)
+        else -> w
+    }
 }
 
 /**
