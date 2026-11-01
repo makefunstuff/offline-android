@@ -138,7 +138,12 @@ class MemoryEvolvesTest {
             "Remember I’m picking up the kids at 3", "Remember I'm having dinner with Ana", "Remember I'm working late", "Remember I'm off Friday",
             "Remember: write the report", "Remember: buy a gift for my sister Ana", "Remember: keep the receipt", "Remember I have yoga Thursday",
             "Remember that the party is this Saturday", "Remember that the report is due Friday", "Remember that the parcel arrives by 5",
-            "Remember my exam is Monday", "Remember that the shop is closed until Monday")) assertNull(t, MemoryCommand.parse(t))
+            "Remember my exam is Monday", "Remember that the shop is closed until Monday", "Remember I have a call in an hour", "Remember I have a call later",
+            "Remember my flight is on the 12th", "Remember, answer Tom's email", "Remember: keep it in the fridge", "Remember I'm expecting a parcel"))
+            assertNull(t, MemoryCommand.parse(t))
+        for (t in listOf("Remember that this is my work phone", "Remember that my office is next to the station", "Remember that I can't eat gluten due to celiac",
+            "Remember, keep your answers short")) assertTrue(t, MemoryCommand.parse(t) is MemoryCommand.Cmd.Remember)
+        assertEquals("You want to run a marathon", FactRules.find("This year I want to run a marathon.").single { it.kind == FactKind.Goal }.text)
         for (t in listOf("Remember I have two cats", "Remember I don't eat pork", "Wren, remember I take the bus", "Remember we have a dog called Rex",
             "Remember, keep your answers short", "Remember I'm learning Japanese", "Remember I'm working at Google", "Remember I'm living in Berlin",
             "Remember my name is Jay"))

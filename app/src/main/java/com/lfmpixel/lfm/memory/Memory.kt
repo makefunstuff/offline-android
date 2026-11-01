@@ -526,12 +526,12 @@ object MemoryCommand {
      * What a reminder or a to-do sounds like ("remember I have a meeting at 10 tomorrow", "remember my keys when I
      * leave"): left to the model and its tools, never kept as a lasting fact.
      */
-    private val timely = Regex("""\b(?:today|tonight|tomorrow|weekend|noon|midnight|o'clock|until|till|due|parked|when i|before i|after i|""" +
-        """need to|have to|got to|must|appointment|meeting|(?:this|next) (?:\w+)|in \d+ (?:minutes?|hours?|days?|weeks?)|""" +
+    private val timely = Regex("""\b(?:today|tonight|tomorrow|weekend|noon|midnight|o'clock|later|until|till|due(?! to)|parked|in (?:an?|half an) (?:hour|minute)|the \d+(?:st|nd|rd|th)|when i|before i|after i|""" +
+        """need to|have to|got to|must|appointment|meeting|(?:this|next) (?:morning|afternoon|evening|week|weekend|month|time|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|in \d+ (?:minutes?|hours?|days?|weeks?)|""" +
         """(?<!birthday is )(?<!birthday is on )(?<!birthday's )(?<!birthday on )(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?|""" +
         """at \d|by \d|\d\s*(?:am|pm)|(?:i'm|i am) (?:out|away|off)|""" +
         // "I'm having dinner with Ana", "I'm working late": a plan. Only these -ing words say something lasting.
-        """(?:i'm|i am) (?!working (?:on|at|for|as)|living in|studying|learning|training for|saving for|expecting)\w+ing)\b""", RegexOption.IGNORE_CASE)
+        """(?:i'm|i am) (?!working (?:on|at|for|as)|living in|studying|learning|training for|saving for)\w+ing)\b""", RegexOption.IGNORE_CASE)
     private val all = Regex("""^(?:everything|all of it|all|everything you know|everything about me|all you know)$""", RegexOption.IGNORE_CASE)
 
     private val forgetAll = Regex(LEAD + """forget\s+(?:everything|all of it|all|everything you know|everything about me|all you know)[\s.!]*$""", RegexOption.IGNORE_CASE)
@@ -539,7 +539,7 @@ object MemoryCommand {
     fun timely(text: String) = timely.containsMatchIn(text)
     /** What reads as a lasting fact about the owner, said without "that". */
     private val aboutMe = Regex("""^(?:i'm|i am|i (?:like|love|prefer|hate|don't|do not|can't|never|always|have|take|eat|drink|own|use)\b|""" +
-        """we (?:have|own|live)\b|my \w+(?:'s)?(?: \w+)? (?:is|are|was)\b|(?:always |never )?(?:keep (?:it|answers|your answers|replies)|answer|reply|call me|speak|talk to me)\b)""", RegexOption.IGNORE_CASE)
+        """we (?:have|own|live)\b|my \w+(?:'s)?(?: \w+)? (?:is|are|was)\b|(?:always |never )?(?:keep (?:answers|your answers|replies|it short|it brief)|answer (?:in|briefly|shortly)|reply (?:in|briefly)|call me|speak (?:slowly|slower|more)|talk to me)\b)""", RegexOption.IGNORE_CASE)
 
     fun parse(text: String): Cmd? {
         // "Can you remember that…?" asks for it all the same; any other question is just a question.
