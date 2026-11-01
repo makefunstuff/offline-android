@@ -233,15 +233,18 @@ object FactMerge {
             // What the owner told Wren to remember about a slot ("I live in Leeds") still moves when they say it changed.
             old.edited && old.source.ref == "owner" && old.key.isNotEmpty() && old.key == found.key && !same && newer ->
                 old.copy(text = found.text, source = found.source, lastSeen = found.source.at, mentions = 1, edited = false,
-                    journal = found.journal, sensitive = found.sensitive, vec = null, was = old.text, changedAt = found.source.at)
+                    journal = found.journal, sensitive = found.sensitive, vec = null, was = carried(old, found.journal), changedAt = found.source.at)
             old.edited -> old.copy(mentions = old.mentions + 1, lastSeen = maxOf(old.lastSeen, found.source.at))
             // Same slot, other words, said later: "my dentist is now Dr Park" replaces "Dr Lee".
             !same && newer -> old.copy(text = found.text, source = found.source, lastSeen = found.source.at, mentions = 1,
-                journal = found.journal, sensitive = found.sensitive, vec = null, was = old.text, changedAt = found.source.at)
+                journal = found.journal, sensitive = found.sensitive, vec = null, was = carried(old, found.journal), changedAt = found.source.at)
             else -> old.copy(mentions = old.mentions + if (old.source.ref == found.source.ref) 0 else 1, lastSeen = maxOf(old.lastSeen, found.source.at))
         }
         return facts.toMutableList().also { it[i] = merged }
     }
+
+    /** What a changed fact keeps of its old words: nothing from the journal once the new fact isn't (the lock hides only journal facts). */
+    fun carried(old: Fact, journal: Boolean) = if (old.journal && !journal) "" else old.text
 
     /** Duplicates merged (same key, or nearly the same words): the nightly pass. */
     fun dedupe(facts: List<Fact>): List<Fact> = facts.sortedBy { it.firstSeen }.fold(emptyList()) { acc, f ->

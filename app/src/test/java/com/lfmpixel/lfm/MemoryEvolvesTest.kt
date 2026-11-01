@@ -189,6 +189,9 @@ class MemoryEvolvesTest {
         assertEquals("You live in York", FactMerge.merge(listOf(told), news).single().text)
         assertEquals("You live in Leeds", FactMerge.merge(listOf(told), news).single().was)
         assertEquals("You live in Leeds", FactMerge.merge(listOf(told.copy(source = Source("entry:1", "Note", t0))), news).single().text)
+        // A journal fact's words never ride along as "was" on a fact that isn't from the journal.
+        val fromJournal = fact("You live in Leeds", FactKind.Place, "place:home", t0).copy(journal = true)
+        assertEquals("", FactMerge.merge(listOf(fromJournal), news).single().was)
         // Round trip through the sealed JSON.
         assertEquals("You live in Leeds", Fact.fromJson(1, moved.toJson())!!.was)
     }
@@ -311,6 +314,13 @@ class MemoryEvolvesTest {
         memory.talkEnded(listOf("The weather in Leeds was awful today" to "Sorry to hear."))
         assertNull(memory.command("Forget about the weather"))
         assertTrue(memory.episodes.value.any { it.lines.contains("weather") })
+        // What a fact said before it changed can be forgotten too; the fact stays.
+        memory.command("Remember that I live in Leeds")
+        memory.command("Remember that I live in York")
+        assertEquals("You live in Leeds", memory.facts.value.single { it.key == "place:home" }.was)
+        assertTrue(memory.command("Forget that I live in Leeds")!!.startsWith("Okay"))
+        assertEquals("", memory.facts.value.single { it.key == "place:home" }.was)
+        assertEquals("You live in York", memory.facts.value.single { it.key == "place:home" }.text)
         // Remembering it again by request brings it back.
         memory.command("Remember that my sister is called Ana")
         assertTrue(memory.facts.value.any { it.text == "Ana is your sister" })

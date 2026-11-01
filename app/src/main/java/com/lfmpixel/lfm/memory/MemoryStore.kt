@@ -296,7 +296,7 @@ class MemoryStore(
                         val old = list[i]
                         list[i] = old.copy(kind = f.kind, text = f.text, source = fact.source, lastSeen = now(), mentions = old.mentions + 1, edited = true, journal = false,
                             vec = if (old.text == f.text) old.vec else null, sensitive = Sensitive.looks(f.text),
-                            was = if (old.text != f.text) old.text else old.was, changedAt = if (old.text != f.text) now() else old.changedAt)
+                            was = if (old.text != f.text) FactMerge.carried(old, false) else if (old.journal) "" else old.was, changedAt = if (old.text != f.text) now() else old.changedAt)
                     })
                 } }
                 android.util.Log.i(TAG, "remembered by request (${f.kind})")
@@ -312,6 +312,14 @@ class MemoryStore(
                     // While the journal is locked, what came from it is neither found nor said back here.
                     val locked = journalLocked()
                     val gone = FactMerge.matching(_facts.value.filter { !(locked && it.journal) }, FactRules.you(cmd.what)).take(5)
+                    // What a fact said before it changed ("was: You live in Leeds") is forgotten too, the fact kept.
+                    val goneIds = gone.map { it.id }.toSet()
+                    val olds = FactMerge.matching(_facts.value.filter { it.was.isNotEmpty() && it.id !in goneIds && !(locked && it.journal) }
+                        .map { it.copy(text = it.was) }, FactRules.you(cmd.what)).map { it.id }.toSet()
+                    if (olds.isNotEmpty()) {
+                        _facts.value.filter { it.id in olds }.forEach { addForgotten(it.was) }
+                        saveFacts(_facts.value.map { if (it.id in olds) it.copy(was = "", changedAt = 0) else it })
+                    }
                     if (gone.isNotEmpty()) {
                         val ids = gone.map { it.id }.toSet()
                         gone.forEach { addForgotten(it.text) }
@@ -323,7 +331,7 @@ class MemoryStore(
                         // Nothing yet, but said plainly ("forget that I like coffee"): not learned later either.
                         addForgotten(FactRules.you(cmd.what))
                     }
-                    gone
+                    gone + _facts.value.filter { it.id in olds }.map { it.copy(text = FactRules.you(cmd.what).replaceFirstChar { c -> c.uppercase() }) }
                 } }
                 if (gone.isEmpty() && !cmd.explicit) return null
                 android.util.Log.i(TAG, "forgot ${gone.size} by request")
