@@ -18,7 +18,7 @@ import java.net.Proxy
 import java.util.concurrent.TimeUnit
 
 /**
- * The network calls behind [Network]. Each returns what it sent, so Inkling can keep the network log.
+ * The network calls behind [Network]. Each returns what it sent, so Wren can keep the network log.
  * No cookies, no cache, no referrer; the user agent of a current Chrome on Android (spec section 4).
  */
 class NetEngine(
@@ -29,7 +29,7 @@ class NetEngine(
     private val clock: () -> Long = System::currentTimeMillis,
     /** Edge mode: which server addresses may be opened (tests also allow loopback). */
     private val edgeAddressAllowed: (InetAddress) -> Boolean = EdgeRules::isPrivate,
-    /** Edge mode: the server saved in Inkling's Settings, the only one used for more than a test. */
+    /** Edge mode: the server saved in Wren's Settings, the only one used for more than a test. */
     private val edgePinned: () -> String? = { null },
     /** Offline: true refuses every request before it connects, and stops one under way at its next piece. */
     private val blocked: () -> Boolean = { false },
@@ -69,7 +69,7 @@ class NetEngine(
         return b.build()
     }
 
-    /** Every request, redirects included, first asks whether Inkling is offline. */
+    /** Every request, redirects included, first asks whether Wren is offline. */
     private val offlineGate = Interceptor { chain ->
         if (blocked()) throw IOException(OFFLINE)
         chain.proceed(chain.request())
@@ -172,7 +172,7 @@ class NetEngine(
 
     /**
      * Streams a pinned file into [out] from [offset]. Only names on the pinned list, only from Hugging Face over https;
-     * Inkling checks the SHA-256 once it has the whole file.
+     * Wren checks the SHA-256 once it has the whole file.
      */
     /** A particular network to use (Wi-Fi only): its sockets and its DNS. */
     class Via(val sockets: javax.net.SocketFactory, val dns: okhttp3.Dns)
@@ -233,7 +233,7 @@ class NetEngine(
         // Only the saved server, but for Settings' Test, which may try a new address (health and the model list only).
         val pinned = edgePinned()?.trim()?.trimEnd('/')
         if (path !in TEST_PATHS && pinned != base.trim().trimEnd('/')) return EdgeReply(0, 0, emptyList(), "That isn't the server saved in Settings")
-        if (path !in EdgeRules.PATHS) return EdgeReply(0, 0, emptyList(), "Inkling doesn't open $path on the server")
+        if (path !in EdgeRules.PATHS) return EdgeReply(0, 0, emptyList(), "Wren doesn't open $path on the server")
         if (method != "GET" && method != "POST") return EdgeReply(0, 0, emptyList(), "Bad method")
         EdgeRules.literal(b.host)?.let { if (!edgeAddressAllowed(it)) return EdgeReply(0, 0, emptyList(), "${b.host} is not on your home network or tailnet") }
         EdgeRules.refuse(b.host)?.takeIf { EdgeRules.literal(b.host) == null }?.let { return EdgeReply(0, 0, emptyList(), it) }
@@ -317,8 +317,8 @@ class NetEngine(
     }
 
     companion object {
-        /** The error every request gets while Inkling is offline. */
-        const val OFFLINE = "Inkling is offline"
+        /** The error every request gets while Wren is offline. */
+        const val OFFLINE = "Wren is offline"
         /** The most one Edge request may send: a long recording or a few pictures. */
         const val MAX_EDGE_BODY = 32 * 1024 * 1024
         /** What Settings' Test asks of an address not saved yet. */

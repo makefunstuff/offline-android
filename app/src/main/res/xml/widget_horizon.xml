@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Lock screen first: keyguard where the phone offers lock-screen widgets, the home screen everywhere. Refreshed every
-     30 minutes and whenever Inkling is left; the time itself is a live TextClock. -->
+     30 minutes and whenever Wren is left; the time itself is a live TextClock. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:initialLayout="@layout/widget_horizon" android:previewLayout="@layout/widget_horizon"
     android:description="@string/widget_horizon_description"

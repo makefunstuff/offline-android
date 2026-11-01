@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /*
- * Inkling's memory (notebook-spec section 6): what it learns from the owner's notes, chats and Talk, kept on the
+ * Wren's memory (notebook-spec section 6): what it learns from the owner's notes, chats and Talk, kept on the
  * phone. This file is the pure part (what a fact is, how it is found, merged, ranked and put in a prompt), so
  * MemoryTest runs it without a phone; MemoryStore.kt keeps it, sealed, and runs the nightly pass.
  */
@@ -329,7 +329,7 @@ object Recall {
 
     /** The block for the system prompt; empty when there is nothing. */
     fun systemBlock(profile: String): String = if (profile.isBlank()) "" else
-        "\n\nWhat you know about the owner (learned from their notes; they can see and edit it in What Inkling knows). " +
+        "\n\nWhat you know about the owner (learned from their notes; they can see and edit it in What Wren knows). " +
             "Use it when it helps; never recite it:\n$profile"
 
     /** The block put after the owner's message: the facts and notes that fit it. */
@@ -368,7 +368,7 @@ object Corrections {
 }
 
 /**
- * Patterns over time, offered gently on the What Inkling knows screen and in the profile; never as a notification.
+ * Patterns over time, offered gently on the What Wren knows screen and in the profile; never as a notification.
  * Each needs enough to go on, or it says nothing.
  */
 object Patterns {

@@ -175,12 +175,12 @@ class MainActivity : ComponentActivity() {
         graph.launcher.onScreen = false
         graph.lock.onHidden()
         graph.focus.left(System.currentTimeMillis())
-        // Plans may have changed while Inkling was open: the horizon widget catches up.
+        // Plans may have changed while Wren was open: the horizon widget catches up.
         com.lfmpixel.lfm.daylight.HorizonWidget.refresh(this)
         super.onStop()
     }
 
-    /** The phone's own fingerprint, face or screen lock, for Inkling's lock. True once the owner got through. */
+    /** The phone's own fingerprint, face or screen lock, for Wren's lock. True once the owner got through. */
     private suspend fun authenticate(title: String): Boolean = kotlinx.coroutines.suspendCancellableCoroutine { cont ->
         val cancel = android.os.CancellationSignal()
         cont.invokeOnCancellation { cancel.cancel() }
@@ -201,7 +201,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         // Back on screen (also after a permission dialog): the "keeps going" notice is not needed; it starts again
-        // if Inkling is left while busy.
+        // if Wren is left while busy.
         com.lfmpixel.lfm.assistant.WorkService.back(this)
         // Downloads cut off by a restart carry on.
         graph.net.refresh()
@@ -492,7 +492,7 @@ internal fun BottomBar(nav: Nav) {
         Place("Notebook", Route.Library(), nav.current is Route.Library)
         Box(Modifier.weight(1.1f), contentAlignment = Alignment.Center) {
             Box(Modifier.size(56.dp).clip(LfmShape.round).background(c.mic).clickable(role = Role.Button) { nav.go(Route.Talk) }
-                .semantics { contentDescription = "Talk to Inkling" }, contentAlignment = Alignment.Center) {
+                .semantics { contentDescription = "Talk to Wren" }, contentAlignment = Alignment.Center) {
                 LIcon("mic", tint = c.onMic)
             }
         }

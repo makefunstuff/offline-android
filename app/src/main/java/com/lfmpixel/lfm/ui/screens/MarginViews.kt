@@ -119,7 +119,7 @@ fun MarginSheet(g: AppGraph, nav: Nav, onPick: (MarginAsk, String) -> Unit, onCl
     }
 }
 
-/** The answer in the margin: a yellow edge, Inkling's words, then Add or Dismiss. */
+/** The answer in the margin: a yellow edge, Wren's words, then Add or Dismiss. */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun MarginBlock(run: MarginRun, nav: Nav, onAddToNote: (String) -> Unit, modifier: Modifier = Modifier) {
@@ -129,13 +129,13 @@ fun MarginBlock(run: MarginRun, nav: Nav, onAddToNote: (String) -> Unit, modifie
     Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(shape).background(c.wash)) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(c.highlight))
         Column(Modifier.weight(1f).padding(start = 12.dp, end = 10.dp, top = 10.dp, bottom = 10.dp)) {
-            Label("Inkling · ${ask.heading.lowercase()} · on this phone")
+            Label("Wren · ${ask.heading.lowercase()} · on this phone")
             val shown = when {
                 run.failed != null && run.text.isBlank() -> run.failed!!
                 run.text.isBlank() && run.running -> "Writing…"
                 else -> run.text
             }
-            // Inkling's words, in the serif; its own "Writing…" and failures stay in the page's type.
+            // Wren's words, in the serif; its own "Writing…" and failures stay in the page's type.
             Txt(shown, if (run.text.isBlank()) LfmType.body else LfmType.voiceBody, if (run.text.isBlank()) c.text2 else c.text,
                 Modifier.padding(top = 4.dp).semantics { liveRegion = LiveRegionMode.Polite })
             FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

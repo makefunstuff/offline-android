@@ -32,7 +32,7 @@ sealed interface EdgeState {
     data class Offline(val reason: String, val since: Long) : EdgeState
 }
 
-/** The models the server serves for Inkling: the LFM3 family only (homelab roles/local_ai, edge mode). */
+/** The models the server serves for Wren: the LFM3 family only (homelab roles/local_ai, edge mode). */
 object EdgeModels {
     const val TEXT = "lfm3-1.7b"
     /** The same model with the full 262K window, in two slots; used only when a prompt won't fit in [TEXT]'s 32K. */
@@ -276,7 +276,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
     /** Speech to text on the server (Omni): [pcm16k] is 16 kHz mono float. */
     override suspend fun transcribe(pcm16k: FloatArray, language: String): String {
         val s = server() ?: throw NetException("No server is set up")
-        val boundary = "inkling" + System.nanoTime()
+        val boundary = "wren" + System.nanoTime()
         val body = ByteArrayOutputStream()
         fun part(name: String, value: String) = body.write(
             "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n".toByteArray())

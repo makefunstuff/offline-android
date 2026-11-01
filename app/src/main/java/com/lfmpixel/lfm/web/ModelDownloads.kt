@@ -113,7 +113,7 @@ class ModelDownloads(
     fun pauseAll() {
         val moving = _items.value.values.filter { it.state in setOf(State.Waiting, State.Running, State.NoWifi) }
         moving.forEach { pause(it.model) }
-        // Marked so they carry on by themselves: when Offline is turned off, or the next time Inkling opens.
+        // Marked so they carry on by themselves: when Offline is turned off, or the next time Wren opens.
         _items.update { map -> map.mapValues { (k, v) -> if (moving.any { it.model.fileName == k }) v.copy(interrupted = true) else v } }
         save()
     }

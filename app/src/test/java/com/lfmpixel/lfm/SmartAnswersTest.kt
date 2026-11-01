@@ -29,7 +29,7 @@ class SmartAnswersTest {
 
     @Test fun rawPromptBecomesChatWithTools() {
         val call = ChatPrompt.rawCall("add_todo", mapOf("text" to "Oat milk", "list" to "Shopping"))
-        val prompt = PromptFormat.build("You are Inkling.", listOf(todo.toJson()), listOf(
+        val prompt = PromptFormat.build("You are Wren.", listOf(todo.toJson()), listOf(
             PromptMessage(PromptMessage.Role.User, "add oat milk"),
             PromptMessage(PromptMessage.Role.Assistant, "<think></think>$call"),
             PromptMessage(PromptMessage.Role.Tool, "{\"ok\": true}"),
@@ -41,7 +41,7 @@ class SmartAnswersTest {
         assertEquals("add_todo", chat.tools.getJSONObject(0).getJSONObject("function").getString("name"))
         val m = chat.messages
         assertEquals(listOf("system", "user", "assistant", "tool", "assistant", "user"), (0 until m.length()).map { m.getJSONObject(it).getString("role") })
-        assertEquals("You are Inkling.", m.getJSONObject(0).getString("content"))
+        assertEquals("You are Wren.", m.getJSONObject(0).getString("content"))
         val calls = m.getJSONObject(2).getJSONArray("tool_calls")
         val fn = calls.getJSONObject(0).getJSONObject("function")
         assertEquals("add_todo", fn.getString("name"))

@@ -156,7 +156,7 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
                             Box(Modifier.padding(horizontal = 16.dp)) {
                                 when (filter) {
                                     LibFilter.Pinned -> Empty("Nothing pinned", "Swipe a note right to pin it; pinned ones stay on top.")
-                                    LibFilter.Reading -> Empty("No quotes yet", "Select text in any app, tap Share, then Inkling: it lands on today's page as a highlight, and here.")
+                                    LibFilter.Reading -> Empty("No quotes yet", "Select text in any app, tap Share, then Wren: it lands on today's page as a highlight, and here.")
                                     else -> Empty("No notes yet", "Tap + to write, or the mic to talk. Notes, ideas and journal lines all land here.")
                                 }
                             }
@@ -318,7 +318,7 @@ fun snackLift(nav: Nav): androidx.compose.ui.unit.Dp =
 /** Where a kind lives, as a place name: "Notes", "Ideas", "Journal", "To-dos". */
 fun EntryKind.place() = when (this) { EntryKind.Note -> "Notes"; EntryKind.Idea -> "Ideas"; EntryKind.Journal -> "Journal"; EntryKind.Todo -> "To-dos" }
 
-/** An empty list: Inkling says so in its own words (the serif), then what to do, in the page's. */
+/** An empty list: Wren says so in its own words (the serif), then what to do, in the page's. */
 @Composable
 fun Empty(title: String, body: String) {
     val c = Lfm.c

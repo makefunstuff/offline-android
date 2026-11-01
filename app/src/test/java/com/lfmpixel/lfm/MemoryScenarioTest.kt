@@ -41,7 +41,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
 /**
- * A made-up owner's notebook over four simulated days, against a real Room database: what Inkling learns, that answers'
+ * A made-up owner's notebook over four simulated days, against a real Room database: what Wren learns, that answers'
  * prompts carry it, that a correction sticks (across a restart too), the nightly pass, the switch, and Forget. Timings
  * are printed and written to build/memory-scenario/ with the prompts, for the proof.
  */
@@ -137,7 +137,7 @@ class MemoryScenarioTest {
         repeat(25) { i -> note(1, 12 + i % 6, EntryKind.Note, "Shopping $i", "eggs, bread, milk number $i") }
     }
 
-    @Test fun inklingLearnsOverDaysAndForgets() = runBlocking {
+    @Test fun wrenLearnsOverDaysAndForgets() = runBlocking {
         // Day 1, morning: the notebook fills; the quick pass reads it by rules.
         seed()
         clock = at(1, 20)

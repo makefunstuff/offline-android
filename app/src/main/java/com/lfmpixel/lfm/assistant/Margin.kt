@@ -25,7 +25,7 @@ object Margin {
     const val MAX_NOTE_CHARS = 6000
     const val MAX_TOKENS = 400
 
-    private const val SYSTEM = "You are Inkling, writing in the margin of the owner's private notebook on their phone. " +
+    private const val SYSTEM = "You are Wren, writing in the margin of the owner's private notebook on their phone. " +
         "Be brief, concrete and kind. Write plain text: no headings, no bold, no tables. Use the language of the note."
 
     fun instruction(ask: MarginAsk, question: String = "") = when (ask) {
@@ -70,6 +70,6 @@ object Margin {
         .mapNotNull { l -> Regex("""^(?:[-*•]|\d+[.)])\s+(.+)$""").find(l)?.groupValues?.get(1)?.trim()?.removeSuffix(".") }
         .filter { it.isNotEmpty() && !it.equals("none", ignoreCase = true) }.take(10)
 
-    /** The answer as it goes into the note when the owner taps Add: set apart, and marked as Inkling's. */
-    fun forNote(ask: MarginAsk, answer: String): String = "Inkling, ${ask.heading.lowercase()}:\n" + answer.trim()
+    /** The answer as it goes into the note when the owner taps Add: set apart, and marked as Wren's. */
+    fun forNote(ask: MarginAsk, answer: String): String = "Wren, ${ask.heading.lowercase()}:\n" + answer.trim()
 }

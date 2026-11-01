@@ -15,9 +15,9 @@ import kotlinx.coroutines.withContext
 
 /**
  * Moving from two apps to one. The old Inkling Net kept the search provider, its keys and the proxy in its own
- * storage, which Inkling can't read. So Inkling carries the last Inkling Net (:handoff, assets/inkling-net-handoff.apk,
+ * storage, which Wren can't read. So Wren carries the last Inkling Net (:handoff, assets/inkling-net-handoff.apk,
  * same key): installed as an update, it hands those settings over once, then the owner uninstalls it. Android asks
- * before each install and uninstall. The Edge server was always kept in Inkling and needs nothing.
+ * before each install and uninstall. The Edge server was always kept in Wren and needs nothing.
  */
 class NetHandoff(private val context: Context, private val net: NetClient) {
     sealed interface Status {
@@ -66,7 +66,7 @@ class NetHandoff(private val context: Context, private val net: NetClient) {
         }
     }
 
-    /** Reads the settings from the hand-off version; only from an app signed with Inkling's own key. */
+    /** Reads the settings from the hand-off version; only from an app signed with Wren's own key. */
     suspend fun importNow(): Status = withContext(Dispatchers.IO) {
         if (context.packageManager.checkSignatures(context.packageName, NET_PACKAGE) != PackageManager.SIGNATURE_MATCH)
             return@withContext Status.Failed("That Inkling Net is signed with another key, so its settings were not read")
@@ -102,7 +102,7 @@ class NetHandoffReceiver : BroadcastReceiver() {
             }
             PackageInstaller.STATUS_SUCCESS -> { val r = goAsync(); g.scope.launch { try { g.handoff.importNow() } finally { r.finish() } } }
             PackageInstaller.STATUS_FAILURE_ABORTED -> g.handoff.status.value =
-                NetHandoff.Status.Failed("Not installed. If Android asked to allow installs from Inkling, allow it, then tap again.")
+                NetHandoff.Status.Failed("Not installed. If Android asked to allow installs from Wren, allow it, then tap again.")
             else -> g.handoff.status.value = NetHandoff.Status.Failed("Not installed: " +
                 (intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "Android refused it"))
         }

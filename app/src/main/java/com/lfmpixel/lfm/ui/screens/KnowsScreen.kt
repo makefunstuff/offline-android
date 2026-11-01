@@ -52,7 +52,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * What Inkling knows (notebook-spec section 6): every fact it learned, where it came from, each one editable and
+ * What Wren knows (notebook-spec section 6): every fact it learned, where it came from, each one editable and
  * deletable; the corrections it keeps; the patterns it noticed (shown here only, never pushed); the learning switch
  * and Forget everything learned.
  */
@@ -80,7 +80,7 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
     val day = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
     fun date(t: Long) = Instant.ofEpochMilli(t).atZone(ZoneId.systemDefault()).format(day)
     Column(Modifier.fillMaxSize()) {
-        Header("What Inkling knows", onBack = { nav.back() })
+        Header("What Wren knows", onBack = { nav.back() })
         LazyColumn(Modifier.padding(horizontal = 16.dp)) {
             item {
                 Group {
@@ -117,7 +117,7 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
                     Divider()
                 }
             }
-            item { Btn("Add something Inkling should know", { adding = true }, Modifier.padding(top = 12.dp).fillMaxWidth(), icon = "plus") }
+            item { Btn("Add something Wren should know", { adding = true }, Modifier.padding(top = 12.dp).fillMaxWidth(), icon = "plus") }
             if (corrections.isNotEmpty()) {
                 item { SectionLabel("Corrections it keeps") }
                 items(corrections.reversed(), key = { "c" + it.id }) { k ->
@@ -137,11 +137,11 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
             if (patterns.isNotEmpty()) {
                 item { SectionLabel("Patterns it noticed") }
                 items(patterns, key = { "p$it" }) { line -> Txt(line, LfmType.body, modifier = Modifier.padding(vertical = 6.dp)) }
-                item { Txt("Just for you to see; Inkling won't nag about them.", LfmType.meta, c.text2) }
+                item { Txt("Just for you to see; Wren won't nag about them.", LfmType.meta, c.text2) }
             }
             item {
                 SectionLabel("Tidying up")
-                Txt(lastRun.ifEmpty { "Each night while the phone charges, Inkling merges duplicates, lets stale facts go and looks for patterns." },
+                Txt(lastRun.ifEmpty { "Each night while the phone charges, Wren merges duplicates, lets stale facts go and looks for patterns." },
                     LfmType.meta, c.text2)
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Btn(if (working) "Learning…" else "Learn now", {
@@ -154,10 +154,10 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
         }
     }
     editing?.let { f ->
-        FactSheet("Edit what Inkling knows", f.text, "Save", onDelete = { scope.launch { g.memory.delete(f.id) }; editing = null },
+        FactSheet("Edit what Wren knows", f.text, "Save", onDelete = { scope.launch { g.memory.delete(f.id) }; editing = null },
             onClose = { editing = null }) { text -> scope.launch { g.memory.edit(f.id, text) }; editing = null }
     }
-    if (adding) FactSheet("Add something Inkling should know", "", "Add", onDelete = null, onClose = { adding = false }) { text ->
+    if (adding) FactSheet("Add something Wren should know", "", "Add", onDelete = null, onClose = { adding = false }) { text ->
         scope.launch { g.memory.add(FactKind.Other, text) }; adding = false
     }
     if (forgetting) FlatSheet(onDismiss = { forgetting = false }) {
@@ -166,7 +166,7 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
             LfmType.small, c.text2, Modifier.padding(top = 6.dp))
         Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Btn("Cancel", { forgetting = false }, Modifier.weight(1f))
-            Btn("Forget", { scope.launch { g.memory.forget(); nav.show("Inkling forgot everything it learned") }; forgetting = false },
+            Btn("Forget", { scope.launch { g.memory.forget(); nav.show("Wren forgot everything it learned") }; forgetting = false },
                 Modifier.weight(1f), BtnKind.Primary, icon = "trash")
         }
     }

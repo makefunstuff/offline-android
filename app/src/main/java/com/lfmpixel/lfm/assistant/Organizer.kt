@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.flow
  * when there is no model; every result is a proposal the owner accepts.
  */
 object Organizer {
-    private const val SYSTEM = "You are Inkling, a calm planner in the owner's private notebook on their phone. " +
+    private const val SYSTEM = "You are Wren, a calm planner in the owner's private notebook on their phone. " +
         "The owner has ADHD: keep every step small, concrete and kind. Write plain text lines only: no headings, no bold."
 
     fun prompt(user: String): String =

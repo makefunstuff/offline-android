@@ -4,7 +4,7 @@ import com.lfmpixel.lfm.data.Entry
 import com.lfmpixel.lfm.data.EntryKind
 
 /**
- * Text shared to Inkling from another app becomes a quote on today's page (notebook-spec proposal 5): a note tagged
+ * Text shared to Wren from another app becomes a quote on today's page (notebook-spec proposal 5): a note tagged
  * `reading`, its body the quote and then "— where it came from". Nothing is fetched from a shared link.
  */
 object Quotes {

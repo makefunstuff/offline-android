@@ -70,7 +70,7 @@ class SerialPermissionGate(
 class ExternalLauncher(private val context: Context) {
     var activity: android.app.Activity? = null
     /**
-     * Inkling is on screen. Android blocks an app in the background from opening another one, without an error:
+     * Wren is on screen. Android blocks an app in the background from opening another one, without an error:
      * startActivity returns as if it worked. So a hand-off is only tried while this is true.
      */
     @Volatile var onScreen = false
@@ -219,7 +219,7 @@ class LocalCalendar(private val context: Context) {
         ContentUris.parseId(resolver.insert(uri, v)!!)
     }
 
-    /** Wipe: removes Inkling's own calendar and every event in it (only with the calendar permission). */
+    /** Wipe: removes Wren's own calendar and every event in it (only with the calendar permission). */
     suspend fun deleteOwnCalendar(): Boolean = withContext(Dispatchers.IO) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) return@withContext false
         val uri = CalendarContract.Calendars.CONTENT_URI.buildUpon()

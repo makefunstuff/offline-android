@@ -65,7 +65,7 @@ class Focus(private val context: Context) {
     fun plus(minutes: Int, now: Long = System.currentTimeMillis()) { _run.value?.let { write(it.plus(minutes * 60_000L, now)) } }
     fun stop() = write(null)
 
-    /** When Inkling last left the screen. */
+    /** When Wren last left the screen. */
     fun left(at: Long) = prefs.edit().putLong("leftAt", at).apply()
     val leftAt get() = prefs.getLong("leftAt", 0)
     val lastTitle get() = prefs.getString("lastTitle", null)

@@ -1,4 +1,4 @@
-# Inkling: UI/UX research, a warmer companion (LFMP-12)
+# Wren: UI/UX research, a warmer companion (LFMP-12)
 
 The owner: "Current design is pretty meh and generic. We need some inspiration from movies like Her, or from modern
 non-boring interfaces, to actually improve it and make it helpful every single day, and smart enough for everyday
@@ -17,7 +17,7 @@ or one scroll away. **Update (LFMP-20):** the owner still found Daylight generic
 
 Clean, calm and honest, but generic: it looks like a well-made settings screen.
 
-- **No presence.** Talk is a box of level bars (with no model it only points to Models) and Today is a stack of cards. Nothing shows that Inkling is there,
+- **No presence.** Talk is a box of level bars (with no model it only points to Models) and Today is a stack of cards. Nothing shows that Wren is there,
   listening or thinking.
 - **No voice of its own.** The copy is clear, but it reads like the system talking ("Nothing next. Write a line
   below"), with no character.
@@ -28,7 +28,7 @@ Clean, calm and honest, but generic: it looks like a well-made settings screen.
 
 ## 2. Principles borrowed (not looks)
 
-| From | Principle | For Inkling |
+| From | Principle | For Wren |
 | --- | --- | --- |
 | *Her* | Presence without a screen: a warm, brief voice and a tiny device, speaking first at the right moment | Voice first, one small living mark, warm colour |
 | *Her* (the warning) | Don't fake intimacy | Warm but honest; says what it remembered and why |
@@ -46,7 +46,7 @@ Clean, calm and honest, but generic: it looks like a well-made settings screen.
 ## 3. Three directions
 
 - **A · Hearth (recommended).** A warm companion with one living mark, the *ember*, at the top of every screen: tap
-  to talk, hold to look. Warm paper by day, warm dark by evening; the highlighter yellow (`#ffd400`, also the icon's dot) becomes a warmer lamplight amber, on purpose. Inkling's
+  to talk, hold to look. Warm paper by day, warm dark by evening; the highlighter yellow (`#ffd400`, then the dot of the old *i* icon) becomes a warmer lamplight amber, on purpose. Wren's
   words in a soft serif (Literata), yours in Roboto. The ember breathes and follows the voice; soft felt-piano
   sounds. Voice: warm, brief, a little wry, says "I don't know" and why it offers something.
 - **B · Dial.** A pocket instrument with a dot-matrix face, the day as a dial, colour blocks per kind, chunky buttons
@@ -56,7 +56,7 @@ Clean, calm and honest, but generic: it looks like a well-made settings screen.
 
 ## 4. A day with Hearth
 
-| Time | Inkling | How |
+| Time | Wren | How |
 | --- | --- | --- |
 | 7:10 | "Morning. A light day: two small things, and the dentist at 3." | Lock-screen glance; calendar, to-dos and last night's draft |
 | 7:40 (morning ritual) | "Want me to keep three for today? About 50 minutes." | Plan my day; the hard one first, as memory says mornings are best |
@@ -84,7 +84,7 @@ Quick wins:
 3. **A sentence, not counts** (S): Today opens with one line of the day.
 4. **One voice** (S): a short personality prompt for Talk and chat; copy rewritten to match.
 5. **Talk as captions** (S): large captions over the ember; Undo and Show under tool results.
-6. **Serif for Inkling's words** (S): bundle Literata, used only where Inkling speaks.
+6. **Serif for Wren's words** (S): bundle Literata, used only where Wren speaks.
 7. **Sound and haptics kit** (S): four soft sounds and matching haptics.
 8. **Morning and evening tint** (S): the theme warms through the day and dims after 21:00.
 

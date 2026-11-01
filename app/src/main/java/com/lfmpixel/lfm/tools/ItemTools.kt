@@ -244,7 +244,7 @@ class DeleteItemTool(private val env: ToolEnv) : Tool {
 
 /**
  * What delete_item took away, kept in memory only for its undo: the action history (and so an export) never holds the
- * deleted text. Undo works until Inkling restarts.
+ * deleted text. Undo works until Wren restarts.
  */
 object Deleted {
     private val kept = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -331,7 +331,7 @@ class ReadLatestTool(private val env: ToolEnv) : Tool {
             else -> throw ToolArgsException("Kind must be note, idea, journal, todo or any")
         }
         val hide = env.hideJournal()
-        if (kind == EntryKind.Journal && hide) return ToolResult(true, "The journal is locked. Unlock it in Inkling to hear it.", "Journal locked")
+        if (kind == EntryKind.Journal && hide) return ToolResult(true, "The journal is locked. Unlock it in Wren to hear it.", "Journal locked")
         val all = if (kind != null) env.db.entries().byKind(kind).first() else env.db.entries().latest(30).first()
         val found = all.filter { it.parentId == null && !(hide && it.kind == EntryKind.Journal) }.sortedByDescending { it.createdAt }.take(n)
         val fmt = DateTimeFormatter.ofPattern("EEE d MMM HH:mm", Locale.ENGLISH)
@@ -406,7 +406,7 @@ class FocusTimerTool(private val env: ToolEnv) : Tool {
         var dndNote = ""
         if (quiet(args) && c != null) {
             if (c.hasDndAccess()) { dndBefore = c.dndOn.toString(); c.setDnd(true) }
-            else dndNote = " Do Not Disturb needs access first: Settings, Apps, Inkling."
+            else dndNote = " Do Not Disturb needs access first: Settings, Apps, Wren."
         }
         focus.start(e.id, e.title, m)
         val started = focus.run.value?.startedAt ?: 0

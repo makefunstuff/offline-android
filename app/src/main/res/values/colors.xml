@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="bg">#FFFFFF</color>
+    <!-- The splash icon's background (themes.xml): the pale foot of the launcher icon's sky, so the whole icon is drawn. -->
+    <color name="icon_page">#E9F4FC</color>
     <!-- Daylight's paper, ink and highlighter (docs/ux-spec.md), as the app's theme has them (ui/theme/Theme.kt). -->
     <color name="highlight">#FFD400</color>
     <color name="on_highlight">#0B0B0C</color>
@@ -10,7 +12,7 @@
     <color name="sky_horizon">#E9F4FC</color>
     <color name="sky_ink">#0B1A2B</color>
     <color name="sky_line">#A60B1A2B</color>
-    <!-- The horizon widget's first frame, before Inkling paints the hour's sky and ink over it (daylight/HorizonWidget.kt). -->
+    <!-- The horizon widget's first frame, before Wren paints the hour's sky and ink over it (daylight/HorizonWidget.kt). -->
     <color name="day_ink">#0B1A2B</color>
     <color name="day_top">#8EC5F0</color>
     <color name="day_horizon">#E9F4FC</color>

@@ -10,7 +10,7 @@ import java.util.concurrent.ConcurrentHashMap
 data class NetInfo(val ready: Boolean, val provider: String, val wikipedia: Boolean, val proxy: Boolean)
 
 /**
- * The whole network side of Inkling, and the only code in it allowed to open a connection (docs/spec.md section 3;
+ * The whole network side of Wren, and the only code in it allowed to open a connection (docs/spec.md section 3;
  * :app:checkDebugNetworkConfinement fails the build otherwise). Four calls: [search], [fetch] (only an address from
  * the latest results), [download] (only a pinned model from Hugging Face) and [edge] (only the owner's server on a
  * private or tailnet address). Each returns the requests it made, for the network log. While [offline] says so,
@@ -23,7 +23,7 @@ class Network(context: Context, private val offline: () -> Boolean) {
     // One engine, so the latest results outlive a screen.
     private val engine = NetEngine({ settings.load() }, edgePinned = { settings.pinnedEdge() }, blocked = offline)
 
-    /** Edge requests in flight, by Inkling's id, so Stop and Offline reach one still waiting for the server. */
+    /** Edge requests in flight, by Wren's id, so Stop and Offline reach one still waiting for the server. */
     private val calls = ConcurrentHashMap<String, okhttp3.Call>()
 
     fun info(): NetInfo {
@@ -42,7 +42,7 @@ class Network(context: Context, private val offline: () -> Boolean) {
     fun download(fileName: String, offset: Long, wifiOnly: Boolean, out: OutputStream): NetEngine.DownloadReply {
         val via = if (wifiOnly) unmetered() ?: return NetEngine.DownloadReply(0, emptyList(), "Waiting for Wi-Fi", noWifi = true) else null
         val r = engine.download(fileName, offset, out, via)
-        // Wi-Fi went away mid-download: say so, so Inkling waits for it instead of giving up.
+        // Wi-Fi went away mid-download: say so, so Wren waits for it instead of giving up.
         return if (wifiOnly && r.error != null && r.error != "Stopped" && unmetered() == null) r.copy(noWifi = true) else r
     }
 

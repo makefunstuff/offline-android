@@ -1,10 +1,10 @@
-# Inkling: private notebook (LP-35) and ADHD organizer (LP-37)
+# Wren: private notebook (LP-35) and ADHD organizer (LP-37)
 
 The owner: "I would like a private personal notebook with LLM assistance. We won't use it for programming. It's mostly
 for ideation, reading, privacy stuff, scheduling. The UI is too generic right now: find something unique and
 convenient, so I use it daily and privately." And: "The results should be proper suggestions to user experience."
 
-So Inkling stops being a chat app with a notebook bolted on and becomes **a notebook with an assistant in it**. This
+So Wren stops being a chat app with a notebook bolted on and becomes **a notebook with an assistant in it**. This
 file holds the ranked UX proposals, then the screen rules the build follows. [ux-spec-v1.md](ux-spec-v1.md) (LP-12) still
 holds for everything not named here: palette, editing rules, motion, accessibility. Where they disagree, this file wins.
 
@@ -12,7 +12,7 @@ Written 31 October 2026. The mockups (dark and light) are in the LP-35 artifact.
 
 ## A. The ADHD organizer (LP-37)
 
-The owner, next: Inkling should be "an ADHD-friendly organizer with the help of these tiny private LLMs". This part
+The owner, next: Wren should be "an ADHD-friendly organizer with the help of these tiny private LLMs". This part
 builds on the notebook below (the Daily Page, the Ink line, Ink in the margin, Carried over, the seal) and changes it
 where an ADHD brain needs something else. Where this part and the sections after it disagree, this part wins. The
 mockups (dark and light) and the emulator screenshots are in the LP-37 artifact.
@@ -77,7 +77,7 @@ job follows; 9 are follow-ups.
 - **Daily problem.** Ten things are buzzing at once; writing each in the right place takes too long, so they are lost.
 - **How it works.** Three ways in, each one tap: the **Ink line** (as in LP-35: type, Enter; voice by the mic), **Brain
   dump** (the cloud button by the date, or the app icon's long-press shortcut): one big page to type or speak
-  everything, saved *as you type*, and the **share sheet** (as in LP-35). Long-pressing the Inkling icon gives *Write a
+  everything, saved *as you type*, and the **share sheet** (as in LP-35). Long-pressing the Wren icon gives *Write a
   line*, *Brain dump* and *Now*. A dump is kept at once as a note tagged *dump*; **Sort it** (in the dump sheet, and on
   the dump's line on the page) has the model split it into small to-dos with sizes, ideas and notes, shown as a list
   to keep or drop line by line, then **Add**. Without a model the same split is done by the phone's rules (one item
@@ -128,7 +128,7 @@ job follows; 9 are follow-ups.
 
 - **Daily problem.** After a call or a scroll break, the thread is gone; the app opens on a page that doesn't say
   where you were.
-- **How it works.** Coming back to Inkling after 20 minutes or more, a card at the top of today: **Where was I** —
+- **How it works.** Coming back to Wren after 20 minutes or more, a card at the top of today: **Where was I** —
   "You were on *Clear the table* (Focus, 6 of 10 min), 40 min ago" or "You were writing *Garden idea* at 14:05", with
   what was captured since. **Resume** opens it (Focus where it stopped, or the note at its place); **Recap** has the
   model sum up in two sentences what you were working on today; × hides it.
@@ -166,7 +166,7 @@ server when LP-32 (Edge mode) is there:
   preferences so it survives the app being closed; the end notification is an exact alarm on its own channel.
 - **Brain dump.** A full-height sheet with one text field; its text is saved into the dump note half a second after
   typing stops and on close. Keyboard rules from ux-spec-v1 section 6.
-- **Where was I.** When Inkling leaves the screen it writes the time; on return after 20 min the card shows once.
+- **Where was I.** When Wren leaves the screen it writes the time; on return after 20 min the card shows once.
 - **Shortcuts.** Static launcher shortcuts for *Write a line*, *Brain dump* and *Now* open MainActivity with
   `EXTRA_OPEN`.
 - **No new permissions; no network.** The alarm uses the existing exact-alarm permission.
@@ -189,7 +189,7 @@ Qwen3.8-27B writes the answers and the tool calls** in chat and Talk; LFM3-1.7B 
 
 The phone keeps building LFM3 prompts; `edge/ChatPrompt.kt` turns them into chat messages and tools for Qwen and
 turns its streamed reply (thought, words, `tool_calls`) back into LFM3 raw text, so the Assistant's loop, the saved
-answers and the phone's fallback stay as they were. Inkling asks `/v1/models` (every 30 s at most) whether Qwen is
+answers and the phone's fallback stay as they were. Wren asks `/v1/models` (every 30 s at most) whether Qwen is
 `loaded`; asleep, it is woken in the background and LFM3 answers meanwhile. Each answer says which model wrote it.
 
 ### B.2 Classifiers, ranked
@@ -247,7 +247,7 @@ often they help by voice, per unit of effort. 1–10 are built; the rest are fol
 | — | `call` (was there) | The dialer opens; the owner presses Call | Yes | — |
 | — | Look (was there, B.3) | "What am I holding?" with the camera on | — | — |
 | 11 | Navigate | Follow-up: the destination leaves the phone for a maps app, so it must ask first and show it | — | — |
-| 12 | Edit an event | Follow-up: only in Inkling's own calendar; others aren't ours to change | — | — |
+| 12 | Edit an event | Follow-up: only in Wren's own calendar; others aren't ours to change | — | — |
 
 Rules: an item is named in a few words ("milk", "the dentist one", "last"); the phone finds it by words, and when two
 fit as well the tool says both and the model asks which ("Several fit: Oat milk, Milk chocolate"), never guesses.
@@ -267,7 +267,7 @@ Walking the current build:
   the bottom bar as one of four equal places, so the app reads as a chat app.
 - **Days don't exist.** Entries are a flat list by kind; there is no "what did I think on Tuesday", no carrying
   yesterday's unfinished to-dos forward, no rhythm that brings you back each morning.
-- **Reading has no way in.** Highlighting a line in a browser or e-book and keeping it means copy, open Inkling, pick
+- **Reading has no way in.** Highlighting a line in a browser or e-book and keeping it means copy, open Wren, pick
   Note, paste.
 - **Privacy is a pill.** "On this phone" is one grey chip among four; nothing shows what did or didn't leave.
 
@@ -303,7 +303,7 @@ Ranked by how much daily use they unlock per unit of effort. 1–6 are built in 
   a **glyph** at its left shows where the line will go, guessed on the phone, without the model, in under a
   millisecond: "buy oat milk" shows a box (to-do), "what if the garden had…" a spark (idea), "felt tired after the
   call" a journal mark, "remind me at 6 to call Ana" a bell (reminder at 18:00), a line ending in "?" a speech mark
-  (ask Inkling). **Tap the glyph to change it** (it cycles; long-press lists them). Enter puts the line on the page
+  (ask Wren). **Tap the glyph to change it** (it cycles; long-press lists them). Enter puts the line on the page
   and keeps the keyboard up for the next one. A line saved as a note can be opened and grown into a full note.
 - **Why it beats the generic UI.** Capture becomes typing, nothing else: zero taps for the common case, one tap to
   correct. The glyph makes the guess visible *before* it acts, so it never surprises.
@@ -318,8 +318,8 @@ Ranked by how much daily use they unlock per unit of effort. 1–6 are built in 
 - **How it works.** In the editor's top bar, an **Ink** button (the highlighter mark). It opens a short sheet: *Sum
   it up · Pull out to-dos · Questions to think about · Keep going*, plus a line to ask anything about the note. The
   answer is written **in the margin of the note itself**: a block under your text with a yellow highlighter edge,
-  labelled "Inkling · on this phone", streaming in. When it ends: **Add to note** (moves it into your text, marked as
-  Inkling's), **Add 3 to-dos** (for pulled-out to-dos; they land on today's page), or **Dismiss**. Nothing touches your
+  labelled "Wren · on this phone", streaming in. When it ends: **Add to note** (moves it into your text, marked as
+  Wren's), **Add 3 to-dos** (for pulled-out to-dos; they land on today's page), or **Dismiss**. Nothing touches your
   text unless you tap Add.
 - **Why it beats the generic UI.** The assistant comes to the text, not the other way round; your words and its words
   stay visibly separate (yellow edge), which matters in a private notebook.
@@ -337,12 +337,12 @@ Ranked by how much daily use they unlock per unit of effort. 1–6 are built in 
 - **Borrowed.** Bullet Journal "migration"; Things' "This Evening / Later". **New here:** it lives on the same page
   as the rest of the day, not in a separate task app.
 
-### 5. Reading: share any text to Inkling, it lands as a highlight
+### 5. Reading: share any text to Wren, it lands as a highlight
 
 - **Daily problem.** Keeping a line from an article, e-book or message takes four steps and loses where it came from.
-- **How it works.** Select text in any app → Share → **Inkling**. It lands on today's page at once as a **highlighted
+- **How it works.** Select text in any app → Share → **Wren**. It lands on today's page at once as a **highlighted
   quote** (yellow marker under the text), with where it came from (the page title or link the app passed) and the tag
-  *reading*. Inkling opens on today's page with "Saved to today's page · Undo". The Notebook gets a **Reading**
+  *reading*. Wren opens on today's page with "Saved to today's page · Undo". The Notebook gets a **Reading**
   filter that gathers every quote. Ink in the margin (3) then works on them ("Questions to think about").
 - **Why.** Reading notes are the backbone of ideation; one share is all it should take, and the highlight looks like
   what you did in the book.
@@ -403,7 +403,7 @@ gains the Reading filter), To-dos is renamed Plans. The app now reads as a noteb
 ### Share target
 
 - `ACTION_SEND` with `text/plain` on a screenless `ShareActivity` in its own task: it saves the quote, then brings
-  Inkling's own task forward (no second Inkling inside the sharing app). Title: the quote's first words (the page shows
+  Wren's own task forward (no second Wren inside the sharing app). Title: the quote's first words (the page shows
   the whole quote). Body: the quote; source line: the subject and the link at the very end of the text, if given;
   links inside the quote stay in it. Kind Note, tag `reading`, source `share`. It is saved at once, also
   while the app is locked (the owner chose to share it); the page and its Undo show after unlock.
@@ -448,19 +448,19 @@ Rules: indexed in the background, a moment after any entry is written, edited or
 database (Room version 7), so Delete everything removes them and nothing new is exported. Nothing is sent anywhere.
 Without the model, search is keyword search as before.
 
-## 6. Inkling learns from your notes (LFMP-11)
+## 6. Wren learns from your notes (LFMP-11)
 
 The owner: "would be nice if over time our assistant app gets smarter based on accumulated notes and knowledge". So
-Inkling keeps a small memory of what lasts, uses it in every answer, and learns from the owner's corrections, all on
+Wren keeps a small memory of what lasts, uses it in every answer, and learns from the owner's corrections, all on
 the phone. Parts, ranked by how much they help per unit of effort:
 
-1. **A personal memory, shown in "What Inkling knows" (built).** Durable facts in short sentences ("Ana is your
+1. **A personal memory, shown in "What Wren knows" (built).** Durable facts in short sentences ("Ana is your
    sister", "You prefer mornings for deep work"), each with where it came from (a note, a chat message, Talk, or the
    owner) and how often it was seen; tap to edit, × to forget, or add one by hand. Rules on the phone find the clear
    first-person sentences in every new entry, chat message and Talk turn a few seconds after it is written (people,
    birthdays, home and work, likes, preferences, routines, projects, "remember that…", "keep answers short"). A newer
    fact about the same slot replaces the older ("my dentist is now Dr Park"); the owner's own words are never changed.
-   Settings → What Inkling knows.
+   Settings → What Wren knows.
 2. **Memory and notes in every answer (built).** Chat and Talk get a compact profile in the system prompt (preferences
    first, then people, routines, projects, places, likes, patterns) and, after the owner's message, the facts and 3–5
    notes nearest to it (LFMP-10's search by meaning, plus the names the memory knows: "my sister" also looks for

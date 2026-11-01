@@ -25,7 +25,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Inkling's memory on the phone (notebook-spec section 6): facts, corrections and patterns, each row sealed by
+ * Wren's memory on the phone (notebook-spec section 6): facts, corrections and patterns, each row sealed by
  * [sealer] in the notes' own database. Rules read every new entry, chat message and Talk turn a moment after it is
  * written; the nightly pass ([nightly], while charging) also asks the small model, merges duplicates, lets stale facts
  * go and finds patterns. [context] puts what fits a question into its prompt.
@@ -268,7 +268,7 @@ class MemoryStore(
         val inProfile = profile.lines().map { it.removePrefix("- ") }.toSet()
         val near = Recall.relevant(facts, q, qv, locked)
         val relevant = near.filter { it.text !in inProfile }.take(3)
-        // The memory helps find notes too: "my sister" also looks for "Ana" when Inkling knows Ana is your sister.
+        // The memory helps find notes too: "my sister" also looks for "Ana" when Wren knows Ana is your sister.
         val names = Recall.names(near.take(2), q)
         val found = if (notes && Words.content(q).isNotEmpty()) runCatching {
             (search(q, b.notes + 2) + names.flatMap { search(it, 2) }).distinctBy { it.id }

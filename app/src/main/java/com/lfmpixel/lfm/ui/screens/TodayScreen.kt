@@ -159,7 +159,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
     val remindersRead by remember(start) { g.db.reminders().between(start, end) }.collectAsState(null)
     val carried by remember(start, isToday) { if (isToday) g.db.entries().carried(start) else flowOf(emptyList()) }.collectAsState(emptyList())
     val eventsRead by produceState<List<com.lfmpixel.lfm.tools.CalendarEvent>?>(null, start, remindersRead) {
-        // The calendar provider can be busy or updating; Today is the screen Inkling opens on, so a failed read is no events.
+        // The calendar provider can be busy or updating; Today is the screen Wren opens on, so a failed read is no events.
         value = runCatching { g.calendar.between(start, end) }.getOrDefault(emptyList()) }
     val sent by remember(start) { g.db.netLog().since(start) }.collectAsState(emptyList())
     val prefs by g.settings.prefs.collectAsState(null)
@@ -494,7 +494,7 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
             val detail = when (kind) {
                 InkKind.Todo -> "To-do · today"
                 InkKind.Reminder -> "Reminder · " + InkLine.whenLabel(guess.reminderAt)
-                InkKind.Ask -> "Ask Inkling · opens the chat"
+                InkKind.Ask -> "Ask Wren · opens the chat"
                 else -> kind.label
             }
             Txt("$detail  ·  tap the mark to change, hold to pick", LfmType.meta, c.text2, Modifier.padding(start = 16.dp, top = 6.dp))

@@ -24,15 +24,15 @@ object Exits {
         val fresh = exits.filter { seen == null || it.at > seen }
         val out = fresh.mapNotNull { e ->
             val what = when (e.reason) {
-                ApplicationExitInfo.REASON_CRASH_NATIVE -> "Inkling closed: a crash in native code (the model runtime or the voice bridge)"
-                ApplicationExitInfo.REASON_ANR -> "Inkling closed: it stopped responding (ANR)"
-                ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "Inkling closed: it failed to start"
-                ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "Inkling closed by Android: too much CPU or memory"
+                ApplicationExitInfo.REASON_CRASH_NATIVE -> "Wren closed: a crash in native code (the model runtime or the voice bridge)"
+                ApplicationExitInfo.REASON_ANR -> "Wren closed: it stopped responding (ANR)"
+                ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "Wren closed: it failed to start"
+                ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "Wren closed by Android: too much CPU or memory"
                 // Killed for memory while in use (on screen, or answering with its notice up); in the background it is
                 // ordinary Android housekeeping, not a crash.
                 ApplicationExitInfo.REASON_LOW_MEMORY -> if (e.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE)
-                    "Inkling closed by Android: the phone ran out of memory" else null
-                ApplicationExitInfo.REASON_CRASH -> if (seen == null) "Inkling closed: a crash, before crash reports were kept" else null
+                    "Wren closed by Android: the phone ran out of memory" else null
+                ApplicationExitInfo.REASON_CRASH -> if (seen == null) "Wren closed: a crash, before crash reports were kept" else null
                 else -> null
             } ?: return@mapNotNull null
             e.at to CrashLog.report(listOfNotNull(what,

@@ -33,7 +33,7 @@ const val EDGE_REFUSED = "edge-refused"
 private const val NO_REPLY = " · asked, no reply yet"
 
 /**
- * Inkling's side of the network module (:net, the only code allowed to open a connection). Every request goes into
+ * Wren's side of the network module (:net, the only code allowed to open a connection). Every request goes into
  * the network log, and nothing goes at all while Offline is on (Settings → Privacy): the module itself checks that
  * before each request and between the pieces of one under way.
  */
@@ -143,7 +143,7 @@ class NetClient(context: Context, private val settings: Settings, private val db
      * own entries replace it when the reply comes, even if the owner tapped Stop meanwhile (the request went out anyway).
      */
     private suspend fun <T> exchange(pending: NetLogEntry, sent: String, call: suspend () -> Pair<T, List<NetRequest>>): T {
-        if (state() == State.Offline) throw NetException("Inkling is offline. Turn Offline off in Settings → Privacy.")
+        if (state() == State.Offline) throw NetException("Wren is offline. Turn Offline off in Settings → Privacy.")
         return withContext(Dispatchers.IO + NonCancellable) {
             // Nothing goes out that the network log can't show: a placeholder that can't be written (the disk is full)
             // stops the request, as a NetException the callers expect. The reply's own entries, once it went out, are
@@ -178,7 +178,7 @@ class NetClient(context: Context, private val settings: Settings, private val db
         }
 
     /**
-     * A request is in the log from the moment it is asked for, so one whose reply never comes (Inkling closed
+     * A request is in the log from the moment it is asked for, so one whose reply never comes (Wren closed
      * mid-download) is still listed. The module's own entries replace it once the reply arrives.
      */
     private fun started(host: String, url: String, label: String, sent: String) =

@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Inkling's i, for the status bar. -->
+<!-- Wren's bird and sun for the status bar: the launcher's monochrome layer, its safe circle scaled to 24dp. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFF" android:pathData="M8.5,4.6 L15,3.4 L15.6,6.8 L9.1,8 Z" />
-    <path android:fillColor="#FFFFFF" android:pathData="M10,10h4v11h-4z" />
+    <group android:scaleX="0.3636" android:scaleY="0.3636" android:translateX="-7.64" android:translateY="-7.64">
+        <path android:fillColor="#FFFFFF" android:pathData="M62.5,38 a7.5,7.5 0 1,0 15,0 a7.5,7.5 0 1,0 -15,0 Z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M39,63 a13,10 0 1,0 26,0 a13,10 0 1,0 -26,0 Z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M42,61 L33,46 Q35,43.5 37.5,44.5 L46,58 Z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M67.5,52.5 L76,55 L67.5,57 Z" />
+        <!-- Head and eye in one even-odd path, so the eye is a hole. -->
+        <path android:fillColor="#FFFFFF" android:fillType="evenOdd" android:pathData="M55,55 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0 Z M62.5,53.5 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 Z" />
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M50,72 L49,77 M56,72 L57,77" />
+        <path android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineCap="round" android:pathData="M34,77.5 H74" />
+    </group>
 </vector>

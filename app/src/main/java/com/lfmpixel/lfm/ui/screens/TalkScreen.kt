@@ -210,7 +210,7 @@ private fun Presence(g: AppGraph, phase: TalkPhase, sun: Color, modifier: Modifi
         t.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b").value
     } else 0f
     val resting = phase == TalkPhase.Paused || phase == TalkPhase.Failed || phase == TalkPhase.Off
-    androidx.compose.foundation.Canvas(modifier.size(210.dp).semantics { contentDescription = "Inkling"; stateDescription = phase.label }) {
+    androidx.compose.foundation.Canvas(modifier.size(210.dp).semantics { contentDescription = "Wren"; stateDescription = phase.label }) {
         val center = this.center
         val base = 34.dp.toPx()
         // The dial: 60 ticks, every fifth longer; lit from the top, clockwise, as far as the voice (or the breath) goes.
@@ -274,7 +274,7 @@ private fun PhaseLine(phase: TalkPhase, spoken: Boolean, answering: String) {
 }
 
 /**
- * The conversation as captions: the latest exchange large, in Inkling's serif, earlier ones smaller and faded above it.
+ * The conversation as captions: the latest exchange large, in Wren's serif, earlier ones smaller and faded above it.
  * Under each answer, what it did, with Undo and Show.
  */
 @Composable

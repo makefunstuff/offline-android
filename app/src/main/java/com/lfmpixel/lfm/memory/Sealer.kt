@@ -9,7 +9,7 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/** Seals what Inkling learned before it is stored, and opens it again; [forget] makes everything sealed unreadable. */
+/** Seals what Wren learned before it is stored, and opens it again; [forget] makes everything sealed unreadable. */
 interface Sealer {
     fun seal(plain: String): String
     /** The text, or null when it can't be opened (the key is gone). */

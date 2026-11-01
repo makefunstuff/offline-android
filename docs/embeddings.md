@@ -1,12 +1,12 @@
 # On-device embeddings (LFMP-10)
 
 A short note for any Android app that wants search by meaning on the phone, with no network and no Play Services.
-Inkling's code: `llm/Embedder.kt` (model), `data/SemanticIndex.kt` (index), `data/HybridSearch.kt` (search).
+Wren's code: `llm/Embedder.kt` (model), `data/SemanticIndex.kt` (index), `data/HybridSearch.kt` (search).
 
 ## Runtime and model
 
 - **Runtime:** LiteRT-LM `com.google.ai.edge.litertlm:litertlm-android:0.19.0` (Apache-2.0), class `EmbeddingEngine`.
-  The same library Inkling already uses for chat; no extra native code. Its `ai-delivery` (Play) part is not needed.
+  The same library Wren already uses for chat; no extra native code. Its `ai-delivery` (Play) part is not needed.
 - **Model:** [litert-community/embeddinggemma-2-text-270m-litert-lm](https://huggingface.co/litert-community/embeddinggemma-2-text-270m-litert-lm),
   file `embeddinggemma-2-text-270m.litertlm`, 164,626,432 bytes, SHA-256
   `2d079ee2f6f066b1f368e8d7c819f55214eaef1d0513b312321901f30ab286fb`, revision
@@ -27,7 +27,7 @@ the same; the bigger ones add picture (170M) and sound (300M) encoders.
 | 740m | 485 MB | ✓ | ✓ + audio, video | No |
 
 There are also chip-specific files (`_Google_Tensor_G5` for the Pixel 10, Qualcomm, MediaTek) for the NPU/TPU: 8.3 ms
-on a Pixel 11 TPU on the card. They need the vendor's dispatch library; Inkling uses the CPU file. A follow-up if the
+on a Pixel 11 TPU on the card. They need the vendor's dispatch library; Wren uses the CPU file. A follow-up if the
 CPU is ever too slow.
 
 ## Numbers

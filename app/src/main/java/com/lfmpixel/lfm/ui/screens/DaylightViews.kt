@@ -113,7 +113,7 @@ internal fun SkyHead(
                     IconButtonPlain("user", onSettings, tint = c.text2, desc = "Settings")
                 }
                 Spacer(Modifier.height(hy - headerH + 14.dp))
-                // Under the horizon: Inkling's sentence, then the picked plan, else the next one. The sky grows to fit.
+                // Under the horizon: Wren's sentence, then the picked plan, else the next one. The sky grows to fit.
                 Column(Modifier.fillMaxWidth().padding(start = 28.dp, end = 28.dp, bottom = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Txt(sentence, LfmType.voice, c.text2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     val shown = pickedPair ?: layout.next?.let { n -> pairs.firstOrNull { it.first == n } }

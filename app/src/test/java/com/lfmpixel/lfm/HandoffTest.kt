@@ -28,7 +28,7 @@ class HandoffTest {
         assertTrue(c.wikipedia)
         assertEquals("de", c.wikiLang)
         assertEquals("127.0.0.1:9050", c.proxy)
-        // The Edge pin always comes from Inkling's own Settings, never from the old app.
+        // The Edge pin always comes from Wren's own Settings, never from the old app.
         assertEquals(null, s.pinnedEdge())
         assertTrue(s.imported())
     }

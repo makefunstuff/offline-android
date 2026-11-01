@@ -12,7 +12,7 @@ import java.util.Locale
 data class BuildInfo(val sha: String, val version: String, val buildType: String, val android: String, val sdk: Int, val device: String)
 
 /**
- * Inkling's own crash log: the last [keep] reports, plain text in app-private storage ([dir]). Nothing is sent
+ * Wren's own crash log: the last [keep] reports, plain text in app-private storage ([dir]). Nothing is sent
  * anywhere; Settings → Crash reports shows them, to copy or share one by hand. [record] runs inside the
  * uncaught-exception handler, so it never throws.
  */
@@ -77,7 +77,7 @@ class CrashLog(val dir: File, private val keep: Int = 10) {
         fun format(t: Throwable, thread: String, fatal: Boolean, build: BuildInfo, now: Long, zone: ZoneId = ZoneId.systemDefault()): String {
             val sw = StringWriter()
             runCatching { t.printStackTrace(PrintWriter(sw)) }.onFailure { sw.write(t.javaClass.name) }
-            return report(listOf("Thread: $thread", if (fatal) "Inkling closed" else "Caught; Inkling kept running"), sw.toString(), build, now, zone)
+            return report(listOf("Thread: $thread", if (fatal) "Wren closed" else "Caught; Wren kept running"), sw.toString(), build, now, zone)
         }
 
         /** The report's header (when, build, phone, then [lines]), a blank line, and [body] cut at [MAX_TRACE]. */
@@ -85,7 +85,7 @@ class CrashLog(val dir: File, private val keep: Int = 10) {
             val trace = body.let { if (it.length > MAX_TRACE) it.take(MAX_TRACE) + "\n… (cut at ${MAX_TRACE / 1024} KB)" else it }
             val time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx", Locale.ENGLISH).format(Instant.ofEpochMilli(now).atZone(zone))
             return buildString {
-                appendLine("Inkling crash report")
+                appendLine("Wren crash report")
                 appendLine("When: $time")
                 appendLine("Build: ${build.sha} (${build.version}, ${build.buildType})")
                 appendLine("Android: ${build.android} (API ${build.sdk}) · ${build.device}")

@@ -200,7 +200,7 @@ private fun LeftoverFiles(g: AppGraph) {
     if (bytes <= 0) return
     Column(Modifier.padding(top = 14.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(12.dp)) {
         Txt("Old model files: ${formatBytes(bytes)}", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
-        Txt("GGUF files for llama.cpp, which Inkling no longer runs: every model now runs on LiteRT.", LfmType.label.copy(fontWeight = null), c.text2)
+        Txt("GGUF files for llama.cpp, which Wren no longer runs: every model now runs on LiteRT.", LfmType.label.copy(fontWeight = null), c.text2)
         Btn("Free ${formatBytes(bytes)}", { g.models.deleteLeftovers(); bytes = 0 }, Modifier.padding(top = 8.dp), small = true, icon = "trash")
     }
 }
@@ -213,7 +213,7 @@ private fun NetMissingCard(g: AppGraph, @Suppress("UNUSED_PARAMETER") st: NetCli
     Column(Modifier.padding(bottom = 10.dp).fillMaxWidth().callout(c).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("download", size = 18.dp)
-            Txt("Inkling is offline", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+            Txt("Wren is offline", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
         }
         Txt("You turned on Offline in Privacy, so nothing is downloaded. Import works without the network.", LfmType.small, c.text2, Modifier.padding(top = 6.dp))
         Btn("Go online", { scope.launch { g.settings.setNetEnabled(true); g.net.refresh(); g.downloads.resumeInterrupted() } }, Modifier.padding(top = 10.dp), small = true)
@@ -729,7 +729,7 @@ private fun VoiceBenchSection(g: AppGraph) {
             Btn(if (state is VoiceBench.State.Done) "Run again" else "Run voice benchmark", { copied = false; g.voiceBench.start() },
                 Modifier.weight(1f), kind = BtnKind.Primary, enabled = !running && g.talk.available)
             val text = (state as? VoiceBench.State.Done)?.report?.text()
-                ?: log.takeIf { it.isNotEmpty() }?.joinToString("\n", "Inkling Talk turns\n") { it.line() }
+                ?: log.takeIf { it.isNotEmpty() }?.joinToString("\n", "Wren Talk turns\n") { it.line() }
             if (text != null) Btn(if (copied) "Copied" else "Copy results", {
                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(text)); copied = true
             }, Modifier.weight(1f), icon = if (copied) "check" else null)

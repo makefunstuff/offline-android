@@ -1,21 +1,21 @@
 # offline-android
 
-Inkling (called LFM until LP-12), a private on-device assistant for the Pixel 10 Pro, built on Liquid AI's LFM3
+Wren (called LFM until LP-12, then Inkling until LFMP-21), a private on-device assistant for the Pixel 10 Pro, built on Liquid AI's LFM3
 models. All thinking happens on the phone. One app since LFMP-9: the network (search, model downloads, your own
 server) is in one small module, `:net`, the only code the build lets open a connection. Design: [docs/spec.md](docs/spec.md); how it should feel to use: [docs/ux-spec.md](docs/ux-spec.md);
 mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-android>. In the code and below, "LFM" still names
 the app; the package name did not change, so updates keep all data and models.
 
-**Updating from the two-app Inkling (Inkling + Inkling Net):** install the new Inkling over the old one; nothing is
+**Updating from the two-app Inkling (Inkling + Inkling Net):** install the new Wren over the old one; nothing is
 lost. Open Settings → Web search (or Privacy) and tap **Bring over settings**: Android asks once to update Inkling
-Net, which then hands your search provider, keys and proxy to Inkling. Then tap **Uninstall Inkling Net**: it is no
-longer needed. Your server's address and key were always in Inkling. If Inkling Net was off, Inkling starts Offline.
+Net, which then hands your search provider, keys and proxy to Wren. Then tap **Uninstall Inkling Net**: it is no
+longer needed. Your server's address and key were always in Wren. If Inkling Net was off, Wren starts Offline.
 
 ## Daylight (LFMP-13)
 
 Today opens on a sky that follows the hour, with the time, the day in one sentence, and today's plans on a horizon
 the sun walks toward (tap one to see it). Talk shows captions over the sky, with a presence mark that follows the
-voice, and Undo and Show under anything it did. Soft sounds can be turned off in Settings. Add the **Inkling · Today**
+voice, and Undo and Show under anything it did. Soft sounds can be turned off in Settings. Add the **Wren · Today**
 widget for the horizon and the next thing on the home screen (and the lock screen, where the phone allows it). Spec:
 [docs/ux-spec.md](docs/ux-spec.md). Debug builds can move Daylight's clock:
 `adb shell am broadcast -p com.lfmpixel.lfm -a com.lfmpixel.lfm.DEBUG_CLOCK --es at 18:40` (`--es at off` to reset).
@@ -36,7 +36,7 @@ This build covers every phase of the spec, 1–7: Today, Chat, Library (notes, i
 LFM3-1.7B through LiteRT-LM in-process (GPU or CPU); voice capture through LFM3-Omni-2B on LiteRT in-process; tools with a
 confirmation sheet, action history and undo; web search with sources, the network log, and in-app model downloads
 (Phase 4); **Ask about this**: camera, photos, short videos and documents, understood on the phone
-with no network (Phase 5); **Talk** and **read-aloud** with Omni's own voice, Inkling as the phone's assistant, a
+with no network (Phase 5); **Talk** and **read-aloud** with Omni's own voice, Wren as the phone's assistant, a
 Quick Settings tile and a home-screen widget (Phase 6); and, new in Phase 7, heat handling, the app or journal lock,
 export and delete everything, an accessibility pass and a motion pass (below).
 
@@ -56,7 +56,7 @@ git clone https://github.com/makefunstuff/offline-android.git && cd offline-andr
 
 **Release builds** are signed with your own key, never the public debug key. Make one once (keep it and its passwords
 safe: an update must be signed with the same key) and point `keystore.properties` at it, at the top of the repo.
-That file and `*.jks` are in `.gitignore`; never commit them. The Inkling Net hand-off inside Inkling is signed with it too,
+That file and `*.jks` are in `.gitignore`; never commit them. The Inkling Net hand-off inside Wren is signed with it too,
 as Android requires to take it as an update of the old Inkling Net. Without the file, `assembleRelease` makes unsigned APKs.
 
 ```bash
@@ -151,7 +151,7 @@ your card), or Wikipedia alone. Keys stay on the phone, kept by `:net`. SearXNG 
   e-mail addresses, street addresses and postcodes, and names of people and places from your journal and notes (LFM asks to read contacts at the first search;
   if you say no, the Search page says contacts weren't checked). If one
   is in it, the card marks it and offers Remove name / Send anyway.
-- **Reading pages:** Inkling opens the top three results (from different sites) as text; LFM finds the article on the
+- **Reading pages:** Wren opens the top three results (from different sites) as text; LFM finds the article on the
   phone and gives the model numbered sources. "Read the top result pages" off means snippets only.
 - **Sources:** the answer cites [1], [2]; the search card opens the Search page with what was sent, to whom, the
   sources (tap one to open it in your browser, address shown first) and what left the phone.
@@ -182,14 +182,14 @@ follow-up ("remind me to pay that rent on the 1st") goes to LFM3-1.7B, which rea
 
 ## Talk and read-aloud (Phase 6)
 
-**Talk** is a hands-free conversation with LFM3-Omni-2B, all inside Inkling: Talk on Today, the wave icon in Chat, the
+**Talk** is a hands-free conversation with LFM3-Omni-2B, all inside Wren: Talk on Today, the wave icon in Chat, the
 widget, or the assistant gesture. It listens until you pause (about 0.8 s of quiet), Omni writes down what you said,
 then answers with its text and its voice at once, and listens again once the answer has been heard. The square of
 bars follows your voice while it listens and its own while it speaks; the highlighter marks what it is doing now
 (Getting ready, Listening, Hearing you, Thinking, Speaking). Stop cuts an answer short and listens; while listening it
 pauses. While Talk is open other audio (music, a podcast) pauses, and read-aloud lowers it; a call or an alarm pauses Talk
 and stops read-aloud. After 20 s of quiet it
-pauses by itself, and it pauses whenever Inkling leaves the screen, so the mic is
+pauses by itself, and it pauses whenever Wren leaves the screen, so the mic is
 never open in the background. The speaker button switches to text-only answers (faster, silent); the chat button
 carries the conversation into Chat, where it can go on in writing and with tools. "Phone is warm" shows when Android
 reports the phone is getting hot.
@@ -209,11 +209,11 @@ reports the phone is getting hot.
 without Markdown marks, source numbers or links, in short pieces so it starts soon. Tap again to stop.
 Settings → Voice and Talk holds the voice, the language, "Answer out loud", and the ways in.
 
-**Ways in.** Inkling can be the phone's digital assistant (Settings → Voice and Talk → Phone's assistant, or Android
+**Ways in.** Wren can be the phone's digital assistant (Settings → Voice and Talk → Phone's assistant, or Android
 Settings → Apps → Default apps → Digital assistant app). Holding the power button or the corner swipe then opens Talk
-or voice capture, as you pick. The **Quick Settings tile** "Capture" opens Inkling already listening for a capture (on
+or voice capture, as you pick. The **Quick Settings tile** "Capture" opens Wren already listening for a capture (on
 the lock screen it asks you to unlock first). The **widget** (4×1) has Capture (the mic), Talk and Note. Both can be
-added from Settings → Voice and Talk with one tap. Inkling also names a speech recogniser, as Android requires of an
+added from Settings → Voice and Talk with one tap. Wren also names a speech recogniser, as Android requires of an
 assistant, and Android then makes it the phone's recogniser too: so it is a real one. Another app's voice input (a
 keyboard's mic, a search box) is meant to be heard and written down by Omni on the phone (without Omni it says it
 can't); this path is built but was not tried yet, not even in the emulator.
@@ -260,27 +260,27 @@ Design and ranking: [docs/notebook-spec.md](docs/notebook-spec.md), section B.
 ## Lock, export, delete, heat (Phase 7)
 
 - **Lock** (Settings → Privacy → Lock): Off, Whole app, or Journal only, opened with the phone's own fingerprint, face
-  or screen lock (Android's BiometricPrompt; nothing is stored by Inkling). Turning it on, off or changing it asks for
-  the phone's lock first. It locks again a minute after you leave Inkling. With a lock on, Recents shows a blank card. Whole app: a lock
+  or screen lock (Android's BiometricPrompt; nothing is stored by Wren). Turning it on, off or changing it asks for
+  the phone's lock first. It locks again a minute after you leave Wren. With a lock on, Recents shows a blank card. Whole app: a lock
   screen covers everything; the assistant gesture, tile and widget wait for the unlock. Journal only: journal
   entries leave the lists, Today, Library search and the assistant's library search until unlocked; writing a new
   journal line still works. The phone needs a screen lock set for this.
 - **Export all** (Privacy): one ZIP saved where you choose: notes.md, ideas.md, journal.md, todos.md, chats.md to
-  read, and inkling.json with every row of every table. With the lock on, it asks first. Models, pictures and
+  read, and wren.json with every row of every table. With the lock on, it asks first. Models, pictures and
   settings are not in it.
 - **Delete everything** (Privacy): notes, journal, to-dos, chats, reminders, searches, the network log, the action
-  history, pictures, the queue, Inkling's own calendar and every setting; the models only if you tick that too. It
+  history, pictures, the queue, Wren's own calendar and every setting; the models only if you tick that too. It
   asks for the phone's lock when the lock is on, then starts again at first run.
-- **Heat**: Inkling follows Android's thermal status. Warm: one thread fewer. Hot: half the threads, and long jobs
+- **Heat**: Wren follows Android's thermal status. Warm: one thread fewer. Hot: half the threads, and long jobs
   (a scanned PDF read page by page) wait between pages for the phone to cool. Too hot: two threads, and queued
   messages wait. Today and Chat say so ("Phone is hot · answers slower, long jobs wait"). The change applies from
   the next model load, through LiteRT's CPU thread count (the GPU has no thread count).
 - **Keeps going in the background**: an answer, a long scan or a queue of messages started on screen runs on in a
   foreground service with a notification and a Stop button when you leave. Stop ends the answer and holds the queue
-  until Inkling is opened again.
+  until Wren is opened again.
 - **Other fixes**: "remind me in 10 minutes", "in an hour", "in half an hour" and "at 6" (the next 6 o'clock) now
   work without a model; only one permission request at a time (a second waits for the first); a hand-off to
-  another app (Clock, Messages, dialer, a settings panel) is not tried when Inkling is in the background, where
+  another app (Clock, Messages, dialer, a settings panel) is not tried when Wren is in the background, where
   Android silently blocks it, and the chat says "Not opened" instead of claiming it opened; a new `set_volume` tool
   (media, ring, alarm, call; a level, up, down, mute, max; with undo); the network log shows each full address;
   pill edges use the control grey so they show in both themes.
@@ -316,7 +316,7 @@ read out when they change; progress bars report their value; buttons, tabs and r
   from its latest results, `download` only pinned files (`PinnedFiles`) from huggingface.co and its CDN over https,
   `edge` only the owner's server (`EdgeRules`). No cookies, cache or referrer; the user agent of a current Chrome on
   Android; optional SOCKS proxy (Orbot). `NetSettings` keeps the provider, keys and proxy.
-- `handoff/`: the last Inkling Net, carried inside Inkling to move the old helper's settings over once (no network).
+- `handoff/`: the last Inkling Net, carried inside Wren to move the old helper's settings over once (no network).
 - `llm/`: prompt format for LFM3's chat template, tool-call parser, model catalog with pinned hashes, import, loading.
 - `assistant/`: the loop (model → tool calls → confirm → run → log → back to the model), and simple rules that sort
   captures when no model is loaded.
@@ -328,7 +328,7 @@ read out when they change; progress bars report their value; buttons, tabs and r
 - `assist/`: the assistant service and session, the Quick Settings tile and the widget.
 - `see/`: Ask about this. `SeeRules` (which model looks, frame times, sizes, prompts), `MediaPrep` (photos, video
   frames, PDF pages and text layers into RGB for the model). The camera screen is `ui/screens/CameraScreen.kt` (CameraX).
-- `web/`: Inkling's side of `:net`: `NetClient` (Offline, logs every request), `WebSearch` (the search flow),
+- `web/`: Wren's side of `:net`: `NetClient` (Offline, logs every request), `WebSearch` (the search flow),
   `PersonalWords`, `ArticleText` (reads pages), `ModelDownloads` + `DownloadService`, `NetHandoff` (from two apps to one).
 - `device/`: `Heat` (Android's thermal status to thread caps and waits) and `AppLock` (the optional lock).
 - `data/Export.kt`: Export all; `wipe` in `LfmApp.kt`: Delete everything. `assistant/WorkService.kt`: an answer keeps
@@ -367,7 +367,7 @@ Tested in an Android 16 emulator (x86_64, Pixel 10 Pro profile, software renderi
   context, Stop in the middle of an answer, back to listening, the 20 s pause, "Carry on in Chat". Text-only mode was
   not tried. What Talk and read-aloud played was saved and transcribed back with Omni on the desktop: it matched the
   answers word for word. Omni made speech at about a quarter of real time in Talk and half in read-aloud there
-  (first audio about 9 s after the question; a 9 s answer took 34 s to make). Inkling as the digital assistant: the
+  (first audio about 9 s after the question; a 9 s answer took 34 s to make). Wren as the digital assistant: the
   assistant key and the power-button hold opened Talk from the home screen; the mic closed when leaving the app.
   The Quick Settings tile (added and tapped) and the widget (pinned from settings; Capture, Talk and Note) opened
   the right place. Light and dark.
@@ -410,7 +410,7 @@ Still needs the Pixel (spec Phase 0 and Phases 4–7):
   noisy room); speaker volume and Bluetooth headsets; whether the Pixel's power-button hold really goes to a
   third-party assistant (it did in the emulator) and how the corner swipe behaves; the tile from the lock screen;
   the widget on the Pixel launcher; speech in languages other than English; the speech recogniser from another app
-  (a keyboard's mic), including whether Android lets it use the mic while Inkling is in the background.
+  (a keyboard's mic), including whether Android lets it use the mic while Wren is in the background.
 - Phase 7 on the Pixel: the lock with a real fingerprint and face unlock; real heat (a long Talk or a 20-page scan)
   and whether the thread cap keeps it below Severe; frame pacing at 120 Hz with the real GPU (the emulator could only
   measure the app's own per-frame work); the mic's pulse with a real voice (the emulator's mic was silent); predictive

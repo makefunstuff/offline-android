@@ -29,7 +29,7 @@ class D1PromptTest {
         f[1] to D1Question(f[2], unescape(f[3]), criteria)
     }
 
-    @Test fun inklingQuestionsMatchTheGoldenOnes() {
+    @Test fun wrenQuestionsMatchTheGoldenOnes() {
         assertEquals(questions["kind"], Decide.KIND)
         assertEquals(questions["urgency"], Decide.URGENCY)
         assertEquals(questions["energy"], Decide.ENERGY)

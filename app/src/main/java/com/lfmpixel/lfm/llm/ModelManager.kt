@@ -152,7 +152,7 @@ class ModelManager(
     suspend fun textSession(): TextSession {
         edgeSession(Slot.Text)?.let { return it }
         if (!hasText() && edge?.configured?.value == true)
-            throw LlmException("Your server can't be reached, and there is no chat model on this phone. Get LFM3-1.7B in Settings → Models to use Inkling offline.")
+            throw LlmException("Your server can't be reached, and there is no chat model on this phone. Get LFM3-1.7B in Settings → Models to use Wren offline.")
         return localTextSession()
     }
 

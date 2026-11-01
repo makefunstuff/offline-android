@@ -45,7 +45,7 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="Inkling"
+        android:label="Wren"
         android:supportsRtl="true"
         android:theme="@style/Theme.Lfm"
         android:usesCleartextTraffic="true"
@@ -73,9 +73,9 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <!-- Share any text to Inkling: it lands on today's page as a quote (docs/notebook-spec.md, proposal 5). No screen of
-             its own and its own empty task, so Inkling itself always opens in its own task. -->
-        <activity android:name=".ShareActivity" android:exported="true" android:label="Inkling"
+        <!-- Share any text to Wren: it lands on today's page as a quote (docs/notebook-spec.md, proposal 5). No screen of
+             its own and its own empty task, so Wren itself always opens in its own task. -->
+        <activity android:name=".ShareActivity" android:exported="true" android:label="Wren"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true"
             android:taskAffinity="" android:noHistory="true">
             <intent-filter>
@@ -93,7 +93,7 @@
         <service android:name=".assist.AssistSessionService" android:exported="true"
             android:permission="android.permission.BIND_VOICE_INTERACTION" />
         <service android:name=".assist.AssistRecognitionService" android:exported="true"
-            android:label="Inkling">
+            android:label="Wren">
             <intent-filter><action android:name="android.speech.RecognitionService" /></intent-filter>
             <meta-data android:name="android.speech" android:resource="@xml/recognition_service" />
         </service>
@@ -102,11 +102,11 @@
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
             <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="false" />
         </service>
-        <receiver android:name=".assist.CaptureWidget" android:exported="true" android:label="Inkling">
+        <receiver android:name=".assist.CaptureWidget" android:exported="true" android:label="Wren">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_capture" />
         </receiver>
-        <receiver android:name=".daylight.HorizonWidget" android:exported="true" android:label="Inkling · Today">
+        <receiver android:name=".daylight.HorizonWidget" android:exported="true" android:label="Wren · Today">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_horizon" />
         </receiver>

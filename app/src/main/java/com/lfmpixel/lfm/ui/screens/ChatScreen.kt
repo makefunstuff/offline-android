@@ -203,7 +203,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 IconButtonPlain("back", { nav.back() }, desc = "Back")
                 Column(Modifier.weight(1f).clickable(onClickLabel = "Models") { modelSheet = true }.padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
                     .semantics(mergeDescendants = true) {}) {
-                    Txt("Inkling", LfmType.header)
+                    Txt("Wren", LfmType.header)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         val dot = Modifier.size(7.dp)
                         when (status.text) {
@@ -585,7 +585,7 @@ private class ReadState(val on: Boolean, val preparing: Boolean, val toggle: () 
 private fun AssistantText(text: String, meta: String, citations: Boolean = false, read: ReadState? = null, writing: Boolean = false) {
     val c = Lfm.c
     Column {
-        // Inkling's words, in the serif: short answers are set large, long ones in body size. An answer being written crosses that line once: the two
+        // Wren's words, in the serif: short answers are set large, long ones in body size. An answer being written crosses that line once: the two
         // sizes cross-fade and the height eases, instead of the text jumping to its new size.
         val sizeChange = LfmMotion.spec<Float>(LfmMotion.MEDIUM)
         val heightChange = LfmMotion.spec<androidx.compose.ui.unit.IntSize>(LfmMotion.MEDIUM)

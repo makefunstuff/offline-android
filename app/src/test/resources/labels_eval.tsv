@@ -1,4 +1,4 @@
-# Inkling label set (written for the d1 evaluation, invented names). C line kind urgency energy sensitive / T utterance intent
+# Wren label set (written for the d1 evaluation, invented names). C line kind urgency energy sensitive / T utterance intent
 C	buy oat milk and bananas	todo	soon	low	false
 C	call the dentist to move my appointment	todo	soon	low	true
 C	pay the electricity bill today it's overdue	todo	now	low	true

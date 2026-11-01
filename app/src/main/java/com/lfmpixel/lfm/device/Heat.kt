@@ -5,7 +5,7 @@ import android.os.PowerManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/** How hot the phone says it is, from Android's thermal status, in the steps that change what Inkling does. */
+/** How hot the phone says it is, from Android's thermal status, in the steps that change what Wren does. */
 enum class Heat(val label: String) {
     Normal(""),
     /** Moderate: one thread fewer. */

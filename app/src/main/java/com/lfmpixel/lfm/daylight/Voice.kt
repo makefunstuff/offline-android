@@ -3,7 +3,7 @@ package com.lfmpixel.lfm.daylight
 import java.time.LocalDateTime
 
 /**
- * Inkling's one voice (docs/ux-spec.md, "Voice"): the same few lines open every prompt that speaks to the owner, in
+ * Wren's one voice (docs/ux-spec.md, "Voice"): the same few lines open every prompt that speaks to the owner, in
  * Talk and in the chat, and the app's own copy follows them.
  */
 object Persona {

@@ -60,7 +60,7 @@ data class EntryVector(
 )
 
 /**
- * Something Inkling learned (memory/Memory.kt): a fact, a correction, or a line heard in Talk waiting to be read.
+ * Something Wren learned (memory/Memory.kt): a fact, a correction, or a line heard in Talk waiting to be read.
  * [type] says which; everything else is in [sealed], AES-GCM under a key in Android's keystore (memory/Sealer.kt), so
  * the table is unreadable without this phone. Forget drops the rows and the key.
  */

@@ -1,7 +1,7 @@
 # The on-device model pool (LFMP-8)
 
 Since 1 November 2026 every model on the phone runs on LiteRT. llama.cpp and its GGUF files are gone from the phone:
-the owner found them slow and hard on the battery. When Inkling needs a model, it tries in this order:
+the owner found them slow and hard on the battery. When Wren needs a model, it tries in this order:
 
 1. **The homelab server**, when Edge mode is on and the server answers (docs/spec.md, Edge mode).
 2. **LiteRT on the phone**.
@@ -32,7 +32,7 @@ resumes a cut download and checks the hash before the file is used. No model fil
   fresh engine. So does every picture question.
 - **Context.** The chat file holds 4,096 tokens. VL holds 2,048, which is room for 5 pictures: a video is cut to 5
   frames, spread over the clip. Omni holds 4,096.
-- **Pictures.** VL takes 512×512 only. Inkling scales each picture to that size itself, with filtering. LiteRT-LM's own
+- **Pictures.** VL takes 512×512 only. Wren scales each picture to that size itself, with filtering. LiteRT-LM's own
   stretch is cruder.
 - **Heat.** While the phone is hot, a model loaded on the CPU takes fewer threads. The GPU has no thread count.
 - **Old files.** GGUF files from before LFMP-8 are listed in Settings → Models, with one button to delete them.

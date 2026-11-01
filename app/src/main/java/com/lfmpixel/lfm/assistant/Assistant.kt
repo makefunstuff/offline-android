@@ -138,7 +138,7 @@ class Assistant(
     @Volatile var seeing: (() -> String?)? = null
     /** The server's small classifiers (photo filing); set by AppGraph. */
     @Volatile var labels: com.lfmpixel.lfm.edge.Labels? = null
-    /** What Inkling learned, and the notes near each question, for the prompt (memory/MemoryStore.kt); set by AppGraph. */
+    /** What Wren learned, and the notes near each question, for the prompt (memory/MemoryStore.kt); set by AppGraph. */
     @Volatile var memory: com.lfmpixel.lfm.memory.MemoryStore? = null
     /** The memory's blocks for the turn being answered: into the system prompt, and after the owner's last message. */
     private var recall = com.lfmpixel.lfm.memory.MemoryStore.Context("", "", 0)
@@ -232,7 +232,7 @@ class Assistant(
         if (waitForScreen) { waitForScreen = false; wake.trySend(Unit) }
     }
 
-    /** Stop from outside the app: ends the answer and holds the queue until Inkling is opened again. */
+    /** Stop from outside the app: ends the answer and holds the queue until Wren is opened again. */
     fun stopAll() {
         // On screen, Stop is just Stop: the owner is here to see the queue go on.
         if (launcher.onScreen) { stop(); return }
@@ -349,7 +349,7 @@ class Assistant(
         val tz = zone.id
         val net = if (webOn) "It can search the web with web_search: use it when a question needs current facts, prices, news or " +
             "anything you are unsure of; answer from your own knowledge otherwise. " else "with no internet access. "
-        return "You are Inkling, a private assistant that runs entirely on the owner's phone" + (if (webOn) ". " else ", ") + net +
+        return "You are Wren, a private assistant that runs entirely on the owner's phone" + (if (webOn) ". " else ", ") + net +
             com.lfmpixel.lfm.daylight.Persona.PROMPT + " " +
             "Answer briefly and plainly. When the owner asks you to remember, note, remind, add, set, text, call or change " +
             "something, call a tool. \"Remind me\" means set_reminder; use set_alarm only when they say alarm. Things to buy " +
@@ -386,7 +386,7 @@ class Assistant(
         val thinkBudget = minOf(prefs.thinkBudget, models.answerSession().contextTokens / 4)
         val answerBudget = 512
         val maxTokens = if (thinking) thinkBudget + answerBudget else answerBudget
-        // What Inkling knows and the notes nearest to what was asked, sized to the answering model's context. Only the
+        // What Wren knows and the notes nearest to what was asked, sized to the answering model's context. Only the
         // last message the owner wrote carries the notes; the profile sits in the system prompt.
         val asked = db.messages().threadNow(_thread.value).lastOrNull { it.role == Role.User }
         recall = asked?.let { a -> memory?.let { m -> runCatching { m.context(a.text, models.answerSession().contextTokens) }.getOrNull() } }
@@ -623,9 +623,9 @@ class Assistant(
         }
         // Android silently blocks a hand-off from the background, so it is never logged as opened when it wasn't.
         if (tool.opensApp && !launcher.onScreen) {
-            return log(tool, finalArgs, ToolResult(false, "Not done: Inkling was not on screen, so Android would not let it open another app. " +
-                "Tell the owner to open Inkling and ask again.", "Not opened", preview.title.removeSuffix("?"),
-                "Inkling was in the background. Open it and ask again."), ActionStatus.Failed, ask)
+            return log(tool, finalArgs, ToolResult(false, "Not done: Wren was not on screen, so Android would not let it open another app. " +
+                "Tell the owner to open Wren and ask again.", "Not opened", preview.title.removeSuffix("?"),
+                "Wren was in the background. Open it and ask again."), ActionStatus.Failed, ask)
         }
         val result = try { tool.run(finalArgs) } catch (e: ToolArgsException) { ToolResult.error(e.message ?: "Bad arguments") }
         val status = when { !result.ok -> ActionStatus.Failed; result.opened -> ActionStatus.Opened; else -> ActionStatus.Done }

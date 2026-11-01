@@ -146,7 +146,7 @@ androidComponents {
                 "android.permission.ACCESS_NOTIFICATION_POLICY", "android.permission.FOREGROUND_SERVICE",
                 "android.permission.FOREGROUND_SERVICE_DATA_SYNC", "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
                 "android.permission.REQUEST_INSTALL_PACKAGES", "android.permission.REQUEST_DELETE_PACKAGES"))
-            failure.set("Inkling asks for a permission outside its list (app/build.gradle.kts)")
+            failure.set("Wren asks for a permission outside its list (app/build.gradle.kts)")
             report.set(layout.buildDirectory.file("reports/privacy/${variant.name}-permissions.txt"))
         }
         val runtime = configurations.named("${variant.name}RuntimeClasspath")
@@ -199,7 +199,7 @@ androidComponents {
         tasks.matching { it.name == "assemble$name" || it.name == "check" }.configureEach {
             dependsOn(manifestCheck, depsCheck, confinement)
         }
-        // The last Inkling Net goes inside Inkling, signed with the same key, to bring its settings over (NetHandoff).
+        // The last Inkling Net goes inside Wren, signed with the same key, to bring its settings over (NetHandoff).
         val bundle = tasks.register<BundleApk>("bundle${name}Handoff") {
             dependsOn(":handoff:assemble$name")
             apkDir.set(project(":handoff").layout.buildDirectory.dir("outputs/apk/${variant.name}"))

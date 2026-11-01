@@ -77,7 +77,7 @@ data class Prefs(
     val edgeKeySealed: String = "",
     /** What the server benchmark measured last, "key=value;…" (see EdgeBench). */
     val edgeBench: String = "",
-    /** Inkling learns from notes, chats, Talk and corrections, and uses what it learned (What Inkling knows). */
+    /** Wren learns from notes, chats, Talk and corrections, and uses what it learned (What Wren knows). */
     val learning: Boolean = true,
 )
 
@@ -85,7 +85,7 @@ data class Prefs(
 val THINK_BUDGETS = listOf(256, 512, 1024, 2048)
 const val DEFAULT_THINK_BUDGET = 1024
 
-// A settings file that can't be read (damaged) starts again instead of failing every read, which would close Inkling
+// A settings file that can't be read (damaged) starts again instead of failing every read, which would close Wren
 // at each start: from the defaults, but Offline, so a lost choice never lets the network back in unasked.
 private val Context.store by preferencesDataStore("settings",
     corruptionHandler = androidx.datastore.core.handlers.ReplaceFileCorruptionHandler { Settings.afterDamage() })

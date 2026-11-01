@@ -1,4 +1,4 @@
-"""Semantic search check for docs/embeddings.md: keyword search (Inkling's FtsQuery rule) against EmbeddingGemma 2
+"""Semantic search check for docs/embeddings.md: keyword search (Wren's FtsQuery rule) against EmbeddingGemma 2
 on LiteRT-LM, and the hybrid of both, on the made-up notebook in embed_eval.tsv. Desktop CPU, not the phone.
 
     python -I embed_eval.py MODEL.litertlm EVAL_TSV [DIM ...] [--golden OUT_TSV]

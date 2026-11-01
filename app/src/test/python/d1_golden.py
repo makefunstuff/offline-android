@@ -5,7 +5,7 @@
 D1_REPO_DIR = a download of litert-community/d1-omni-600M-LiteRT (host/d1_prompt.py, host/d1_host.py, contract.json,
 tokenizer.json). Lines (tab-separated; text escaped as \\t \\n \\r \\\\):
     T key temperature                                   contract.json temperatures
-    Q name type instructions [option description]...    Inkling's questions (Decide.kt must match)
+    Q name type instructions [option description]...    Wren's questions (Decide.kt must match)
     E tok max_len qname state ids markers               encode(tok, state, q, max_len); tok = real (tokenizer.json) or
                                                         fake (one id per character, so the rules run without the file)
     X tok max_len qname state                           encode() refuses: the options do not fit
@@ -41,7 +41,7 @@ QUESTIONS = {
                "instructions": "The owner is talking to their assistant while the phone's camera is on. What do they want?",
                "criteria": {"look": "a question about what the camera sees right now (what is this, read this, how many, what colour)",
                             "act": "asks to add, remind, note, plan, set or change something", "chat": "anything else"}},
-    # Not Inkling's, but the other forms encode() has: a yes/no with and without its own wording, a score, bare options.
+    # Not Wren's, but the other forms encode() has: a yes/no with and without its own wording, a score, bare options.
     "t_noul": {"type": "noul", "instructions": "Is it about health, money, passwords, legal trouble or intimate matters?"},
     "t_noul_words": {"type": "noul", "instructions": "Does the owner sound worried?",
                      "criteria": {"true": "they sound worried or anxious", "false": ""}},

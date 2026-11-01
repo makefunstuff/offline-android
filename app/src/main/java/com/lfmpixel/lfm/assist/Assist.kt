@@ -26,11 +26,11 @@ import com.lfmpixel.lfm.MainActivity
 import com.lfmpixel.lfm.R
 
 /*
- * The ways into Inkling from outside the app (spec section 5, "Being the phone's assistant"): the assistant gesture,
+ * The ways into Wren from outside the app (spec section 5, "Being the phone's assistant"): the assistant gesture,
  * a Quick Settings tile and a home-screen widget. Each only opens MainActivity with what to do; the work happens there.
  */
 
-/** Makes Inkling choosable as the phone's digital assistant (Settings → Apps → Default apps). */
+/** Makes Wren choosable as the phone's digital assistant (Settings → Apps → Default apps). */
 class AssistService : VoiceInteractionService()
 
 class AssistSessionService : VoiceInteractionSessionService() {
@@ -93,7 +93,7 @@ class AssistRecognitionService : RecognitionService() {
     private inline fun Callback.safe(block: Callback.() -> Unit) { runCatching { block() } }
 }
 
-/** Quick Settings → Capture: opens Inkling listening, as the mic on Today does. */
+/** Quick Settings → Capture: opens Wren listening, as the mic on Today does. */
 class CaptureTileService : TileService() {
     override fun onStartListening() {
         qsTile?.apply { state = Tile.STATE_INACTIVE; label = getString(R.string.tile_capture); updateTile() }

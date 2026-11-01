@@ -275,7 +275,7 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
                 Txt(when {
                     r.personalSent.isNotEmpty() -> "Sent: the search words$pages. You chose to send “${r.personalSent}”. Nothing else from your notes, contacts or chats."
                     warn && !g.contacts.canRead() -> "Sent: the search words$pages, checked on this phone for personal words from your notes and journal. " +
-                        "Contacts were not checked: Inkling may not read them."
+                        "Contacts were not checked: Wren may not read them."
                     warn -> "Sent: the search words$pages, checked on this phone for personal words. Nothing from your notes, contacts or chats."
                     else -> "Sent: the search words$pages. The personal-word check is off, so check the words above."
                 }, LfmType.label.copy(fontWeight = null), c.text2)
@@ -322,7 +322,7 @@ fun WebSearchScreen(g: AppGraph, nav: Nav) {
         Header("Web search", onBack = { nav.back() })
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             HandoffCard(g)
-            if (!p.netEnabled) Txt("Inkling is offline (Settings → Privacy): nothing is searched until you turn that off.",
+            if (!p.netEnabled) Txt("Wren is offline (Settings → Privacy): nothing is searched until you turn that off.",
                 LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), c.text, Modifier.padding(top = 12.dp))
             SectionLabel("Search mode")
             Segmented(SearchMode.entries.map { it.label }, p.searchMode.label, { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
@@ -402,8 +402,8 @@ fun HandoffCard(g: AppGraph) {
             Txt(if (st == NetHandoff.Status.Done) "Inkling Net can be uninstalled" else "Bring over Inkling Net's settings",
                 LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
         }
-        Txt(if (st == NetHandoff.Status.Done) "Search, downloads and your server now run inside Inkling, and its settings are here. The old helper app does nothing any more."
-            else "Inkling now does search, downloads and your server itself. Your search provider, keys and proxy are still in the old Inkling Net: " +
+        Txt(if (st == NetHandoff.Status.Done) "Search, downloads and your server now run inside Wren, and its settings are here. The old helper app does nothing any more."
+            else "Wren now does search, downloads and your server itself. Your search provider, keys and proxy are still in the old Inkling Net: " +
                 "Android will ask to update it once so it can hand them over.", LfmType.small, c.text2, Modifier.padding(top = 6.dp))
         Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             when (val s = st) {

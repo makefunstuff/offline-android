@@ -8,8 +8,8 @@ import android.os.Binder
 import android.os.Bundle
 
 /**
- * One call, "export": the old Inkling Net's settings (its "net" preferences) as a Bundle, for Inkling only. Its
- * search keys and proxy were never readable by Inkling before, so they cross once, here, over Binder.
+ * One call, "export": the old Inkling Net's settings (its "net" preferences) as a Bundle, for Wren only. Its
+ * search keys and proxy were never readable by Wren before, so they cross once, here, over Binder.
  */
 class HandoffProvider : ContentProvider() {
     override fun onCreate() = true
@@ -17,11 +17,11 @@ class HandoffProvider : ContentProvider() {
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
         if (method != "export") return null
         val ctx = context ?: return null
-        // A provider's call() skips Android's permission checks: only Inkling, signed with this app's own key.
+        // A provider's call() skips Android's permission checks: only Wren, signed with this app's own key.
         val pm = ctx.packageManager
         val callers = pm.getPackagesForUid(Binder.getCallingUid()).orEmpty()
         if (INKLING !in callers || pm.checkSignatures(ctx.packageName, INKLING) != PackageManager.SIGNATURE_MATCH)
-            throw SecurityException("Only Inkling may read these settings")
+            throw SecurityException("Only Wren may read these settings")
         val prefs = ctx.getSharedPreferences("net", android.content.Context.MODE_PRIVATE)
         return Bundle().apply {
             prefs.all.forEach { (k, v) ->

@@ -95,7 +95,7 @@ object Html {
 
     /**
      * A page cut down to fit through Binder: scripts, styles, SVG, comments and the like go; the markup that tells
-     * the article from the menus stays, for Inkling to read.
+     * the article from the menus stays, for Wren to read.
      */
     // 100k chars is 200 KB in a Parcel: three pages at once stay well inside Binder's 1 MB buffer.
     fun slim(html: String, maxChars: Int = 100_000): String {
