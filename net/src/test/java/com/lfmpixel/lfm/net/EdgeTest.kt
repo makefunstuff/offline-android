@@ -102,6 +102,8 @@ class EdgeTest {
         assertNotNull(engine().edge(base(), "k", "POST", "/route/warm?mode=edge", null, null) { true }.error)
         assertNotNull(engine().edge(base(), "k", "GET", "/v1/models?x=1", null, null) { true }.error)
         assertNotNull(engine().edge(base(), "k", "POST", "/route/swap", null, null) { true }.error)
+        assertNotNull(engine().edge(base(), "k", "POST", "/route/warm", null, null) { true }.error)
+        assertNotNull(engine().edge(base(), "k", "GET", EdgeRules.WARM, null, null) { true }.error)
         assertEquals(1, server.requestCount)
     }
 }

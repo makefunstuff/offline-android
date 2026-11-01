@@ -27,7 +27,10 @@ sealed interface QwenState {
     data object KeyWrong : QwenState
 }
 
-/** What one request to the gateway came back with: [status] 0 when it was not reached; [body] the reply or the error. */
+/**
+ * What one request to the gateway came back with: [status] 0 when its port dropped (a swap), [Gateway.NOT_SENT] when it
+ * never went out; [body] the reply or the error.
+ */
 data class GatewayReply(val status: Int, val body: String)
 
 /**
@@ -85,11 +88,36 @@ class Gateway(
         _state.value = QwenState.KeyWrong
     }
 
-    /** A request with the key went through: it is right after all, and an open Talk asks for Qwen again. */
-    fun keyOk() {
+    /**
+     * Settings' Check now: a refused key is tried again (an open Talk asks for Qwen with it). Only then or on a new key,
+     * never on another request's success: the gateway may check the key on the warm call alone.
+     */
+    fun recheck() {
         if (_state.value != QwenState.KeyWrong) return
         _state.value = QwenState.Idle
         if (talkAsked) wake()
+    }
+
+    /**
+     * One request as [Edge.request] sends it ([attempt], which calls its argument as bytes arrive). While the server is
+     * [online] and a swap is likely ([swapping]), a dropped port is ridden out ([throughSwap]), but never once a byte
+     * came. A 401 from the [current] server marks the key wrong. [failed] hears every failure but the warm call's,
+     * which may wait out the whole swap and must not turn the server Offline.
+     */
+    suspend fun guard(path: String, online: Boolean, current: suspend () -> Boolean, failed: (NetException) -> Unit,
+                      attempt: suspend (onBytes: () -> Unit) -> Int): Int {
+        val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
+        val budget = if (online && swapping) SWAP_RETRY_MS else 0L
+        return try {
+            throughSwap(now, budget, { e -> !delivered.get() && isDrop(e) && (path != EdgeRules.WARM || e.code == EDGE_UNREACHABLE) }) {
+                attempt { delivered.set(true) }
+            }
+        } catch (e: NetException) {
+            // A reply for an address or key that was just changed says nothing about the new one.
+            if (httpCode(e) == 401 && current()) keyWrong()
+            if (path != EdgeRules.WARM) failed(e)
+            throw e
+        }
     }
 
     /** A new address or key: forget what this server said; Talk, if open, asks again. */
@@ -112,23 +140,36 @@ class Gateway(
             // The warm call may answer at once or only when the swap is done: the list is asked meanwhile either way.
             val poll = launch { poll(mine) }
             val r = ask("POST", EdgeRules.WARM)
-            if (gen != mine) return@launch
-            when {
-                r.status == 401 -> { poll.cancel(); keyWrong() }
-                r.status == 404 -> {
-                    // Not the gateway (the old direct port): LFM3 answers, as before.
-                    poll.cancel(); noGateway = true
-                    Log.i(Edge.TAG, "gateway: no warm call on this server")
-                    if (_state.value is QwenState.Waking) _state.value = QwenState.Idle
+            // Read under the lock, so a reset() in between can't have this old reply land on the new server.
+            val wait = synchronized(this@Gateway) {
+                if (gen != mine) return@launch
+                when {
+                    // Accepted, or its port dropped mid-swap: the list says when Qwen is up.
+                    (r.status in 200..299 && !refused(r.body)) || r.status == 0 -> true
+                    else -> {
+                        poll.cancel()
+                        when {
+                            r.status == 401 -> keyWrong()
+                            r.status == 404 -> {
+                                // Not the gateway (the old direct port): LFM3 answers, as before.
+                                noGateway = true
+                                Log.i(Edge.TAG, "gateway: no warm call on this server")
+                                idle()
+                            }
+                            // Not sent (Wren is Offline, the network is away): asked again on the next chance.
+                            r.status == NOT_SENT -> { askedAt = -1L; idle() }
+                            // A 2xx that says no, or 403, 409, 423, 503…: refused, a game is on.
+                            else -> busy(reason(r.body))
+                        }
+                        false
+                    }
                 }
-                r.status in 200..299 && refused(r.body) -> { poll.cancel(); busy(reason(r.body)) }
-                // Accepted, or not reached (the swap drops ports for a few seconds): the list says when Qwen is up.
-                r.status in 200..299 || r.status == 0 -> poll.join()
-                // 403, 409, 423, 503…: refused, a game is on.
-                else -> { poll.cancel(); busy(reason(r.body)) }
             }
+            if (wait) poll.join()
         }
     }
+
+    private fun idle() { if (_state.value is QwenState.Waking) _state.value = QwenState.Idle }
 
     /** [send], with a failure as status 0; a cancelled request stays cancelled. */
     private suspend fun ask(method: String, path: String): GatewayReply = try {
@@ -136,7 +177,7 @@ class Gateway(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        GatewayReply(0, e.message.orEmpty())
+        GatewayReply(NOT_SENT, e.message.orEmpty())
     }
 
     private fun busy(reason: String) {
@@ -155,6 +196,7 @@ class Gateway(
             val r = ask("GET", "/v1/models")
             if (gen != mine) return
             if (r.status == 401) { keyWrong(); return }
+            if (r.status == NOT_SENT) { synchronized(this) { if (gen == mine) { askedAt = -1L; idle() } }; return }
             if (r.status !in 200..299) continue
             listed(ids(r.body))
             if (_state.value == QwenState.Ready) return
@@ -163,15 +205,16 @@ class Gateway(
         if (gen == mine && _state.value is QwenState.Waking) _state.value = QwenState.Idle
     }
 
-    /** Asked for or up lately: a request that meets a dropped port is likely meeting a mode swap. */
-    val swapping get() = _state.value.let { it is QwenState.Waking || it == QwenState.Ready } ||
-        (askedAt >= 0 && now() - askedAt < SWAP_WINDOW_MS)
+    /** Waking, or up (the server swaps back to Edge after Talk): a dropped port is likely a mode swap. */
+    val swapping get() = _state.value.let { it is QwenState.Waking || it == QwenState.Ready }
 
     companion object {
         /** How long Qwen is waited for: the swap takes about a minute. */
         const val POLL_FOR_MS = 4 * 60_000L
-        /** After asking, how long a dropped port is taken for the swap. */
-        const val SWAP_WINDOW_MS = 5 * 60_000L
+        /** How long a request is tried again through a mode swap's port drop (about 8 s) before the phone answers. */
+        const val SWAP_RETRY_MS = 15_000L
+        /** [GatewayReply.status] of a request that never went out (Wren is Offline, not the saved server, no network). */
+        const val NOT_SENT = -1
         /** Chat and Ask ask for Qwen at most this often (the server goes back to Edge 10 minutes after Talk ends). */
         const val ASK_EVERY_MS = 5 * 60_000L
 
@@ -246,6 +289,15 @@ class Gateway(
             return e.code == EDGE_UNREACHABLE && com.lfmpixel.lfm.net.NetEngine.OFFLINE !in m &&
                 DROPS.any { it in m.lowercase() }
         }
+
+        /**
+         * A failed request as [Gateway] reads it: the HTTP status; 0 for a dropped port or a warm call that waited out
+         * the swap past the read timeout; [NOT_SENT] when it never went out (Wren is Offline, another address, no network).
+         */
+        fun replyOf(e: NetException) = GatewayReply(httpCode(e) ?: if (isDrop(e) || isTimeout(e)) 0 else NOT_SENT, e.message.orEmpty())
+
+        /** The reply took too long: sent, but not answered in time. */
+        fun isTimeout(e: NetException) = e.message.orEmpty().lowercase().let { "timeout" in it || "timed out" in it }
 
         private val DROPS = listOf("failed to connect", "connection refused", "econnrefused", "connection reset", "unexpected end of stream", "closed")
     }

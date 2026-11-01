@@ -6,7 +6,6 @@ import com.lfmpixel.lfm.net.EdgeRules
 import com.lfmpixel.lfm.settings.Prefs
 import com.lfmpixel.lfm.settings.Settings
 import com.lfmpixel.lfm.web.EDGE_REFUSED
-import com.lfmpixel.lfm.web.EDGE_UNREACHABLE
 import com.lfmpixel.lfm.web.NetClient
 import com.lfmpixel.lfm.web.NetException
 import kotlinx.coroutines.CoroutineScope
@@ -208,8 +207,6 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         checkedAt = t0
         return try {
             request(s, "GET", "/health", null, null, "Your server: check") { true }
-            // The key was refused: asked with the key again (health may not need it), so a fixed key is seen.
-            if (gateway.state.value == QwenState.KeyWrong) runCatching { request(s, "GET", "/v1/models", null, null, "Your server: check the key") { true } }
             val ms = SystemClock.elapsedRealtime() - t0
             online(ms)
             ms
@@ -274,25 +271,14 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
      * swap) never turns the server Offline. A 401 says the key is wrong.
      */
     suspend fun request(s: Server, method: String, path: String, contentType: String?, body: ByteArray?, label: String,
-                        onData: (ByteArray) -> Boolean): Int {
-        val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
-        // Only around a swap: a server that is away, or a LAN address away from home, falls back at once as before.
-        val budget = if (_state.value is EdgeState.Online && gateway.swapping) SWAP_RETRY_MS else 0L
-        return try {
-            Gateway.throughSwap(SystemClock::elapsedRealtime, budget, { e -> !delivered.get() && Gateway.isDrop(e) && (path != EdgeRules.WARM || e.code == EDGE_UNREACHABLE) }) {
-                net.edge(s.url, s.key, method, path, contentType, body, label) { bytes -> delivered.set(true); onData(bytes) }
-            }.also { if (path != "/health") gateway.keyOk() }
-        } catch (e: NetException) {
-            // A reply for an address or key that was just changed says nothing about the new one.
-            if (Gateway.httpCode(e) == 401 && server() == s) gateway.keyWrong()
-            if (path != EdgeRules.WARM) failed(e)
-            throw e
+                        onData: (ByteArray) -> Boolean): Int =
+        gateway.guard(path, _state.value is EdgeState.Online, { server() == s }, ::failed) { onBytes ->
+            net.edge(s.url, s.key, method, path, contentType, body, label) { bytes -> onBytes(); onData(bytes) }
         }
-    }
 
     /** One request for [Gateway]: its status and reply, or status 0 and why it was not reached. */
     private suspend fun gatewaySend(method: String, path: String): GatewayReply {
-        val s = server() ?: return GatewayReply(0, "No server is set up")
+        val s = server() ?: return GatewayReply(Gateway.NOT_SENT, "No server is set up")
         val out = ByteArrayOutputStream()
         return try {
             val label = if (path == EdgeRules.WARM) "Your server: wake Qwen" else "Your server: is Qwen up?"
@@ -301,7 +287,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
             if (path == "/v1/models") runCatching { remember(text) }
             GatewayReply(status, text)
         } catch (e: NetException) {
-            GatewayReply(if (e.code == EDGE_UNREACHABLE) 0 else Gateway.httpCode(e) ?: 0, e.message.orEmpty())
+            Gateway.replyOf(e)
         }
     }
 
@@ -354,8 +340,6 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
 
     companion object {
         const val TAG = "lfm-edge"
-        /** How long a request is tried again through a mode swap's port drop (about 8 s) before the phone answers. */
-        const val SWAP_RETRY_MS = 15_000L
 
         /**
          * The address as the network module takes it: http(s)://host[:port], no path ("/v1" at the end is dropped). Null if

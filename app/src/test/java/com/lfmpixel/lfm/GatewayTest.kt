@@ -37,6 +37,8 @@ class GatewayTest {
         var warmAt: Long? = null
         val calls = mutableListOf<String>()
         var dropped = 0
+        /** Dropped-port replies that reached [Gateway] itself, past the retry. */
+        var dropsSeen = 0
         val warms get() = calls.count { it == "POST ${EdgeRules.WARM}" }
         val polls get() = calls.count { it == "GET /v1/models" }
 
@@ -52,6 +54,7 @@ class GatewayTest {
             return when (path) {
                 EdgeRules.WARM -> if (game) throw NetException("HTTP 409: a game is running on GPU 0", EDGE_REFUSED)
                     else { if (warmAt == null) warmAt = t; GatewayReply(202, """{"mode":"edge","target":"voice"}""") }
+                "/v1/chat/completions" -> GatewayReply(200, "data: [DONE]")
                 "/v1/models" -> {
                     val up = warmAt?.let { t >= it + swapMs } == true
                     val ids = listOf(EdgeModels.TEXT, EdgeModels.VISION, EdgeModels.OMNI) + if (up) listOf(EdgeModels.ANSWER) else emptyList()
@@ -65,15 +68,18 @@ class GatewayTest {
     private fun TestScope.setUp(): Pair<FakeGateway, Gateway> {
         val now = { testScheduler.currentTime }
         val fake = FakeGateway(now)
-        // As Edge.gatewaySend: through Edge.request's retry, the error's HTTP status, 0 when not reached.
+        lateinit var gw: Gateway
+        // As Edge.gatewaySend: each request through Edge.request's guard, a failure read as Gateway reads it.
         val send: suspend (String, String) -> GatewayReply = { m, p ->
-            try {
-                Gateway.throughSwap(now, 15_000, { e -> Gateway.isDrop(e) && (p != EdgeRules.WARM || e.code == EDGE_UNREACHABLE) }) { fake.raw(m, p) }
-            } catch (e: NetException) {
-                GatewayReply(if (e.code == EDGE_UNREACHABLE) 0 else Gateway.httpCode(e) ?: 0, e.message.orEmpty())
-            }
+            var body = ""
+            val r = try {
+                GatewayReply(gw.guard(p, true, { true }, {}) { onBytes -> fake.raw(m, p).also { onBytes(); body = it.body }.status }, body)
+            } catch (e: NetException) { Gateway.replyOf(e) }
+            if (r.status == 0) fake.dropsSeen++
+            r
         }
-        return fake to Gateway(backgroundScope, send, { EdgeModels.ANSWER }, now)
+        gw = Gateway(backgroundScope, send, { EdgeModels.ANSWER }, now)
+        return fake to gw
     }
 
     @Test fun warmCallOncePerTalkSession() = runTest {
@@ -130,6 +136,7 @@ class GatewayTest {
         advanceTimeBy(120_000); runCurrent()
         assertEquals(QwenState.Ready, gw.state.value)
         assertTrue("a poll met the dropped port", fake.dropped > 0)
+        assertEquals("and rode it out: none reached the gateway logic", 0, fake.dropsSeen)
     }
 
     @Test fun throughSwapRetriesFastDropsOnly() = runTest {
@@ -265,7 +272,7 @@ class GatewayTest {
         gw.talkOpened(); runCurrent()
         assertEquals(QwenState.KeyWrong, gw.state.value)
         fake.sentKey = fake.key
-        gw.keyOk(); runCurrent()
+        gw.recheck(); runCurrent()
         assertEquals(2, fake.warms)
     }
 
@@ -284,5 +291,74 @@ class GatewayTest {
         assertTrue(!Gateway.isDrop(NetException("Wren is offline", EDGE_UNREACHABLE)))
         assertTrue(!Gateway.isDrop(NetException("timeout", EDGE_UNREACHABLE)))
         assertTrue(!Gateway.isDrop(NetException("HTTP 401: Invalid API Key", EDGE_REFUSED)))
+    }
+
+    @Test fun aTalkRequestRidesOutTheDrop() = runTest {
+        val (fake, gw) = setUp()
+        gw.talkOpened(); runCurrent()
+        advanceTimeBy(53_000); runCurrent()  // the ports drop from 52 s to 60 s
+        var failedSeen = 0
+        val st = gw.guard("/v1/chat/completions", true, { true }, { failedSeen++ }) { on -> fake.raw("POST", "/v1/chat/completions").also { on() }.status }
+        assertEquals(200, st)
+        assertTrue(testScheduler.currentTime >= 60_000)
+        assertEquals(0, failedSeen)
+        // Not while the server wasn't answering anyway: one try, and the phone answers.
+        val (fake2, gw2) = setUp()
+        gw2.talkOpened(); runCurrent()
+        advanceTimeBy(53_000); runCurrent()
+        val n = fake2.calls.size
+        assertTrue(runCatching { gw2.guard("/v1/chat/completions", false, { true }, { failedSeen++ }) { on -> fake2.raw("POST", "/v1/chat/completions").also { on() }.status } }.isFailure)
+        assertEquals(n + 1, fake2.calls.size)
+        assertEquals(1, failedSeen)
+    }
+
+    @Test fun nothingRetriedOnceBytesCame() = runTest {
+        val (_, gw) = setUp()
+        gw.talkOpened(); runCurrent()  // Waking: retries are on
+        var tries = 0
+        val r = runCatching { gw.guard("/tts", true, { true }, {}) { on -> tries++; on(); throw NetException("unexpected end of stream", EDGE_UNREACHABLE) } }
+        assertTrue(r.isFailure)
+        assertEquals("half an answer is never asked again", 1, tries)
+    }
+
+    @Test fun warmFailureNeverTakesTheServerDownAndOnly401FromTheCurrentServerCounts() = runTest {
+        val (_, gw) = setUp()
+        var failedSeen = 0
+        runCatching { gw.guard(EdgeRules.WARM, true, { true }, { failedSeen++ }) { throw NetException("timeout", EDGE_UNREACHABLE) } }
+        assertEquals(0, failedSeen)
+        // A 401 for the address just replaced: nothing said about the new one.
+        runCatching { gw.guard("/v1/models", true, { false }, { failedSeen++ }) { throw NetException("HTTP 401: Invalid API Key", EDGE_REFUSED) } }
+        assertEquals(QwenState.Idle, gw.state.value)
+        runCatching { gw.guard("/v1/models", true, { true }, { failedSeen++ }) { throw NetException("HTTP 401: Invalid API Key", EDGE_REFUSED) } }
+        assertEquals(QwenState.KeyWrong, gw.state.value)
+        assertEquals(2, failedSeen)
+    }
+
+    @Test fun otherRequestsSucceedingDontClearAWrongKey() = runTest {
+        val (fake, gw) = setUp()
+        fake.sentKey = "wrong"
+        gw.talkOpened(); runCurrent()
+        assertEquals(QwenState.KeyWrong, gw.state.value)
+        // Chat goes through (the gateway checks the key on the warm call only): no warm call storm, still wrong.
+        repeat(5) { gw.guard("/v1/chat/completions", true, { true }, {}) { 200 } }
+        runCurrent()
+        assertEquals(QwenState.KeyWrong, gw.state.value)
+        assertEquals(1, fake.warms)
+        // Check now in Settings tries it once more.
+        gw.recheck(); runCurrent()
+        assertEquals(2, fake.warms)
+    }
+
+    @Test fun notSentIsNotAccepted() = runTest {
+        var calls = 0
+        val gw = Gateway(backgroundScope, { _, _ -> calls++; Gateway.replyOf(NetException("Wren is offline. Turn Offline off in Settings → Privacy.")) },
+            { EdgeModels.ANSWER }, { testScheduler.currentTime })
+        gw.talkOpened(); runCurrent()
+        assertEquals(QwenState.Idle, gw.state.value)
+        advanceTimeBy(600_000); runCurrent()
+        assertEquals("no polling while nothing can go out", 1, calls)
+        // Online again: the next chat asks at once.
+        gw.wantQwen(); runCurrent()
+        assertEquals(2, calls)
     }
 }

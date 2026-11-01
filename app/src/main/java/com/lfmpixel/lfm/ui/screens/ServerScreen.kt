@@ -155,8 +155,8 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
                 QwenState.Ready -> "Qwen is up: it writes chat and Talk answers."
                 is QwenState.Busy -> "Qwen can't wake now: ${q.reason}. LFM3 answers."
                 QwenState.Idle -> null
-            }?.takeIf { p.edgeOn }?.let { Txt(it, LfmType.small, c.text2, Modifier.padding(top = 6.dp)) }
-            Btn("Check now", { scope.launch { runCatching { g.edge.check() } } }, Modifier.padding(top = 8.dp, bottom = 24.dp), small = true,
+            }?.takeIf { p.edgeOn && (state is EdgeState.Online || qwen == QwenState.KeyWrong) }?.let { Txt(it, LfmType.small, c.text2, Modifier.padding(top = 6.dp)) }
+            Btn("Check now", { g.edge.gateway.recheck(); scope.launch { runCatching { g.edge.check() } } }, Modifier.padding(top = 8.dp, bottom = 24.dp), small = true,
                 enabled = p.edgeOn && p.edgeUrl.isNotBlank())
         }
     }

@@ -235,7 +235,10 @@ class NetEngine(
         if (path !in TEST_PATHS && pinned != base.trim().trimEnd('/')) return EdgeReply(0, 0, emptyList(), "That isn't the server saved in Settings")
         val only = path.substringBefore('?')
         val query = path.substringAfter('?', "").takeIf { '?' in path }
-        if (only !in EdgeRules.PATHS || (query != null && query !in EdgeRules.QUERIES[only].orEmpty()))
+        // A path with queries (the warm call) is sent only with one of them, and only as a POST.
+        val wantsQuery = only in EdgeRules.QUERIES
+        if (only !in EdgeRules.PATHS || (query != null && query !in EdgeRules.QUERIES[only].orEmpty()) ||
+            (wantsQuery && (query == null || method != "POST")))
             return EdgeReply(0, 0, emptyList(), "Wren doesn't open $path on the server")
         if (method != "GET" && method != "POST") return EdgeReply(0, 0, emptyList(), "Bad method")
         EdgeRules.literal(b.host)?.let { if (!edgeAddressAllowed(it)) return EdgeReply(0, 0, emptyList(), "${b.host} is not on your home network or tailnet") }
