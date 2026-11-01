@@ -46,6 +46,19 @@ data class EntryFts(
     val topic: String,
 )
 
+/**
+ * A note's meaning as numbers, for search by meaning (SemanticIndex): [EmbedPrompt.DIM][com.lfmpixel.lfm.llm.EmbedPrompt]
+ * little-endian floats from [model], made from the text whose [SemanticIndex.hashOf] is [hash]. Only on the phone, in
+ * the notes' own database; never exported or sent.
+ */
+@Entity(tableName = "vectors")
+data class EntryVector(
+    @PrimaryKey val entryId: Long,
+    val model: String,
+    val hash: Long,
+    val vec: ByteArray,
+)
+
 enum class Role { User, Assistant, Tool, Notice }
 
 /** One line of the chat. Assistant lines keep the model's raw output so the next prompt matches the context. */

@@ -39,5 +39,9 @@
             android:permission="android.permission.DUMP">
             <intent-filter><action android:name="com.lfmpixel.lfm.DEBUG_OMNI" /></intent-filter>
         </receiver>
+        <receiver android:name=".DebugEmbedReceiver" android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter><action android:name="com.lfmpixel.lfm.DEBUG_EMBED" /></intent-filter>
+        </receiver>
     </application>
 </manifest>

@@ -15,6 +15,7 @@ the owner found them slow and hard on the battery. When Inkling needs a model, i
 | Dictation, read-aloud, Talk | LFM3-Omni-2B, `LFM3-Omni-2B_int8.litertlm` plus its voice graphs | LiteRT (OmniVoice) | CPU | 3.23 GB + 0.79 GB |
 | Photos, short videos, documents | LFM3-VL-2B, `LFM3-VL-2B_int4.litertlm` | LiteRT-LM | GPU, else CPU | 2.07 GB |
 | Capture sorting, Talk intent, sensitive tag (when the server is away) | d1-omni-600M (see below) | LiteRT | CPU | see below |
+| Search by meaning (LFMP-10) | EmbeddingGemma 2 text 270m, `embeddinggemma-2-text-270m.litertlm` | LiteRT-LM (EmbeddingEngine) | CPU | 165 MB; about 330 MB in memory |
 | Token counts, Omni's prompts | LFM3's `tokenizer.json` | `BpeTokenizer` (Kotlin) | CPU | 18 MB |
 
 All files come from [litert-community](https://huggingface.co/litert-community) on Hugging Face. Each is pinned in
@@ -47,6 +48,8 @@ resumes a cut download and checks the hash before the file is used. No model fil
 - **d1-3B.** Desktop only: a 12 GB Galaxy S26 ran out of memory (its card).
 
 ## Licence
+
+EmbeddingGemma 2 (search by meaning, docs/embeddings.md) is Apache-2.0.
 
 Every file here is under the LFM Open License v1.0. Section 5 only limits commercial use by an organisation with
 $10M or more a year in revenue. A free, open-source app used by one person is within it. The runtimes, LiteRT-LM

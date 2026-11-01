@@ -17,6 +17,8 @@ enum class ModelRole(val label: String) {
     Vision("Photos and documents"),
     /** d1-omni-600M: the small classifiers when the server is away (assistant/Decide.kt). */
     Decide("Sorting and routing"),
+    /** EmbeddingGemma 2 text 270m: search by meaning (data/SemanticIndex.kt, docs/embeddings.md). */
+    Embed("Search by meaning"),
 }
 
 /**
@@ -48,6 +50,8 @@ object ModelCatalog {
     private const val VL_REV = "580859278a59710b3c93b298982f3f9e884d80e8"
     private const val D1 = "litert-community/d1-omni-600M-LiteRT"
     private const val D1_REV = "afce506e80dee25c007a88e6ab24fd62fd456eab"
+    private const val EMBED = "litert-community/embeddinggemma-2-text-270m-litert-lm"
+    private const val EMBED_REV = "9be6e8b90982095dc05c2bd162e4b954ee4dbac7"
 
     private fun d1(name: String, size: Long, sha: String, path: String) =
         KnownModel("d1-omni-600M_$name", "d1-omni-600M", "fp16", ModelRole.Decide, size, sha, D1, path, D1_REV)
@@ -77,6 +81,8 @@ object ModelCatalog {
         d1("tokenizer.json", 4733371, "1efc3a6609abf6b63b1f47188d139f3b59973a6a434dffe970a7261a51ed2711", "tokenizer.json"),
         d1("LICENSE", 10572, "9953509cbd8c1c6ce7b06ddf74fcc204a892692316201dd8f7400a84790d4120", "LICENSE"),
         d1("NOTICE", 1233, "34a17f2861182c4f20f7dc84cfc82355ca40024c06a11487e20a547580b3c3e5", "NOTICE"),
+        // The CPU/GPU file, int4: the same text tower as the 440m and 740m files, without their picture and sound parts.
+        KnownModel("embeddinggemma-2-text-270m.litertlm", "EmbeddingGemma 2", "int4", ModelRole.Embed, 164626432, "2d079ee2f6f066b1f368e8d7c819f55214eaef1d0513b312321901f30ab286fb", EMBED, rev = EMBED_REV),
     )
 
     /** A model as the Models screen lists it: what it is for, the file offered, and the files it needs beside it. */
@@ -91,6 +97,7 @@ object ModelCatalog {
         Group("LFM3-VL-2B", "Photos, short videos and documents", listOf(byName("LFM3-VL-2B_int4.litertlm")!!), emptyList()),
         Group("d1-omni-600M", "Sorts captures and routes Talk when your server is away", listOf(byName("d1-omni-600M_decide_L128_fp16.tflite")!!),
             all.filter { it.role == ModelRole.Decide && !it.fileName.endsWith(".tflite") }),
+        Group("EmbeddingGemma 2", "Finds notes by meaning, not just words", listOf(byName("embeddinggemma-2-text-270m.litertlm")!!), emptyList()),
     )
 
     /** What first run downloads: chat and voice. */

@@ -42,6 +42,7 @@ class ModelStore(private val context: Context) {
         .all { m -> _installed.value.any { it.known == m && it.verified } }
     fun tokenizer(): InstalledModel? = newest(ModelRole.Tokenizer)
     fun vision(): InstalledModel? = newest(ModelRole.Vision)
+    fun embedder(): InstalledModel? = newest(ModelRole.Embed)
     /** Every d1 file is here and checked. */
     fun decide(): Boolean = ModelCatalog.all.filter { it.role == ModelRole.Decide }
         .all { m -> _installed.value.any { it.known == m && it.verified } }

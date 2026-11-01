@@ -66,7 +66,20 @@ interface EntryDao {
     @Query("SELECT entries.* FROM entries JOIN entries_fts ON entries.id = entries_fts.rowid WHERE entries_fts MATCH :match ORDER BY entries.createdAt DESC LIMIT :limit")
     suspend fun search(match: String, limit: Int = 50): List<Entry>
     @Query("SELECT * FROM entries ORDER BY createdAt") suspend fun all(): List<Entry>
+    /** Changes whenever an entry is added, edited or deleted: what wakes the search index. */
+    @Query("SELECT MAX(updatedAt) + COUNT(*) + SUM(id) FROM entries") fun changes(): Flow<Long?>
 }
+
+@Dao
+interface VectorDao {
+    @androidx.room.Upsert suspend fun upsert(v: List<EntryVector>)
+    @Query("SELECT * FROM vectors") suspend fun all(): List<EntryVector>
+    @Query("SELECT entryId, hash, model FROM vectors") suspend fun keys(): List<VectorKey>
+    @Query("DELETE FROM vectors WHERE entryId IN (:ids)") suspend fun delete(ids: List<Long>)
+    @Query("SELECT COUNT(*) FROM vectors") suspend fun count(): Int
+}
+
+data class VectorKey(val entryId: Long, val hash: Long, val model: String)
 
 @Dao
 interface MessageDao {
@@ -127,9 +140,9 @@ class Converters {
 }
 
 @Database(entities = [Entry::class, EntryFts::class, ChatMessage::class, ActionRecord::class, Reminder::class, NetLogEntry::class,
-    SearchRecord::class], version = 6, exportSchema = true,
+    SearchRecord::class, EntryVector::class], version = 7, exportSchema = true,
     autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5),
-        AutoMigration(from = 5, to = 6)])
+        AutoMigration(from = 5, to = 6), AutoMigration(from = 6, to = 7)])
 @TypeConverters(Converters::class)
 abstract class LfmDatabase : RoomDatabase() {
     abstract fun entries(): EntryDao
@@ -138,6 +151,7 @@ abstract class LfmDatabase : RoomDatabase() {
     abstract fun reminders(): ReminderDao
     abstract fun netLog(): NetLogDao
     abstract fun searches(): SearchDao
+    abstract fun vectors(): VectorDao
 
     companion object {
         fun open(context: Context): LfmDatabase =

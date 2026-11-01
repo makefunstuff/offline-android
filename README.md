@@ -69,7 +69,8 @@ KEY
 The APK holds LiteRT's native code for `arm64-v8a` (the phone) and `x86_64` (the emulator). Since LFMP-8 every model
 on the phone runs on LiteRT: LiteRT-LM for LFM3-1.7B and LFM3-VL-2B (on the GPU through OpenCL, else the CPU), and
 LiteRT for Omni's voice graphs. llama.cpp and GGUF are gone from the phone. Which model does what, and the numbers
-behind the switch: [docs/model-pool.md](docs/model-pool.md).
+behind the switch: [docs/model-pool.md](docs/model-pool.md). Search by meaning (Notebook search, `search_library`, Talk) uses
+EmbeddingGemma 2 on LiteRT-LM, on the phone only: [docs/embeddings.md](docs/embeddings.md).
 
 ### Speed
 
