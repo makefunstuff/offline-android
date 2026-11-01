@@ -56,5 +56,15 @@ still holds.
 
 ## Measured
 
-See the LFMP-8 benchmark artifact: LiteRT against the old GGUF path, on this desktop's CPU and on the emulator, with
-the published phone numbers beside them.
+The owner chose to switch without a benchmark: GGUF on the phone was slow and battery-hungry. The figures below are
+the model cards' own phone numbers, not ours:
+
+| Model | Phone | Decode tok/s | First token |
+|---|---|---:|---:|
+| LFM3-1.7B mixed int4 | Galaxy S26 GPU | 32.4 | 0.81 s (1,024-token prompt) |
+| LFM3-VL-2B int4 | Galaxy S26 GPU | 37.9 | 0.86 s (image + question) |
+| LFM3-Omni-2B int8 | Galaxy S26 GPU | 27.0 | 0.93 s |
+
+Omni's speech took 0.75–1.6 s per second of speech on the card's phones, so it can run slower than real time.
+Talk's jitter buffer waits for it. Settings → Models → Benchmark and the voice benchmark measure the owner's own
+phone.
