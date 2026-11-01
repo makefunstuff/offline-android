@@ -417,9 +417,11 @@ class Talk(
         val turnTools = TalkToolTurn(
             ask = { q ->
                 if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ')
+                // What the model said so far is said first, so an unfinished sentence can't swallow the question.
+                if (spoken) (chunker.flush().flatMap(offers::feed) + offers.release()).forEach { pieces.send(Piece(it)) }
                 say("$q ")
                 if (spoken) {
-                    (chunker.flush().flatMap(offers::feed) + offers.flush()).forEach { pieces.send(Piece(it)) }
+                    (chunker.flush().flatMap(offers::feed) + offers.release()).forEach { pieces.send(Piece(it)) }
                     val heard = kotlinx.coroutines.CompletableDeferred<Unit>()
                     pieces.send(Piece("", heard))
                     heard.await()
@@ -486,7 +488,11 @@ class Talk(
                     roundOver = { if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ') })
                 try {
                     rounds.answer(if (toolBox == null) prompt else null, SpeechFormat.talkToolSystem(p.speechLanguage, web = webOn) + recall?.system.orEmpty(),
-                        toolBox, turnTools, msgs)?.let { exchanges[id] = it }
+                        toolBox, turnTools, msgs)?.let { ex ->
+                        // Read back without the offers the owner never heard, so the habit isn't learnt from them.
+                        exchanges[id] = ex.mapIndexed { i, m -> if (i == ex.lastIndex && m.role == com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant)
+                            m.copy(content = "<think></think>" + com.lfmpixel.lfm.assistant.Offers.strip(m.content.removePrefix("<think></think>").trim(), said)) else m }
+                    }
                 } finally {
                     ran = rounds.ran
                     webRead = turnTools.afterWebText

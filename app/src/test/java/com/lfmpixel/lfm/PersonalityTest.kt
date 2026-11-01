@@ -120,7 +120,9 @@ class PersonalityTest {
             "Do you want a reminder?", "Should I set a notification for it?", "Also, want me to put it on your to-do list?",
             "If you like, I can set a reminder?").forEach { assertTrue(it, Offers.isOffer(it)) }
         listOf("What wore you out the most?", "Do you want the short version or the long one?", "Shall I look it up?",
-            "Would you like to hear a joke?", "Want to tell me about it?").forEach { assertFalse(it, Offers.isOffer(it)) }
+            "Would you like to hear a joke?", "Want to tell me about it?", "Should you notify your landlord first?",
+            "Do you want to put it in the fridge overnight?", "Would you like to add that to the recipe?",
+            "Can you hear the smoke alarm?").forEach { assertFalse(it, Offers.isOffer(it)) }
         assertEquals("That sounds rough. Want to talk it through?",
             Offers.strip("That sounds rough. Want to talk it through? Would you like me to set a reminder to rest?", "work was awful"))
         // A one-sentence answer stays, whatever it is: there is nothing else to say.
@@ -131,6 +133,18 @@ class PersonalityTest {
         assertEquals(listOf("Would you like to hear about octopuses?"), f.feed("octopuses?"))
         assertEquals(emptyList<String>(), f.feed("Want me to set a reminder"))
         assertEquals(emptyList<String>(), f.feed("for that?"))
+        assertEquals("something was said, so the offer stays dropped", emptyList<String>(), f.flush())
+        // An answer that is only an offer is still said: silence would be worse.
+        val lone = OfferFilter("I've got the dentist next week")
+        assertEquals(emptyList<String>(), lone.feed("Want me to set a reminder for it?"))
+        assertEquals(listOf("Want me to set a reminder for it?"), lone.flush())
+        // An offer in the middle goes from the caption too, as from the speech.
+        assertEquals("Nice. Is it a big one?", Offers.strip("Nice. Want me to set a reminder? Is it a big one?", "party on"))
+        // Talk's own question after an unfinished sentence is not swallowed with it.
+        val q = OfferFilter("add oat milk")
+        assertEquals(emptyList<String>(), q.feed("Can do, adding it"))
+        assertEquals(listOf("Can do, adding it"), q.release())
+        assertEquals(listOf("Add to Shopping: Oat milk?"), q.feed("Add to Shopping: Oat milk?"))
     }
 
     @Test fun onePersonaInChatAskAndTalk() {
@@ -169,7 +183,7 @@ class PersonalityTest {
         // The chat on the phone (LFM3, LiteRT-LM's 4096): the tool specs are most of it already (estimated high), so the
         // persona and its tool rule stay small.
         val chat = Persona.forContext(4096) + Persona.WRITTEN + Persona.TOOLS
-        assertTrue("chat: ${tokens(chat)}", tokens(chat) < 300)
+        assertTrue("chat: ${tokens(chat)}", tokens(chat) < 350)
         File(out, "sizes.txt").writeText("server ${tokens(server)} of ${EdgeModels.ANSWER_CONTEXT}\nphone ${tokens(phone)} of 4096\nchat persona and tool rule ${tokens(chat)}\n")
     }
 

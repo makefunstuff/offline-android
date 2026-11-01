@@ -29,7 +29,7 @@ object Persona {
 
     /** When a model with tools uses them. */
     const val TOOLS = "Most of what the owner says is just conversation: answer it, with no tool. Call a tool only when " +
-        "they clearly ask for that action (remind me, add, note, set, text, move, delete) or when the answer needs it " +
+        "they clearly ask for that action (remind me, remember, add, note, set, change, text, call, move, delete) or when the answer needs it " +
         "(their notes, their day, a sum, today's facts). Never offer reminders, notes, to-dos or notifications, and never " +
         "end with an offer like \"Want me to…\": the owner asks when they want one. The one exception: they mention a " +
         "specific thing they must do at a set time and didn't ask; then, rarely, one short offer."
@@ -52,7 +52,8 @@ object Persona {
  */
 object Offers {
     private val opt = setOf(RegexOption.IGNORE_CASE)
-    private val offer = Regex("""^(?:(?:so|and|also|oh|by the way),?\s+)?(?:do you want|would you like|want|shall|should|can|could|may|how about|if you like)\b""" +
+    /** Wren offering to do it ("want me to", "shall I", "would you like a…"), not asking the owner ("should you…"). */
+    private val offer = Regex("""^(?:(?:so|and|also|oh|by the way),?\s+)?(?:(?:do you want|would you like|want)\s+(?:me\s+to|a|an)|(?:shall|should|can|could|may)\s+i|how about (?:a|i)|if you like,?\s+i\s+(?:can|could))\b""" +
         """.*\b(?:remind|reminders?|notifications?|notify|nudge|alarms?|add (?:it|that|this) to|(?:a|on|to) (?:your )?to-?do|put (?:it|that|this) (?:on|in))\b.*\?$""", opt)
     /** A time in what was said: "at six", "5pm", "tomorrow", "on Friday". */
     private val timing = Regex("""\b(?:remind|at (?:\d|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight)|\d\s*(?:am|pm|o'clock)|\d[:.]\d\d|tomorrow|tonight|on (?:mon|tue|wed|thu|fri|sat|sun)\w*|this (?:afternoon|evening|morning)|by (?:mon|tue|wed|thu|fri|sat|sun|\d))""", opt)
@@ -65,36 +66,45 @@ object Offers {
     /** Whether [said] named a time for something the owner must do: then an offer may stay. */
     fun timed(said: String): Boolean = timing.containsMatchIn(said) && task.containsMatchIn(said)
 
-    /** [answer] without trailing offers, unless [said] was [timed]. */
+    /** [answer] without its offers, unless [said] was [timed]; an answer that is only an offer stays, as [OfferFilter] says it. */
     fun strip(answer: String, said: String): String {
         if (timed(said)) return answer
-        val sentences = Regex("(?<=[.!?…])\\s+").split(answer.trim()).toMutableList()
-        while (sentences.size > 1 && isOffer(sentences.last())) sentences.removeAt(sentences.lastIndex)
-        return sentences.joinToString(" ")
+        val sentences = Regex("(?<=[.!?…])\\s+").split(answer.trim())
+        return sentences.filter { !isOffer(it) }.ifEmpty { sentences }.joinToString(" ")
     }
 }
 
 /**
  * [Offers] for speech as it comes: each piece ready to say ([com.lfmpixel.lfm.voice.SpeechChunker]) passes, except a
  * sentence that is an unasked offer. A piece that starts like one waits for its sentence to end before it is judged.
+ * An answer that is nothing but an offer is still said at the end ([flush]): silence would be worse.
  */
 class OfferFilter(said: String) {
     private val allowed = Offers.timed(said)
     private val held = StringBuilder()
+    /** Something was said; else the offers dropped, in case they were all there was. */
+    private var passed = false
+    private val dropped = mutableListOf<String>()
     private val opener = Regex("""^(?:(?:so|and|also|oh|by the way),?\s+)?(?:do you want|would you like|want|shall|should|can|could|may|how about|if you like)\b""", RegexOption.IGNORE_CASE)
 
     fun feed(piece: String): List<String> {
         if (allowed) return listOf(piece)
-        if (held.isEmpty() && !opener.containsMatchIn(piece.trim())) return listOf(piece)
+        if (held.isEmpty() && !opener.containsMatchIn(piece.trim())) return listOf(piece).also { passed = true }
         if (held.isNotEmpty()) held.append(' ')
         held.append(piece.trim())
         if (held.last() !in ".!?…") return emptyList()
-        return flush()
+        return release()
     }
 
-    /** What is still held, once the answer is over: said unless it is an offer. */
-    fun flush(): List<String> {
+    /** What is held, said now unless it is an offer: before Talk's own question, so the two don't run together. */
+    fun release(): List<String> {
         val s = held.toString().also { held.clear() }
-        return if (s.isBlank() || Offers.isOffer(s)) emptyList() else listOf(s)
+        if (s.isBlank()) return emptyList()
+        if (Offers.isOffer(s)) { dropped += s; return emptyList() }
+        passed = true
+        return listOf(s)
     }
+
+    /** The rest, once the answer is over; the dropped offers if nothing else was said. */
+    fun flush(): List<String> = release().ifEmpty { if (passed) emptyList() else dropped.toList().also { dropped.clear() } }
 }
