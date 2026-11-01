@@ -316,7 +316,7 @@ private fun ActionLine(g: AppGraph, nav: Nav, a: com.lfmpixel.lfm.voice.TalkActi
     val view = androidx.compose.ui.platform.LocalView.current
     var undone by androidx.compose.runtime.saveable.rememberSaveable(a.actionId) { androidx.compose.runtime.mutableStateOf(false) }
     Row(Modifier.padding(top = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (a.ok && !undone) SunDot(8.dp) else LIcon(if (undone) "undo" else "x", size = 16.dp, tint = c.text2)
+        if (a.ok && !undone) SunDot(8.dp) else LIcon(if (!a.ok) "x" else "undo", size = 16.dp, tint = c.text2)
         Txt(listOf(if (undone) "Undone" else a.label, a.title).filter { it.isNotEmpty() }.joinToString(" · "), LfmType.small, c.text2,
             Modifier.weight(1f), maxLines = 2, decoration = if (undone) androidx.compose.ui.text.style.TextDecoration.LineThrough else null)
         val id = a.actionId

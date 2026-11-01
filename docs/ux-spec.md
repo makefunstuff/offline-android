@@ -158,7 +158,7 @@ a navy round Stop while it works.
 ### A note
 
 The header on the sky with the SunMark; the title and body as before; the kind (Note, Idea, Journal, To-do) as word
-tabs; the to-do sizes as soft pills, the picked one on the pastel.
+tabs; the to-do sizes as soft pills, the picked one navy.
 
 ### Look
 

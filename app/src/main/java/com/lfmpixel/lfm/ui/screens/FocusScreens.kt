@@ -102,7 +102,7 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
 
     Column(Modifier.fillMaxSize()) {
     Header("Focus", { nav.back() }, leftIcon = "x", backDesc = "Close Focus (the timer keeps going)") {
-        if (run != null) Box(Modifier.clip(LfmShape.control).clickable(role = androidx.compose.ui.semantics.Role.Button) { g.focus.stop(); nav.back() }.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        if (run != null) Box(Modifier.clip(LfmShape.control).clickable(role = androidx.compose.ui.semantics.Role.Button) { g.focus.stop(); nav.back() }.heightIn(min = 44.dp).padding(horizontal = 12.dp, vertical = 12.dp)) {
             Txt("Stop timer", LfmType.button, Lfm.c.text2)
         }
     }
@@ -123,7 +123,7 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
                 Txt(next.entry.title, LfmType.answer, c.text, Modifier.padding(top = 4.dp), textAlign = TextAlign.Center)
                 Txt("about ${Sizes.label(next.minutes)}", LfmType.small, c.text2)
                 FlowRow(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
-                    Btn("Start", { finished = null; g.focus.start(next.entry.id, next.entry.title, next.minutes) }, icon = "play", kind = BtnKind.Primary)
+                    Btn("Start", { finished = null; g.focus.start(next.entry.id, next.entry.title, next.minutes) }, kind = BtnKind.Primary)
                     Btn("Back to today", { nav.back() })
                 }
             } else {

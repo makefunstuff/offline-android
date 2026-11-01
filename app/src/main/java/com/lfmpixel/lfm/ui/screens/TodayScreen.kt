@@ -232,7 +232,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                         today.minusDays(1) -> "Yesterday · " + day.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH))
                         else -> day.format(DateTimeFormatter.ofPattern(if (day.year == today.year) "MMMM" else "MMMM yyyy", Locale.ENGLISH))
                     })
-                    Txt(day.format(DateTimeFormatter.ofPattern("EEEE d", Locale.ENGLISH)), LfmType.title2)
+                    Txt(day.format(DateTimeFormatter.ofPattern("EEE d", Locale.ENGLISH)), LfmType.title2, maxLines = 1)
                 }
                 IconButtonPlain("back", { turn(day.minusDays(1)) }, desc = "The day before")
                 if (!isToday) IconButtonPlain("right", { turn(day.plusDays(1)) }, desc = "The day after")

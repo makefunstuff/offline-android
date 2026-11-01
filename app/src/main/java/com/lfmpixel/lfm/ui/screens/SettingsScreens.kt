@@ -437,9 +437,11 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             // The welcome sits on the hour's sky, as Today's top does.
             SkyBand { Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 18.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.width(28.dp).height(4.dp).background(Lfm.c.text, LfmShape.mark))
                     Box(Modifier.width(28.dp).height(4.dp).background(Lfm.c.line, LfmShape.mark))
+                    Spacer(Modifier.weight(1f))
+                    com.lfmpixel.lfm.ui.components.SunMark()
                 }
                 Txt("Your assistant,\non this phone", LfmType.voiceTitle, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp))
                 Txt("Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web.", LfmType.body, Lfm.c.text2)
