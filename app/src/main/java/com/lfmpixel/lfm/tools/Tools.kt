@@ -27,6 +27,7 @@ class ToolEnv(
     val contacts: Contacts?,
     val controls: PhoneControls?,
     val launcher: ExternalLauncher?,
+    val focus: com.lfmpixel.lfm.assistant.Focus? = null,
     val zone: ZoneId = ZoneId.systemDefault(),
     val now: () -> LocalDateTime = { LocalDateTime.now() },
     /** The journal is locked: library searches leave it out. */
@@ -35,14 +36,16 @@ class ToolEnv(
     fun whenOf(args: Map<String, String>, key: String): When =
         args[key]?.let { TimeArgs.parse(it, now()) } ?: throw ToolArgsException("I couldn't read the time \"${args[key] ?: ""}\"")
     fun label(w: When) = TimeArgs.label(w, now().toLocalDate())
+    fun millis(t: LocalDateTime) = t.atZone(zone).toInstant().toEpochMilli()
+    fun nowMillis() = millis(now())
 }
 
-private fun Map<String, String>.need(key: String): String =
+internal fun Map<String, String>.need(key: String): String =
     this[key]?.trim()?.takeIf { it.isNotEmpty() } ?: throw ToolArgsException("Missing $key")
 
-private fun Map<String, String>.opt(key: String): String = this[key]?.trim().orEmpty()
+internal fun Map<String, String>.opt(key: String): String = this[key]?.trim().orEmpty()
 
-private fun firstLine(text: String, max: Int = 60): String {
+internal fun firstLine(text: String, max: Int = 60): String {
     val line = text.trim().lineSequence().first().trim()
     return if (line.length <= max) line else line.take(max).substringBeforeLast(' ') + "…"
 }
@@ -344,7 +347,7 @@ class TorchTool(private val env: ToolEnv) : Tool {
 }
 
 class SoundModeTool(private val env: ToolEnv) : Tool {
-    override val spec = ToolSpec("set_sound_mode", "Set the phone to ring, vibrate or silent.",
+    override val spec = ToolSpec("set_sound_mode", "Set the ringer to ring, vibrate or silent. Not for music: that is media_control.",
         listOf(Param("mode", "string", "The mode", enum = listOf("ring", "vibrate", "silent"))))
     override val label = "Ring, vibrate, silent"
     override val defaultPolicy = ToolPolicy.Do
@@ -464,12 +467,90 @@ class OpenPanelTool(private val env: ToolEnv) : Tool {
     }
 }
 
+class MediaTool(private val env: ToolEnv) : Tool {
+    override val spec = ToolSpec("media_control", "Pause, play or skip music, podcasts or videos playing on the phone.",
+        listOf(Param("action", "string", "What to do", enum = listOf("play", "pause", "next", "previous"))))
+    override val label = "Play and pause media"
+    override val defaultPolicy = ToolPolicy.Do
+    private fun key(args: Map<String, String>) = when (args.need("action").lowercase(Locale.ROOT)) {
+        "play", "resume", "start" -> android.view.KeyEvent.KEYCODE_MEDIA_PLAY
+        "pause", "stop" -> android.view.KeyEvent.KEYCODE_MEDIA_PAUSE
+        "next", "skip", "forward" -> android.view.KeyEvent.KEYCODE_MEDIA_NEXT
+        "previous", "back", "prev" -> android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS
+        else -> throw ToolArgsException("Action must be play, pause, next or previous")
+    }
+    private fun word(code: Int) = when (code) {
+        android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> "Play"; android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> "Pause"
+        android.view.KeyEvent.KEYCODE_MEDIA_NEXT -> "Next"; else -> "Previous"
+    }
+    override suspend fun preview(args: Map<String, String>) = Preview("${word(key(args))}?", "play", "OK", emptyList())
+    override suspend fun run(args: Map<String, String>): ToolResult {
+        val c = env.controls ?: return ToolResult.error("No media controls")
+        val k = key(args)
+        val undo = when (k) { android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> "media:play"; android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> "media:pause"; else -> "" }
+        return if (c.mediaKey(k)) ToolResult(true, "${word(k)} sent to the media app.", "Media", word(k), undo = undo)
+        else ToolResult.error("No app is playing media")
+    }
+}
+
+/** Battery, sound mode, Do Not Disturb, media volume and torch, read out. */
+class PhoneStatusTool(private val env: ToolEnv) : Tool {
+    override val spec = ToolSpec("phone_status", "Read the battery level and charging, sound mode, Do Not Disturb, volume and torch.", emptyList())
+    override val label = "Battery and phone status"
+    override val defaultPolicy = ToolPolicy.Do
+    override val readOnly = true
+    override suspend fun preview(args: Map<String, String>) = Preview("Read the phone's status?", "sliders", "Read", emptyList())
+    override suspend fun run(args: Map<String, String>): ToolResult {
+        val c = env.controls ?: return ToolResult.error("No phone controls")
+        val (battery, charging) = c.battery()
+        val ring = when (c.ringerMode) { AudioManager.RINGER_MODE_SILENT -> "silent"; AudioManager.RINGER_MODE_VIBRATE -> "vibrate"; else -> "ring" }
+        val text = listOfNotNull(
+            if (battery >= 0) "Battery $battery%" + if (charging) ", charging" else ", not charging" else null,
+            "Sound: $ring", "Do Not Disturb: ${if (c.dndOn) "on" else "off"}",
+            "Media volume ${c.volumePercent(AudioManager.STREAM_MUSIC)}%", "Torch: ${if (c.torchOn) "on" else "off"}",
+            if (c.musicActive) "Media is playing" else null,
+        ).joinToString("\n")
+        return ToolResult(true, text, "Phone status", if (battery >= 0) "Battery $battery%" else "Battery unknown",
+            listOf(if (charging) "Charging" else "", ring.replaceFirstChar { it.uppercase() }).filter { it.isNotEmpty() }.joinToString(" · "))
+    }
+}
+
+/** Opens another app on the phone by its name ("Spotify", "Maps"). Nothing is sent: the owner goes on there. */
+class OpenAppTool(private val env: ToolEnv) : Tool {
+    override val spec = ToolSpec("open_app", "Open an app on the phone by its name.", listOf(Param("app", "string", "The app's name, like Spotify or Maps")))
+    override val label = "Open apps"
+    override val defaultPolicy = ToolPolicy.Do
+    override val opensApp = true
+    private fun find(args: Map<String, String>): Pair<String, String> {
+        val name = args.need("app")
+        val apps = env.launcher?.apps().orEmpty()
+        return when (val p = ItemMatch.pick(name, apps, { it.first }, { 0L })) {
+            is ItemMatch.Pick.One -> p.item
+            is ItemMatch.Pick.Several -> p.items.firstOrNull { it.first.equals(name.trim(), ignoreCase = true) }
+                ?: throw ToolArgsException("Several apps fit \"$name\": ${p.items.joinToString(", ") { it.first }}. Ask the owner which one.")
+            ItemMatch.Pick.None -> throw ToolArgsException("No app called $name on this phone")
+        }
+    }
+    override suspend fun preview(args: Map<String, String>) = find(args).let { (label, _) -> Preview("Open $label?", "sliders", "Open", emptyList()) }
+    override suspend fun run(args: Map<String, String>): ToolResult {
+        val (label, pkg) = find(args)
+        return if (env.launcher?.launch(pkg) == true) ToolResult(true, "Opened $label.", "Opened", label, opened = true)
+        else ToolResult.error("Could not open $label")
+    }
+}
+
 fun defaultTools(env: ToolEnv): List<Tool> = listOf(
     SetReminderTool(env),
     AddEntryTool(env, EntryKind.Todo),
     AddEntryTool(env, EntryKind.Note),
     AddEntryTool(env, EntryKind.Idea),
     AddEntryTool(env, EntryKind.Journal),
+    CompleteTodoTool(env),
+    RescheduleTool(env),
+    DeleteItemTool(env),
+    DailyBriefTool(env),
+    ReadLatestTool(env),
+    FocusTimerTool(env),
     SearchLibraryTool(env),
     AddEventTool(env),
     CalendarUpcomingTool(env),
@@ -483,4 +564,8 @@ fun defaultTools(env: ToolEnv): List<Tool> = listOf(
     VolumeTool(env),
     DndTool(env),
     OpenPanelTool(env),
+    MediaTool(env),
+    PhoneStatusTool(env),
+    OpenAppTool(env),
+    CalculateTool(),
 )

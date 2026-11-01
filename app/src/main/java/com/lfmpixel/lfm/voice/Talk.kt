@@ -160,6 +160,12 @@ class Talk(
     private var job: Job? = null
     private var turnId = 0L
     /**
+     * What the answer model wrote in each server turn with tools, tool calls and their results included, by turn id.
+     * The next turn's history has them, so the model sees that earlier answers came from tools (with only the words,
+     * Qwen took "Done, ticked off" as the way to answer and stopped calling tools: it made up a battery level).
+     */
+    private val exchanges = java.util.concurrent.ConcurrentHashMap<Long, List<com.lfmpixel.lfm.llm.PromptMessage>>()
+    /**
      * Bumped by pause and close. Work still finishing after that (a mic block, a model step on another thread) sees
      * the change and leaves the state alone, so a stopped Talk never shows "Speaking" again.
      */
@@ -210,6 +216,7 @@ class Talk(
         halt(TalkPhase.Off)
         recorder.reset()
         synchronized(this) { _state.value = TalkState(spoken = _state.value.spoken) }
+        exchanges.clear()
     }
 
     private fun halt(phase: TalkPhase) {
@@ -338,7 +345,8 @@ class Talk(
         val p = settings.now()
         val edge = models.edge ?: return false
         val id = ++turnId
-        val before = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
+        val earlier = _state.value.turns.filter { it.done && it.it.isNotBlank() }
+        val before = earlier.map { it.you to it.it }
         set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds), viaServer = true) }
         val spoken = _state.value.spoken
         val prompt = SpeechFormat.talkHistory(
@@ -380,7 +388,7 @@ class Talk(
                         turns = st.turns.map { if (it.id == id) it.copy(it = direct) else it }) }
                     if (spoken) chunker.feed(direct).forEach { pieces.send(it) }
                 } else {
-                // The answer model (Qwen) with the app's tools when the server has it loaded; else LFM3-1.7B, words only.
+                // The answer model (Qwen) when the server has it loaded, else LFM3-1.7B: either one with the app's tools.
                 // No phone model behind it: if the server fails, this turn goes back to Omni on the phone, voice and all.
                 val session = talkSession ?: com.lfmpixel.lfm.edge.EdgeSession(edge, com.lfmpixel.lfm.edge.EdgeModels.TEXT, null, answers = true)
                     .also { talkSession = it }
@@ -389,16 +397,17 @@ class Talk(
                 val writer = com.lfmpixel.lfm.edge.EdgeModels.label(if (big) edge.answerId else com.lfmpixel.lfm.edge.EdgeModels.TEXT)
                 Log.i(TAG, "talk: $writer answers on your server" + if (big) "" else " (${edge.answerId} not loaded there)")
                 set(run) { it.copy(answering = "$writer on your server") }
-                val toolBox = tools?.takeIf { big }
+                val toolBox = tools
                 val history = if (toolBox == null) prompt else null
                 val msgs = mutableListOf<com.lfmpixel.lfm.llm.PromptMessage>()
                 if (toolBox != null) {
-                    before.forEach { (you, it) ->
-                        msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, you)
-                        msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, it)
+                    earlier.forEach { t ->
+                        msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, t.you)
+                        msgs += exchanges[t.id] ?: listOf(com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, t.it))
                     }
                     msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.User, SpeechFormat.talkUser(said, seeing?.invoke()))
                 }
+                val from = msgs.size
                 for (round in 0 until 3) {
                     val raw = StringBuilder()
                     var cut = false
@@ -409,7 +418,10 @@ class Talk(
                         raw.append(piece)
                         // What is said and shown: the words before any tool call (calls come whole, at the end).
                         if (cut) return@collect
-                        val words = if ("<tool_call>" in piece) { cut = true; piece.substringBefore("<tool_call>") } else piece
+                        // LFM3-1.7B, after a tool's result, sometimes closes a thought it never opened and says it all
+                        // again: what follows a stray </think> is never said.
+                        val stop = listOf("<tool_call>", "</think>").firstOrNull { it in piece }
+                        val words = if (stop != null) { cut = true; piece.substringBefore(stop) } else piece
                         if (words.isEmpty()) return@collect
                         if (firstWord == 0L) firstWord = SystemClock.elapsedRealtime()
                         text.append(words)
@@ -421,7 +433,12 @@ class Talk(
                     }
                     model = com.lfmpixel.lfm.edge.EdgeModels.label(session.answeredBy)
                     val out = com.lfmpixel.lfm.llm.ModelOutput.parse(raw.toString(), false)
-                    if (toolBox == null || out.toolCalls.isEmpty()) break
+                    if (toolBox == null || out.toolCalls.isEmpty()) {
+                        // Kept only when a tool ran: a plain answer is just its words, as before.
+                        if (toolBox != null && msgs.size > from) exchanges[id] = msgs.drop(from) +
+                            com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, "<think></think>$raw")
+                        break
+                    }
                     msgs += com.lfmpixel.lfm.llm.PromptMessage(com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant, "<think></think>$raw")
                     for (call in out.toolCalls) {
                         if (interrupted || run != epoch) throw CancellationException("Stopped")

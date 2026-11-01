@@ -55,7 +55,8 @@ interface Tool {
     suspend fun run(args: Map<String, String>): ToolResult
 }
 
-class ToolRegistry(tools: List<Tool>) {
+/** [env], when set, undoes the kinds the tools in ItemTools.kt leave ([undoItem]). */
+class ToolRegistry(tools: List<Tool>, val env: ToolEnv? = null) {
     val all: List<Tool> = tools
     private val byName = tools.associateBy { it.name }
     operator fun get(name: String): Tool? = byName[name]

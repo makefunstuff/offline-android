@@ -340,7 +340,8 @@ class Assistant(
         return "You are Inkling, a private assistant that runs entirely on the owner's phone" + (if (webOn) ". " else ", ") + net +
             "Answer briefly and plainly. When the owner asks you to remember, note, remind, add, set, text, call or change " +
             "something, call a tool. \"Remind me\" means set_reminder; use set_alarm only when they say alarm. Things to buy " +
-            "are to-dos on the Shopping list. Work out dates and times from the time given with each message and write them " +
+            "are to-dos on the Shopping list. For something already there (done, move, snooze, delete) use complete_todo, " +
+            "reschedule or delete_item; for what's on the day, daily_brief; for any sum or unit conversion, calculate. Work out dates and times from the time given with each message and write them " +
             "as local ISO time like 2026-10-30T18:00. After a tool runs, confirm in a few words. Never say something was " +
             "done unless a tool did it. If you do not know, or a question is about the owner's notes and you have not looked, " +
             "say so or search the library: do not guess. Time zone: $tz." +
@@ -652,7 +653,8 @@ class Assistant(
             "ringer" -> controls.setRingerMode(value.toInt())
             "volume" -> value.split(':').let { (stream, level) -> controls.setVolumePercent(stream.toInt(), level.toInt()) }
             "dnd" -> controls.setDnd(value.toBoolean())
-            else -> false
+            "media" -> controls.mediaKey(if (value == "play") android.view.KeyEvent.KEYCODE_MEDIA_PLAY else android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
+            else -> registry.env?.let { com.lfmpixel.lfm.tools.undoItem(it, kind, value) } ?: false
         }
         if (ok) db.actions().update(rec.copy(status = ActionStatus.Undone))
         return ok
