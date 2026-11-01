@@ -17,7 +17,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.yield
 
 /**
- * Search by meaning (notebook-spec section 11, docs/embeddings.md): every entry's vector from EmbeddingGemma 2, kept in
+ * Search by meaning (notebook-spec section 5, docs/embeddings.md): every entry's vector from EmbeddingGemma 2, kept in
  * the notes' own database ([EntryVector]) and in memory, brought up to date in the background a moment after anything
  * is written, edited or deleted. Only what changed is embedded again (by a hash of its text). Nothing leaves the
  * phone. While the phone is hot, indexing waits. Without the model, [search] is keyword search as before.
@@ -46,8 +46,8 @@ class SemanticIndex(
     private val _status = MutableStateFlow(Status())
     val status: StateFlow<Status> = _status
     private val lock = Mutex()
-    /** entryId → unit vector; loaded from the database on the first sync. */
-    private var vectors: Map<Long, FloatArray>? = null
+    /** entryId → unit vector; loaded from the database on the first sync. A finished copy: [search] reads it unlocked. */
+    @Volatile private var vectors: Map<Long, FloatArray>? = null
 
     @OptIn(FlowPreview::class)
     fun start(models: kotlinx.coroutines.flow.Flow<*>) {
@@ -67,7 +67,7 @@ class SemanticIndex(
         if (plan.delete.isNotEmpty()) db.vectors().delete(plan.delete)
         val mem = (vectors ?: db.vectors().all().filter { it.model == model }.associate { it.entryId to HybridSearch.unpack(it.vec) })
             .toMutableMap().apply { val ids = entries.mapTo(HashSet()) { it.id }; this.keys.retainAll(ids) }
-        vectors = mem
+        vectors = HashMap(mem)
         publish(entries.size, model)
         if (plan.embed.isEmpty()) return@withLock
         val e = embedder() ?: return@withLock
@@ -82,6 +82,7 @@ class SemanticIndex(
                 val ms = (SystemClock.elapsedRealtime() - t0).toDouble() / todo.size
                 db.vectors().upsert(todo.zip(out).map { (en, v) -> EntryVector(en.id, model, hashOf(model, en), HybridSearch.pack(v)) })
                 todo.zip(out).forEach { (en, v) -> mem[en.id] = v }
+                vectors = HashMap(mem)
                 _status.value = _status.value.copy(msPerEntry = ms)
                 publish(entries.size, model)
                 yield()
@@ -106,7 +107,7 @@ class SemanticIndex(
         val keyword = FtsQuery.from(query)?.let { db.entries().search(it, limit) }.orEmpty()
         val mem = vectors
         if (query.isBlank() || mem.isNullOrEmpty() || modelName() == null) return keyword
-        val e = embedder() ?: return keyword
+        val e = runCatching { embedder() }.getOrNull() ?: return keyword
         val q = runCatching { e.embed(listOf(EmbedPrompt.query(query))).first() }.getOrElse { return keyword }
         val near = HybridSearch.nearest(q, mem, limit).map { it.first }
         val ids = HybridSearch.fuse(keyword.map { it.id }, near).take(limit)
