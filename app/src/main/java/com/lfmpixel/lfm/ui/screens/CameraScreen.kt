@@ -177,9 +177,11 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
         val provider = runCatching { ProcessCameraProvider.awaitInstance(ctx) }.getOrNull()?.also { provider = it }
             ?: run { noCamera = true; return@LaunchedEffect }
         val selector = if (back) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
-        canFlip = provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) && provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)
-        if (!provider.hasCamera(selector)) {
-            if (back && provider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) back = false else noCamera = true
+        // hasCamera throws CameraInfoUnavailableException while the camera service restarts or another app holds it.
+        fun has(s: CameraSelector) = runCatching { provider.hasCamera(s) }.getOrDefault(false)
+        canFlip = has(CameraSelector.DEFAULT_BACK_CAMERA) && has(CameraSelector.DEFAULT_FRONT_CAMERA)
+        if (!has(selector)) {
+            if (back && has(CameraSelector.DEFAULT_FRONT_CAMERA)) back = false else noCamera = true
             return@LaunchedEffect
         }
         val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
@@ -246,8 +248,9 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
                         val now = System.currentTimeMillis()
                         if (now - last >= 1000L / SeeRules.VIDEO_FPS && now - start <= SeeRules.VIDEO_MAX_SECONDS * 1000L) {
                             last = now
-                            val b = upright(it)
-                            synchronized(frames) { frames.add(b) }
+                            // On the camera's own thread, which has no handler: a frame that won't turn into a
+                            // picture (out of memory) is skipped, not a crash.
+                            runCatching { upright(it) }.onSuccess { b -> synchronized(frames) { frames.add(b) } }
                         }
                     }
                 }
@@ -383,8 +386,9 @@ private suspend fun takePicture(capture: ImageCapture, executor: java.util.concu
     suspendCancellableCoroutine { cont ->
         capture.takePicture(executor, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
-                val b = image.use { upright(it) }
-                if (cont.isActive) cont.resume(b)
+                val b = runCatching { image.use { upright(it) } }
+                if (cont.isActive) b.fold({ cont.resume(it) },
+                    { cont.resumeWithException(com.lfmpixel.lfm.llm.LlmException("The camera could not take the picture")) })
             }
             override fun onError(e: ImageCaptureException) {
                 if (cont.isActive) cont.resumeWithException(com.lfmpixel.lfm.llm.LlmException("The camera could not take the picture"))

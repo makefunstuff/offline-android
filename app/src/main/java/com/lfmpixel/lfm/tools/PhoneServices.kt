@@ -153,6 +153,9 @@ class ReminderReceiver : BroadcastReceiver() {
                         .setContentIntent(open).setAutoCancel(true).setCategory(NotificationCompat.CATEGORY_REMINDER).build()
                     context.getSystemService(NotificationManager::class.java).notify(id.toInt(), n)
                 }
+            } catch (e: Exception) {
+                // Its own scope, with no handler: a database error at the alarm must not close the app in the background.
+                android.util.Log.w("lfm", "reminder $id not shown", e)
             } finally {
                 done.finish()
             }
@@ -170,6 +173,8 @@ class BootReceiver : BroadcastReceiver() {
             try {
                 graph.db.reminders().pending().forEach { graph.reminders.schedule(it) }
                 graph.focus.reschedule()
+            } catch (e: Exception) {
+                android.util.Log.w("lfm", "reminders not put back after the restart", e)
             } finally {
                 done.finish()
             }

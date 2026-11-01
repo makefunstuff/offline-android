@@ -182,10 +182,10 @@ class Assistant(
     init {
         queue.value = QueueStore.read(queueFile).also { list -> nextId = (list.maxOfOrNull { it.id } ?: 0) + 1 }
         scope.launch {
-            val last = db.messages().lastThread()
+            val last = runCatching { db.messages().lastThread() }.getOrDefault(1L)
             if (!threadSet) _thread.value = last
             shown.await()
-            while (true) {
+            while (true) try {
                 // Too hot: nothing new starts until the phone cools (the chat says so); then the queue goes on.
                 if (heat.value.holdsEverything && queue.value.isNotEmpty()) {
                     busy.value = true
@@ -205,6 +205,13 @@ class Assistant(
                 job = scope.launch { handle(next) }
                 job?.join()
                 working.value = false
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                // The worker must outlive one bad turn (the queue file or the database refused): otherwise chat and
+                // Talk never answer again and the "answering" notice stays up. It says so in the log and goes on.
+                android.util.Log.w("lfm", "queue worker", e)
+                working.value = false
+                busy.value = false
+                kotlinx.coroutines.delay(1_000)
             }
         }
     }
@@ -672,6 +679,13 @@ class Assistant(
 
     /** Undo for an action the owner did themselves in the UI (no model), e.g. a capture from the Library. */
     fun runDirect(call: ToolCall, source: String, onDone: (ToolResult) -> Unit = {}) {
-        scope.launch { onDone(execute(call, source, afterWebText = false)) }
+        scope.launch {
+            // A tool that fails in a way of its own (the calendar or alarms refused, the disk full) says so to the caller,
+            // which can put the owner's line back, instead of failing the app's scope.
+            val r = try { execute(call, source, afterWebText = false) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { android.util.Log.w("lfm", "${call.name} failed", e); ToolResult.error(e.message ?: "That didn't work") }
+            onDone(r)
+        }
     }
 }

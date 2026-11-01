@@ -46,7 +46,9 @@ class HorizonWidget : AppWidgetProvider() {
         val done = goAsync()
         val g = (context.applicationContext as LfmApp).graph
         g.scope.launch {
-            try { ids.forEach { render(context, g, manager, it) } } finally { done.finish() }
+            // Each widget on its own, as refresh() does: a failed draw (the launcher gone, the disk full) leaves the last
+            // picture up instead of failing the app's scope from the home screen.
+            try { ids.forEach { runCatching { render(context, g, manager, it) } } } finally { done.finish() }
         }
     }
 

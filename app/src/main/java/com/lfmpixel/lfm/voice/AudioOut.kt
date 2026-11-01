@@ -132,9 +132,10 @@ class AudioOut(private val rate: Int = 24_000, prior: Jitter.Prior = Jitter.prio
         if (stopping?.done?.await(ms, TimeUnit.MILLISECONDS) == false) Played() else last
     }
 
-    private fun play(r: Run, keep: FileOutputStream?) {
+    /** Makes the speaker's track; AudioFlinger may refuse one (audio server restarting, a call or route change). */
+    internal var newTrack: () -> AudioTrack = {
         val min = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)
-        val track = AudioTrack.Builder()
+        AudioTrack.Builder()
             .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             .setAudioFormat(AudioFormat.Builder().setSampleRate(rate).setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
@@ -143,6 +144,12 @@ class AudioOut(private val rate: Int = 24_000, prior: Jitter.Prior = Jitter.prio
             .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
+    }
+
+    private fun play(r: Run, keep: FileOutputStream?) {
+        // On the player thread, which has no handler of its own: a refused track is a silent stretch, not a crash, and
+        // the stretch still ends below so finish() returns.
+        val track = try { newTrack() } catch (e: Exception) { Log.w(TAG, "no speaker track", e); null }
         val slice = rate * Jitter.SLICE_MS / 1000
         var written = 0L
         var queued = 0L // samples waiting in [pending]
@@ -167,6 +174,7 @@ class AudioOut(private val rate: Int = 24_000, prior: Jitter.Prior = Jitter.prio
             return (SystemClock.elapsedRealtimeNanos() - t0) / 1e6
         }
         try {
+            if (track == null) return
             while (!r.stopped) {
                 while (take(false)) {}
                 if (!started) {
@@ -225,9 +233,9 @@ class AudioOut(private val rate: Int = 24_000, prior: Jitter.Prior = Jitter.prio
         } catch (e: Exception) {
             Log.w(TAG, "speech out failed", e)
         } finally {
-            val trackUnderruns = runCatching { track.underrunCount }.getOrDefault(0)
-            runCatching { track.stop() }
-            track.release()
+            val trackUnderruns = runCatching { track?.underrunCount ?: 0 }.getOrDefault(0)
+            runCatching { track?.stop() }
+            runCatching { track?.release() }
             runCatching { keep?.close() }
             // A stretch already replaced by a newer one keeps its numbers to itself.
             if (run === r || run == null) synchronized(jitter) {

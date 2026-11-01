@@ -151,7 +151,18 @@ class MemoryStore(
     /** A Talk turn the owner said, kept sealed until the next pass reads it. */
     suspend fun heard(text: String) {
         if (text.isBlank() || !learning()) return
-        db.learned().insert(LearnedRow(type = SAID, sealed = sealer.seal(JSONObject().put("text", text).put("at", now()).toString())))
+        bestEffort("heard") { db.learned().insert(LearnedRow(type = SAID, sealed = sealer.seal(JSONObject().put("text", text).put("at", now()).toString()))) }
+    }
+
+    /**
+     * Learning on the side of something else (a Talk turn, a note saved): the keystore can refuse now and then (busy,
+     * after an update) and the disk can be full, and that must never fail the save or close the app; the line is
+     * simply not learned.
+     */
+    private suspend fun bestEffort(what: String, block: suspend () -> Unit) {
+        try { block() }
+        catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { android.util.Log.w(TAG, "$what not kept", e) }
     }
 
     /**
@@ -276,7 +287,7 @@ class MemoryStore(
     /** The owner changed [text] from [from] to [to]: remembered, replacing an older correction of the same line. */
     suspend fun corrected(kind: CorrectionKind, text: String, from: String, to: String) {
         if (from == to || text.isBlank() || !learning()) return
-        lock.withLock {
+        bestEffort("correction") { lock.withLock {
             loadLocked()
             val same = _corrections.value.filter { it.kind == kind && Words.overlap(it.text, text) >= 0.9 }
             if (same.isNotEmpty()) db.learned().delete(same.map { it.id })
@@ -284,7 +295,7 @@ class MemoryStore(
             val id = db.learned().insert(LearnedRow(type = CORRECTION, sealed = sealer.seal(c.toJson())))
             _corrections.value = (_corrections.value - same.toSet() + c.copy(id = id)).takeLast(MAX_CORRECTIONS)
             android.util.Log.i(TAG, "correction: ${kind.name} $from → $to")
-        }
+        } }
     }
 
     suspend fun deleteCorrection(id: Long) = lock.withLock {

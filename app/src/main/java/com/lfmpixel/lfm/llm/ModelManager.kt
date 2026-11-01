@@ -291,8 +291,21 @@ class ModelManager(
     suspend fun embedder(): Embedder? = decideLock.withLock {
         val m = store.embedder() ?: return@withLock null
         touch()
-        embedder ?: GemmaEmbedder.open(m.file.path, liteRtCache.path, threads()).also { embedder = it }
+        embedder ?: run {
+            // A file that failed to load is not tried again on every index pass and search for a while: each try costs
+            // hundreds of MB for a moment.
+            // The same file, unchanged: a new download or import of it is tried at once.
+            val which = "${m.file.path}:${m.file.length()}:${m.file.lastModified()}"
+            embedFailed?.let { (file, at) ->
+                if (file == which && System.currentTimeMillis() - at < EMBED_RETRY_MS) throw LlmException("EmbeddingGemma did not load")
+            }
+            try { GemmaEmbedder.open(m.file.path, liteRtCache.path, threads()).also { embedder = it; embedFailed = null } }
+            catch (e: LlmException) { embedFailed = which to System.currentTimeMillis(); throw e }
+        }
     }
+
+    @Volatile private var embedFailed: Pair<String, Long>? = null
+    private val EMBED_RETRY_MS = 10 * 60_000L
 
     /** Long jobs (a scanned PDF read page by page) call this between steps so the idle unload waits. */
     fun keepAlive() { if (_status.value.anyLoaded) touch() }
@@ -314,14 +327,22 @@ class ModelManager(
 
     suspend fun unloadAll() = lock.withLock {
         idleJob?.cancel()
-        // Each one goes even if another's close fails.
-        runCatching { text?.close() }; text = null
-        runCatching { omni?.close() }; omni = null
-        runCatching { vision?.close() }; vision = null
-        runCatching { decide?.close() }; decide = null
-        runCatching { embedder?.close() }; embedder = null
-        _status.value = EngineStatus()
+        // All of it to the end, though the idle job (which runs this) cancelled itself just above: a wait for decideLock
+        // or a close must not stop the unload halfway (the job's CancellationException comes once it is all done).
+        withContext(kotlinx.coroutines.NonCancellable) {
+            val t = text; val o = omni; val v = vision
+            text = null; omni = null; vision = null
+            // d1 and the embedder are loaded under decideLock: taken here too, so one loading now is not left behind.
+            val (d, e) = decideLock.withLock { (decide to embedder).also { decide = null; embedder = null } }
+            _status.value = EngineStatus()
+            // The closes wait for a call under way and free native memory: off the main thread (the idle unload runs
+            // there). Each one goes even if another's close fails.
+            withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { t?.close() }; runCatching { o?.close() }; runCatching { v?.close() }; runCatching { d?.close() }; runCatching { e?.close() }
+            }
+        }
     }
+
 
     /** Loads one model by hand, so the next question doesn't wait for it. */
     suspend fun load(slot: Slot) {

@@ -65,7 +65,12 @@ class GemmaEmbedder private constructor(private val engine: EmbeddingEngine) : E
             val cpu = com.google.ai.edge.litertlm.Backend.CPU(threads.takeIf { it > 0 })
             val e = EmbeddingEngine(EmbeddingEngineConfig(modelPath = path, backend = cpu, cacheDir = cacheDir,
                 maxInputLength = EmbedPrompt.MAX_TOKENS))
-            e.initialize()
+            // A file that won't load (cut short, or too little memory) must not leave a half-made native engine behind:
+            // the index asks again on its next pass.
+            try { e.initialize() } catch (t: Throwable) {
+                runCatching { e.close() }
+                throw LlmException("EmbeddingGemma did not load: ${t.message ?: t.javaClass.simpleName}")
+            }
             android.util.Log.i("lfm-embed", "EmbeddingGemma 2 loaded in ${SystemClock.elapsedRealtime() - t0} ms")
             GemmaEmbedder(e)
         }

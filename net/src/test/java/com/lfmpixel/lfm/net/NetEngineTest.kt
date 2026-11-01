@@ -157,6 +157,11 @@ class NetEngineTest {
         assertEquals(java.net.Proxy.Type.SOCKS, p.type())
         assertNull(NetEngine.proxyOf(""))
         assertNull(NetEngine.proxyOf("nonsense"))
+        // A port out of range, typed in Settings, is no proxy (it used to throw while Settings drew, every time).
+        assertNull(NetEngine.proxyOf("127.0.0.1:90500"))
+        assertNull(NetEngine.proxyOf("host:-1"))
+        assertNull(NetEngine.proxyOf("host:0"))
+        assertNull(NetEngine.proxyOf(":9050"))
         assertEquals("https://x.example/", "https://x.example/".toHttpUrl().toString())
     }
 

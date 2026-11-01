@@ -30,7 +30,8 @@ import kotlinx.coroutines.launch
 
 /** Everything the app is made of, wired by hand. */
 class AppGraph(context: Context) {
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    // A job that fails here is written to the crash log instead of closing the app (Crashes.keepRunning).
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + com.lfmpixel.lfm.crash.Crashes.keepRunning)
     val heat = com.lfmpixel.lfm.device.HeatWatch(context)
     val db = LfmDatabase.open(context)
     val settings = Settings(context)
@@ -132,6 +133,8 @@ suspend fun AppGraph.wipe(context: Context, models: Boolean) {
         memory.forget()
         prep.deleteAll()
         java.io.File(context.filesDir, "queue.json").delete()
+        com.lfmpixel.lfm.crash.Crashes.log?.clear()
+        com.lfmpixel.lfm.crash.Crashes.unseen.value = null
         context.cacheDir.listFiles().orEmpty().forEach { it.deleteRecursively() }
     }
     if (models) {
@@ -157,6 +160,7 @@ class LfmApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.lfmpixel.lfm.crash.Crashes.install(this)
         graph = AppGraph(this)
         instance = this
         Reminders.createChannel(this)

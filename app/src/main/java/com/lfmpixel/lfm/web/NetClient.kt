@@ -2,6 +2,7 @@ package com.lfmpixel.lfm.web
 
 import android.content.Context
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import com.lfmpixel.lfm.data.LfmDatabase
 import com.lfmpixel.lfm.data.NetLogEntry
 import com.lfmpixel.lfm.net.NetConfig
@@ -144,15 +145,23 @@ class NetClient(context: Context, private val settings: Settings, private val db
     private suspend fun <T> exchange(pending: NetLogEntry, sent: String, call: suspend () -> Pair<T, List<NetRequest>>): T {
         if (state() == State.Offline) throw NetException("Inkling is offline. Turn Offline off in Settings → Privacy.")
         return withContext(Dispatchers.IO + NonCancellable) {
-            val id = db.netLog().insert(pending)
+            // Nothing goes out that the network log can't show: a placeholder that can't be written (the disk is full)
+            // stops the request, as a NetException the callers expect. The reply's own entries, once it went out, are
+            // kept if they can be; their failure is only logged.
+            val id = try { db.netLog().insert(pending) } catch (e: Exception) {
+                Log.w("lfm-net", "network log", e)
+                throw NetException("Nothing was sent: the network log could not be written (is the phone full?)")
+            }
             // A call that threw may still have gone out: its placeholder stays in the log.
             val (reply, log) = try { call() } catch (e: NetException) { throw e } catch (e: Exception) {
                 throw NetException(e.message ?: "The request failed")
             }
-            db.netLog().insertAll(log.map { r ->
-                NetLogEntry(at = r.at, host = r.host, url = r.url, label = pending.label.removeSuffix(NO_REPLY), sent = r.sent.ifEmpty { sent }, bytes = r.bytes, ok = r.ok)
-            })
-            db.netLog().delete(id)
+            runCatching {
+                db.netLog().insertAll(log.map { r ->
+                    NetLogEntry(at = r.at, host = r.host, url = r.url, label = pending.label.removeSuffix(NO_REPLY), sent = r.sent.ifEmpty { sent }, bytes = r.bytes, ok = r.ok)
+                })
+                db.netLog().delete(id)
+            }.onFailure { Log.w("lfm-net", "network log", it) }
             reply
         }
     }

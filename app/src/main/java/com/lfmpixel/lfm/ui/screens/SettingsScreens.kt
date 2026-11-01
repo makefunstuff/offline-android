@@ -128,6 +128,10 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                     else "${facts.size} things learned · see, edit, forget", "sparkle", { nav.go(Route.Knows) }) { Chevron() }
                 GroupDivider()
                 ListRow("Privacy", (if (p.netEnabled) "" else "Offline · ") + "Network log, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
+                GroupDivider()
+                val crashes by produceState("") { value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    crashesLabel(com.lfmpixel.lfm.crash.Crashes.log?.reports().orEmpty()) } }
+                ListRow("Crash reports", crashes, "warn", { nav.go(Route.Crashes) }) { Chevron() }
             }
             Group {
                 ListRow("Voice and Talk", if (g.engine.hasVoice()) "${p.speechVoice.label} · ${p.speechLanguage.label} · assistant opens ${p.assistOpens.label.lowercase()}"
@@ -280,7 +284,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
             }
             Guarantee("check", "Network code kept in one place", "Only search, opening result pages, pinned model downloads and your own server. The build fails if anything else could open a connection",
                 markedTitle = "Network code kept in one place")
-            Guarantee("check", "No account, no telemetry", "No analytics, crash reports or Play Services in the app")
+            Guarantee("check", "No account, no telemetry", "No analytics or Play Services. Crash reports stay on this phone unless you share one")
             Guarantee("check", "Not backed up", "Excluded from cloud backup and phone-to-phone transfer")
             Guarantee("cal", "Events go to “On this phone”", "A local calendar that never syncs to any account")
             SectionLabel("Each kind on its own")

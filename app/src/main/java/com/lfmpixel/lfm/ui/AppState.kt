@@ -19,6 +19,8 @@ sealed interface Route {
     data object History : Route
     data object Privacy : Route
     data object Knows : Route
+    /** Settings → Crash reports: the local crash log. */
+    data object Crashes : Route
     data object FirstRun : Route
     data class Search(val id: Long) : Route
     data object WebSearch : Route

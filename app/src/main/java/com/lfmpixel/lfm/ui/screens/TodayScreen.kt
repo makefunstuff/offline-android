@@ -158,7 +158,9 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
     val linesRead by remember(start) { g.db.entries().day(start, end) }.collectAsState(null)
     val remindersRead by remember(start) { g.db.reminders().between(start, end) }.collectAsState(null)
     val carried by remember(start, isToday) { if (isToday) g.db.entries().carried(start) else flowOf(emptyList()) }.collectAsState(emptyList())
-    val eventsRead by produceState<List<com.lfmpixel.lfm.tools.CalendarEvent>?>(null, start, remindersRead) { value = g.calendar.between(start, end) }
+    val eventsRead by produceState<List<com.lfmpixel.lfm.tools.CalendarEvent>?>(null, start, remindersRead) {
+        // The calendar provider can be busy or updating; Today is the screen Inkling opens on, so a failed read is no events.
+        value = runCatching { g.calendar.between(start, end) }.getOrDefault(emptyList()) }
     val sent by remember(start) { g.db.netLog().since(start) }.collectAsState(emptyList())
     val prefs by g.settings.prefs.collectAsState(null)
     val hideJournal = journalLocked(g)
