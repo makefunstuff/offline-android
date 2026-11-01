@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.map
 import com.lfmpixel.lfm.voice.SpeechLanguage
@@ -134,9 +135,10 @@ class Settings(private val context: Context) {
     internal fun prefsOf(p: Preferences): Prefs = p.toPrefs()
 
     val prefs: Flow<Prefs> = context.store.data
-        // A read that fails for a moment is read again, a little later each time: never answered with the defaults
-        // (that would read as "online" while Offline), and the flow keeps going for those who collect it.
-        .retryWhen { e, attempt -> (e is java.io.IOException).also { if (it) kotlinx.coroutines.delay(minOf(30_000L, 500L shl attempt.toInt().coerceAtMost(6))) } }
+        // A read that fails for a moment is read again, a little later each time (half a minute in all); one that keeps
+        // failing reads as the damaged-file settings, Offline, never as the defaults (that would read as "online").
+        .retryWhen { e, attempt -> (e is java.io.IOException && attempt < 6).also { if (it) kotlinx.coroutines.delay(500L shl attempt.toInt()) } }
+        .catch { e -> if (e is java.io.IOException) emit(afterDamage()) else throw e }
         .map { it.toPrefs() }
 
     suspend fun now(): Prefs = prefs.first()

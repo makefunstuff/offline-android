@@ -29,16 +29,16 @@ class CrashLog(val dir: File, private val keep: Int = 10) {
         try { write(format(t, thread, fatal, build, now), fatal, now) } catch (_: Throwable) { null }
 
     /** A report already written out: a closing Android saw but no Java handler did (native crash, ANR, low memory). */
-    fun recordText(text: String, fatal: Boolean, at: Long): File? = try { write(text, fatal, at) } catch (_: Throwable) { null }
+    fun recordText(text: String, fatal: Boolean, at: Long, point: Boolean = fatal): File? = try { write(text, fatal, at, point) } catch (_: Throwable) { null }
 
     @Synchronized
-    private fun write(text: String, fatal: Boolean, now: Long): File {
+    private fun write(text: String, fatal: Boolean, now: Long, point: Boolean = fatal): File {
         dir.mkdirs()
         var f = File(dir, "${if (fatal) FATAL else CAUGHT}-$now.txt")
         var n = 1
         while (f.exists()) f = File(dir, "${if (fatal) FATAL else CAUGHT}-$now-${n++}.txt")
         f.writeText(text)
-        if (fatal) marker.writeText(f.name)
+        if (point) marker.writeText(f.name)
         // Over [keep]: the oldest caught ones go first, so a job failing over and over never pushes out a closed app.
         val all = files()
         if (all.size > keep) {
@@ -54,7 +54,7 @@ class CrashLog(val dir: File, private val keep: Int = 10) {
     /** The last fatal report not yet pointed out, if it is still kept. */
     fun unseen(): Report? = runCatching { marker.takeIf { it.exists() }?.readText()?.trim()?.let { read(File(dir, it)) } }.getOrNull()
 
-    fun markSeen() { marker.delete() }
+    @Synchronized fun markSeen() { marker.delete() }
 
     fun delete(r: Report) { r.file.delete(); if (unseen() == null) markSeen() }
 

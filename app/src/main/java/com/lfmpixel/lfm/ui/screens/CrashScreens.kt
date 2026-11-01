@@ -43,6 +43,7 @@ import com.lfmpixel.lfm.ui.theme.LfmShape
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
@@ -67,6 +68,7 @@ fun CrashesScreen(g: AppGraph, nav: Nav) {
         value = withContext(Dispatchers.IO) { Crashes.log?.reports().orEmpty() }
     }
     var open by remember { mutableStateOf<String?>(null) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     // Seen here: the note on the next launch is not needed any more.
     androidx.compose.runtime.LaunchedEffect(Unit) { withContext(Dispatchers.IO) { Crashes.markSeen() } }
     Column(Modifier.fillMaxSize()) {
@@ -93,14 +95,14 @@ fun CrashesScreen(g: AppGraph, nav: Nav) {
                                 nav.show("Copied")
                             }, Modifier.weight(1f), icon = "copy", small = true)
                             Btn("Share…", { g.launcher.share("Inkling crash report", r.text) }, Modifier.weight(1f), small = true)
-                            Btn("Delete", { Crashes.log?.delete(r); open = null; changed++ }, Modifier.weight(1f), icon = "trash", small = true)
+                            Btn("Delete", { scope.launch { withContext(Dispatchers.IO) { Crashes.log?.delete(r) }; open = null; changed++ } }, Modifier.weight(1f), icon = "trash", small = true)
                         }
                     }
                 }
                 Divider()
             }
             if (reports.isNotEmpty()) item {
-                Btn("Delete all", { Crashes.log?.clear(); changed++ }, Modifier.padding(vertical = 16.dp), icon = "trash")
+                Btn("Delete all", { scope.launch { withContext(Dispatchers.IO) { Crashes.log?.clear() }; changed++ } }, Modifier.padding(vertical = 16.dp), icon = "trash")
             }
         }
     }

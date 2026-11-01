@@ -198,7 +198,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Back on screen (also after a permission dialog): the "keeps going" notice is not needed; it starts again
         // if Inkling is left while busy.
-        stopService(android.content.Intent(this, com.lfmpixel.lfm.assistant.WorkService::class.java))
+        com.lfmpixel.lfm.assistant.WorkService.back(this)
         // Downloads cut off by a restart carry on.
         graph.net.refresh()
         graph.downloads.resumeInterrupted()

@@ -80,23 +80,40 @@ class WorkService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         lastStart = startId
         val g = (application as LfmApp).graph
-        if (intent?.action == ACTION_STOP) g.assistant.stopAll() else foreground()
+        when (intent?.action) {
+            ACTION_STOP -> g.assistant.stopAll()
+            // Inkling is on screen again: the notice is not needed (onCreate already answered the start it came after).
+            ACTION_BACK -> { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId); return START_NOT_STICKY }
+            else -> foreground()
+        }
         // Nothing left to do by the time this start came: stop, now with the latest start.
         if (!g.assistant.busy.value) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId) }
         return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
-    override fun onDestroy() { scope.cancel(); super.onDestroy() }
+    override fun onDestroy() { started = false; scope.cancel(); super.onDestroy() }
 
     companion object {
         private const val CHANNEL = "work"
         private const val ID = 4402
         private const val ACTION_STOP = "com.lfmpixel.lfm.STOP_WORK"
+        private const val ACTION_BACK = "com.lfmpixel.lfm.WORK_BACK"
+        /** Started and not yet destroyed: [back] has something to end. */
+        @Volatile private var started = false
 
         /** Only while Inkling is on screen: Android refuses a foreground service started from the background. */
         fun start(context: Context) {
-            runCatching { context.startForegroundService(Intent(context, WorkService::class.java)) }
+            runCatching { context.startForegroundService(Intent(context, WorkService::class.java)); started = true }
+        }
+
+        /**
+         * Inkling is back on screen. Not stopService: back within moments (a permission dialog, the share sheet, the
+         * shade), it could land before onCreate's startForeground, and Android closes an app whose foreground service
+         * stops before that. A start of its own goes after the first, so the service ends itself once it is foreground.
+         */
+        fun back(context: Context) {
+            if (started) runCatching { context.startService(Intent(context, WorkService::class.java).setAction(ACTION_BACK)) }
         }
     }
 }

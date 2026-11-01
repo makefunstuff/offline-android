@@ -30,7 +30,8 @@ object Crashes {
         // What Android saw end the last run (native crash, ANR, low memory) is read off the main thread.
         kotlin.concurrent.thread(name = "crash-exits", isDaemon = true) {
             runCatching { Exits.collect(context, l, build) }
-            l.unseen()?.let { unseen.value = it }
+            // Read and shown together with markSeen, so a note closed meanwhile does not come back.
+            synchronized(this) { l.unseen()?.let { unseen.value = it } }
         }
     }
 
@@ -52,7 +53,7 @@ object Crashes {
         log?.record(e, Thread.currentThread().name, fatal = false, build = runCatching { build }.getOrElse { UNKNOWN })
     }
 
-    fun markSeen() {
+    fun markSeen() = synchronized(this) {
         log?.markSeen()
         unseen.value = null
     }

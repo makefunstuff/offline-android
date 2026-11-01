@@ -327,18 +327,15 @@ class ModelManager(
 
     suspend fun unloadAll() = lock.withLock {
         idleJob?.cancel()
-        // Each one goes even if another's close fails.
-        runCatching { text?.close() }; text = null
-        runCatching { omni?.close() }; omni = null
-        runCatching { vision?.close() }; vision = null
-        runCatching { decide?.close() }; decide = null
-        val e = embedder
-        embedder = null
+        val t = text; val o = omni; val v = vision; val d = decide; val e = embedder
+        text = null; omni = null; vision = null; decide = null; embedder = null
         _status.value = EngineStatus()
-        // Last, after everything above is let go: its close waits for a batch under way, so it runs off the main thread
-        // (the idle unload runs there) and to the end, though the idle job cancelled itself above (and so this throws
-        // CancellationException on the way back, with nothing left to do).
-        if (e != null) withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) { runCatching { e.close() } }
+        // The closes wait for a call under way and free native memory: off the main thread (the idle unload runs there),
+        // and to the end, though the idle job cancelled itself above (so this throws CancellationException on the way
+        // back, with nothing left to do). Each one goes even if another's close fails.
+        withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { t?.close() }; runCatching { o?.close() }; runCatching { v?.close() }; runCatching { d?.close() }; runCatching { e?.close() }
+        }
     }
 
     /** Loads one model by hand, so the next question doesn't wait for it. */

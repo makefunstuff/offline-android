@@ -77,6 +77,15 @@ class CrashLogTest {
         assertTrue(Exits.reports(emptyList(), 7_000, build).first.isEmpty())
     }
 
+    @Test fun anOldClosingIsListedButNotPointedOut() {
+        val l = log()
+        l.recordText("Inkling crash report\n\nlast week's ANR", fatal = true, at = 1, point = false)
+        assertNull(l.unseen())
+        assertEquals(1, l.reports().size)
+        l.recordText("Inkling crash report\n\nlast night's", fatal = true, at = 2)
+        assertNotNull(l.unseen())
+    }
+
     @Test fun twoInTheSameMillisecondBothKept() {
         val l = log()
         l.record(RuntimeException("a"), "main", true, build, 5)

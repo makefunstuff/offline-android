@@ -57,8 +57,13 @@ object Exits {
             Exit(i.reason, i.timestamp, i.description, i.importance, i.pss, i.rss, trace)
         }
         val (reports, read) = reports(exits, seen, build)
-        reports.reversed().forEach { (at, text) -> log.recordText(text, fatal = true, at = at) }
-        if (read != null) runCatching { log.dir.mkdirs(); seenFile.writeText(read.toString()) }
-        else if (seen == null) runCatching { log.dir.mkdirs(); seenFile.writeText("0") }
+        // Read first: a crash while writing them, or one at the very start of this launch (which the Java handler
+        // writes with its trace), must not bring the same exits back next time.
+        runCatching { log.dir.mkdirs(); seenFile.writeText((read ?: 0L).toString()) }
+        // Only a closing of the last two days is "last time" for the note on launch; older ones are listed quietly.
+        val recent = System.currentTimeMillis() - RECENT_MS
+        reports.reversed().forEach { (at, text) -> log.recordText(text, fatal = true, at = at, point = at >= recent) }
     }
+
+    private const val RECENT_MS = 48 * 3_600_000L
 }
