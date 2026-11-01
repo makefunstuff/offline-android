@@ -49,6 +49,11 @@ object Crashes {
             Thread.getDefaultUncaughtExceptionHandler()?.uncaughtException(Thread.currentThread(), e) ?: throw e
             return@CoroutineExceptionHandler
         }
+        caught(e)
+    }
+
+    /** A failure that was handled (the screen showed its fallback) but should not have happened: written down as caught. */
+    fun caught(e: Throwable) {
         android.util.Log.e("lfm", "background job failed", e)
         log?.record(e, Thread.currentThread().name, fatal = false, build = runCatching { build }.getOrElse { UNKNOWN })
     }

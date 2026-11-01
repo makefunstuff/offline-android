@@ -39,15 +39,24 @@ object Organizer {
     /** One line of a list answer: its words with the size taken off, and the size (0 when none was given). */
     fun sized(text: String): Sized {
         val t = text.trim().removeSuffix(".").trim()
-        mins.find(t)?.let { m -> return Sized(t.substring(0, m.range.first).trim().removeSuffix(":").trim(), m.groupValues[1].toInt().coerceIn(1, 240)) }
-        hours.find(t)?.let { m -> return Sized(t.substring(0, m.range.first).trim().removeSuffix(":").trim(), (m.groupValues[1].toDouble() * 60).toInt().coerceIn(1, 240)) }
+        // The size is at the end; only the end is searched. Over a whole line, a small model running on (thousands of
+        // spaces or " - " in one line) makes these patterns backtrack for minutes, on the main thread as it streams.
+        val from = (t.length - SIZE_TAIL).coerceAtLeast(0)
+        val tail = t.substring(from)
+        mins.find(tail)?.let { m -> return Sized(t.substring(0, from + m.range.first).trim().removeSuffix(":").trim(), m.groupValues[1].toInt().coerceIn(1, 240)) }
+        hours.find(tail)?.let { m -> return Sized(t.substring(0, from + m.range.first).trim().removeSuffix(":").trim(), (m.groupValues[1].toDouble() * 60).toInt().coerceIn(1, 240)) }
         return Sized(t, 0)
     }
+
+    /** "(about 120 minutes)" and the spaces and dashes before it fit with room to spare. */
+    private const val SIZE_TAIL = 40
 
     data class Sized(val text: String, val minutes: Int)
 
     /** The list lines of an answer, sized; "None" and empty lines are left out. */
     fun items(answer: String, max: Int): List<Sized> = answer.lines().map { it.trim() }
+        // A line far longer than any step is never one (they are cut at 160 below): not even looked at.
+        .filter { it.length <= 400 }
         .mapNotNull { l -> item.find(l)?.groupValues?.get(1) }
         .map { sized(it) }
         .map { it.copy(text = it.text.trim().trim('"').replace("**", "").replaceFirstChar { c -> c.uppercase() }) }

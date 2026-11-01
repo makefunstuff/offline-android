@@ -77,6 +77,17 @@ class CrashLogTest {
         assertTrue(Exits.reports(emptyList(), 7_000, build).first.isEmpty())
     }
 
+    @Test fun aKillBySignalWhileInUseIsWrittenDown() {
+        // A phone without low-memory reports shows the memory killer as a signal; before, these were dropped.
+        val front = Exits.Exit(ApplicationExitInfo.REASON_SIGNALED, 2_000, null, 100, 3_000_000, 3_500_000, status = 9)
+        val back = Exits.Exit(ApplicationExitInfo.REASON_SIGNALED, 1_000, null, 400, 0, 0, status = 9)
+        // Its answering notice up, swiped away: some phones' task killers end it so, which is no crash.
+        val service = Exits.Exit(ApplicationExitInfo.REASON_SIGNALED, 1_500, null, 125, 0, 0, status = 9)
+        val (out, _) = Exits.reports(listOf(front, service, back), 500, build)
+        assertEquals(listOf(2_000L), out.map { it.first })
+        assertTrue(out[0].second.contains("stopped by signal 9"))
+    }
+
     @Test fun anOldClosingIsListedButNotPointedOut() {
         val l = log()
         l.recordText("Wren crash report\n\nlast week's ANR", fatal = true, at = 1, point = false)

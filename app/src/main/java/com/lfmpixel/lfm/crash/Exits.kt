@@ -13,7 +13,7 @@ import java.io.File
 object Exits {
     /** What one ApplicationExitInfo says, without the Android object, so the rules can be tested. */
     data class Exit(val reason: Int, val at: Long, val description: String?, val importance: Int, val pssKb: Long, val rssKb: Long,
-                    val trace: String? = null)
+                    val trace: String? = null, val status: Int = 0)
 
     /**
      * The reports to add for [exits], newest first from Android, and the time to remember as read. [seen] is the last
@@ -32,6 +32,10 @@ object Exits {
                 // ordinary Android housekeeping, not a crash.
                 ApplicationExitInfo.REASON_LOW_MEMORY -> if (e.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE)
                     "Wren closed by Android: the phone ran out of memory" else null
+                // Killed by a signal while on screen: how a phone without low-memory reports shows the memory killer, and
+                // how a native library that kills its own process ends. Otherwise (a task killer on swipe-away) not a crash.
+                ApplicationExitInfo.REASON_SIGNALED -> if (e.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND)
+                    "Wren closed: stopped by signal ${e.status}${if (e.status == 9) " (often the phone running out of memory)" else ""}" else null
                 ApplicationExitInfo.REASON_CRASH -> if (seen == null) "Wren closed: a crash, before crash reports were kept" else null
                 else -> null
             } ?: return@mapNotNull null
@@ -54,7 +58,7 @@ object Exits {
             val trace = if (i.reason == ApplicationExitInfo.REASON_ANR) runCatching {
                 i.traceInputStream?.use { s -> String(s.readNBytes(CrashLog.MAX_TRACE + 1)) }
             }.getOrNull() else null
-            Exit(i.reason, i.timestamp, i.description, i.importance, i.pss, i.rss, trace)
+            Exit(i.reason, i.timestamp, i.description, i.importance, i.pss, i.rss, trace, i.status)
         }
         val (reports, read) = reports(exits, seen, build)
         // Read first: a crash while writing them, or one at the very start of this launch (which the Java handler
