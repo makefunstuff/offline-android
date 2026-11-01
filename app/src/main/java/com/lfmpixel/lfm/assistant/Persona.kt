@@ -52,16 +52,23 @@ object Persona {
  */
 object Offers {
     private val opt = setOf(RegexOption.IGNORE_CASE)
-    /** Wren offering to do it ("want me to", "shall I", "would you like a…"), not asking the owner ("should you…"). */
-    private val offer = Regex("""^(?:(?:so|and|also|oh|by the way),?\s+)?(?:(?:do you want|would you like|want)\s+(?:me\s+to|a|an)|(?:shall|should|can|could|may)\s+i|how about (?:a|i)|if you like,?\s+i\s+(?:can|could))\b""" +
-        """.*\b(?:remind|reminders?|notifications?|notify|nudge|alarms?|add (?:it|that|this) to|(?:a|on|to) (?:your )?to-?do|put (?:it|that|this) (?:on|in))\b.*\?$""", opt)
+    /** What an offer is of: a reminder, a notification, a to-do, a note. */
+    private const val WHAT = """(?:remind\w*|notifications?|notify|nudge|alarms?|add (?:it|that|this) to (?:your|the) (?:list|to-?dos?|calendar)|""" +
+        """(?:a|on|to) (?:your )?to-?do|put (?:it|that|this) on (?:your|the) (?:list|to-?do)|(?:note|jot) (?:it|that|this) down|make a note|save (?:it|that|this) as a note)"""
+    /**
+     * Wren offering to do it, asked ("want me to", "shall I", "would you like a…", "fancy a…") or told ("let me know if
+     * you'd like me to…", "I can set a reminder if you like"); not a question for the owner ("should you…").
+     */
+    private val offer = Regex("""^(?:(?:so|and|also|oh|by the way|if you (?:like|want|'d like)),?\s+)?""" +
+        """(?:(?:(?:do you want|would you like|want)\s+(?:me\s+to|a|an)|(?:shall|should|can|could|may)\s+i|how about (?:a|i)|fancy an?|i (?:can|could)|""" +
+        """let me know if you(?:'d| would)? (?:like|want)|happy to)\b.*\b$WHAT\b.*[.?!]$)""", opt)
     /** A time in what was said: "at six", "5pm", "tomorrow", "on Friday". */
     private val timing = Regex("""\b(?:remind|at (?:\d|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight)|\d\s*(?:am|pm|o'clock)|\d[:.]\d\d|tomorrow|tonight|on (?:mon|tue|wed|thu|fri|sat|sun)\w*|this (?:afternoon|evening|morning)|by (?:mon|tue|wed|thu|fri|sat|sun|\d))""", opt)
 
     fun isOffer(sentence: String): Boolean = offer.matches(sentence.trim())
 
-    /** Something the owner has to do, not just something happening: "I need to", "I have to", "don't forget". */
-    private val task = Regex("""\b(?:remind|need to|needs to|have to|has to|got to|gotta|must|should|don't forget|mustn't forget|supposed to)\b""", opt)
+    /** Something the owner has to do, in their own words: "I need to", "I have to", "don't let me forget"; not "should I…". */
+    private val task = Regex("""\b(?:remind me|i (?:really )?(?:need|have|got|gotta|must|should|ought)\b|i've got to|i'm supposed to|don't (?:let me )?forget)""", opt)
 
     /** Whether [said] named a time for something the owner must do: then an offer may stay. */
     fun timed(said: String): Boolean = timing.containsMatchIn(said) && task.containsMatchIn(said)
@@ -85,7 +92,7 @@ class OfferFilter(said: String) {
     /** Something was said; else the offers dropped, in case they were all there was. */
     private var passed = false
     private val dropped = mutableListOf<String>()
-    private val opener = Regex("""^(?:(?:so|and|also|oh|by the way),?\s+)?(?:do you want|would you like|want|shall|should|can|could|may|how about|if you like)\b""", RegexOption.IGNORE_CASE)
+    private val opener = Regex("""^(?:(?:so|and|also|oh|by the way),?\s+)?(?:do you want|would you like|want|shall|should|can|could|may|how about|if you|fancy|i can|i could|let me know|happy to)\b""", RegexOption.IGNORE_CASE)
 
     fun feed(piece: String): List<String> {
         if (allowed) return listOf(piece)

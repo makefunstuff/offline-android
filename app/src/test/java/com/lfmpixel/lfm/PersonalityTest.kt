@@ -118,11 +118,15 @@ class PersonalityTest {
     @Test fun offersAreDroppedButFollowUpsStay() {
         listOf("Want me to set a reminder for that?", "Would you like me to remind you later?", "Shall I add that to your to-dos?",
             "Do you want a reminder?", "Should I set a notification for it?", "Also, want me to put it on your to-do list?",
-            "If you like, I can set a reminder?").forEach { assertTrue(it, Offers.isOffer(it)) }
+            "If you like, I can set a reminder?", "Let me know if you'd like me to set a reminder.", "I can set a reminder if you like.",
+            "If you want, I can set a reminder?", "Fancy a reminder?", "Want me to note that down?", "Shall I make a note of that?")
+            .forEach { assertTrue(it, Offers.isOffer(it)) }
+        listOf("What should I cook tonight?", "Should I go to the party tomorrow?", "My mum has to be at the airport at six")
+            .forEach { assertFalse(it, Offers.timed(it)) }
         listOf("What wore you out the most?", "Do you want the short version or the long one?", "Shall I look it up?",
             "Would you like to hear a joke?", "Want to tell me about it?", "Should you notify your landlord first?",
             "Do you want to put it in the fridge overnight?", "Would you like to add that to the recipe?",
-            "Can you hear the smoke alarm?").forEach { assertFalse(it, Offers.isOffer(it)) }
+            "Can you hear the smoke alarm?", "Should I put it in the oven first?", "I can see why that's annoying.").forEach { assertFalse(it, Offers.isOffer(it)) }
         assertEquals("That sounds rough. Want to talk it through?",
             Offers.strip("That sounds rough. Want to talk it through? Would you like me to set a reminder to rest?", "work was awful"))
         // A one-sentence answer stays, whatever it is: there is nothing else to say.

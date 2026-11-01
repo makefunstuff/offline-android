@@ -140,7 +140,7 @@ One personality for Talk, the chat and Ask (`assistant/Persona.kt`: `Persona.COR
 curious, a little playful, honest and direct; opinions when asked, a natural follow-up now and then, what Wren knows
 used the way a friend remembers. No "Great question", flattery, pep talk or exclamation marks; never naggy, never
 counting what was missed; one next step only when the owner wants help getting going. Tools only when asked
-(`Persona.TOOLS`): no unasked offers of reminders, notes or to-dos (Talk drops any that slip through, `Offers`).
+(`Persona.TOOLS`): no unasked offers of reminders, notes or to-dos (on the server, Talk also drops the usual phrasings that slip through, `Offers`).
 
 The app's copy follows it: first person where Wren speaks ("I'm listening", "I'll file it"), the day in sentences
 ("Afternoon. Dentist at 15:00, in 25 minutes. Then one more."), nothing counted against the owner.

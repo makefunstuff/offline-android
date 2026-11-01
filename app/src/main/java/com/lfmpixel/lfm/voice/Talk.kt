@@ -393,7 +393,7 @@ class Talk(
         var model = ""
         var ran = 0
         val chunker = SpeechChunker()
-        // An offer of a reminder nobody asked for is not said (Persona.TOOLS asks for none; this makes sure).
+        // An offer of a reminder nobody asked for is not said (Persona.TOOLS asks for none; this catches the usual phrasings).
         val offers = com.lfmpixel.lfm.assistant.OfferFilter(said)
         // Pieces to say, in order; one with [Piece.heard] waits until everything before it has been heard (a question).
         val pieces = Channel<Piece>(Channel.UNLIMITED)
@@ -410,7 +410,7 @@ class Talk(
             text.append(words)
             set(run) { st ->
                 st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
-                    turns = st.turns.map { if (it.id == id) it.copy(it = text.toString().trim()) else it })
+                    turns = st.turns.map { if (it.id == id) it.copy(it = com.lfmpixel.lfm.assistant.Offers.strip(text.toString().trim(), said)) else it })
             }
             if (spoken) chunker.feed(words).flatMap(offers::feed).forEach { pieces.send(Piece(it)) }
         }
