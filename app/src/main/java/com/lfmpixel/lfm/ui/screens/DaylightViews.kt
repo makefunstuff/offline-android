@@ -1,6 +1,7 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.animation.AnimatedContent
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
@@ -110,7 +110,7 @@ internal fun SkyHead(
                 val pad = 20.dp
                 pairs.forEach { (plan, item) ->
                     val x = pad + (w - pad * 2) * layout.x(plan.minute)
-                    Box(Modifier.offset(x - 22.dp, hy - 22.dp).size(44.dp).clip(RoundedCornerShape(22.dp))
+                    Box(Modifier.offset(x - 22.dp, hy - 22.dp).size(44.dp).clip(LfmShape.round)
                         .clickable(role = Role.Button, onClickLabel = "Show") {
                             picked = if (picked == plan.key) null else plan.key
                             g.feel.cue(Cue.Tick, view)
@@ -164,7 +164,7 @@ private fun PlanLine(shown: Pair<Plan, AgendaItem>?, layout: HorizonLayout, isPi
                 Txt(item.title, LfmType.rowTitle, c.text, maxLines = 1)
             }
             item.onClick?.let { open ->
-                val shape = RoundedCornerShape(6.dp)
+                val shape = LfmShape.control
                 Txt("Open", LfmType.button, c.text, Modifier.clip(shape).border(1.dp, c.control, shape).clickable(role = Role.Button, onClick = open)
                     .heightIn(min = 36.dp).padding(horizontal = 14.dp, vertical = 9.dp))
             }
@@ -175,7 +175,7 @@ private fun PlanLine(shown: Pair<Plan, AgendaItem>?, layout: HorizonLayout, isPi
 @Composable
 private fun WayIn(icon: String, label: String, modifier: Modifier, onClick: () -> Unit) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     Row(modifier.clip(shape).border(1.dp, c.line, shape).clickable(role = Role.Button, onClick = onClick).heightIn(min = 48.dp)
         .padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
         LIcon(icon, size = 18.dp, tint = c.text)

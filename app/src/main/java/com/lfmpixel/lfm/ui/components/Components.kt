@@ -1,6 +1,7 @@
 package com.lfmpixel.lfm.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,7 +31,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -142,7 +142,7 @@ val LocalMicLevel = androidx.compose.runtime.compositionLocalOf<androidx.compose
 @Composable
 fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.dp, listening: Boolean = false) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(if (size >= 56.dp) 8.dp else 6.dp)
+    val shape = if (size >= 56.dp) LfmShape.card else LfmShape.control
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
     val fill by androidx.compose.animation.animateColorAsState(if (listening) c.text else c.highlight,
         motion.spec(if (listening) motion.TINY else motion.MEDIUM, if (listening) motion.standard else motion.emphasizedDecelerate), label = "mic")
@@ -188,7 +188,7 @@ fun Modifier.pressScale(src: androidx.compose.foundation.interaction.Interaction
 
 @Composable
 fun IconButtonPlain(icon: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = Lfm.c.text2, desc: String = icon) {
-    Box(modifier.size(48.dp).clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
+    Box(modifier.size(48.dp).clip(LfmShape.control).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
         contentAlignment = Alignment.Center) { LIcon(icon, tint = tint) }
 }
 
@@ -198,7 +198,7 @@ enum class BtnKind { Primary, Secondary }
 fun Btn(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: BtnKind = BtnKind.Secondary, icon: String? = null,
         small: Boolean = false, enabled: Boolean = true) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(6.dp)
+    val shape = LfmShape.control
     val bg = if (kind == BtnKind.Primary) c.text else Color.Transparent
     val fg = if (kind == BtnKind.Primary) c.bg else c.text
     val src = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
@@ -216,21 +216,25 @@ fun Btn(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: 
     ) {
         val tint = if (enabled) fg else c.text3
         icon?.let { LIcon(it, size = 16.dp, tint = tint) }
-        Txt(text, if (small) LfmType.button.copy(fontSize = LfmType.meta.fontSize) else LfmType.button, tint, maxLines = 2)
+        Txt(text, if (small) LfmType.buttonSmall else LfmType.button, tint, maxLines = 2)
     }
 }
 
+/**
+ * A screen's header on the hour's sky ([SkyBand]). [onSky] false leaves the sky out, for a screen that is all sky
+ * already (Talk); there a line divides it from what is below.
+ */
 @Composable
-fun Header(title: String, onBack: (() -> Unit)?, leftIcon: String = "back", right: @Composable RowScope.() -> Unit = {}) {
-    val c = Lfm.c
-    Column {
+fun Header(title: String, onBack: (() -> Unit)?, leftIcon: String = "back", onSky: Boolean = true, backDesc: String = "Back",
+           right: @Composable RowScope.() -> Unit = {}) {
+    val bar: @Composable () -> Unit = {
         Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) IconButtonPlain(leftIcon, onBack, desc = "Back") else Spacer(Modifier.width(10.dp))
+            if (onBack != null) IconButtonPlain(leftIcon, onBack, desc = backDesc) else Spacer(Modifier.width(10.dp))
             Txt(title, LfmType.header, modifier = Modifier.weight(1f).padding(start = 4.dp).semantics { heading() })
             right()
         }
-        Divider()
     }
+    if (onSky) SkyBand { bar() } else Column { bar(); Divider() }
 }
 
 @Composable
@@ -240,7 +244,7 @@ fun Divider(modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth().height(
 fun Pill(text: String, icon: String? = null, modifier: Modifier = Modifier) {
     val c = Lfm.c
     // The control grey, not the line grey: the edge has to show (3:1 against the page) in both themes.
-    Row(modifier.border(1.dp, c.control, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
+    Row(modifier.border(1.dp, c.control, LfmShape.control).padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         icon?.let { LIcon(it, size = 16.dp, tint = c.text2) }
         Txt(text, LfmType.meta, c.text2, maxLines = 1)
@@ -250,10 +254,10 @@ fun Pill(text: String, icon: String? = null, modifier: Modifier = Modifier) {
 @Composable
 fun Tag(text: String, icon: String? = null) {
     val c = Lfm.c
-    Row(Modifier.border(1.dp, c.line, RoundedCornerShape(4.dp)).padding(horizontal = 7.dp, vertical = 1.dp),
+    Row(Modifier.border(1.dp, c.line, LfmShape.tag).padding(horizontal = 7.dp, vertical = 1.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         icon?.let { LIcon(it, size = 14.dp, tint = c.text2) }
-        Txt(text, LfmType.meta.copy(fontSize = LfmType.meta.fontSize * 0.96f), c.text2, maxLines = 1)
+        Txt(text, LfmType.tag, c.text2, maxLines = 1)
     }
 }
 
@@ -265,13 +269,13 @@ fun Tabs(items: List<String>, selected: String, onSelect: (String) -> Unit, modi
     Row(modifier.padding(vertical = 12.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         items.forEach { t ->
             val on = t == selected
-            val shape = RoundedCornerShape(6.dp)
+            val shape = LfmShape.control
             val bg by androidx.compose.animation.animateColorAsState(if (on) c.text else Color.Transparent, motion.spec(motion.TINY), label = "tab")
             val fg by androidx.compose.animation.animateColorAsState(if (on) c.bg else c.text2, motion.spec(motion.TINY), label = "tabText")
             Box(Modifier.heightIn(min = 36.dp).clip(shape).background(bg).border(1.dp, if (on) c.text else c.control, shape)
                 .selectable(on, role = Role.Tab) { onSelect(t) }.padding(horizontal = 14.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center) {
-                Txt(t, LfmType.small.copy(fontSize = LfmType.small.fontSize * 0.965f, fontWeight = if (on) LfmType.button.fontWeight else null), fg)
+                Txt(t, LfmType.tab.copy(fontWeight = if (on) LfmType.button.fontWeight else null), fg)
             }
         }
     }
@@ -281,7 +285,7 @@ fun Tabs(items: List<String>, selected: String, onSelect: (String) -> Unit, modi
 fun Segmented(items: List<String>, selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
     val c = Lfm.c
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
-    val shape = RoundedCornerShape(6.dp)
+    val shape = LfmShape.control
     Row(modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).clip(shape).border(1.dp, c.control, shape).selectableGroup()) {
         items.forEachIndexed { i, t ->
             if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(c.control))
@@ -291,7 +295,7 @@ fun Segmented(items: List<String>, selected: String, onSelect: (String) -> Unit,
             Box(Modifier.weight(1f).heightIn(min = 36.dp).background(bg).selectable(on, role = Role.RadioButton) { onSelect(t) }
                 .padding(horizontal = 4.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center) {
-                Txt(t, LfmType.small.copy(fontSize = LfmType.meta.fontSize * 1.08f, fontWeight = if (on) LfmType.button.fontWeight else null), fg,
+                Txt(t, LfmType.segment.copy(fontWeight = if (on) LfmType.button.fontWeight else null), fg,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
@@ -303,7 +307,7 @@ fun Segmented(items: List<String>, selected: String, onSelect: (String) -> Unit,
 fun Switch(on: Boolean, label: String = "", onChange: (Boolean) -> Unit) {
     val c = Lfm.c
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
-    val shape = RoundedCornerShape(6.dp)
+    val shape = LfmShape.control
     val x by androidx.compose.animation.core.animateDpAsState(if (on) 21.dp else 3.dp, motion.spec(motion.SHORT, motion.standard), label = "thumb")
     val track by androidx.compose.animation.animateColorAsState(if (on) c.text else Color.Transparent, motion.spec(motion.TINY), label = "track")
     val thumb by androidx.compose.animation.animateColorAsState(if (on) c.bg else c.text3, motion.spec(motion.TINY), label = "thumbColor")
@@ -312,7 +316,7 @@ fun Switch(on: Boolean, label: String = "", onChange: (Boolean) -> Unit) {
     Box(Modifier.size(48.dp).toggleable(on, role = Role.Switch, onValueChange = onChange)
         .let { if (label.isNotEmpty()) it.semantics { contentDescription = label } else it }, contentAlignment = Alignment.Center) {
         Box(Modifier.width(40.dp).height(22.dp).clip(shape).background(track).border(1.dp, edge, shape)) {
-            Box(Modifier.padding(start = x, top = 3.dp).size(14.dp).clip(RoundedCornerShape(3.dp)).background(thumb))
+            Box(Modifier.padding(start = x, top = 3.dp).size(14.dp).clip(LfmShape.thumb).background(thumb))
         }
     }
 }
@@ -320,7 +324,7 @@ fun Switch(on: Boolean, label: String = "", onChange: (Boolean) -> Unit) {
 @Composable
 fun CheckBox(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(4.dp)
+    val shape = LfmShape.tag
     // With no onChange the row around it takes the tap (and says the state); the box only draws.
     Box(Modifier.size(48.dp).let { m -> onChange?.let { m.toggleable(checked, role = Role.Checkbox, onValueChange = it) } ?: m },
         contentAlignment = Alignment.Center) {
@@ -340,7 +344,7 @@ fun CheckBox(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
 @Composable
 fun Card(modifier: Modifier = Modifier, borderColor: Color = Lfm.c.line, fill: Color = Color.Transparent, padding: PaddingValues = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
          onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     Box(modifier.clip(shape).background(fill).border(BorderStroke(1.dp, borderColor), shape)
         .let { if (onClick != null) it.clickable(onClick = onClick) else it }.padding(padding)) { content() }
 }
@@ -366,7 +370,7 @@ fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onS
              modifier: Modifier = Modifier, listening: Boolean = false, enabled: Boolean = true, onCamera: (() -> Unit)? = null,
              onStop: (() -> Unit)? = null, think: Boolean? = null, onThink: (Boolean) -> Unit = {}, onThinkInfo: () -> Unit = {}) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     Row(modifier.fillMaxWidth().heightIn(min = 52.dp).clip(shape).background(c.fill).border(1.dp, c.control, shape)
         .padding(start = 14.dp, end = 5.dp, top = 5.dp, bottom = 5.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -380,7 +384,7 @@ fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onS
         if (value.isNotBlank()) IconButtonPlain("send", onSend, tint = c.text, desc = if (onStop != null) "Queue" else "Send")
         if (onStop != null) {
             // While an answer is written, Stop sits by the mic: ink, square, named; there even while you type.
-            Box(Modifier.size(42.dp).clip(RoundedCornerShape(6.dp)).background(c.text).clickable(role = Role.Button, onClick = onStop)
+            Box(Modifier.size(42.dp).clip(LfmShape.control).background(c.text).clickable(role = Role.Button, onClick = onStop)
                 .semantics { contentDescription = "Stop" }, contentAlignment = Alignment.Center) { LIcon("stop", tint = c.bg) }
         } else if (onCamera != null && value.isBlank()) {
             IconButtonPlain("camera", onCamera, desc = "Camera")
@@ -397,7 +401,7 @@ fun Composer(value: String, onChange: (String) -> Unit, placeholder: String, onS
 @Composable
 fun ThinkChip(on: Boolean, onChange: (Boolean) -> Unit, onInfo: () -> Unit) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(6.dp)
+    val shape = LfmShape.control
     // Drawn 34 dp tall; the touch target is the full 48 dp.
     Row(Modifier.minimumInteractiveComponentSize().heightIn(min = 34.dp).clip(shape).border(1.dp, if (on) c.text else c.control, shape)
         .combinedClickable(role = Role.Switch, onClickLabel = if (on) "Answer without thinking" else "Think before answering",
@@ -408,7 +412,7 @@ fun ThinkChip(on: Boolean, onChange: (Boolean) -> Unit, onInfo: () -> Unit) {
         LIcon("bulb", size = 16.dp, tint = if (on) c.text else c.text3)
         // The mic stays the only yellow control: on, only the word is marked.
         Txt("Think", LfmType.small.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), if (on) c.onHighlight else c.text2,
-            Modifier.let { if (on) it.background(c.highlight, RoundedCornerShape(2.dp)) else it }.padding(horizontal = 3.dp), maxLines = 1)
+            Modifier.let { if (on) it.background(c.highlight, LfmShape.mark) else it }.padding(horizontal = 3.dp), maxLines = 1)
     }
 }
 
@@ -416,7 +420,7 @@ fun ThinkChip(on: Boolean, onChange: (Boolean) -> Unit, onInfo: () -> Unit) {
 @Composable
 fun Fab(icon: String, onClick: () -> Unit, desc: String, modifier: Modifier = Modifier) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     Box(modifier.size(56.dp).clip(shape).background(c.text).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
         contentAlignment = Alignment.Center) { LIcon(icon, tint = c.bg) }
 }
@@ -427,7 +431,7 @@ fun InputLine(value: String, onChange: (String) -> Unit, placeholder: String, ic
               focus: androidx.compose.ui.focus.FocusRequester? = null, imeAction: ImeAction = ImeAction.Search, onDone: () -> Unit = {},
               trailing: @Composable () -> Unit = {}) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     Row(modifier.fillMaxWidth().heightIn(min = 48.dp).clip(shape).background(c.fill).border(1.dp, c.control, shape).padding(start = 12.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         LIcon(icon, size = 18.dp, tint = c.text2)
@@ -514,7 +518,7 @@ fun SnackHost(snack: com.lfmpixel.lfm.ui.Snack?, onDone: () -> Unit, modifier: M
         val last = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(snack) }
         if (snack != null) last.value = snack
         val s = last.value ?: return@AnimatedVisibility
-        val shape = RoundedCornerShape(8.dp)
+        val shape = LfmShape.card
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth().heightIn(min = 48.dp).clip(shape).background(c.text)
             .padding(start = 16.dp, end = 4.dp).semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
             verticalAlignment = Alignment.CenterVertically) {

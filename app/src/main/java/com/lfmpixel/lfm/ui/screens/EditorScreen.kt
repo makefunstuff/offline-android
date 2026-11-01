@@ -1,6 +1,10 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.animation.fadeIn
+import com.lfmpixel.lfm.ui.components.DaySheet
+import com.lfmpixel.lfm.ui.components.SkyBand
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
@@ -12,7 +16,6 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.rememberUpdatedState
@@ -35,7 +38,6 @@ import com.lfmpixel.lfm.ui.theme.LfmMotion
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
-import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -247,7 +249,6 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     var loaded by remember(route.opened) { mutableStateOf(route.id == null) }
     val focus = remember { FocusRequester() }
     val zone = ZoneId.systemDefault()
-    val ctx = LocalContext.current
     val scroll = rememberScrollState()
     val page = remember { KeyboardPage() }
     var writing by remember { mutableStateOf(false) }
@@ -260,6 +261,8 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     // Ink in the margin (notebook-spec proposal 3): one answer at a time, stopped when the editor goes.
     val margin = remember(route.opened) { MarginRun(g) }
     var inkSheet by remember { mutableStateOf(false) }
+    /** "Pick…" for the due day: the day it opens on, and what a pick does. */
+    var dayPick by remember { mutableStateOf<Pair<LocalDate, (LocalDate) -> Unit>?>(null) }
     var stepsSheet by remember { mutableStateOf(false) }
     val marginView = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
     DisposableEffect(margin) { onDispose { margin.stop() } }
@@ -307,7 +310,10 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
     // The page sits above the keyboard (edge to edge, so the window itself never resizes): the header stays put,
     // only the page's height follows the keyboard, frame by frame, and the caret stays in view.
     Column(Modifier.fillMaxSize().imePadding()) {
-        Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+        SkyBand {
+            // On the sky: its ink, not the page's.
+            @Suppress("NAME_SHADOWING") val c = Lfm.c
+        Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             IconButtonPlain("back", { nav.back() }, desc = "Back")
             Txt(if (draft.saved) (if (draft.id == null) "" else "Saved") else "Saving…", LfmType.meta, c.text2, Modifier.weight(1f).padding(start = 4.dp))
             if (draft.text.text.isNotBlank()) IconButtonPlain("ink", { keyboard?.hide(); inkSheet = true }, tint = c.text, desc = "Ink in the margin")
@@ -317,6 +323,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                 g.scope.launch { draft.discard()?.let { old -> nav.show("${old.kind.label} deleted") { g.db.entries().insert(old) } } }
                 nav.back()
             }, desc = "Delete")
+        }
         }
         Box(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Tabs(kinds.map { it.label }, e.kind.label, { l ->
@@ -376,8 +383,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                             when (o) {
                                 "Today" -> set(today); "Tomorrow" -> set(today.plusDays(1)); "Next week" -> set(today.plusWeeks(1)); "No date" -> set(null)
                                 else -> {
-                                    val d = dueDate ?: today
-                                    DatePickerDialog(ctx, { _, y, m, day -> set(LocalDate.of(y, m + 1, day)) }, d.year, d.monthValue - 1, d.dayOfMonth).show()
+                                    dayPick = (dueDate ?: today) to { d -> set(d) }
                                 }
                             }
                         })
@@ -425,7 +431,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                 Row(Modifier.fillMaxWidth().height(48.dp).padding(start = 16.dp, end = 6.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     val words by remember { derivedStateOf { wordCount(draft.text.text) } }
                     Txt(if (words == 1) "1 word" else "$words words", LfmType.meta, c.text2, Modifier.weight(1f))
-                    Box(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(6.dp))
+                    Box(Modifier.heightIn(min = 48.dp).clip(LfmShape.control)
                         .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = "Hide the keyboard") { keyboard?.hide() }
                         .padding(horizontal = 12.dp), contentAlignment = androidx.compose.ui.Alignment.Center) { Txt("Done", LfmType.button, c.text) }
                 }
@@ -433,6 +439,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
         }
     }
     if (stepsSheet) draft.id?.let { id -> StepsSheet(g, nav, draft.entry.copy(id = id, title = draft.text.text.lineSequence().firstOrNull()?.take(120) ?: draft.entry.title)) { stepsSheet = false } }
+    dayPick?.let { (initial, pick) -> DaySheet(initial, pick) { dayPick = null } }
     if (inkSheet) MarginSheet(g, nav, onPick = { what, q -> inkSheet = false; margin.start(draft.text.text, what, q) }, onClose = { inkSheet = false })
 }
 

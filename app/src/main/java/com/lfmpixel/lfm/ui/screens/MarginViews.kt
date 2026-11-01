@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.background
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -124,7 +125,7 @@ fun MarginSheet(g: AppGraph, nav: Nav, onPick: (MarginAsk, String) -> Unit, onCl
 fun MarginBlock(run: MarginRun, nav: Nav, onAddToNote: (String) -> Unit, modifier: Modifier = Modifier) {
     val c = Lfm.c
     val ask = run.ask ?: return
-    val shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
+    val shape = LfmShape.margin
     Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(shape).background(c.fill)) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(c.highlight))
         Column(Modifier.weight(1f).padding(start = 12.dp, end = 10.dp, top = 10.dp, bottom = 10.dp)) {

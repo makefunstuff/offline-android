@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm
 
 import android.Manifest
+import com.lfmpixel.lfm.ui.theme.CameraColors
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -29,7 +31,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -365,7 +366,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
 
     // Black behind the camera, fading in and out with its transition, so leaving or opening it never flashes the
     // other screen's background over the whole window at once.
-    val ground by androidx.compose.animation.animateColorAsState(if (nav.current == Route.Camera) Color.Black else c.bg,
+    val ground by androidx.compose.animation.animateColorAsState(if (nav.current == Route.Camera) CameraColors.ground else c.bg,
         LfmMotion.spec(LfmMotion.LONG), label = "ground")
     Box(Modifier.fillMaxSize().background(c.bg)) {
         // Behind the lock nothing is composed at all: no screen, sheet or menu can show or take a tap. The screens'
@@ -384,7 +385,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     val s = 1f - 0.1f * p
                     scaleX = s; scaleY = s
                     translationX = (if (backEdge == androidx.activity.BackEventCompat.EDGE_LEFT) 1f else -1f) * 8.dp.toPx() * p
-                    shape = RoundedCornerShape(24.dp * p)
+                    shape = LfmShape.backPreview(p)
                     clip = true
                 }
             }, contentKey = { when { it.isTab() -> "places"; it is Route.Editor -> "editor" + it.opened; it is Route.Dump -> "dump" + it.opened; else -> it } }, transitionSpec = {
@@ -435,8 +436,8 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             val now by com.lfmpixel.lfm.daylight.rememberNow()
             val sky = com.lfmpixel.lfm.daylight.skyAt(now)
             Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Color(sky.top)))
-            // Talk is all sky: its horizon colour runs under the navigation bar too.
-            if (nav.current == Route.Talk && !appLocked) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            // Talk and the app lock are all sky: the horizon colour runs under the navigation bar too.
+            if (nav.current == Route.Talk || appLocked) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .windowInsetsBottomHeight(WindowInsets.navigationBars).background(Color(sky.horizon)))
             val view = androidx.compose.ui.platform.LocalView.current
             LaunchedEffect(sky.lightInk) {
@@ -455,7 +456,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
 }
 
 @Composable
-private fun BottomBar(nav: Nav) {
+internal fun BottomBar(nav: Nav) {
     val c = Lfm.c
     Column {
         Divider()
@@ -468,7 +469,7 @@ private fun BottomBar(nav: Nav) {
                     if (route is Route.Library && nav.current is Route.Library) return@clickable
                     nav.go(route)
                 }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    val shape = RoundedCornerShape(6.dp)
+                    val shape = LfmShape.control
                     Box(Modifier.size(56.dp, 30.dp).background(if (on) c.fill else Color.Transparent, shape)
                         .border(1.dp, if (on) c.line else Color.Transparent, shape), contentAlignment = Alignment.Center) {
                         LIcon(icon, tint = if (on) c.text else c.text2)

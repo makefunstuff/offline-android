@@ -1,6 +1,7 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.background
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -77,7 +77,7 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
                 "long chats kept whole. Notes, chats and tools stay on the phone; each request goes " +
                 "only to this address, and is listed in Privacy → Network log. If the server can't be reached, the phone's " +
                 "own models answer until it is back.", LfmType.small, c.text2, Modifier.padding(top = 12.dp))
-            Row(Modifier.padding(top = 14.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.padding(top = 14.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Use my server", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -135,7 +135,7 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
 @Composable
 internal fun ServerField(label: String, value: String, onChange: (String) -> Unit, placeholder: String, type: KeyboardType, secret: Boolean = false) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(6.dp)
+    val shape = LfmShape.control
     Column(Modifier.padding(top = 10.dp)) {
         Label(label)
         Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 44.dp).background(c.fill, shape).border(1.dp, c.control, shape)

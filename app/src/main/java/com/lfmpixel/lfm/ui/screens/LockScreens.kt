@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import com.lfmpixel.lfm.ui.components.SkyPage
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,7 +50,7 @@ fun Locked(g: AppGraph, title: String, body: String, prompt: String, modifier: M
     if (ask) LaunchedEffect(Unit) { g.lock.unlock(prompt) }
     Box(modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(56.dp).border(1.dp, c.control, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(56.dp).border(1.dp, c.control, LfmShape.card), contentAlignment = Alignment.Center) {
                 LIcon("lock", size = 26.dp, tint = c.text)
             }
             Txt(title, LfmType.header, modifier = Modifier.padding(top = 6.dp).semantics { heading() }, textAlign = TextAlign.Center)
@@ -65,7 +66,7 @@ fun Locked(g: AppGraph, title: String, body: String, prompt: String, modifier: M
 /** The whole-app lock: covers everything until the owner unlocks. */
 @Composable
 fun LockScreen(g: AppGraph) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    SkyPage(Modifier.fillMaxSize()) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Locked(g, "Inkling is locked", "Unlock with your fingerprint, face or screen lock.", "Unlock Inkling", ask = true)
-    }
+    } }
 }

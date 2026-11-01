@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.background
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,12 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,30 +58,10 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 
-/** A flat bottom sheet: 12 px top corners, a grab bar, a scrim, no shadow. */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FlatSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    val c = Lfm.c
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-        containerColor = c.bg,
-        contentColor = c.text,
-        tonalElevation = 0.dp,
-        scrimColor = c.scrim.copy(alpha = 0.45f),
-        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 14.dp).width(36.dp).height(4.dp).background(c.text3, RoundedCornerShape(2.dp))) },
-    ) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 18.dp).navigationBarsPadding(),
-            content = content)
-    }
-}
-
 @Composable
 private fun Field(label: String, value: String, onChange: (String) -> Unit, placeholder: String = "", minLines: Int = 1) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(6.dp)
+    val shape = LfmShape.control
     Column(Modifier.padding(top = 10.dp)) {
         Label(label)
         Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 44.dp).background(c.fill, shape).border(1.dp, c.control, shape)
@@ -107,7 +85,7 @@ fun ConfirmSheet(req: ConfirmRequest) {
             Txt(req.preview.title, LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
         }
         if (req.afterWebText) {
-            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).border(1.dp, c.control, RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
+            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).border(1.dp, c.control, LfmShape.control).padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LIcon("warn", size = 16.dp)
                 Column { Marked("Suggested after reading web pages.", LfmType.small); Txt("Check it before you confirm.", LfmType.small) }
@@ -154,14 +132,14 @@ fun VoicePanel(g: AppGraph, onStop: () -> Unit) {
                 val base = listOf(0.4f, 0.8f, 1f, 0.6f, 0.9f, 0.5f, 0.3f)
                 base.forEach { b ->
                     val h = if (state == VoiceState.Listening) (6f + 34f * b * (0.25f + (level * 4f).coerceAtMost(0.75f))) else 6f
-                    Box(Modifier.width(6.dp).height(h.dp).background(c.text, RoundedCornerShape(2.dp)))
+                    Box(Modifier.width(6.dp).height(h.dp).background(c.text, LfmShape.mark))
                 }
             }
             Column(Modifier.weight(1f)) {
                 Marked(if (state == VoiceState.Listening) "Listening" else "Writing it down", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
                 Txt(if (state == VoiceState.Listening) "Tap stop when you're done" else "Omni, on this phone", LfmType.meta, c.text2)
             }
-            if (state == VoiceState.Listening) Box(Modifier.size(52.dp).background(c.text, RoundedCornerShape(8.dp)).clickable(onClick = onStop)
+            if (state == VoiceState.Listening) Box(Modifier.size(52.dp).background(c.text, LfmShape.card).clickable(onClick = onStop)
                 .semantics { contentDescription = "Stop" }, contentAlignment = Alignment.Center) {
                 LIcon("stop", tint = c.bg)
             }

@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import android.net.Uri
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -145,7 +146,7 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
         com.lfmpixel.lfm.ui.components.Switch(prefs?.downloadWifiOnly != false, "Download on Wi-Fi only") { scope.launch { g.settings.setDownloadWifiOnly(it) } }
     }
     ModelCatalog.groups.forEach { grp ->
-        Column(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp)) {
+        Column(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 12.dp)) {
             Txt(grp.family, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             Txt(grp.purpose, LfmType.label.copy(fontWeight = null), c.text2)
             grp.variants.forEach { m ->
@@ -196,7 +197,7 @@ private fun LeftoverFiles(g: AppGraph) {
     val installed by g.models.installed.collectAsState()
     var bytes by remember(installed) { mutableStateOf(g.models.leftovers().sumOf { it.length() }) }
     if (bytes <= 0) return
-    Column(Modifier.padding(top = 14.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(12.dp)) {
+    Column(Modifier.padding(top = 14.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(12.dp)) {
         Txt("Old model files: ${formatBytes(bytes)}", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
         Txt("GGUF files for llama.cpp, which Inkling no longer runs: every model now runs on LiteRT.", LfmType.label.copy(fontWeight = null), c.text2)
         Btn("Free ${formatBytes(bytes)}", { g.models.deleteLeftovers(); bytes = 0 }, Modifier.padding(top = 8.dp), small = true, icon = "trash")
@@ -208,7 +209,7 @@ private fun LeftoverFiles(g: AppGraph) {
 private fun NetMissingCard(g: AppGraph, @Suppress("UNUSED_PARAMETER") st: NetClient.State) {
     val c = Lfm.c
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    Column(Modifier.padding(bottom = 10.dp).fillMaxWidth().border(1.dp, c.text, RoundedCornerShape(8.dp)).padding(12.dp)) {
+    Column(Modifier.padding(bottom = 10.dp).fillMaxWidth().border(1.dp, c.text, LfmShape.card).padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("download", size = 18.dp)
             Txt("Inkling is offline", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -265,9 +266,9 @@ private fun Bar(fraction: Float) {
     // Progress arrives in steps (every chunk read); the bar glides between them instead of jumping.
     val shown by androidx.compose.animation.core.animateFloatAsState(fraction.coerceIn(0f, 1f),
         com.lfmpixel.lfm.ui.theme.LfmMotion.spec(com.lfmpixel.lfm.ui.theme.LfmMotion.MEDIUM), label = "bar")
-    Box(Modifier.padding(vertical = 6.dp).fillMaxWidth().height(4.dp).background(c.line, RoundedCornerShape(2.dp))
+    Box(Modifier.padding(vertical = 6.dp).fillMaxWidth().height(4.dp).background(c.line, LfmShape.mark)
         .semantics { progressBarRangeInfo = androidx.compose.ui.semantics.ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f) }) {
-        Box(Modifier.fillMaxWidth(shown.coerceIn(0.01f, 1f)).height(4.dp).background(c.text, RoundedCornerShape(2.dp)))
+        Box(Modifier.fillMaxWidth(shown.coerceIn(0.01f, 1f)).height(4.dp).background(c.text, LfmShape.mark))
     }
 }
 
@@ -351,7 +352,7 @@ fun ImportScreen(g: AppGraph, nav: Nav, run: ImportRun) {
                 }
             }
             if (run.done && run.files.any { it.result is CheckResult.Ok && !it.originalDeleted }) {
-                Row(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, c.control, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 11.dp),
+                Row(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, c.control, LfmShape.card).padding(horizontal = 12.dp, vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     LIcon("trash")
                     Column(Modifier.weight(1f)) {
@@ -428,7 +429,7 @@ fun ModelControl(g: AppGraph) {
     androidx.compose.runtime.LaunchedEffect(status) { unloading = unloading.filter { status.of(it) == LoadState.Ready }.toSet() }
     SectionLabel("In memory")
     if (slots.isEmpty()) Txt("No models on this phone yet.", LfmType.small, c.text2)
-    Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp))) {
+    Column(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card)) {
         slots.forEachIndexed { i, slot ->
             if (i > 0) Divider()
             val st = status.of(slot)
@@ -439,8 +440,8 @@ fun ModelControl(g: AppGraph) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 val dot = Modifier.size(8.dp)
                 when (st) {
-                    LoadState.Ready -> Box(dot.background(c.text, RoundedCornerShape(2.dp)))
-                    else -> Box(dot.border(1.dp, if (st == LoadState.Loading) c.text else c.text3, RoundedCornerShape(2.dp)))
+                    LoadState.Ready -> Box(dot.background(c.text, LfmShape.mark))
+                    else -> Box(dot.border(1.dp, if (st == LoadState.Loading) c.text else c.text3, LfmShape.mark))
                 }
                 Column(Modifier.weight(1f)) {
                     Txt(name, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -473,7 +474,7 @@ fun ModelControl(g: AppGraph) {
     if (texts.size > 1) {
         SectionLabel("Chat model")
         val current = g.models.text(prefs?.chatModel ?: "")
-        Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp))) {
+        Column(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card)) {
             texts.forEachIndexed { i, m ->
                 if (i > 0) Divider()
                 val on = m.file == current?.file
@@ -484,7 +485,7 @@ fun ModelControl(g: AppGraph) {
                         if (status.text == LoadState.Ready) g.scope.launch { runCatching { g.engine.load(Slot.Text) } }
                     }
                 }.padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Box(Modifier.size(18.dp).border(if (on) 6.dp else 1.dp, if (on) c.text else c.control, RoundedCornerShape(50)))
+                    Box(Modifier.size(18.dp).border(if (on) 6.dp else 1.dp, if (on) c.text else c.control, LfmShape.round))
                     Column(Modifier.weight(1f)) {
                         Txt("${m.known.family} ${m.known.quant}", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
                         Txt(m.known.sizeLabel + if (m.known.quant.startsWith("Q4")) " · smaller, faster" else " · more accurate", LfmType.label.copy(fontWeight = null), c.text2)
@@ -577,7 +578,7 @@ private fun BenchmarkSection(g: AppGraph) {
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     SectionLabel("Benchmark")
-    Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+    Column(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         when (val s = state) {
             is Benchmark.State.Idle -> Txt("Measures how fast each model reads and writes on each backend this phone has, and checks its answers. Auto then uses the quickest. Takes a few minutes.",
@@ -642,7 +643,7 @@ private fun ServerColumn(g: AppGraph) {
     fun f(v: Double) = "%.0f".format(java.util.Locale.ENGLISH, v)
     fun s(ms: Double) = if (ms <= 0) "—" else if (ms < 1000) "${f(ms)} ms" else "%.1f s".format(java.util.Locale.ENGLISH, ms / 1000)
     SectionLabel("Phone and server")
-    Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+    Column(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Txt("", LfmType.meta, c.text2, Modifier.weight(1.5f))
@@ -689,7 +690,7 @@ private fun VoiceBenchSection(g: AppGraph) {
     fun f(v: Double) = "%.0f".format(java.util.Locale.ENGLISH, v)
     fun f2(v: Double) = "%.2f".format(java.util.Locale.ENGLISH, v)
     SectionLabel("Voice benchmark")
-    Column(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+    Column(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)) {
         when (val s = state) {
             is VoiceBench.State.Idle -> Txt("Omni asks itself a question out loud, hears it, and answers twice, as in Talk. Shows each stage's time and whether the voice would run dry. About a minute, silent.",

@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="bg">#FFFFFF</color>
-    <!-- The widget: same ink, lines and highlighter as the app (docs/spec.md section 7). -->
-    <color name="ink">#0B0B0C</color>
-    <color name="ink2">#5C5C62</color>
-    <color name="line">#E4E4E7</color>
-    <color name="fill">#F4F4F5</color>
-    <color name="control">#8B8B92</color>
+    <!-- Daylight's paper, ink and highlighter (docs/ux-spec.md), as the app's theme has them (ui/theme/Theme.kt). -->
     <color name="highlight">#FFD400</color>
     <color name="on_highlight">#0B0B0C</color>
     <color name="mic_edge">#0B0B0C</color>
+    <!-- The capture widget sits on the day sky (docs/ux-spec.md, "Palette by hour"), in the sky's ink; at night, the night sky. -->
+    <color name="sky_top">#8EC5F0</color>
+    <color name="sky_horizon">#E9F4FC</color>
+    <color name="sky_ink">#0B1A2B</color>
+    <color name="sky_line">#590B1A2B</color>
+    <!-- The horizon widget's first frame, before Inkling paints the hour's sky and ink over it (daylight/HorizonWidget.kt). -->
+    <color name="day_ink">#0B1A2B</color>
 </resources>

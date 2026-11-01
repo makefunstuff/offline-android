@@ -1,6 +1,12 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import com.lfmpixel.lfm.ui.components.Header
+import com.lfmpixel.lfm.ui.components.SkyBand
+import com.lfmpixel.lfm.ui.components.WashCard
+import com.lfmpixel.lfm.ui.components.BtnKind
+import com.lfmpixel.lfm.ui.components.Btn
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,7 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -51,7 +56,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.assistant.DumpSort
 import com.lfmpixel.lfm.assistant.InkKind
@@ -95,14 +99,13 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
     val open by remember { g.db.entries().open() }.collectAsState(null)
     var finished by remember { mutableStateOf<Entry?>(null) }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButtonPlain("x", { nav.back() }, desc = "Close Focus (the timer keeps going)")
-            Spacer(Modifier.weight(1f))
-            if (run != null) Box(Modifier.clip(RoundedCornerShape(50)).clickable { g.focus.stop(); nav.back() }.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Txt("Stop timer", LfmType.button, c.text2)
-            }
+    Column(Modifier.fillMaxSize()) {
+    Header("Focus", { nav.back() }, leftIcon = "x", backDesc = "Close Focus (the timer keeps going)") {
+        if (run != null) Box(Modifier.clip(LfmShape.control).clickable { g.focus.stop(); nav.back() }.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Txt("Stop timer", LfmType.button, Lfm.c.text2)
         }
+    }
+    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         val r = run
         val done = finished
         if (r == null || done != null) {
@@ -110,8 +113,8 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
             val bounds = DayBounds()
             val next = open?.let { NextAction.pick(it.filter { e -> e.id != done?.id }, now, bounds.start, bounds.end, nav.skipped.toList()) }
             Spacer(Modifier.height(48.dp))
-            Box(Modifier.size(96.dp).clip(RoundedCornerShape(50)).background(c.mint), contentAlignment = Alignment.Center) {
-                LIcon("check", size = 44.dp, tint = c.onMint, stroke = 2.5f)
+            Box(Modifier.size(96.dp).clip(LfmShape.round).background(c.highlight), contentAlignment = Alignment.Center) {
+                LIcon("check", size = 44.dp, tint = c.onHighlight, stroke = 2.5f)
             }
             Txt(if (done != null) "Done: ${done.title}" else "No timer running", LfmType.header, c.text, Modifier.padding(top = 18.dp), textAlign = TextAlign.Center)
             if (next != null) {
@@ -119,19 +122,19 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
                 Txt(next.entry.title, LfmType.answer, c.text, Modifier.padding(top = 4.dp), textAlign = TextAlign.Center)
                 Txt("about ${Sizes.label(next.minutes)}", LfmType.small, c.text2)
                 FlowRow(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
-                    SoftBtn("Start", { finished = null; g.focus.start(next.entry.id, next.entry.title, next.minutes) }, c.peach, c.onPeach, icon = "play", strong = true)
-                    SoftBtn("Back to today", { nav.back() }, c.fill, c.text)
+                    Btn("Start", { finished = null; g.focus.start(next.entry.id, next.entry.title, next.minutes) }, icon = "play", kind = BtnKind.Primary)
+                    Btn("Back to today", { nav.back() })
                 }
             } else {
                 Txt("Nothing else is waiting. The rest is yours.", LfmType.body, c.text2, Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
-                SoftBtn("Back to today", { nav.back() }, c.fill, c.text, Modifier.padding(top = 20.dp))
+                Btn("Back to today", { nav.back() }, Modifier.padding(top = 20.dp))
             }
             return@Column
         }
         val left = r.leftMs(now)
         val up = left == 0L
         Txt(listOfNotNull("Focus", parent?.title).joinToString(" · "), LfmType.label, c.text2, Modifier.padding(top = 12.dp), maxLines = 1)
-        Txt(entry?.title ?: r.title, LfmType.title2.copy(fontSize = 26.sp, lineHeight = 31.sp), c.text,
+        Txt(entry?.title ?: r.title, LfmType.title2, c.text,
             Modifier.padding(top = 6.dp).semantics { heading() }, textAlign = TextAlign.Center, maxLines = 4)
         // The disc: highlighter yellow for the time left, shrinking clockwise like a Time Timer.
         val frac = r.fraction(now)
@@ -148,9 +151,9 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
                 drawArc(ink, -90f, 360f * shown, useCenter = true, topLeft = Offset.Zero, size = Size(size.width, size.height))
                 drawCircle(line, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx()))
             }
-            Box(Modifier.size(128.dp).clip(RoundedCornerShape(50)).background(c.bg), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(128.dp).clip(LfmShape.round).background(c.bg), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Txt(if (up) "0" else if (left < 60_000) "${left / 1000}" else "$mins", LfmType.bigger.copy(fontSize = 40.sp, lineHeight = 42.sp), c.text)
+                    Txt(if (up) "0" else if (left < 60_000) "${left / 1000}" else "$mins", LfmType.timer, c.text)
                     Txt(if (up) "time's up" else if (left < 60_000) "sec left" else if (mins == 1L) "min left" else "min left", LfmType.meta, c.text2)
                 }
             }
@@ -162,17 +165,18 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
         }, LfmType.small, c.text2, Modifier.padding(top = 14.dp).semantics { liveRegion = LiveRegionMode.Polite }, textAlign = TextAlign.Center)
         FlowRow(Modifier.padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            SoftBtn("Done", {
-                val e = entry ?: return@SoftBtn
+            Btn("Done", {
+                val e = entry ?: return@Btn
                 Organize(g, nav).done(e)
                 g.focus.stop()
                 finished = e
-            }, c.mint, c.onMint, icon = "check", strong = true)
-            SoftBtn("+5 min", { g.focus.plus(5) }, c.sky, c.onSky, icon = "plus")
-            if (!up) SoftBtn(if (r.paused) "Resume" else "Pause", { if (r.paused) g.focus.resume() else g.focus.pause() }, c.fill, c.text,
+            }, icon = "check", kind = BtnKind.Primary)
+            Btn("+5 min", { g.focus.plus(5) }, icon = "plus")
+            if (!up) Btn(if (r.paused) "Resume" else "Pause", { if (r.paused) g.focus.resume() else g.focus.pause() },
                 icon = if (r.paused) "play" else "pause")
         }
         Spacer(Modifier.height(24.dp))
+    }
     }
 }
 
@@ -234,15 +238,16 @@ fun DumpScreen(g: AppGraph, nav: Nav, route: Route.Dump, onMic: () -> Unit, list
     DisposableEffect(job) { onDispose { job.stop() } }
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButtonPlain("back", { nav.back() }, desc = "Back")
-            Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                Txt("Brain dump", LfmType.header, modifier = Modifier.semantics { heading() })
-                Txt(if (text.isBlank()) "Kept as you type" else if (saved) "Saved" else "Saving…", LfmType.meta, c.text2)
+        SkyBand {
+            Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButtonPlain("back", { nav.back() }, desc = "Back")
+                Column(Modifier.weight(1f).padding(start = 4.dp)) {
+                    Txt("Brain dump", LfmType.header, modifier = Modifier.semantics { heading() })
+                    Txt(if (text.isBlank()) "Kept as you type" else if (saved) "Saved" else "Saving…", LfmType.meta, Lfm.c.text2)
+                }
+                MicButton(onMic, listening = listening)
             }
-            MicButton(onMic, listening = listening)
         }
-        Divider()
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Box(Modifier.padding(top = 14.dp)) {
                 if (text.isEmpty()) Txt("Everything on your mind, in any order. One thing per line, or just keep going. Sort it when you're ready.",
@@ -273,9 +278,9 @@ fun DumpScreen(g: AppGraph, nav: Nav, route: Route.Dump, onMic: () -> Unit, list
         FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             val chosen = items.indices.filter { keep.getOrElse(it) { true } }
             when {
-                job.running -> SoftBtn("Stop", { job.stop() }, c.fill, c.text, icon = "stop")
+                job.running -> Btn("Stop", { job.stop() }, icon = "stop")
                 sorted && chosen.isNotEmpty() -> {
-                    SoftBtn("Add ${chosen.size}", {
+                    Btn("Add ${chosen.size}", {
                         val list = chosen.map { items[it] }
                         g.scope.launch {
                             val today = DayBounds().at(LocalDate.now())
@@ -289,16 +294,16 @@ fun DumpScreen(g: AppGraph, nav: Nav, route: Route.Dump, onMic: () -> Unit, list
                             nav.show(if (ids.size == 1) "1 added to today" else "${ids.size} added to today") { ids.forEach { g.db.entries().delete(it) } }
                         }
                         nav.back()
-                    }, c.mint, c.onMint, icon = "plus", strong = true)
-                    SoftBtn("Keep as a note", { nav.back() }, c.fill, c.text)
+                    }, icon = "plus", kind = BtnKind.Primary)
+                    Btn("Keep as a note", { nav.back() })
                 }
                 else -> {
-                    SoftBtn("Sort it", {
+                    Btn("Sort it", {
                         keyboard?.hide()
                         if (g.engine.hasText()) { sorted = false; job.start(DumpSort.ask(text), DumpSort.MAX_TOKENS) }
                         else { byRules = true; show(DumpSort.rules(text)) }
-                    }, c.lavender, c.onLavender, icon = "sparkle", strong = text.isNotBlank())
-                    SoftBtn("Done", { nav.back() }, c.fill, c.text)
+                    }, icon = "sparkle", kind = if (text.isNotBlank()) BtnKind.Primary else BtnKind.Secondary)
+                    Btn("Done", { nav.back() })
                 }
             }
         }
@@ -310,8 +315,8 @@ private fun DumpRow(item: DumpSort.Item, kept: Boolean, onToggle: (() -> Unit)?,
     val c = Lfm.c
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).let { m -> onToggle?.let { m.clickable(onClickLabel = if (kept) "Leave out" else "Keep", onClick = it) } ?: m },
         verticalAlignment = Alignment.CenterVertically) {
-        val (fill, ink) = when (item.kind) { InkKind.Todo -> c.peach to c.onPeach; InkKind.Idea -> c.lavender to c.onLavender; else -> c.sky to c.onSky }
-        Box(Modifier.size(36.dp).clip(RoundedCornerShape(50)).background(if (kept) fill else c.fill)
+        val (fill, ink) = c.wash to c.text
+        Box(Modifier.size(36.dp).clip(LfmShape.round).background(if (kept) fill else c.fill)
             .let { m -> onKind?.let { m.clickable(onClickLabel = "Change kind", onClick = it) } ?: m }, contentAlignment = Alignment.Center) {
             LIcon(when (item.kind) { InkKind.Todo -> "todo"; InkKind.Idea -> "bulb"; InkKind.Journal -> "book"; else -> "note" }, size = 17.dp, tint = if (kept) ink else c.text3)
         }

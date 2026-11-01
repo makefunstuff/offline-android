@@ -1,6 +1,9 @@
 package com.lfmpixel.lfm.ui.screens
 
 import android.Manifest
+import com.lfmpixel.lfm.ui.components.SkyBand
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -19,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -67,7 +69,7 @@ import java.util.Locale
 
 @Composable
 fun Group(content: @Composable () -> Unit) {
-    Column(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, Lfm.c.line, RoundedCornerShape(8.dp))) { content() }
+    Column(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, Lfm.c.line, LfmShape.card)) { content() }
 }
 
 @Composable
@@ -135,7 +137,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                     "flash", { nav.go(Route.Models) }) { Chevron() }
             }
             SectionLabel("Thinking")
-            Row(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Think before answering", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -153,7 +155,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             SectionLabel("Web search")
             Segmented(SearchMode.entries.map { it.label }, p.searchMode.label, { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
-            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Warn about personal words", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -161,7 +163,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 }
                 Switch(p.warnPersonalWords, "Warn about personal words") { scope.launch { g.settings.setWarnPersonal(it) } }
             }
-            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Show speed", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -169,7 +171,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 }
                 Switch(p.showSpeed, "Show speed") { scope.launch { g.settings.setShowSpeed(it) } }
             }
-            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Soft sounds", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -265,7 +267,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
     Column(Modifier.fillMaxSize()) {
         Header("Privacy", onBack = { nav.back() })
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            Txt("Your data stays on this phone.", LfmType.answer.copy(fontSize = LfmType.answer.fontSize * 1.16f, fontWeight = LfmType.rowTitle.fontWeight),
+            Txt("Your data stays on this phone.", LfmType.voiceTitle,
                 modifier = Modifier.padding(top = 14.dp, bottom = 10.dp))
             val offline = prefs?.netEnabled == false
             Guarantee("globe", "Offline", if (offline) "Nothing leaves the phone: no search, downloads or server" else
@@ -403,7 +405,7 @@ private fun WipeSheet(g: AppGraph, onClose: () -> Unit, onDelete: (models: Boole
 private fun Guarantee(icon: String, title: String?, detail: String, markedTitle: String? = null, trailing: @Composable () -> Unit = {}) {
     val c = Lfm.c
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(30.dp).border(1.dp, c.line, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) { LIcon(icon, size = 18.dp) }
+        Box(Modifier.size(30.dp).border(1.dp, c.line, LfmShape.control), contentAlignment = Alignment.Center) { LIcon(icon, size = 18.dp) }
         Column(Modifier.weight(1f)) {
             if (markedTitle != null) Marked(markedTitle, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             else Txt(title ?: "", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -427,13 +429,17 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
     val onImportOnly: () -> Unit = { g.scope.launch { g.settings.setFirstRunDone() }; nav.reset(Route.Today); onImport() }
     val size = formatBytes(com.lfmpixel.lfm.llm.ModelCatalog.essentials.sumOf { it.sizeBytes })
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(top = 18.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(Modifier.width(28.dp).height(4.dp).background(c.text, RoundedCornerShape(2.dp)))
-                Box(Modifier.width(28.dp).height(4.dp).background(c.line, RoundedCornerShape(2.dp)))
-            }
-            Txt("Your assistant,\non this phone", LfmType.title, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp))
-            Txt("Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web.", LfmType.body, c.text2)
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            // The welcome sits on the hour's sky, as Today's top does.
+            SkyBand { Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 18.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.width(28.dp).height(4.dp).background(Lfm.c.text, LfmShape.mark))
+                    Box(Modifier.width(28.dp).height(4.dp).background(Lfm.c.line, LfmShape.mark))
+                }
+                Txt("Your assistant,\non this phone", LfmType.voiceTitle, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp))
+                Txt("Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web.", LfmType.body, Lfm.c.text2)
+            } }
+            Column(Modifier.padding(horizontal = 16.dp)) {
             SectionLabel("Step 1 of 2 · Models")
             val installed by g.models.installed.collectAsState()
             val downloads by g.downloads.items.collectAsState()
@@ -463,6 +469,7 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             Segmented(SearchMode.entries.map { it.label }, prefs?.searchMode?.label ?: "Ask first",
                 { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
             Txt("Permissions (calendar, contacts, microphone) are asked only when a tool first needs one.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
+            }
         }
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Btn("Continue", {
@@ -479,7 +486,7 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
 @Composable
 private fun Option(icon: String, title: String, detail: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     val c = Lfm.c
-    Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, if (selected) c.text else c.control, RoundedCornerShape(8.dp))
+    Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, if (selected) c.text else c.control, LfmShape.card)
         .clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.RadioButton, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         LIcon(icon, tint = if (enabled) c.text else c.text3)
@@ -487,6 +494,6 @@ private fun Option(icon: String, title: String, detail: String, selected: Boolea
             Txt(title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight), if (enabled) c.text else c.text3)
             Txt(detail, LfmType.label.copy(fontWeight = null), c.text2)
         }
-        Box(Modifier.size(18.dp).border(if (selected) 6.dp else 1.dp, if (selected) c.text else c.control, RoundedCornerShape(50)))
+        Box(Modifier.size(18.dp).border(if (selected) 6.dp else 1.dp, if (selected) c.text else c.control, LfmShape.round))
     }
 }

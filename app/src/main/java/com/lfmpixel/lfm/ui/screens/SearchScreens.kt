@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.border
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
@@ -43,7 +44,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.data.ChatMessage
 import com.lfmpixel.lfm.data.SearchSource
@@ -83,7 +83,7 @@ fun QueryCard(req: SearchRequest) {
     val c = Lfm.c
     var editing by remember(req) { mutableStateOf(false) }
     var text by remember(req) { mutableStateOf(req.query) }
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     val personal = req.personal
     if (personal.isEmpty() && !editing) {
         Row(Modifier.fillMaxWidth().border(1.dp, c.control, shape).padding(10.dp), verticalAlignment = Alignment.CenterVertically,
@@ -108,7 +108,7 @@ fun QueryCard(req: SearchRequest) {
             Column(Modifier.padding(vertical = 8.dp)) {
                 Label("Search the web for")
                 if (editing) {
-                    val fieldShape = RoundedCornerShape(6.dp)
+                    val fieldShape = LfmShape.control
                     Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 40.dp).border(1.dp, c.control, fieldShape).padding(horizontal = 10.dp, vertical = 9.dp)) {
                         BasicTextField(text, { text = it }, textStyle = LfmType.small.copy(color = c.text, fontWeight = FontWeight.Bold),
                             cursorBrush = SolidColor(c.text), modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search words" })
@@ -121,7 +121,7 @@ fun QueryCard(req: SearchRequest) {
         }
         if (personal.isNotEmpty() && !editing) {
             val noun = personal.first().kind.noun
-            Txt("The provider would see this $noun. Search without it, or send it anyway.", LfmType.small.copy(fontSize = 13.sp), c.text2)
+            Txt("The provider would see this $noun. Search without it, or send it anyway.", LfmType.small, c.text2)
         }
         Row(Modifier.padding(top = 10.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             if (editing) {
@@ -159,10 +159,10 @@ private fun markWords(text: String, words: List<String>): AnnotatedString {
 fun SearchCard(m: ChatMessage, onOpen: (Long) -> Unit) {
     val c = Lfm.c
     val id = m.searchId?.takeIf { it > 0 }
-    Row(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).let { if (id != null) it.clickable { onOpen(id) } else it }
+    Row(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).let { if (id != null) it.clickable { onOpen(id) } else it }
         .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(36.dp).border(1.dp, c.line, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp).border(1.dp, c.line, LfmShape.control), contentAlignment = Alignment.Center) {
             LIcon(if (id != null) "globe" else "x")
         }
         Column(Modifier.weight(1f)) {
@@ -209,9 +209,9 @@ fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: M
         }
     } }
     val inline = numbers.associate { n ->
-        "cite$n" to InlineTextContent(Placeholder(if (n.length > 1) 22.sp else 18.sp, 15.sp, PlaceholderVerticalAlign.TextCenter)) {
-            Box(Modifier.fillMaxSize().padding(start = 3.dp).border(1.dp, c.control, RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
-                Text(n, style = LfmType.meta.copy(fontSize = 10.sp, lineHeight = 10.sp, fontWeight = FontWeight.SemiBold), color = c.text, softWrap = false)
+        "cite$n" to InlineTextContent(Placeholder(if (n.length > 1) LfmType.citeWidthWide else LfmType.citeWidth, LfmType.citeHeight, PlaceholderVerticalAlign.TextCenter)) {
+            Box(Modifier.fillMaxSize().padding(start = 3.dp).border(1.dp, c.control, LfmShape.thumb), contentAlignment = Alignment.Center) {
+                Text(n, style = LfmType.cite, color = c.text, softWrap = false)
             }
         }
     }
@@ -230,7 +230,7 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
         val sources = SearchSource.decode(r.sources)
         val read = sources.count { it.read }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            Row(Modifier.padding(vertical = 14.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+            Row(Modifier.padding(vertical = 14.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 LIcon("globe", size = 18.dp)
                 Column(Modifier.weight(1f)) {
@@ -239,7 +239,7 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
                 }
             }
             if (r.answer.isNotBlank()) {
-                AnswerText(r.answer, LfmType.bodyLarge.copy(fontSize = 16.5.sp, lineHeight = 25.sp), markKeyFact = true)
+                AnswerText(r.answer, LfmType.voiceBody, markKeyFact = true)
                 Txt(if (read > 0) "Written on this phone from $read ${if (read == 1) "page" else "pages"}" else "Written on this phone from the result snippets",
                     LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
             } else if (sources.isEmpty()) {
@@ -251,7 +251,7 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
                     Divider()
                     Row(Modifier.fillMaxWidth().clickable { open = s }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(Modifier.size(22.dp).border(1.dp, c.control, RoundedCornerShape(4.dp)), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(22.dp).border(1.dp, c.control, LfmShape.tag), contentAlignment = Alignment.Center) {
                             Txt(s.n.toString(), LfmType.meta.copy(fontWeight = FontWeight.SemiBold))
                         }
                         Column(Modifier.weight(1f)) {
@@ -394,7 +394,7 @@ fun HandoffCard(g: AppGraph) {
     val st by g.handoff.status.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { g.handoff.refresh() }
     if (st == NetHandoff.Status.None) return
-    Column(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, c.text, RoundedCornerShape(8.dp)).padding(12.dp)) {
+    Column(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, c.text, LfmShape.card).padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("globe", size = 18.dp)
             Txt(if (st == NetHandoff.Status.Done) "Inkling Net can be uninstalled" else "Bring over Inkling Net's settings",
@@ -419,7 +419,7 @@ fun HandoffCard(g: AppGraph) {
 @Composable
 fun ToggleRow(title: String, detail: String, on: Boolean, onChange: (Boolean) -> Unit) {
     val c = Lfm.c
-    Row(Modifier.fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+    Row(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(Modifier.weight(1f)) {
             Txt(title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))

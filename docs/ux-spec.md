@@ -36,11 +36,21 @@ it reads at 4.5:1 against both ends of the sky at every minute, in light and dar
   at first and last light.
 - **The sky strip.** Every screen has the hour's sky under the status bar, and the status icons take its ink, so
   Library or Settings still say what time of day it is. The camera keeps its black.
-- The page below the sky keeps v1's paper and ink, and the highlighter yellow stays the one accent.
+- The page below the sky keeps v1's paper and ink, and the highlighter yellow stays the one accent. Inkling's own cards
+  (Now, today's plan, Where was I, the journal's prompt) sit on one **wash**, the pale of the day sky's horizon
+  (`#E9F4FC`; dark `#111824`): the organizer's peach, lavender, mint and sky tints are gone.
+- **Every screen's header is on the sky** (`SkyBand`): it carries on from the sky strip, top to horizon, in the sky's
+  ink. The places of the bottom bar (Notebook, Plans) have their large title on it; the app lock and Talk are all sky.
+- **One set of pieces** (`ui/components`): Header, Btn, Switch, CheckBox, Tabs, Segmented, Card, WashCard, FlatSheet,
+  Menu, DaySheet and SnackHost. Colours, type sizes and corners come from `ui/theme` (`Lfm.c`, `LfmType`,
+  `LfmShape`, `CameraColors`); `DaylightGuardTest` fails the build on a colour, size or corner written out elsewhere,
+  on a stock Material piece outside the components, and on a platform dialog. `ScreenshotTest` draws the main screens
+  in light and dark on the JVM (`build/outputs/roborazzi/`).
 
 ## 3. Type
 
-- **Inkling's own words** (the day's sentence, Talk's captions, the widget's line) are in the phone's serif (Noto
+- **Inkling's own words** (the day's sentence, Talk's captions, the widget's line, chat and web answers, empty states,
+  the journal's prompt, the first-run and Privacy welcomes) are in the phone's serif (Noto
   Serif via `FontFamily.Serif`). Nothing is bundled, so there is no font licence to track.
 - **Your words and the controls** stay in Roboto.
 - **The time** is large and light: Roboto Light 64 sp with even (tabular) figures. Daylight shows the time on Today,
@@ -116,10 +126,11 @@ Captions over the sky of the hour (top-to-horizon gradient), the header and cont
 The camera stays full-bleed black (the one screen without the sky strip); Look's live description keeps its own tile
 inside Talk. Its look changes come in a later task.
 
-### Library, Plans, Settings
+### Library, Plans, Settings and the rest
 
-Paper and ink as in v1, under the hour's sky strip. Settings gains **Soft sounds**. A full Daylight pass of these
-screens (sky-tinted headers, the serif for Inkling's margin notes) is a follow-up.
+Paper and ink under the hour's sky, each with its header on the sky (LFMP-17). Settings gains **Soft sounds**. Menus
+are paper with a 1 dp line and no shadow; picking a day is a sheet with the highlighter on the chosen day, not the
+phone's own dialog. The capture widget sits on the day sky (the night sky in the dark theme).
 
 ### Lock screen and widget
 
@@ -152,4 +163,4 @@ with LFMP-9's single app, is not in this release.
 4. **What I know**: the readable, correctable memory page (LFMP-11).
 5. **Point-of-performance nudges**: leave-by and bring-this from calendar plus memory.
 6. **Remembers in the margin**: related old notes via on-device embeddings (LFMP-10).
-7. **Daylight for Library, Plans and Settings**, and Focus with a quiet presence.
+7. **Focus with a quiet presence** (Library, Plans and Settings have Daylight since LFMP-17).

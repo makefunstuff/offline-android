@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="bg">#09090A</color>
-    <color name="ink">#F2F2F3</color>
-    <color name="ink2">#9D9DA4</color>
-    <color name="line">#27272A</color>
-    <color name="fill">#161618</color>
-    <color name="control">#6A6A72</color>
     <color name="highlight">#FFD400</color>
     <color name="on_highlight">#09090A</color>
     <color name="mic_edge">#FFD400</color>
+    <color name="sky_top">#0E1630</color>
+    <color name="sky_horizon">#26305A</color>
+    <color name="sky_ink">#F6F3EE</color>
+    <color name="sky_line">#66F6F3EE</color>
 </resources>
