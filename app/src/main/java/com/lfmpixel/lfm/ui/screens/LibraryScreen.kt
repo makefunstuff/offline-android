@@ -282,9 +282,7 @@ private fun JournalList(list: List<Entry>, nav: Nav, onMic: (EntryKind) -> Unit,
                 Txt(prompt, LfmType.voice, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MicButton({ onMic(EntryKind.Journal) }, listening = listening)
-                    Box(Modifier.background(c.bg, LfmShape.control)) {
-                        Btn("Write", { nav.go(Route.Editor(kind = EntryKind.Journal)) }, icon = "edit", small = true)
-                    }
+                    Btn("Write", { nav.go(Route.Editor(kind = EntryKind.Journal)) }, icon = "edit", small = true)
                     Txt("or tap the mic to speak", LfmType.label.copy(fontWeight = null), c.text2)
                 }
             } }

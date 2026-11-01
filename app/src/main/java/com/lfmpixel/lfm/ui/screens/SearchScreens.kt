@@ -243,7 +243,7 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
                 Txt(if (read > 0) "Written on this phone from $read ${if (read == 1) "page" else "pages"}" else "Written on this phone from the result snippets",
                     LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
             } else if (sources.isEmpty()) {
-                Txt("No results.", LfmType.body, c.text2)
+                Txt("No results.", LfmType.voiceBody, c.text2)
             }
             if (sources.isNotEmpty()) {
                 SectionLabel("Sources")

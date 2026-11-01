@@ -46,10 +46,10 @@ import java.time.ZoneOffset
 /**
  * The hour's sky behind a screen's header: it carries on from the sky strip under the status bar (top) down to the
  * horizon, and what is drawn on it takes the sky's ink. Every screen but Today (whose whole top is the sky), Talk
- * (all sky) and the camera (black) has one.
+ * (all sky) and the camera (black) has one. Not for use inside [OnSky] (Talk, [SkyPage], Today's sky): there
+ * `Lfm.c.dark` is the sky's, not the theme's, and the band would dim wrongly.
  */
 @Composable
-// Not inside OnSky (Talk, SkyPage, Today's sky): there Lfm.c.dark is the sky's, not the theme's, and the band would dim wrongly.
 fun SkyBand(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val now by rememberNow()
     val sky = skyAt(now)
@@ -122,7 +122,7 @@ fun DaySheet(initial: LocalDate, onPick: (LocalDate) -> Unit, onClose: () -> Uni
     val c = Lfm.c
     val state = rememberDatePickerState(initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
     FlatSheet(onDismiss = onClose) {
-        Txt("Pick a day", LfmType.header, modifier = Modifier.semantics { heading() })
+        Txt("Pick a day", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.semantics { heading() })
         DatePicker(state, title = null, showModeToggle = false, colors = DatePickerDefaults.colors(
             containerColor = c.bg, titleContentColor = c.text2, headlineContentColor = c.text, weekdayContentColor = c.text2,
             subheadContentColor = c.text2, navigationContentColor = c.text, yearContentColor = c.text, currentYearContentColor = c.text,

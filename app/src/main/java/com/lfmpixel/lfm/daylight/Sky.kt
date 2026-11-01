@@ -65,7 +65,13 @@ object Skies {
             if (contrast(ink, horizon) < 4.6) horizon = mix(horizon, 0xFF000000.toInt(), 0.01f)
             step++
         }
-        val ink2 = mix(ink, mix(top, horizon, 0.5f), 0.22f)
+        // The quieter ink leans toward the sky, but never so far that it reads below 4.5:1 on either end (small text sits on it).
+        var lean = 0.22f
+        var ink2 = mix(ink, mix(top, horizon, 0.5f), lean)
+        while (lean > 0f && minOf(contrast(ink2, top), contrast(ink2, horizon)) < 4.5) {
+            lean -= 0.01f
+            ink2 = mix(ink, mix(top, horizon, 0.5f), lean.coerceAtLeast(0f))
+        }
         return Sky(part, top, horizon, sun, ink, ink2, night = part == DayPart.Night)
     }
 

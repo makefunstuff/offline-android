@@ -279,7 +279,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
         item(key = "page-label") { PageLabel("The page") }
         if (known && shownLines.isEmpty() && lockedLines == 0) item(key = "empty") {
             Txt(if (isToday) "A clean page. Write a line below and I'll file it: a to-do, an idea, a journal line or a note."
-                else "Nothing was written on this day.", LfmType.small, c.text2, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                else "Nothing was written on this day.", LfmType.voiceBody, c.text2, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         }
         items(shownLines, key = { it.id }) { e -> PageLine(e, open, actions, Modifier.animateItem(), onSteps = { stepsFor = it }) }
         if (lockedLines > 0) item(key = "locked") {

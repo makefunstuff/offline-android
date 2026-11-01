@@ -336,7 +336,7 @@ read out when they change; progress bars report their value; buttons, tabs and r
 - `edge/`: Edge mode. `Edge` (the server's state, checks, its models, speech in and out as `ServerVoice`),
   `EdgeSession` (the server's model as a `TextSession`, Qwen for answers, with the phone's as fallback), `ChatPrompt`
   (LFM3 prompts to native chat and tools and back), `Labels` (the small classifiers), `EdgeKey`, `EdgeBench`.
-- `ui/`: Compose screens in the calm Signal, Ink + highlighter style; `ui/theme/Motion.kt` holds the motion tokens.
+- `ui/`: Compose screens in Daylight (docs/ux-spec.md): `ui/theme` holds every colour, type style and corner, `ui/components` the shared pieces; `ui/theme/Motion.kt` holds the motion tokens.
 - `app/src/debug/`: debug-only hooks used for emulator testing: feed a recorded clip through the voice path, ask
   about a file in the app's folder as the pickers do (`DEBUG_SEE`), add sample library content, and play a clip into
   Talk in place of the mic, at the mic's pace, and keep what Talk and read-aloud say (`DEBUG_TALK`). Send them with

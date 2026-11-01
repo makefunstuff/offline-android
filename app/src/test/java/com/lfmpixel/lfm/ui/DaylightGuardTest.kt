@@ -35,7 +35,11 @@ class DaylightGuardTest {
 
     @Test fun noRawColours() = none("A colour written out instead of a theme token (Lfm.c, CameraColors, the sky's colours)",
         find(code.filter { !it.inTheme() }, Regex("""\bColor\(\s*(0x|\d|red\s*=|alpha\s*=)|\bColor\.(White|Black|Red|Green|Blue|Yellow|Cyan|Magenta|Gray|DarkGray|LightGray)\b|""" +
-            """android\.graphics\.Color\.([A-Z]|rgb|argb|parseColor)|\bColor\.(hsl|hsv)\(""")))
+            """android\.graphics\.Color\.([A-Z]|rgb|argb|parseColor)|\bColor\.(hsl|hsv)\(|\bColor\.Companion\.|\bColor\(\s*color\s*=""")))
+
+    /** An opaque ARGB written out (0xFF…) anywhere but the theme and the sky's own palette (daylight/Sky.kt). */
+    @Test fun noRawArgb() = none("An ARGB colour written out instead of a theme or sky token",
+        find(code.filter { !it.inTheme() && it.rel() != "daylight/Sky.kt" }, Regex("""\b0x[Ff]{2}[0-9A-Fa-f]{6}\b""")))
 
     @Test fun noRawTypeSizes() = none("A type size written out instead of an LfmType style",
         find(code.filter { !it.inTheme() }, Regex("""\b\d+(\.\d+)?\.sp\b|\bfontSize\s*=|\blineHeight\s*=""")))
@@ -44,14 +48,9 @@ class DaylightGuardTest {
         find(code.filter { !it.inTheme() }, Regex("""\b(RoundedCornerShape|CutCornerShape|AbsoluteRoundedCornerShape|AbsoluteCutCornerShape)\(|\bCircleShape\b""")))
 
     @Test fun stockMaterialOnlyInSharedComponents() = none(
-        "A stock Material component on a screen: use the shared one (Txt, RichTxt, Btn, Switch, CheckBox, Card, Header, FlatSheet, Menu, DaySheet, SnackHost…)",
-        find(code.filter { !it.inTheme() && !it.inComponents() }, Regex("""androidx\.compose\.material3\.\*|androidx\.compose\.material\.(?!ripple\b)[A-Za-z*]|""" +
-            """androidx\.compose\.material3\.(Text|ProvideTextStyle|LocalContentColor|LocalTextStyle|AlertDialog|BasicAlertDialog|Button|TextButton|""" +
-            """OutlinedButton|FilledTonalButton|ElevatedButton|IconButton|FloatingActionButton|ExtendedFloatingActionButton|Card|ElevatedCard|OutlinedCard|""" +
-            """Surface|Scaffold|TopAppBar|CenterAlignedTopAppBar|NavigationBar|NavigationBarItem|TextField|OutlinedTextField|Switch|Checkbox|RadioButton|""" +
-            """Slider|RangeSlider|Snackbar|SnackbarHost|DropdownMenu|DropdownMenuItem|ModalBottomSheet|BottomSheetScaffold|DatePicker|DatePickerDialog|""" +
-            """TimePicker|CircularProgressIndicator|LinearProgressIndicator|Tab|TabRow|FilterChip|AssistChip|SuggestionChip|InputChip|Badge|Divider|""" +
-            """HorizontalDivider|VerticalDivider|Icon|ListItem|MaterialTheme)\b""")))
+        "Material used on a screen: use the shared piece (Txt, RichTxt, Btn, Switch, CheckBox, Card, Header, FlatSheet, Menu, DaySheet, SnackHost…)",
+        find(code.filter { !it.inTheme() && !it.inComponents() },
+            Regex("""androidx\.compose\.material3?\.(?!ExperimentalMaterial3Api\b)[A-Za-z*]|\bMaterialTheme\b""")))
 
     @Test fun noPlatformDialogs() = none("A platform dialog or toast, drawn in the phone's look instead of Daylight's: use a FlatSheet, DaySheet or SnackHost",
         find(code, Regex("""android\.app\.(AlertDialog|DatePickerDialog|TimePickerDialog|ProgressDialog)|android\.widget\.Toast|\bToast\.makeText""")))

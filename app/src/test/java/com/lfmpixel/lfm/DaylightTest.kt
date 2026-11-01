@@ -31,14 +31,14 @@ class SkyTest {
         assertFalse(Skies.at(LocalTime.of(12, 0)).lightInk)
     }
 
-    /** Every minute of the day, light and dark: the ink reads at 4.5:1 on both ends of the sky, the quieter ink at 3:1. */
+    /** Every minute of the day, light and dark: the ink reads at 4.5:1 on both ends of the sky, the quieter ink too (small text and control edges use it). */
     @Test fun alwaysReadable() {
         for (dim in listOf(false, true)) for (m in 0 until 24 * 60) {
             val s = Skies.at(LocalTime.of(m / 60, m % 60), dim)
             val worst = minOf(contrast(s.ink, s.top), contrast(s.ink, s.horizon))
             assertTrue("ink at $m dim=$dim: $worst", worst >= 4.5)
             val worst2 = minOf(contrast(s.ink2, s.top), contrast(s.ink2, s.horizon))
-            assertTrue("ink2 at $m dim=$dim: $worst2", worst2 >= 3.0)
+            assertTrue("ink2 at $m dim=$dim: $worst2", worst2 >= 4.5)
         }
     }
 

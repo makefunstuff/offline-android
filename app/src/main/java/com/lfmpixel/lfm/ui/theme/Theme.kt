@@ -70,6 +70,9 @@ object CameraColors {
     val glassLight = Color(0x66000000)
 }
 
+/** Inkling's own calendar in the phone's Calendar app: the page's ink, as ARGB. */
+const val CALENDAR_ARGB = 0xFF0B0B0C.toInt()
+
 /** The paint the line icons are built with; [androidx.compose.material3.Icon] tints it over, so it never shows. */
 val IconMask = Color(0xFF000000)
 

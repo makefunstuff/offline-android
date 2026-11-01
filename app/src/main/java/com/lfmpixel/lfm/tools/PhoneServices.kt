@@ -204,7 +204,7 @@ class LocalCalendar(private val context: Context) {
             put(CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.ACCOUNT_TYPE_LOCAL)
             put(CalendarContract.Calendars.NAME, NAME)
             put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, NAME)
-            put(CalendarContract.Calendars.CALENDAR_COLOR, 0xFF0B0B0C.toInt())
+            put(CalendarContract.Calendars.CALENDAR_COLOR, com.lfmpixel.lfm.ui.theme.CALENDAR_ARGB)
             put(CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL, CalendarContract.Calendars.CAL_ACCESS_OWNER)
             put(CalendarContract.Calendars.OWNER_ACCOUNT, ACCOUNT)
             put(CalendarContract.Calendars.VISIBLE, 1)

@@ -37,7 +37,8 @@ fun skyAt(now: LocalDateTime): Sky = Skies.at(now, dim = Lfm.c.dark)
 
 /**
  * What is drawn on the sky reads in the sky's ink: the app's text, lines and controls are recoloured from it, so the
- * shared components (header, buttons, pills) work on any hour's sky.
+ * shared components (header, buttons, pills) work on any hour's sky. Small text and control edges take [Sky.ink2], which
+ * reads at 4.5:1 on both ends of the sky.
  */
 @Composable
 fun OnSky(sky: Sky, content: @Composable () -> Unit) {
@@ -46,7 +47,7 @@ fun OnSky(sky: Sky, content: @Composable () -> Unit) {
     val mid = Color(mix(sky.top, sky.horizon, 0.5f))
     CompositionLocalProvider(LocalLfm provides c.copy(
         text = ink, text2 = Color(sky.ink2), text3 = Color(sky.ink2),
-        line = ink.copy(alpha = 0.22f), fill = ink.copy(alpha = 0.08f), control = ink.copy(alpha = 0.55f),
+        line = ink.copy(alpha = 0.22f), fill = ink.copy(alpha = 0.08f), control = Color(sky.ink2),
         bg = mid, dark = sky.lightInk,
     ), content = content)
 }

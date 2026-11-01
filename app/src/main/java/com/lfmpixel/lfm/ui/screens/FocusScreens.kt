@@ -1,6 +1,7 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.border
 import com.lfmpixel.lfm.ui.components.Header
 import com.lfmpixel.lfm.ui.components.SkyBand
 import com.lfmpixel.lfm.ui.components.WashCard
@@ -126,7 +127,7 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
                     Btn("Back to today", { nav.back() })
                 }
             } else {
-                Txt("Nothing else is waiting. The rest is yours.", LfmType.body, c.text2, Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
+                Txt("Nothing else is waiting. The rest is yours.", LfmType.voiceBody, c.text, Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
                 Btn("Back to today", { nav.back() }, Modifier.padding(top = 20.dp))
             }
             return@Column
@@ -315,10 +316,11 @@ private fun DumpRow(item: DumpSort.Item, kept: Boolean, onToggle: (() -> Unit)?,
     val c = Lfm.c
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).let { m -> onToggle?.let { m.clickable(onClickLabel = if (kept) "Leave out" else "Keep", onClick = it) } ?: m },
         verticalAlignment = Alignment.CenterVertically) {
-        val (fill, ink) = c.wash to c.text
-        Box(Modifier.size(36.dp).clip(LfmShape.round).background(if (kept) fill else c.fill)
+        // Kept: on the wash, in ink; left out: only an outline.
+        Box(Modifier.size(36.dp).clip(LfmShape.round).background(if (kept) c.wash else androidx.compose.ui.graphics.Color.Transparent)
+            .border(1.dp, if (kept) c.wash else c.line, LfmShape.round)
             .let { m -> onKind?.let { m.clickable(onClickLabel = "Change kind", onClick = it) } ?: m }, contentAlignment = Alignment.Center) {
-            LIcon(when (item.kind) { InkKind.Todo -> "todo"; InkKind.Idea -> "bulb"; InkKind.Journal -> "book"; else -> "note" }, size = 17.dp, tint = if (kept) ink else c.text3)
+            LIcon(when (item.kind) { InkKind.Todo -> "todo"; InkKind.Idea -> "bulb"; InkKind.Journal -> "book"; else -> "note" }, size = 17.dp, tint = if (kept) c.text else c.text3)
         }
         Txt(item.text, LfmType.body, if (kept) c.text else c.text3, Modifier.weight(1f).padding(start = 10.dp), maxLines = 3,
             decoration = if (kept) null else androidx.compose.ui.text.style.TextDecoration.LineThrough)
