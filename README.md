@@ -19,7 +19,7 @@ mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-androi
   15 or 30 minutes).
 
 This build covers every phase of the spec, 1–7: Today, Chat, Library (notes, ideas, journal), To-dos, Settings; chat with
-LFM3-1.7B through llama.cpp in-process (JNI, CPU); voice capture through LFM3-Omni-2B in-process; tools with a
+LFM3-1.7B through LiteRT-LM in-process (GPU or CPU); voice capture through LFM3-Omni-2B on LiteRT in-process; tools with a
 confirmation sheet, action history and undo; web search with sources, the network log, and in-app model downloads
 through LFM Net (Phase 4); **Ask about this**: camera, photos, short videos and documents, understood on the phone
 with no network (Phase 5); **Talk** and **read-aloud** with Omni's own voice, Inkling as the phone's assistant, a
@@ -28,12 +28,12 @@ export and delete everything, an accessibility pass and a motion pass (below).
 
 ## Build
 
-Needs JDK 21, the Android SDK (platform 37, build-tools 36.1, NDK 29.0.14206865, CMake 3.31.6). On this machine they
+Needs JDK 21 and the Android SDK (platform 37, build-tools 36.1); no NDK since LFMP-8. On this machine they
 live on `/data`; `env.sh` sets the paths:
 
 ```bash
 git clone https://github.com/makefunstuff/offline-android.git && cd offline-android
-git submodule update --init --depth 1        # llama.cpp, pinned at b12015
+# The llama.cpp submodule is no longer built into the app; it stays only for desktop comparisons.
 . ./env.sh
 ./gradlew assembleDebug                      # app/build/outputs/apk/debug/app-debug.apk (LFM, with LFM Net inside)
                                              # net/build/outputs/apk/debug/net-debug.apk (LFM Net on its own)
@@ -65,25 +65,22 @@ KEY
   data) and nothing else: no contacts, files, location or phone state.
 - `:net:checkDebugDependencies`: LFM Net's libraries are AndroidX, Kotlin and OkHttp only.
 
-The APK holds native code for `arm64-v8a` (the phone) and `x86_64` (the emulator). llama.cpp picks the best CPU
-variant at run time (on Tensor G5 that should be `android_armv9.0_1`: dotprod, i8mm, SVE2; the `armv9.2` ones need SME,
-which G5 lacks). Q4_0 weights are repacked for Arm (KleidiAI) when the model loads.
+The APK holds LiteRT's native code for `arm64-v8a` (the phone) and `x86_64` (the emulator). Since LFMP-8 every model
+on the phone runs on LiteRT: LiteRT-LM for LFM3-1.7B and LFM3-VL-2B (on the GPU through OpenCL, else the CPU), and
+LiteRT for Omni's voice graphs. llama.cpp and GGUF are gone from the phone. Which model does what, and the numbers
+behind the switch: [docs/model-pool.md](docs/model-pool.md).
 
 ### Speed
 
-- Threads stay off the little cores (found from `cpu_capacity`, else the top clock): llama.cpp splits each step evenly
-  and waits for the slowest thread, so one thread on a little core slows every token. Auto (the default) writes with
-  one thread fewer than the other cores (G5: 5 of 6) and reads prompts with all of them.
-- Settings → Models → Benchmark: prompt and generation tok/s, time to the first token, tok/s through the chat, sampler
-  cost, a sweep of thread counts (with "Use N threads" when another count is 5% faster), the CPU variant, backends and
-  llama.cpp's buffer types. Copy results puts it all on the clipboard. Debug builds also run it with
+- Auto (Settings → Models → Runs on) puts chat and pictures on the GPU where the phone has OpenCL, unless the
+  Benchmark finds the CPU at least 10% quicker or the GPU fails its check questions. CPU threads stay off the little
+  cores (found from `cpu_capacity`) and drop while the phone is hot.
+- Settings → Models → Benchmark: prompt and generation tok/s and time to the first token for the chat model and VL on
+  each backend, with the check questions. Copy results puts it on the clipboard. Debug builds also run it with
   `adb shell am broadcast -p com.lfmpixel.lfm -a com.lfmpixel.lfm.DEBUG_BENCH` (logcat tag `lfm-bench`).
 - The chat redraws only the streaming answer, at most 20 times a second; each answer shows tok/s and the time to the
   first token (Settings → Show speed).
-- No GPU: llama.cpp's Vulkan backend is untested on the G5's PowerVR GPU and needs the phone to try; CPU stays the
-  only backend for now.
-- The emulator's default CPU model hides AVX2, so llama.cpp falls back to `ivybridge` with no repacking there. Start it
-  with `-qemu -cpu host` to measure.
+- The emulator has no OpenCL, so there everything runs on LiteRT's CPU path.
 
 ## Install on the phone
 
@@ -102,27 +99,24 @@ LFM Net's service requires. Without LFM Net, LFM is fully offline: no search, no
 ## Get the models
 
 **Download in the app.** Settings → Models lists LFM3-1.7B (chat and tools), LFM3-Omni-2B (voice) and LFM3-VL-2B
-(documents), each at Q4_0 (smaller, faster) and Q8_0 (more accurate), with size, what it is for and
-whether it is on the phone. **Download** fetches the GGUF from Hugging Face (LiquidAI, no login) through LFM Net, with
-the model's projector when it needs one. You see progress, speed and time left; Pause, Resume and Cancel work, and a
-download cut off by closing the app or restarting the phone carries on when you open LFM again. Downloads run on Wi-Fi
-only unless you switch that off. A finished file is checked against the SHA-256 pinned in `ModelCatalog.kt` and then
-loaded; a file that doesn't match is deleted. Delete and storage used/free are on the same screen.
+(photos, video and documents), the LiteRT files from litert-community on Hugging Face, with size, what each is for
+and whether it is on the phone. **Download** fetches the model and the files it needs beside it (Omni's voice graphs,
+LFM3's tokenizer) through LFM Net, pinned to a repo revision. You see progress, speed and time left; Pause, Resume
+and Cancel work, and a download cut off by closing the app or restarting the phone carries on where it stopped when
+you open LFM again. Downloads run on Wi-Fi only unless you switch that off. A finished file is checked against the
+SHA-256 pinned in `ModelCatalog.kt` and then loaded; a file that doesn't match is deleted. Old GGUF files from before
+LFMP-8 can be deleted there in one tap.
 
-**Or import a file**, fully offline. Download the files once on a computer, copy them to the phone, then import:
+**Or import a file**, fully offline. Download the files once on a computer, copy them to the phone, then import. The
+names on the phone are the catalog's (`ModelCatalog.kt`), so rename the ones that come from a repo subfolder:
 
 | File | Size | Needed for |
 |---|---|---|
-| `LFM3-1.7B-QAD-Q4_0.gguf` from LiquidAI/LFM3-1.7B-GGUF | 1.05 GB | chat and tools |
-| `LFM3-Omni-2B-Q4_0.gguf` from LiquidAI/LFM3-Omni-2B-GGUF | 1.05 GB | voice |
-| `mmproj-LFM3-Omni-2B-Q4_K_M.gguf` from the same repo | 292 MB | voice, photos, video (Omni's ears and eyes) |
-| `LFM3-VL-2B-QAD-Q4_0.gguf` from LiquidAI/LFM3-VL-2B-GGUF | 1.05 GB | documents (optional) |
-| `mmproj-LFM3-VL-2B-Q8_0.gguf` from the same repo | 203 MB | documents (VL's eyes) |
-
-```bash
-adb push LFM3-1.7B-QAD-Q4_0.gguf LFM3-Omni-2B-Q4_0.gguf mmproj-LFM3-Omni-2B-Q4_K_M.gguf /sdcard/Download/
-adb push LFM3-VL-2B-QAD-Q4_0.gguf mmproj-LFM3-VL-2B-Q8_0.gguf /sdcard/Download/   # for documents
-```
+| `LFM3-1.7B_mixed_int4_ekv4096.litertlm` from litert-community/LFM3-1.7B-LiteRT | 1.44 GB | chat and tools |
+| `LFM3_tokenizer.json` (`tokenizer.json` of litert-community/LFM3-Omni-2B-LiteRT) | 18 MB | token counts, Omni |
+| `LFM3-Omni-2B_int8.litertlm` from litert-community/LFM3-Omni-2B-LiteRT | 3.23 GB | voice |
+| Omni's voice: `speech/*_depth_frame2_f32`, `*_frame_embed_f32`, `*_codec_decoder_f12_f32` `.tflite`, `speech/codec_window_f32.npy`, `runner/contract.json` → `LFM3-Omni-2B_contract.json`, `runner/bundle_sections.json` → `LFM3-Omni-2B_bundle_sections.json` | 786 MB | voice out |
+| `LFM3-VL-2B_int4.litertlm` from litert-community/LFM3-VL-2B-LiteRT | 2.07 GB | photos, video, documents |
 
 In the app: Settings → Models → Import a file, pick the files (long-press to pick several). Each is copied into the
 app while its SHA-256 is computed, then checked against the hash pinned in `ModelCatalog.kt`; a file that is unknown,
@@ -166,8 +160,8 @@ follow-up ("remind me to pay that rent on the 1st") goes to LFM3-1.7B, which rea
   when Omni is not on the phone). Keep LFM open while it reads a long scan: it does not run in a foreground service
   yet, so Android may pause it in the background (the spec's Phase 7 moves long jobs there). Stop works between
   video frames and PDF pages, not in the middle of one.
-- If only one of Omni and VL is on the phone, it does both jobs; a PDF with text can also be answered by LFM3-1.7B.
-- Nothing is uploaded: pictures go from the camera or the picker's URI straight into llama.cpp's `mtmd` in this
+- On the phone VL does every picture job (photos, video frames, scans); a PDF with text can also be answered by LFM3-1.7B.
+- Nothing is uploaded: pictures go from the camera or the picker's URI straight into LiteRT-LM in this
   process. LFM asks for the camera only (no storage permission: the pickers grant one file at a time). A small copy of
   each picture is kept in the app's files for the chat; Settings → Privacy → Clear chats deletes them.
 
@@ -263,7 +257,7 @@ Design and ranking: [docs/notebook-spec.md](docs/notebook-spec.md), section B.
 - **Heat**: Inkling follows Android's thermal status. Warm: one thread fewer. Hot: half the threads, and long jobs
   (a scanned PDF read page by page) wait between pages for the phone to cool. Too hot: two threads, and queued
   messages wait. Today and Chat say so ("Phone is hot · answers slower, long jobs wait"). The change applies from
-  the next token, through llama.cpp's thread count.
+  the next model load, through LiteRT's CPU thread count (the GPU has no thread count).
 - **Keeps going in the background**: an answer, a long scan or a queue of messages started on screen runs on in a
   foreground service with a notification and a Stop button when you leave. Stop ends the answer and holds the queue
   until Inkling is opened again.
@@ -305,8 +299,6 @@ read out when they change; progress bars report their value; buttons, tabs and r
 - `net/`: LFM Net. `NetEngine` does the three network calls: `fetch` opens only addresses from its latest results,
   `download` only pinned files from huggingface.co and its CDN over https. No cookies, cache or referrer; the user
   agent of a current Chrome on Android; optional SOCKS proxy (Orbot). `NetService` answers only LFM.
-- `app/src/main/cpp/lfm_jni.cpp`: the JNI bridge to llama.cpp (load, streamed generation reusing the context,
-  Omni transcription and pictures in through `mtmd`).
 - `llm/`: prompt format for LFM3's chat template, tool-call parser, model catalog with pinned hashes, import, loading.
 - `assistant/`: the loop (model → tool calls → confirm → run → log → back to the model), and simple rules that sort
   captures when no model is loaded.
@@ -316,11 +308,8 @@ read out when they change; progress bars report their value; buttons, tabs and r
   `ReadAloud`, `AudioOut` (plays 24 kHz speech as it is made), `SpeechFormat` (TTS prompt, text to speech, the
   end-of-speech detector `Endpointer`).
 - `assist/`: the assistant service and session, the Quick Settings tile and the widget.
-- `app/src/main/cpp/talk.cpp`: speech out with Omni (read-aloud and Talk's mixed text and voice), plain C++ with no
-  JNI, so it can be built into a small desktop program against llama.cpp to check speech without a phone (that is
-  how the clips below were transcribed back; the program is not in the repo).
 - `see/`: Ask about this. `SeeRules` (which model looks, frame times, sizes, prompts), `MediaPrep` (photos, video
-  frames, PDF pages and text layers into RGB for llama.cpp). The camera screen is `ui/screens/CameraScreen.kt` (CameraX).
+  frames, PDF pages and text layers into RGB for the model). The camera screen is `ui/screens/CameraScreen.kt` (CameraX).
 - `web/`: LFM's side of LFM Net: `NetClient` (binds to it, logs every request), `WebSearch` (the search flow),
   `PersonalWords`, `ArticleText` (reads pages), `ModelDownloads` + `DownloadService`, `NetInstaller`.
 - `device/`: `Heat` (Android's thermal status to thread caps and waits) and `AppLock` (the optional lock).

@@ -1,5 +1,8 @@
 # Running LFM3 faster on the Pixel 10 Pro
 
+> **Superseded in part by LFMP-8 (1 November 2026):** the phone now runs every model on LiteRT, and llama.cpp and
+> GGUF are gone from it. See [model-pool.md](model-pool.md). The research below is kept for its reasons and numbers.
+
 Research as of 31 October 2026, for Inkling on a Pixel 10 Pro (Tensor G5: Imagination PowerVR D-Series DXT-48-1536
 GPU, Google TPU). Inkling has no INTERNET permission and no Play Services, and that rules some options out.
 
