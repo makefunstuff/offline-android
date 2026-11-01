@@ -2,6 +2,7 @@ package com.lfmpixel.lfm.web
 
 import android.content.Context
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import com.lfmpixel.lfm.data.LfmDatabase
 import com.lfmpixel.lfm.data.NetLogEntry
 import com.lfmpixel.lfm.net.NetConfig
@@ -144,15 +145,19 @@ class NetClient(context: Context, private val settings: Settings, private val db
     private suspend fun <T> exchange(pending: NetLogEntry, sent: String, call: suspend () -> Pair<T, List<NetRequest>>): T {
         if (state() == State.Offline) throw NetException("Inkling is offline. Turn Offline off in Settings → Privacy.")
         return withContext(Dispatchers.IO + NonCancellable) {
-            val id = db.netLog().insert(pending)
+            // The log's own writes can fail (a download filled the disk): the reply still counts, and the failure is not
+            // one the callers expect (they catch NetException and IOException), so it is only logged here.
+            val id = runCatching { db.netLog().insert(pending) }.onFailure { Log.w("lfm-net", "network log", it) }.getOrNull()
             // A call that threw may still have gone out: its placeholder stays in the log.
             val (reply, log) = try { call() } catch (e: NetException) { throw e } catch (e: Exception) {
                 throw NetException(e.message ?: "The request failed")
             }
-            db.netLog().insertAll(log.map { r ->
-                NetLogEntry(at = r.at, host = r.host, url = r.url, label = pending.label.removeSuffix(NO_REPLY), sent = r.sent.ifEmpty { sent }, bytes = r.bytes, ok = r.ok)
-            })
-            db.netLog().delete(id)
+            runCatching {
+                db.netLog().insertAll(log.map { r ->
+                    NetLogEntry(at = r.at, host = r.host, url = r.url, label = pending.label.removeSuffix(NO_REPLY), sent = r.sent.ifEmpty { sent }, bytes = r.bytes, ok = r.ok)
+                })
+                if (id != null) db.netLog().delete(id)
+            }.onFailure { Log.w("lfm-net", "network log", it) }
             reply
         }
     }

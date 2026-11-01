@@ -26,6 +26,8 @@ object TimeArgs {
     private val clock12 = Regex("""^(\d{1,2})(?:[:.](\d{2}))?\s*([ap])\.?m\.?$""")
     private val inRel = Regex("""^in\s+(\d+(?:\.\d+)?|an?|half an?|\d+ and a half)\s*(min|minute|minutes|mins|m|hour|hours|h|hr|hrs|day|days|d)$""")
     private val bareHour = Regex("""^(\d{1,2})$""")
+    /** About a hundred years: further ahead than any reminder means anything. */
+    private const val MAX_AHEAD_S = 100 * 366 * 86_400.0
 
     fun parse(text: String, now: LocalDateTime): When? {
         val s = text.trim().lowercase(Locale.ROOT).removeSuffix("z").replace(Regex("\\s+"), " ").removePrefix("at ")
@@ -47,7 +49,10 @@ object TimeArgs {
                 }
             }
             val unit = when (m.groupValues[2].first()) { 'm' -> 60L; 'h' -> 3_600L; else -> 86_400L }
-            val t = now.plusSeconds((count * unit).toLong())
+            // "in 999999999999 days" is no time at all (plusSeconds would throw past the year 999999999).
+            val seconds = count * unit
+            if (seconds > MAX_AHEAD_S) return null
+            val t = now.plusSeconds(seconds.toLong())
             return When(t.toLocalDate(), t.toLocalTime().withSecond(0).withNano(0))
         }
         // A bare hour, "6" or "at 6": the next time the clock shows it, morning or evening.
@@ -106,12 +111,17 @@ object TimeArgs {
 
     fun parseDuration(text: String): Duration? {
         val s = text.trim().lowercase(Locale.ROOT)
-        s.toLongOrNull()?.let { return Duration.ofMinutes(it) }
+        // Numbers too big for a Duration (20 digits, or hours past Long's seconds) are not a duration: null, not a throw.
+        try {
+            s.toLongOrNull()?.let { return Duration.ofMinutes(it) }
+            if (s.all { it.isDigit() }) return null
+        } catch (_: ArithmeticException) { return null }
         runCatching { return Duration.parse(s.uppercase()) }
         var total = Duration.ZERO
         Regex("""(\d+)\s*(h|hour|hours|hr|m|min|mins|minute|minutes|s|sec|secs|second|seconds)\b""").findAll(s).forEach { m ->
-            val n = m.groupValues[1].toLong()
-            total = total.plus(when (m.groupValues[2].first()) { 'h' -> Duration.ofHours(n); 'm' -> Duration.ofMinutes(n); else -> Duration.ofSeconds(n) })
+            val n = m.groupValues[1].toLongOrNull() ?: return null
+            total = try { total.plus(when (m.groupValues[2].first()) { 'h' -> Duration.ofHours(n); 'm' -> Duration.ofMinutes(n); else -> Duration.ofSeconds(n) }) }
+                catch (_: ArithmeticException) { return null }
         }
         return total.takeIf { !it.isZero }
     }

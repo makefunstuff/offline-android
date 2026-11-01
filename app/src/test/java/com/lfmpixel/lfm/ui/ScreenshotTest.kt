@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -114,5 +115,15 @@ class ScreenshotTest {
     @Test fun chatAtDusk() { at(18, 30); shot("22_chat_dusk", route = Route.Chat) { ChatScreen(g, it, {}, false) } }
     @Test fun libraryAtNight() { at(23); shot("23_library_night", tabs = true, route = Route.Library()) { LibraryScreen(g, it, LibFilter.All, {}, false) } }
     @Test fun todayAtNight() { at(23); shot("24_today_night", tabs = true) { TodayScreen(g, it, {}, false) } }
+    @Test fun crashes() {
+        com.lfmpixel.lfm.crash.Crashes.log!!.record(IllegalStateException("Engine is closed"), "main", true, com.lfmpixel.lfm.crash.Crashes.build)
+        shot("25_crashes", route = Route.Crashes) { CrashesScreen(g, it) }
+    }
+    @Test fun crashNote() = shot("26_crash_note", tabs = true) {
+        Box(Modifier.fillMaxSize()) {
+            TodayScreen(g, it, {}, false)
+            CrashNote({}, {}, Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(bottom = 64.dp))
+        }
+    }
     @Test fun voiceInfo() = shot("19_sheet") { VoiceInfoSheet("Voice needs LFM3-Omni-2B and its projector file. Import both in Settings → Models.", {}, {}) }
 }

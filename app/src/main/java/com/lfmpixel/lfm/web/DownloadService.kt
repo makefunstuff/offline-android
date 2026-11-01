@@ -28,12 +28,13 @@ class DownloadService : Service() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Model downloads", NotificationManager.IMPORTANCE_LOW))
-        startForeground(ID, note("Starting download", 0, 0), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        foreground()
         val downloads = (application as LfmApp).graph.downloads
         scope.launch {
             downloads.items.collectLatest { items ->
                 val now = items.values.firstOrNull { it.state == ModelDownloads.State.Running || it.state == ModelDownloads.State.Checking }
-                if (now == null && !downloads.active) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return@collectLatest }
+                // Only up to the last start: one that came in meanwhile (a new download) is answered in onStartCommand.
+                if (now == null && !downloads.active) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(lastStart); return@collectLatest }
                 if (now != null) nm.notify(ID, note(
                     if (now.state == ModelDownloads.State.Checking) "Checking ${now.model.family}" else "Downloading ${now.model.family}",
                     now.done, now.model.sizeBytes))
@@ -56,7 +57,27 @@ class DownloadService : Service() {
         stopSelf()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int) = START_NOT_STICKY
+    private var lastStart = 0
+
+    /**
+     * Every startForegroundService is answered with startForeground, also one that lands while the service is stopping.
+     * Android 15+ refuses it once the day's 6 hours of data sync are used: the downloads pause instead of the app closing.
+     */
+    private fun foreground(): Boolean = try {
+        startForeground(ID, note("Starting download", 0, 0), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC); true
+    } catch (e: Exception) {
+        android.util.Log.w("lfm-download", "download notice refused", e)
+        (application as LfmApp).graph.downloads.pauseAll()
+        false
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStart = startId
+        val downloads = (application as LfmApp).graph.downloads
+        val running = downloads.items.value.values.any { it.state == ModelDownloads.State.Running || it.state == ModelDownloads.State.Checking }
+        if (!foreground() || (!running && !downloads.active)) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId) }
+        return START_NOT_STICKY
+    }
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onDestroy() { scope.cancel(); super.onDestroy() }
 

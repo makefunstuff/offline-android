@@ -67,7 +67,10 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
     val patterns by g.memory.patterns.collectAsState()
     val lastRun by g.memory.lastRun.collectAsState()
     val working by g.memory.working.collectAsState()
-    val scope = rememberCoroutineScope()
+    val ui = rememberCoroutineScope()
+    // A change the keystore or a full disk refuses is said, not a crash (a failure here would close the app).
+    val scope = remember(ui) { kotlinx.coroutines.CoroutineScope(ui.coroutineContext + kotlinx.coroutines.SupervisorJob(ui.coroutineContext[kotlinx.coroutines.Job]) + kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
+        android.util.Log.w("lfm-memory", "change not kept", e); nav.show("Couldn't save that change. Try again") }) }
     var editing by remember { mutableStateOf<Fact?>(null) }
     var adding by remember { mutableStateOf(false) }
     var forgetting by remember { mutableStateOf(false) }

@@ -334,7 +334,10 @@ class NetEngine(
             val t = s.trim().removePrefix("socks5://").removePrefix("socks://")
             if (t.isEmpty()) return null
             val host = t.substringBeforeLast(':')
-            val port = t.substringAfterLast(':', "").toIntOrNull() ?: return null
+            // Out of range ("host:90500", typed a digit too many) is not a proxy: createUnresolved would throw, and this
+            // is read while Settings draws.
+            val port = t.substringAfterLast(':', "").toIntOrNull()?.takeIf { it in 1..65535 } ?: return null
+            if (host.isBlank()) return null
             // Unresolved: the proxy looks the name up, so DNS goes through it too (Orbot, Tor).
             return Proxy(Proxy.Type.SOCKS, InetSocketAddress.createUnresolved(host, port))
         }

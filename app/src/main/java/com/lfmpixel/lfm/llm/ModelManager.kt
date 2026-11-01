@@ -291,8 +291,19 @@ class ModelManager(
     suspend fun embedder(): Embedder? = decideLock.withLock {
         val m = store.embedder() ?: return@withLock null
         touch()
-        embedder ?: GemmaEmbedder.open(m.file.path, liteRtCache.path, threads()).also { embedder = it }
+        embedder ?: run {
+            // A file that failed to load is not tried again on every index pass and search for a while: each try costs
+            // hundreds of MB for a moment.
+            embedFailed?.let { (path, at) ->
+                if (path == m.file.path && System.currentTimeMillis() - at < EMBED_RETRY_MS) throw LlmException("EmbeddingGemma did not load")
+            }
+            try { GemmaEmbedder.open(m.file.path, liteRtCache.path, threads()).also { embedder = it; embedFailed = null } }
+            catch (e: LlmException) { embedFailed = m.file.path to System.currentTimeMillis(); throw e }
+        }
     }
+
+    @Volatile private var embedFailed: Pair<String, Long>? = null
+    private val EMBED_RETRY_MS = 10 * 60_000L
 
     /** Long jobs (a scanned PDF read page by page) call this between steps so the idle unload waits. */
     fun keepAlive() { if (_status.value.anyLoaded) touch() }
@@ -319,7 +330,10 @@ class ModelManager(
         runCatching { omni?.close() }; omni = null
         runCatching { vision?.close() }; vision = null
         runCatching { decide?.close() }; decide = null
-        runCatching { embedder?.close() }; embedder = null
+        // Its close waits for a batch under way: off the main thread (the idle unload runs there), and to the end even
+        // though the idle job cancelled itself above.
+        embedder?.let { e -> withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) { runCatching { e.close() } } }
+        embedder = null
         _status.value = EngineStatus()
     }
 

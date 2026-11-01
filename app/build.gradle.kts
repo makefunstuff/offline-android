@@ -19,6 +19,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        // The commit a build came from, for its crash reports (Settings → Crash reports).
+        buildConfigField("String", "GIT_SHA", "\"${gitSha()}\"")
 
         ndk {
             // arm64-v8a for the Pixel; x86_64 so the emulator runs the same LiteRT natives.
@@ -57,7 +59,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
@@ -74,6 +76,11 @@ android {
         jniLibs { useLegacyPackaging = true }
     }
 }
+
+fun gitSha(): String = runCatching {
+    providers.exec { commandLine("git", "rev-parse", "--short=7", "HEAD"); isIgnoreExitValue = true }
+        .standardOutput.asText.get().trim().takeIf { it.matches(Regex("[0-9a-f]{7,}")) }
+}.getOrNull() ?: "unknown"
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")

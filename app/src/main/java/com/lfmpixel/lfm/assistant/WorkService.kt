@@ -34,7 +34,7 @@ class WorkService : Service() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Answers in progress", NotificationManager.IMPORTANCE_LOW))
-        startForeground(ID, note("Inkling is answering", ""), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        foreground()
         val g = (application as LfmApp).graph
         scope.launch {
             // Only the words of the notice, so a streamed token doesn't post it again.
@@ -49,7 +49,9 @@ class WorkService : Service() {
                     title to (if (q.isNotEmpty()) "${q.size} more waiting" else "On this phone")
                 }
             }.distinctUntilChanged().collectLatest { words ->
-                if (words == null) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return@collectLatest }
+                // Only up to the last start: one that came in meanwhile (Inkling left again) is answered in onStartCommand.
+                if (words == null) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(lastStart); return@collectLatest }
+                shown = words
                 nm.notify(ID, note(words.first, words.second))
             }
         }
@@ -63,8 +65,24 @@ class WorkService : Service() {
             PendingIntent.FLAG_IMMUTABLE))
         .build()
 
+    private var lastStart = 0
+    private var shown = "Inkling is answering" to ""
+
+    /**
+     * Every startForegroundService must be answered with startForeground, also one that lands while the service is
+     * stopping (Android otherwise closes the app: "did not then call Service.startForeground()").
+     */
+    private fun foreground() {
+        try { startForeground(ID, note(shown.first, shown.second), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) }
+        catch (e: Exception) { android.util.Log.w("lfm", "work notice refused", e) }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) (application as LfmApp).graph.assistant.stopAll()
+        lastStart = startId
+        val g = (application as LfmApp).graph
+        if (intent?.action == ACTION_STOP) g.assistant.stopAll() else foreground()
+        // Nothing left to do by the time this start came: stop, now with the latest start.
+        if (!g.assistant.busy.value) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(startId) }
         return START_NOT_STICKY
     }
 

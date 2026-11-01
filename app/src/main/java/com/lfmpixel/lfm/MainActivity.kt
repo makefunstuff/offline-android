@@ -415,6 +415,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     Route.History -> HistoryScreen(g, nav)
                     Route.Privacy -> PrivacyScreen(g, nav, pickers)
                     Route.Knows -> com.lfmpixel.lfm.ui.screens.KnowsScreen(g, nav)
+                    Route.Crashes -> com.lfmpixel.lfm.ui.screens.CrashesScreen(g, nav)
                     Route.FirstRun -> FirstRunScreen(g, nav) { nav.go(Route.Models); startImport() }
                     is Route.Search -> SearchScreen(g, nav, r.id)
                     Route.WebSearch -> WebSearchScreen(g, nav)
@@ -422,6 +423,13 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
             }
             // On today's page it sits above the Ink line, so it never covers the line being written.
             SnackHost(nav.snack, { nav.snack = null }, Modifier.align(Alignment.BottomCenter).padding(bottom = if (nav.current == Route.Today) 64.dp else 0.dp))
+            // The launch after a crash: a quiet note where the snack goes, until viewed or closed.
+            val crashed by com.lfmpixel.lfm.crash.Crashes.unseen.collectAsState()
+            if (crashed != null && nav.snack == null && p.firstRunDone && nav.current.isTab()) {
+                com.lfmpixel.lfm.ui.screens.CrashNote(onView = { nav.go(Route.Crashes) },
+                    onClose = { g.scope.launch(kotlinx.coroutines.Dispatchers.IO) { com.lfmpixel.lfm.crash.Crashes.markSeen() } },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = if (nav.current == Route.Today) 64.dp else 0.dp))
+            }
             }
             VoicePanel(g) { g.voice.stop() }
             if (nav.current == Route.Today || nav.current is Route.Library || nav.current == Route.Todos) {

@@ -672,6 +672,13 @@ class Assistant(
 
     /** Undo for an action the owner did themselves in the UI (no model), e.g. a capture from the Library. */
     fun runDirect(call: ToolCall, source: String, onDone: (ToolResult) -> Unit = {}) {
-        scope.launch { onDone(execute(call, source, afterWebText = false)) }
+        scope.launch {
+            // A tool that fails in a way of its own (the calendar or alarms refused, the disk full) says so to the caller,
+            // which can put the owner's line back, instead of failing the app's scope.
+            val r = try { execute(call, source, afterWebText = false) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (e: Exception) { android.util.Log.w("lfm", "${call.name} failed", e); ToolResult.error(e.message ?: "That didn't work") }
+            onDone(r)
+        }
     }
 }

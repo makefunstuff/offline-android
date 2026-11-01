@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import com.lfmpixel.lfm.voice.SpeechLanguage
 import com.lfmpixel.lfm.voice.SpeechVoice
@@ -83,7 +84,10 @@ data class Prefs(
 val THINK_BUDGETS = listOf(256, 512, 1024, 2048)
 const val DEFAULT_THINK_BUDGET = 1024
 
-private val Context.store by preferencesDataStore("settings")
+// A settings file cut short (the phone died mid-write) starts again from the defaults instead of failing every read,
+// which would close Inkling at each start.
+private val Context.store by preferencesDataStore("settings",
+    corruptionHandler = androidx.datastore.core.handlers.ReplaceFileCorruptionHandler { androidx.datastore.preferences.core.emptyPreferences() })
 
 class Settings(private val context: Context) {
     private object K {
@@ -122,7 +126,9 @@ class Settings(private val context: Context) {
         val learning = booleanPreferencesKey("learning")
     }
 
-    val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
+    val prefs: Flow<Prefs> = context.store.data
+        .catch { e -> if (e is java.io.IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw e }
+        .map { it.toPrefs() }
 
     suspend fun now(): Prefs = prefs.first()
 

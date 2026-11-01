@@ -75,7 +75,8 @@ fun LookTile(g: AppGraph, showSpeed: Boolean, modifier: Modifier = Modifier) {
     val executor = remember { Executors.newSingleThreadExecutor() }
     LaunchedEffect(Unit) {
         val provider = runCatching { ProcessCameraProvider.awaitInstance(ctx) }.getOrNull() ?: return@LaunchedEffect
-        val selector = if (provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
+        // hasCamera throws while the camera service restarts or another app holds it.
+        val selector = if (runCatching { provider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) }.getOrDefault(true)) CameraSelector.DEFAULT_BACK_CAMERA else CameraSelector.DEFAULT_FRONT_CAMERA
         val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
         view.display?.rotation?.let { analysis.targetRotation = it }
         g.look.start()
@@ -85,7 +86,8 @@ fun LookTile(g: AppGraph, showSpeed: Boolean, modifier: Modifier = Modifier) {
                 val t = System.currentTimeMillis()
                 if (t - last < 1000L / FPS) return@use
                 last = t
-                g.look.offer(small(it), now.getAndSet(false))
+                // The camera's own thread has no handler: a frame that fails to shrink is skipped.
+                runCatching { small(it) }.onSuccess { b -> g.look.offer(b, now.getAndSet(false)) }
             }
         }
         runCatching { provider.unbindAll(); provider.bindToLifecycle(owner, selector, preview, analysis) }
