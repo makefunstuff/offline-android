@@ -404,31 +404,33 @@ class Talk(
         var failure: Exception? = null
         // "Speaking" from the first audio, and again after a question was answered.
         var voiced = false
-        /** Shows and says [words] (the model's, or Talk's own). */
-        suspend fun say(words: String) {
+        /** Talk's own lines in this answer (a question, "Let me check."): never taken for an offer. */
+        val own = mutableListOf<String>()
+        /** Shows and says [words]: the model's, or Talk's [ownLine] (said whole, past the offer filter). */
+        suspend fun say(words: String, ownLine: Boolean = false) {
             if (firstWord == 0L) firstWord = SystemClock.elapsedRealtime()
             text.append(words)
+            if (ownLine) own += words.trim()
             set(run) { st ->
                 st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
-                    turns = st.turns.map { if (it.id == id) it.copy(it = com.lfmpixel.lfm.assistant.Offers.strip(text.toString().trim(), said)) else it })
+                    turns = st.turns.map { if (it.id == id) it.copy(it = com.lfmpixel.lfm.assistant.Offers.strip(text.toString().trim(), said, own)) else it })
             }
-            if (spoken) chunker.feed(words).flatMap(offers::feed).forEach { pieces.send(Piece(it)) }
+            if (spoken) (if (ownLine) chunker.feed(words) + chunker.flush() else chunker.feed(words).flatMap(offers::feed)).forEach { pieces.send(Piece(it)) }
         }
         val turnTools = TalkToolTurn(
             ask = { q ->
                 if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ')
                 // What the model said so far is said first, so an unfinished sentence can't swallow the question.
                 if (spoken) (chunker.flush().flatMap(offers::feed) + offers.release()).forEach { pieces.send(Piece(it)) }
-                say("$q ")
+                say("$q ", ownLine = true)
                 if (spoken) {
-                    (chunker.flush().flatMap(offers::feed) + offers.release()).forEach { pieces.send(Piece(it)) }
                     val heard = kotlinx.coroutines.CompletableDeferred<Unit>()
                     pieces.send(Piece("", heard))
                     heard.await()
                 }
                 hearYesNo(run) { pcm -> edge.voice.transcribe(pcm, p.speechLanguage.asr) }.also { if (spoken) out.start(); voiced = false }
             },
-            looking = { if (text.isBlank()) say(TalkWeb.LOOKING + " ") },
+            looking = { if (text.isBlank()) say(TalkWeb.LOOKING + " ", ownLine = true) },
             onSearch = { found -> set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(web = it.web + found) else it }) } },
             afterWebText = webRead)
         try {
@@ -530,7 +532,7 @@ class Talk(
             model = model, tools = ran)
         Log.i(TAG, "server answer: $timing: $text")
         val stopped = interrupted || !finished
-        val shown = com.lfmpixel.lfm.assistant.Offers.strip(text.toString().trim(), said)
+        val shown = com.lfmpixel.lfm.assistant.Offers.strip(text.toString().trim(), said, own)
         set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(it = shown, done = true, stopped = stopped) else it }) }
         return true
     }

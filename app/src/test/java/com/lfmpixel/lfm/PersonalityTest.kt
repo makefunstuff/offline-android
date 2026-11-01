@@ -123,10 +123,21 @@ class PersonalityTest {
             .forEach { assertTrue(it, Offers.isOffer(it)) }
         listOf("What should I cook tonight?", "Should I go to the party tomorrow?", "My mum has to be at the airport at six")
             .forEach { assertFalse(it, Offers.timed(it)) }
+        listOf("I still need to call the bank at 4", "We have to leave at six", "I’ll need to leave at six")
+            .forEach { assertTrue(it, Offers.timed(it)) }
+        assertTrue(Offers.isOffer("Let me know if you’d like me to set a reminder."))
+        // Talk's own question is kept, even when it sounds like one.
+        val own = "Shall I look up “best reminder apps” on the web?"
+        assertTrue(Offers.isOffer(own))
+        assertEquals("Okay. $own", Offers.strip("Okay. $own", "what are the best reminder apps?", keep = listOf(own)))
+        assertEquals("Line one.\nLine two.", Offers.strip("Line one.\nLine two.", "hi"))
         listOf("What wore you out the most?", "Do you want the short version or the long one?", "Shall I look it up?",
             "Would you like to hear a joke?", "Want to tell me about it?", "Should you notify your landlord first?",
             "Do you want to put it in the fridge overnight?", "Would you like to add that to the recipe?",
-            "Can you hear the smoke alarm?", "Should I put it in the oven first?", "I can see why that's annoying.").forEach { assertFalse(it, Offers.isOffer(it)) }
+            "Can you hear the smoke alarm?", "Should I put it in the oven first?", "I can see why that's annoying.",
+            "I can see why that reminded you of your dad.", "Could I ask what it reminds you of?",
+            "I can set reminders, take notes and search the web.", "I can't set alarms from here.",
+            "It reminds me of Paris.").forEach { assertFalse(it, Offers.isOffer(it)) }
         assertEquals("That sounds rough. Want to talk it through?",
             Offers.strip("That sounds rough. Want to talk it through? Would you like me to set a reminder to rest?", "work was awful"))
         // A one-sentence answer stays, whatever it is: there is nothing else to say.

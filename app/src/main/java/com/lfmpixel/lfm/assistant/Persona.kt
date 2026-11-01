@@ -53,31 +53,43 @@ object Persona {
 object Offers {
     private val opt = setOf(RegexOption.IGNORE_CASE)
     /** What an offer is of: a reminder, a notification, a to-do, a note. */
-    private const val WHAT = """(?:remind\w*|notifications?|notify|nudge|alarms?|add (?:it|that|this) to (?:your|the) (?:list|to-?dos?|calendar)|""" +
+    private const val WHAT = """(?:remind(?:ers?)?|notifications?|notify|nudge|alarms?|add (?:it|that|this) to (?:your|the) (?:list|to-?dos?|calendar)|""" +
         """(?:a|on|to) (?:your )?to-?do|put (?:it|that|this) on (?:your|the) (?:list|to-?do)|(?:note|jot) (?:it|that|this) down|make a note|save (?:it|that|this) as a note)"""
     /**
      * Wren offering to do it, asked ("want me to", "shall I", "would you like a…", "fancy a…") or told ("let me know if
      * you'd like me to…", "I can set a reminder if you like"); not a question for the owner ("should you…").
      */
     private val offer = Regex("""^(?:(?:so|and|also|oh|by the way|if you (?:like|want|'d like)),?\s+)?""" +
-        """(?:(?:(?:do you want|would you like|want)\s+(?:me\s+to|a|an)|(?:shall|should|can|could|may)\s+i|how about (?:a|i)|fancy an?|i (?:can|could)|""" +
-        """let me know if you(?:'d| would)? (?:like|want)|happy to)\b.*\b$WHAT\b.*[.?!]$)""", opt)
+        """(?:(?:(?:do you want|would you like|want)\s+(?:me\s+to|a|an)|(?:shall|should|can|could|may)\s+i|how about (?:a|i)|fancy an?|""" +
+        """let me know if you(?:'d| would)? (?:like|want)|happy to)\b.*\b$WHAT\b.*[.?!]$|""" +
+        // "I can set a reminder if you like": told, so only with the "if you like" (not "I can set reminders and notes").
+        """i (?:can|could) (?:also |just )?(?:set|add|make|create|schedule|pop|put|jot|note|remind)\b.*\b$WHAT\b.*(?:if you(?:'d| would)? (?:like|want)\w*|for you)[.?!]?$|""" +
+        """i (?:can|could) (?:also |just )?(?:set|add|make|create|schedule|pop|put|jot|note|remind)\b.*\b$WHAT\b.*\?$)""", opt)
     /** A time in what was said: "at six", "5pm", "tomorrow", "on Friday". */
     private val timing = Regex("""\b(?:remind|at (?:\d|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|noon|midnight)|\d\s*(?:am|pm|o'clock)|\d[:.]\d\d|tomorrow|tonight|on (?:mon|tue|wed|thu|fri|sat|sun)\w*|this (?:afternoon|evening|morning)|by (?:mon|tue|wed|thu|fri|sat|sun|\d))""", opt)
 
-    fun isOffer(sentence: String): Boolean = offer.matches(sentence.trim())
+    fun isOffer(sentence: String): Boolean = offer.matches(plain(sentence))
+
+    /** Curly apostrophes as straight ones, as the patterns spell them. */
+    private fun plain(s: String) = s.trim().replace('’', '\'')
 
     /** Something the owner has to do, in their own words: "I need to", "I have to", "don't let me forget"; not "should I…". */
-    private val task = Regex("""\b(?:remind me|i (?:really )?(?:need|have|got|gotta|must|should|ought)\b|i've got to|i'm supposed to|don't (?:let me )?forget)""", opt)
+    private val task = Regex("""\b(?:remind me|(?:i|we)(?:'ll| will| really| still| also)? (?:need|have|got|ought) to|(?:i|we) (?:must|gotta)\b|""" +
+        """i should (?!have\b)|(?:i|we)'ve got to|i'm supposed to|don't (?:let me )?forget)""", opt)
 
     /** Whether [said] named a time for something the owner must do: then an offer may stay. */
-    fun timed(said: String): Boolean = timing.containsMatchIn(said) && task.containsMatchIn(said)
+    fun timed(said: String): Boolean = plain(said).let { timing.containsMatchIn(it) && task.containsMatchIn(it) }
 
-    /** [answer] without its offers, unless [said] was [timed]; an answer that is only an offer stays, as [OfferFilter] says it. */
-    fun strip(answer: String, said: String): String {
+    /**
+     * [answer] without its offers, unless [said] was [timed]; an answer that is only an offer stays, as [OfferFilter]
+     * says it. [keep]: Talk's own questions ("Shall I look up … on the web?"), never taken for an offer.
+     */
+    fun strip(answer: String, said: String, keep: Collection<String> = emptyList()): String {
         if (timed(said)) return answer
         val sentences = Regex("(?<=[.!?…])\\s+").split(answer.trim())
-        return sentences.filter { !isOffer(it) }.ifEmpty { sentences }.joinToString(" ")
+        val left = sentences.filter { !isOffer(it) || keep.any { k -> k.trim() == it.trim() } }
+        if (left.size == sentences.size || left.isEmpty()) return answer
+        return left.joinToString(" ")
     }
 }
 
