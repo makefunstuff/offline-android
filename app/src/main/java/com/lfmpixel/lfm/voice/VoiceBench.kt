@@ -156,7 +156,7 @@ class VoiceBench(private val models: ModelManager, private val settings: Setting
         }
         models.keepAlive()
         settings.setVoicePace(Jitter.prior.rtf, Jitter.prior.usualMs)
-        return VoiceReport(LocalDateTime.now(), s.backend.label, loadMs, tts, q16.size / 16.0, vad[0], vad[1], vad[2],
+        return VoiceReport(LocalDateTime.now(), com.lfmpixel.lfm.llm.Backend.LiteRtCpu.label, loadMs, tts, q16.size / 16.0, vad[0], vad[1], vad[2],
             asrMs, asr.prefillMs, asr.decodeTokens, said, prewarmMs, warmTokens, heardInMs, turns, log)
     }
 
