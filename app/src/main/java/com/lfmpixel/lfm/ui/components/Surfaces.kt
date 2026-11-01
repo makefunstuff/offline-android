@@ -81,7 +81,7 @@ fun PlaceTitle(title: String, modifier: Modifier = Modifier, below: @Composable 
 }
 
 /**
- * Horizon Almanac's signature, on every screen's header: the waking day as a small half dial (06:00 to 22:00) with the
+ * Horizon Almanac's signature, on every screen's header: the waking day as a small half dial (07:00 to 22:00, as Today's dial) with the
  * sun on it at now, or the moon resting on the horizon at night. Moves only when the minute changes; TalkBack skips it
  * (the time is in the status bar).
  */
@@ -89,7 +89,7 @@ fun PlaceTitle(title: String, modifier: Modifier = Modifier, below: @Composable 
 fun SunMark(modifier: Modifier = Modifier) {
     val c = Lfm.c
     val now by rememberNow()
-    val f = (now.hour * 60 + now.minute - 360) / 960f
+    val f = (now.hour * 60 + now.minute - 420) / 900f
     androidx.compose.foundation.Canvas(modifier.width(40.dp).height(22.dp)) {
         val r = size.width / 2 - 3.dp.toPx()
         val cx = size.width / 2

@@ -230,7 +230,8 @@ internal fun NowCard(g: AppGraph, nav: Nav, now: NextAction.Now?, planEmpty: Boo
                         g.focus.start(n.entry.id, n.entry.title, n.minutes)
                         nav.go(Route.Focus)
                     }, kind = BtnKind.Primary)
-                    Btn("Done", { org.done(n.entry) })
+                    val view = androidx.compose.ui.platform.LocalView.current
+                    Btn("Done", { view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM); org.done(n.entry) })
                     Btn("Not now", { nav.skipped.remove(n.entry.id); nav.skipped.add(n.entry.id) })
                 }
             }

@@ -336,7 +336,12 @@ fun CheckBox(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
     val shape = LfmShape.round
     // A ring; done, it fills with the sun and pops a little: a small win, seen. With no onChange the row around it
     // takes the tap (and says the state); the ring only draws.
-    Box(Modifier.size(48.dp).let { m -> onChange?.let { m.toggleable(checked, role = Role.Checkbox, onValueChange = it) } ?: m },
+    val view = androidx.compose.ui.platform.LocalView.current
+    // A small win, felt: a confirm tick when it is ticked (through the view, so it follows the phone's touch feedback).
+    Box(Modifier.size(48.dp).let { m -> onChange?.let { m.toggleable(checked, role = Role.Checkbox, onValueChange = { on ->
+        if (on) view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
+        it(on)
+    }) } ?: m },
         contentAlignment = Alignment.Center) {
         val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
         val fill by androidx.compose.animation.animateColorAsState(if (checked) c.highlight else Color.Transparent, motion.spec(motion.TINY), label = "box")
@@ -438,6 +443,18 @@ fun Fab(icon: String, onClick: () -> Unit, desc: String, modifier: Modifier = Mo
     val shape = LfmShape.round
     Box(modifier.size(56.dp).clip(shape).background(c.text).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
         contentAlignment = Alignment.Center) { LIcon(icon, tint = c.bg) }
+}
+
+/** One navy pill with + (write something new) and the mic (say it), each a 56 dp target; listening, the mic half shows Stop. */
+@Composable
+fun NewPill(onNew: () -> Unit, newDesc: String, onMic: () -> Unit, listening: Boolean, modifier: Modifier = Modifier) {
+    val c = Lfm.c
+    Row(modifier.height(56.dp).clip(LfmShape.pill).background(c.text), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(56.dp).clickable(role = Role.Button, onClick = onNew).semantics { contentDescription = newDesc },
+            contentAlignment = Alignment.Center) { LIcon("plus", tint = c.bg) }
+        Box(Modifier.size(56.dp).clickable(role = Role.Button, onClick = onMic).semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
+            contentAlignment = Alignment.Center) { LIcon(if (listening) "stop" else "mic", tint = c.bg) }
+    }
 }
 
 /** A search or quick-add line: always visible, keyboard up when [focus] is set. Enter calls [onDone]. */

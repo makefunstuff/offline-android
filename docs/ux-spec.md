@@ -72,9 +72,11 @@ outside the components, a platform dialog, a colour written out in a widget's la
   blue words. No box, no edge; the 44 dp target is still there.
 - **Tabs and choices are words** (`Tabs`, `Segmented`): the picked one navy and bold with the highlighter's stroke drawn
   in under it.
-- **Switches** are round, the action blue when on; **check boxes** are rings that fill with the sun.
-- **The mic**: the primary one (Talk's own, the bottom bar's) is the pastel; dictation mics elsewhere are a quiet fill,
-  so a screen never has two yellow buttons. The + for a new entry is a navy circle.
+- **Switches** are round, the action blue when on; **check boxes** are rings that fill with the sun and give a
+  confirm tick (haptic, as Now's Done does): a small win, felt.
+- **The mic**: the primary one (Talk's own, the bottom bar's) is the pastel; dictation mics sit inside the line they
+  fill (the Ink line, Plans' add line, the message box) as a quiet fill, so the only round button above the bar is
+  Notebook's navy pill holding + and the mic.
 - **The highlighter** (`Marked`) is a stroke from just above the baseline to under it, drawn in from the left the
   first time.
 - **The signature** (`SunMark`): every header on the sky ends with a small half dial with the sun on it at now (the
@@ -139,7 +141,7 @@ The app's copy follows it: first person where Inkling speaks ("I'm listening", "
 
 From the top: the sky (as tall as its words need), then the page.
 
-- **In the sky:** the date, then the day before, Look, brain dump and settings; the day as a half dial (06:00–22:00,
+- **In the sky:** the date, then the day before, Look, brain dump and settings; the day as a half dial (07:00–22:00,
   stretched for early or late plans) with an hour tick each hour, plans as bold marks, the sun at now and the stretch
   to the next plan in yellow; the time inside the dial, its foot on the horizon. Every header on the sky elsewhere
   ends with the SunMark.

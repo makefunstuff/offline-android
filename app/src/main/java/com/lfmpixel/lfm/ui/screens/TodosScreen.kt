@@ -102,7 +102,9 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 { l -> tab = TodoTab.entries.first { l.startsWith(it.label) } }, Modifier.padding(horizontal = 16.dp))
             InputLine(adding, { adding = it }, when (tab) { TodoTab.Today -> "Add a to-do for today"; TodoTab.Upcoming -> "Add a to-do for tomorrow"; TodoTab.Someday -> "Add a to-do, no date" },
                 "plus", Modifier.padding(horizontal = 16.dp), focus = focus, imeAction = ImeAction.Done, onDone = add) {
+                // Say a to-do: the mic sits in the line it fills, so the only round button below is the talk button.
                 if (adding.isNotBlank()) IconButtonPlain("send", add, tint = c.text, desc = "Add")
+                else MicButton(onMic, listening = listening)
             }
             LazyColumn(Modifier.fillMaxSize().padding(top = 6.dp)) {
                 // Not before the to-dos are read: "Nothing due today" must not flash before the list.
@@ -124,7 +126,6 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 item { Spacer(Modifier.height(96.dp)) }
             }
         }
-        MicButton(onMic, Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = snackLift(nav)), size = 56.dp, listening = listening, floating = true)
     }
 }
 
