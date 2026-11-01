@@ -40,6 +40,7 @@ import com.lfmpixel.lfm.ui.components.BtnKind
 import com.lfmpixel.lfm.ui.components.Divider
 import com.lfmpixel.lfm.ui.components.Header
 import com.lfmpixel.lfm.ui.components.IconButtonPlain
+import com.lfmpixel.lfm.ui.components.InputLine
 import com.lfmpixel.lfm.ui.components.SectionLabel
 import com.lfmpixel.lfm.ui.components.Switch
 import com.lfmpixel.lfm.ui.components.Txt
@@ -52,8 +53,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * What Wren knows (notebook-spec section 6): every fact it learned, where it came from, each one editable and
- * deletable; the corrections it keeps; the patterns it noticed (shown here only, never pushed); the learning switch
+ * What Wren knows (notebook-spec section 6): every fact it learned, grouped by kind and searchable, where it came
+ * from and what it said before it changed, each one editable and deletable; the conversations it remembers; the
+ * corrections it keeps; the patterns it noticed (shown here only, never pushed); the learning switch
  * and Forget everything learned.
  */
 @Composable
@@ -63,7 +65,14 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
     val allFacts by g.memory.facts.collectAsState()
     // While the journal is locked, what was learned from it stays hidden here too.
     val journalLocked = g.lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal)
-    val facts = if (journalLocked) allFacts.filter { !it.journal } else allFacts
+    var query by remember { mutableStateOf("") }
+    val words = com.lfmpixel.lfm.memory.Words.content(query).map(com.lfmpixel.lfm.memory.Words::stem)
+    fun matches(text: String) = words.isEmpty() || com.lfmpixel.lfm.memory.Words.content(text).map(com.lfmpixel.lfm.memory.Words::stem)
+        .let { have -> words.all { w -> have.any { it.startsWith(w) } } }
+    val visible = if (journalLocked) allFacts.filter { !it.journal } else allFacts
+    val facts = visible.filter { matches(it.text + " " + it.was + " " + it.kind.label) }
+    val allEpisodes by g.memory.episodes.collectAsState()
+    val episodes = allEpisodes.filter { matches(it.title() + " " + it.lines) }.sortedByDescending { it.at }
     val corrections by g.memory.corrections.collectAsState()
     val patterns by g.memory.patterns.collectAsState()
     val lastRun by g.memory.lastRun.collectAsState()
@@ -86,21 +95,24 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
                 Group {
                     Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Txt("Learn from my notes", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+                            Txt("Learn from what I write and say", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
                             Txt(if (p.learning) "On · from notes, chats, Talk and your corrections. Kept on this phone, sealed."
                                 else "Off · nothing is learned, and nothing learned is used. Answers still read your notes.", LfmType.label.copy(fontWeight = null), c.text2)
                         }
-                        Switch(p.learning, "Learn from my notes") { on -> scope.launch { g.settings.setLearning(on) } }
+                        Switch(p.learning, "Learn from what I write and say") { on -> scope.launch { g.settings.setLearning(on) } }
                     }
                 }
+                InputLine(query, { query = it }, "Search what Wren knows", "search", Modifier.padding(top = 12.dp))
                 Txt("Answers use these when they help. Only what one answer needs goes with it to your server, as your notes do; " +
                     "health, money and the locked journal stay out of the standing profile.", LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
             }
             val byKind = facts.groupBy { it.kind }
-            if (journalLocked && allFacts.size > facts.size) item {
-                Txt("${allFacts.size - facts.size} learned from your journal are hidden while it is locked.", LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
+            if (journalLocked && allFacts.size > visible.size) item {
+                Txt("${allFacts.size - visible.size} learned from your journal are hidden while it is locked.", LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
             }
-            if (facts.isEmpty()) item { Empty("Nothing yet", "As you write (\"my sister Ana…\", \"I prefer mornings\"), what lasts shows here, with where it came from.") }
+            if (words.isNotEmpty() && facts.isEmpty() && episodes.isEmpty()) item { Empty("Nothing about that", "Try other words.") }
+            else if (visible.isEmpty()) item { Empty("Nothing yet", "As you write or talk (\"my sister Ana…\", \"I prefer mornings\"), what lasts shows here, with where it came from. " +
+                "Say \"Remember that…\" or \"Forget that…\" to Wren any time.") }
             for (kind in FactKind.entries) {
                 val list = byKind[kind] ?: continue
                 item(key = "h" + kind.name) { SectionLabel(kind.label) }
@@ -109,6 +121,7 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(Modifier.weight(1f)) {
                             Txt(f.text, LfmType.body)
+                            if (f.was.isNotEmpty()) Txt("Changed ${date(f.changedAt)} · was: ${f.was}", LfmType.meta, c.text2, maxLines = 2)
                             Txt(listOfNotNull(f.source.label, date(f.source.at), if (f.mentions > 1) "seen ${f.mentions} times" else null,
                                 if (f.edited) "your words" else null).joinToString(" · "), LfmType.meta, c.text2, maxLines = 2)
                         }
@@ -118,6 +131,21 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
                 }
             }
             item { Btn("Add something Wren should know", { adding = true }, Modifier.padding(top = 12.dp).fillMaxWidth(), icon = "plus") }
+            if (episodes.isNotEmpty()) {
+                item { SectionLabel("Conversations it remembers") }
+                items(episodes.take(if (words.isEmpty()) 20 else 50), key = { "e" + it.id }) { e ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Txt(e.title(), LfmType.body, maxLines = 2)
+                            Txt(listOfNotNull(if (e.kind == "talk") "Talk" else "Chat", date(e.at), if (!e.read) "not read yet" else null)
+                                .joinToString(" · "), LfmType.meta, c.text2)
+                        }
+                        IconButtonPlain("x", { scope.launch { g.memory.deleteEpisode(e.id) } }, desc = "Forget this conversation")
+                    }
+                    Divider()
+                }
+                item { Txt("So Wren can answer \"what did I say about…\". Older ones keep only a line on what they were about.", LfmType.meta, c.text2) }
+            }
             if (corrections.isNotEmpty()) {
                 item { SectionLabel("Corrections it keeps") }
                 items(corrections.reversed(), key = { "c" + it.id }) { k ->
@@ -141,7 +169,7 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
             }
             item {
                 SectionLabel("Tidying up")
-                Txt(lastRun.ifEmpty { "Each night while the phone charges, Wren merges duplicates, lets stale facts go and looks for patterns." },
+                Txt(lastRun.ifEmpty { "Each night while the phone charges, Wren reads new conversations, merges duplicates, lets stale facts go and looks for patterns." },
                     LfmType.meta, c.text2)
                 Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Btn(if (working) "Learning…" else "Learn now", {
@@ -158,7 +186,7 @@ fun KnowsScreen(g: AppGraph, nav: Nav) {
             onClose = { editing = null }) { text -> scope.launch { g.memory.edit(f.id, text) }; editing = null }
     }
     if (adding) FactSheet("Add something Wren should know", "", "Add", onDelete = null, onClose = { adding = false }) { text ->
-        scope.launch { g.memory.add(FactKind.Other, text) }; adding = false
+        scope.launch { g.memory.add(null, text) }; adding = false
     }
     if (forgetting) FlatSheet(onDismiss = { forgetting = false }) {
         Txt("Forget everything learned?", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.semantics { heading() })

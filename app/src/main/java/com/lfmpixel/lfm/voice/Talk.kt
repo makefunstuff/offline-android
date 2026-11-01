@@ -235,6 +235,7 @@ class Talk(
         synchronized(this) { _state.value = TalkState(spoken = _state.value.spoken) }
         exchanges.clear()
         webRead = false
+        synchronized(this) { sent.clear(); lastRecall = null }
         models.edge?.gateway?.talkClosed()
     }
 
@@ -380,11 +381,12 @@ class Talk(
         val spoken = _state.value.spoken
         // The profile goes in the system prompt (it rarely changes, so the server keeps it read in); the notes and facts
         // near what was said go with this turn. A spoken answer can't wait long for them: 600 ms at most.
-        val recall = memory?.let { m -> withTimeoutOrNull(600) { runCatching { m.context(said, TALK_CONTEXT) }.getOrNull() } }
+        // "Remember that…" / "Forget that…": done by the memory, and its answer is what Wren says.
+        val remembered = command(said)
+        val recall = if (remembered != null) null else memory?.let { m -> withTimeoutOrNull(600) { runCatching { m.context(said, TALK_CONTEXT) }.getOrNull() } }
         recall?.let { Log.i(TAG, "talk: recall ${it.system.length} + ${it.turn.length} chars in ${it.ms} ms") }
-        val prompt = SpeechFormat.talkHistory(
-            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())) + recall?.system.orEmpty(),
-            before, said + recall?.turn.orEmpty()) + SpeechFormat.REPLY_PREFIX
+        val prompt = SpeechFormat.talkPrompt(
+            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())), recall, before, said)
         val text = StringBuilder()
         var firstWord = 0L
         var firstAudio = 0L
@@ -442,12 +444,12 @@ class Talk(
                     }
                 } else null
                 // Look on and a question about the view: the VL model answers it on the newest frame (a label decides).
-                val direct = lookAnswer?.invoke(said)
+                val direct = remembered ?: lookAnswer?.invoke(said)
                 if (direct != null) {
                     firstWord = SystemClock.elapsedRealtime()
                     text.append(direct)
-                    model = com.lfmpixel.lfm.edge.EdgeModels.label(com.lfmpixel.lfm.edge.EdgeModels.VISION)
-                    Log.i(TAG, "talk: $model answers about the camera's view")
+                    model = if (remembered != null) "Wren's memory" else com.lfmpixel.lfm.edge.EdgeModels.label(com.lfmpixel.lfm.edge.EdgeModels.VISION)
+                    Log.i(TAG, "talk: $model answers" + if (remembered != null) "" else " about the camera's view")
                     set(run) { st -> st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
                         turns = st.turns.map { if (it.id == id) it.copy(it = direct) else it }) }
                     if (spoken) chunker.feed(direct).forEach { pieces.send(Piece(it)) }
@@ -546,12 +548,34 @@ class Talk(
     }
 
     /** The finished exchanges, oldest first, as Omni reads them back. */
-    private fun doneTurns() = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { it.you to it.it }
+    private fun doneTurns() = _state.value.turns.filter { it.done && it.it.isNotBlank() }.map { (synchronized(this) { sent[it.id] } ?: it.you) to it.it }
+    /** Each phone turn's words as Omni read them (with the memory's lines), by turn id. */
+    private val sent = HashMap<Long, String>()
+
+    /** A memory command in [said], done now (it only writes the memory: never cancelled half-way), or null. */
+    private suspend fun command(said: String): String? {
+        val m = memory ?: return null
+        if (com.lfmpixel.lfm.memory.MemoryCommand.parse(said) == null) return null
+        return try { m.command(said) } catch (e: CancellationException) { throw e } catch (e: Exception) { Log.w(TAG, "memory command failed", e); null }
+    }
 
     /** Omni on the phone: a short profile only (its context is small, and a stable start stays read in). */
     private suspend fun system(): String =
         SpeechFormat.talkSystem(settings.now().speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())) +
             (memory?.let { m -> runCatching { m.context("", 4096, notes = false).system }.getOrNull() }.orEmpty())
+
+    /** What the memory has that fits [said], for Omni's small context: facts only (no notes), and quickly or not at all. */
+    private suspend fun recalled(said: String): String {
+        val m = memory ?: return ""
+        if (com.lfmpixel.lfm.memory.MemoryCommand.parse(said) != null) return ""
+        synchronized(this) { lastRecall?.takeIf { it.first == said }?.let { return it.second } }
+        // By words, not meaning: the embedding model is not loaded next to Omni for this.
+        val turn = withTimeoutOrNull(400) { runCatching { m.context(said, 4096, notes = false, meaning = false).turn }.getOrNull() }.orEmpty()
+        synchronized(this) { lastRecall = said to turn }
+        return turn
+    }
+    /** The last [recalled], so the turn read in early and the turn answered start the same. */
+    private var lastRecall: Pair<String, String>? = null
 
     private class Heard(val text: String, val started: Long, val ended: Long, val tokens: Int, val audioInMs: Double)
 
@@ -565,7 +589,7 @@ class Talk(
             val ended = System.nanoTime()
             val st = session.stats()
             if (dropped) throw CancellationException("dropped")
-            if (text.isNotBlank()) runCatching { session.talkPrewarm(SpeechFormat.talkHistory(system(), doneTurns(), text)) }
+            if (text.isNotBlank()) runCatching { session.talkPrewarm(SpeechFormat.talkHistory(system(), doneTurns(), text + recalled(text))) }
             Heard(text, started, ended, st.decodeTokens, st.prefillMs)
         }
 
@@ -577,6 +601,8 @@ class Talk(
         val before = doneTurns()
         set(run) { it.copy(turns = it.turns + TalkTurn(id, said, seconds = seconds), viaServer = false) }
         val spoken = _state.value.spoken
+        // "Remember that…" / "Forget that…" is done now; Omni says so in its own voice (no web look-up for it).
+        val remembered = command(said)
         // "Speaking" from the first sound, not the first audio: the buffer may wait a while first.
         out.onSound = { set(run) { it.copy(phase = TalkPhase.Speaking) } }
         val text = StringBuilder()
@@ -589,7 +615,7 @@ class Talk(
             onSearch = { found -> set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(web = it.web + found) else it }) } },
             afterWebText = webRead)
         val plan = try {
-            (phoneLookup?.plan(said, turnTools) ?: PhoneLookup.None).also { if (it is PhoneLookup.Say) sayOnPhone(run, id, text, it.text, spoken) }
+            (if (remembered != null) PhoneLookup.None else phoneLookup?.plan(said, turnTools) ?: PhoneLookup.None).also { if (it is PhoneLookup.Say) sayOnPhone(run, id, text, it.text, spoken) }
         } catch (e: CancellationException) {
             // Stopped while it asked or looked: the turn ends there, and Talk listens again.
             if (run == epoch && !interrupted) throw e
@@ -604,7 +630,11 @@ class Talk(
             set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(done = true) else it }) }
             return
         }
-        val history = SpeechFormat.talkHistory(system(), before, said + ((plan as? PhoneLookup.Read)?.note ?: ""))
+        // Else the facts near what was said, and what the web found.
+        val user = said + (remembered?.let { com.lfmpixel.lfm.memory.MemoryCommand.note(it) } ?: (recalled(said) + ((plan as? PhoneLookup.Read)?.note ?: "")))
+        // Read back the same way next turn, so Omni's cached start still matches.
+        synchronized(this) { sent[id] = user }
+        val history = SpeechFormat.talkHistory(system(), before, user)
         val ownWords = text.length
         if (spoken) out.start()
         val t0 = System.nanoTime()

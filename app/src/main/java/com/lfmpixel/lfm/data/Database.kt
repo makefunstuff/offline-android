@@ -103,6 +103,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages ORDER BY threadId, id") suspend fun all(): List<ChatMessage>
     /** What the owner wrote in chats since [since], oldest first: what the memory reads. */
     @Query("SELECT * FROM messages WHERE role = 'User' AND createdAt > :since ORDER BY id") suspend fun userSince(since: Long): List<ChatMessage>
+    /** Every message after [id], oldest first: the chats the memory keeps as conversations. */
+    @Query("SELECT * FROM messages WHERE id > :id ORDER BY id") suspend fun after(id: Long): List<ChatMessage>
+    @Query("SELECT MAX(id) FROM messages") suspend fun maxId(): Long?
 }
 
 @Dao

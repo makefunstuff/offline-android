@@ -479,7 +479,20 @@ the phone. Parts, ranked by how much they help per unit of effort:
 5. **Patterns, gently (built).** When there is enough to go on: the hours to-dos usually get done, the hours the owner
    writes most, themes that keep coming back, to-dos that keep moving ("maybe smaller steps"). Shown on the screen and
    in the profile only; never a notification.
-6. **Fine-tuning or LoRA on the phone (not done).** LiteRT-LM has no on-device training, a 1.7B LoRA step would be
+6. **A memory that grows across chats and Talk (LFMP-31, built).** Each conversation (a chat quiet for 10 minutes or
+   left for a new one, a Talk paused or closed) is kept, sealed, as an episode: what the owner said and a short part of
+   the answers. The small model reads it for lasting facts (now with goals: "You want to run a marathon") and a
+   one-line summary: at once on the owner's server when it can be reached, else in the nightly pass on the phone's
+   LiteRT model while charging. Nothing sensitive goes to the server. A fact that changed ("you moved to York", a new
+   job) keeps what it said before, shown as "was: …". Recall ranks facts by how well they fit (meaning and words),
+   lifted by recency and importance (kind, the owner's own words, how often seen); Omni on the phone now gets the
+   facts near what was said too. "What did I say about the garden?" brings back the conversations about it.
+   "Remember that…" and "Forget that…", typed or said, are done at once by the memory, not the model ("remember to…"
+   stays a reminder; "forget everything" only on the screen); what was forgotten, by voice or ×, is never learned
+   again from the same words. The nightly pass also merges near-duplicates by meaning, and conversations older than
+   30 days keep only their summary (at most 150). What Wren knows is searchable and lists the conversations, each
+   deletable. Learning off stops all of it: no episodes, no extraction, no "remember".
+7. **Fine-tuning or LoRA on the phone (not done).** LiteRT-LM has no on-device training, a 1.7B LoRA step would be
    minutes of hot phone per few examples, and retrieval plus few-shot already carries the owner's facts and fixes
    with no training and instant Forget.
 

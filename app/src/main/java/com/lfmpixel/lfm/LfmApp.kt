@@ -93,16 +93,34 @@ class AppGraph(context: Context) {
     }
     /** What Wren learned (notebook-spec section 6): sealed in the notes' database, read into answers. */
     val memory = com.lfmpixel.lfm.memory.MemoryStore(db, com.lfmpixel.lfm.memory.KeystoreSealer, { engine.embedder() },
-        { q, n -> semantic.search(q, n) }, journalLocked = { journalHidden() }, learning = { settings.now().learning }, scope = scope).also { m ->
+        { q, n -> semantic.search(q, n) }, journalLocked = { journalHidden() }, learning = { settings.now().learning }, scope = scope,
+        // A finished conversation is read at once only on the owner's server; on the phone it waits for the night (charging).
+        // Its own session, with no phone model behind it: if the server goes away, the conversation waits.
+        server = { edge.takeIf { it.usable() }?.let { com.lfmpixel.lfm.edge.EdgeSession(it, com.lfmpixel.lfm.edge.EdgeModels.TEXT, null) } }).also { m ->
         m.start(db.messages().lastId())
         assistant.memory = m
         talk.memory = m
         labels.corrections = { if (settings.now().learning) m.corrections.value else emptyList() }
         toolEnv.learnedList = { title -> m.learnedList(title) }
-        // Each Talk turn the owner said is kept, sealed, for the next pass.
+        // Each Talk turn the owner said is kept, sealed, for the next pass; when Talk pauses or closes, the conversation
+        // so far becomes an episode.
         scope.launch {
             val seen = HashSet<Long>()
-            talk.state.collect { st -> st.turns.filter { it.done && it.id !in seen }.forEach { seen += it.id; m.heard(it.you) } }
+            val conversation = mutableListOf<Pair<String, String>>()
+            talk.state.collect { st ->
+                st.turns.filter { it.done && it.id !in seen }.forEach {
+                    seen += it.id; m.heard(it.you)
+                    // Said while learning was off: never kept, even if it is turned on before Talk ends.
+                    if (settings.now().learning) conversation += it.you to it.it
+                }
+                val over = st.phase == com.lfmpixel.lfm.voice.TalkPhase.Paused || st.phase == com.lfmpixel.lfm.voice.TalkPhase.Off ||
+                    st.phase == com.lfmpixel.lfm.voice.TalkPhase.Failed || st.turns.isEmpty()
+                if (over && conversation.isNotEmpty()) {
+                    val turns = conversation.toList()
+                    conversation.clear()
+                    m.talkEnded(turns)
+                }
+            }
         }
         scope.launch { settings.prefs.map { it.learning }.distinctUntilChanged().collect { com.lfmpixel.lfm.memory.LearnJob.schedule(context, it) } }
     }

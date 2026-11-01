@@ -71,6 +71,13 @@ object SpeechFormat {
             (seeing?.let { "\n(The camera sees: $it)" } ?: "") +
             (if (needsWeb) "\n(This needs fresh facts: look them up with web_search.)" else "")
 
+    /**
+     * A spoken turn's whole prompt on the server: the memory's profile at the end of the system prompt (it rarely
+     * changes, so the server keeps it read in), the facts and notes near what was said after the owner's words.
+     */
+    fun talkPrompt(system: String, recall: com.lfmpixel.lfm.memory.MemoryStore.Context?, turns: List<Pair<String, String>>, said: String): String =
+        talkHistory(system + recall?.system.orEmpty(), turns, said + recall?.turn.orEmpty()) + REPLY_PREFIX
+
     /** The conversation so far for Talk, ending with the new user turn. */
     fun talkHistory(system: String, turns: List<Pair<String, String>>, user: String): String =
         talkPrefix(system, turns) + "${PromptFormat.IM_START}user\n$user${PromptFormat.IM_END}\n"
