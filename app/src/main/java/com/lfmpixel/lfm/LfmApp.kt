@@ -69,16 +69,15 @@ class AppGraph(context: Context) {
             if (!l.active) null
             else labels.intent(said)?.takeIf { it.intent == com.lfmpixel.lfm.edge.IntentLabel.LOOK }?.let { l.answer(said) }
         }
-        talk.tools = object : com.lfmpixel.lfm.voice.TalkTools {
-            override fun specs() = tools.specsJson()
-            override suspend fun run(call: com.lfmpixel.lfm.llm.ToolCall): com.lfmpixel.lfm.tools.ToolResult {
-                val t0 = System.nanoTime()
-                return assistant.execute(call, "voice", afterWebText = false).also { r ->
-                    android.util.Log.i("lfm-talk", "tool %s %s in %.0f ms: %s".format(java.util.Locale.ENGLISH, call.name,
-                        if (r.ok) "ok" else "failed", (System.nanoTime() - t0) / 1e6, r.cardLabel))
-                }
+        // The same tools as the chat, web_search too; whatever must ask first is asked out loud.
+        talk.tools = com.lfmpixel.lfm.voice.TalkToolBox({ tools.specsJson() }, web) { call, afterWebText, ask ->
+            val t0 = System.nanoTime()
+            assistant.execute(call, "voice", afterWebText, ask).also { r ->
+                android.util.Log.i("lfm-talk", "tool %s %s in %.0f ms: %s".format(java.util.Locale.ENGLISH, call.name,
+                    if (r.ok) "ok" else "failed", (System.nanoTime() - t0) / 1e6, r.cardLabel))
             }
         }
+        talk.phoneLookup = com.lfmpixel.lfm.voice.PhoneLookup(web)
         assistant.seeing = { l.seeing() }
         assistant.labels = labels
     }

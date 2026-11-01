@@ -592,7 +592,8 @@ class Assistant(
     }
 
     /** Previews, confirms if needed, runs and logs one call. */
-    suspend fun execute(call: ToolCall, source: String, afterWebText: Boolean): ToolResult {
+    /** [ask], in Talk: a spoken yes/no to the preview instead of the confirmation sheet (no one may be looking). */
+    suspend fun execute(call: ToolCall, source: String, afterWebText: Boolean, ask: (suspend (Preview) -> Boolean)? = null): ToolResult {
         val tool = registry[call.name] ?: return ToolResult.error("There is no tool called ${call.name}")
         val args = call.args + ("_source" to source)
         // Arguments are checked before asking for permissions, except where the preview itself
@@ -610,11 +611,13 @@ class Assistant(
             return log(tool, args, ToolResult.error(e.message ?: "Bad arguments"), ActionStatus.Failed, false)
         }
         var finalArgs = args
-        val ask = registry.mustAsk(tool, settings.now().toolPolicies, afterWebText)
-        if (ask) {
-            val req = ConfirmRequest(tool, preview, args, afterWebText, CompletableDeferred())
-            pendingConfirm.value = req
-            val answer = try { req.answer.await() } finally { pendingConfirm.value = null }
+        val asked = registry.mustAsk(tool, settings.now().toolPolicies, afterWebText)
+        if (asked) {
+            val answer = if (ask != null) args.takeIf { ask(preview) } else {
+                val req = ConfirmRequest(tool, preview, args, afterWebText, CompletableDeferred())
+                pendingConfirm.value = req
+                try { req.answer.await() } finally { pendingConfirm.value = null }
+            }
             if (answer == null) {
                 return log(tool, args, ToolResult(false, "The owner cancelled it.", "Cancelled", preview.title.removeSuffix("?")),
                     ActionStatus.Cancelled, true)
@@ -625,11 +628,11 @@ class Assistant(
         if (tool.opensApp && !launcher.onScreen) {
             return log(tool, finalArgs, ToolResult(false, "Not done: Wren was not on screen, so Android would not let it open another app. " +
                 "Tell the owner to open Wren and ask again.", "Not opened", preview.title.removeSuffix("?"),
-                "Wren was in the background. Open it and ask again."), ActionStatus.Failed, ask)
+                "Wren was in the background. Open it and ask again."), ActionStatus.Failed, asked)
         }
         val result = try { tool.run(finalArgs) } catch (e: ToolArgsException) { ToolResult.error(e.message ?: "Bad arguments") }
         val status = when { !result.ok -> ActionStatus.Failed; result.opened -> ActionStatus.Opened; else -> ActionStatus.Done }
-        return log(tool, finalArgs, result, status, ask)
+        return log(tool, finalArgs, result, status, asked)
     }
 
     private suspend fun argError(tool: Tool, args: Map<String, String>): String =
