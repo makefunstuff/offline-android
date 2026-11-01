@@ -276,6 +276,7 @@ class ModelManager(
      * beside LiteRT-LM's, so a second load maps it instead of holding the weights in memory again.
      */
     suspend fun decide(): com.lfmpixel.lfm.assistant.Decide? = decideLock.withLock {
+        touch()
         decide ?: if (!store.decide()) null else withContext(kotlinx.coroutines.Dispatchers.IO) {
             com.lfmpixel.lfm.assistant.Decide.open(store.dir, threads(), java.io.File(liteRtCache, "d1-omni-600M_xnnpack.cache"))
         }.also { decide = it }

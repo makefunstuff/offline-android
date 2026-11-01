@@ -28,7 +28,8 @@ export and delete everything, an accessibility pass and a motion pass (below).
 
 ## Build
 
-Needs JDK 21 and the Android SDK (platform 37, build-tools 36.1); no NDK since LFMP-8. On this machine they
+Needs JDK 21 and the Android SDK (platform 37, build-tools 36.1, NDK 29.0.14206865, CMake 3.31.6: one small native
+bridge to LiteRT, `omni_rt.cpp`). On this machine they
 live on `/data`; `env.sh` sets the paths:
 
 ```bash

@@ -39,10 +39,15 @@ class Decide private constructor(
 ) : Closeable {
     private val lock = Mutex()
     private var loaded: Graph? = null
+    /** Closed (the idle unload): no graph may load or run again. */
+    private var closed = false
 
     /** The distribution of each question over [state], in option order ([yes, no] for a noul). */
     suspend fun probabilities(state: String, questions: List<D1Question>): List<DoubleArray> = withContext(Dispatchers.Default) {
-        lock.withLock { questions.map { score(state, it) } }
+        lock.withLock {
+            if (closed) throw java.io.IOException("d1 was unloaded")
+            questions.map { score(state, it) }
+        }
     }
 
     /** A notebook line sorted: kind, urgency, energy and sensitive from d1; the "when" words from the phone's rules. */
@@ -77,9 +82,13 @@ class Decide private constructor(
         return Graph(L, graphs.getValue(L), threads, weightCache?.let { File(it.parentFile, "${it.name}.L$L") }).also { loaded = it }
     }
 
-    override fun close() {
-        loaded?.close()
-        loaded = null
+    /** Waits for a running question to finish, so the graph is never freed mid-run. */
+    override fun close() = kotlinx.coroutines.runBlocking {
+        lock.withLock {
+            closed = true
+            loaded?.close()
+            loaded = null
+        }
     }
 
     /** decide_<L>: ids, prefix, media, pad, keep_right, qtype_onehot in; scores out. A text request has no media prefix. */
