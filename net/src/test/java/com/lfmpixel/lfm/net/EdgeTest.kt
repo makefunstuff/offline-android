@@ -1,6 +1,5 @@
 package com.lfmpixel.lfm.net
 
-import com.lfmpixel.lfm.ipc.EdgeRules
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import org.junit.After
@@ -14,7 +13,7 @@ import org.junit.Test
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
 
-/** Edge mode in Inkling Net: only the owner's server, only its paths, the key sent, the reply streamed and logged. */
+/** Edge mode in the network module: only the owner's server, only its paths, the key sent, the reply streamed and logged. */
 class EdgeTest {
     private val server = MockWebServer()
 

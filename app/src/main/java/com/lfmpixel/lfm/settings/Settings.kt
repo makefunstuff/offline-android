@@ -46,6 +46,7 @@ data class Prefs(
     /** The chat model's file name; empty means the one added last. */
     val chatModel: String = "",
     val toolPolicies: Map<String, ToolPolicy> = emptyMap(),
+    /** False is Offline (Settings → Privacy): the network module refuses every request. Kept under its old key, so an update keeps it. */
     val netEnabled: Boolean = true,
     val snippetsOnly: Boolean = false,
     val downloadWifiOnly: Boolean = true,
@@ -64,7 +65,7 @@ data class Prefs(
     val backend: BackendChoice = BackendChoice.Auto,
     /** What the benchmark measured, per model file and backend. */
     val backendSpeeds: Map<String, Map<Backend, BackendSpeed>> = emptyMap(),
-    /** Edge mode: chat, pictures and voice run on the owner's own server, through Inkling Net. */
+    /** Edge mode: chat, pictures and voice run on the owner's own server, through the network module. */
     val edgeOn: Boolean = false,
     /** The server's address on the home network or tailnet, like http://100.124.77.61:18448. */
     val edgeUrl: String = "",

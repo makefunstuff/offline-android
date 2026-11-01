@@ -55,7 +55,7 @@ class ModelManager(
     /** A chat model on the phone. */
     fun hasText() = store.text() != null
 
-    /** Edge mode (set by AppGraph once Inkling Net's client exists). */
+    /** Edge mode (set by AppGraph once the network client exists). */
     @Volatile var edge: com.lfmpixel.lfm.edge.Edge? = null
 
     /** Chat can run: a model on the phone, or a server set up in Edge mode. */

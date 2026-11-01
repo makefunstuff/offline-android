@@ -44,7 +44,7 @@ themed monochrome version:
 | Hush | Quiet and private | A speech bubble with a yellow stroke inside |
 
 **Inkling** wins: it says notes and ideas, it fits Ink + highlighter, it reads well as an assistant's name ("Ask
-Inkling"), and its mark survives at 48 px and as a monochrome themed icon. The helper app becomes **Inkling Net**.
+Inkling"), and its mark survives at 48 px and as a monochrome themed icon. The helper app became **Inkling Net** (merged into Inkling by LFMP-9).
 Package names, the repo name (offline-android) and the model names (LFM3-…) stay as they are, so an update keeps all
 data and models.
 

@@ -2,7 +2,7 @@ package com.lfmpixel.lfm.edge
 
 import android.os.SystemClock
 import android.util.Log
-import com.lfmpixel.lfm.ipc.EdgeRules
+import com.lfmpixel.lfm.net.EdgeRules
 import com.lfmpixel.lfm.settings.Prefs
 import com.lfmpixel.lfm.settings.Settings
 import com.lfmpixel.lfm.web.EDGE_REFUSED
@@ -74,7 +74,7 @@ interface ServerVoice {
 
 /**
  * Edge mode: the owner's own server (beefy-machine's `local-ai-mode edge`) runs the LFM3 models; the phone keeps the
- * screens, the notes and every tool. Every request goes through Inkling Net (Inkling itself has no network) and only
+ * screens, the notes and every tool. Every request goes through the network module (:net) and only
  * to the address set in Settings, which must be on the home network or tailnet ([EdgeRules]).
  *
  * When the server can't be reached the state turns [EdgeState.Offline] and the phone's own models answer; it is
@@ -97,7 +97,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
             settings.prefs.distinctUntilChanged { a, b -> a.edgeOn == b.edgeOn && a.edgeUrl == b.edgeUrl && a.edgeKeySealed == b.edgeKeySealed }
                 .collect { p ->
                     configured.value = p.edgeOn && p.edgeUrl.isNotBlank()
-                    // LFM Net opens only this server (Settings' Test excepted).
+                    // The network module opens only this server (Settings' Test excepted).
                     if (configured.value) runCatching { net.edgePin(p.edgeUrl) }
                     scope.launch(kotlinx.coroutines.Dispatchers.Default) { runCatching { check(p) } }
                 }
@@ -210,7 +210,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         val u = normalize(url) ?: throw NetException("That doesn't look like an address (http://100.x.y.z:port)")
         val t0 = SystemClock.elapsedRealtime()
         val out = ByteArrayOutputStream()
-        // Straight to LFM Net: a mistyped address tested here must not mark the saved server unreachable.
+        // Straight to the network: a mistyped address tested here must not mark the saved server unreachable.
         net.edge(u, key, "GET", "/v1/models", null, null, "Your server: test") { out.write(it); true }
         val ms = SystemClock.elapsedRealtime() - t0
         val ids = runCatching {
@@ -231,7 +231,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
     }
 
     /**
-     * A request failed. Unreachable (no route, refused, timed out, Inkling Net off): Offline, and checked again
+     * A request failed. Unreachable (no route, refused, timed out, Offline on): Offline, and checked again
      * later. An error the server sent (a bad request, a model loading) leaves it Online: the caller falls back once.
      */
     fun failed(e: Throwable) {
@@ -313,7 +313,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         const val TAG = "lfm-edge"
 
         /**
-         * The address as Inkling Net takes it: http(s)://host[:port], no path ("/v1" at the end is dropped). Null if
+         * The address as the network module takes it: http(s)://host[:port], no path ("/v1" at the end is dropped). Null if
          * it isn't one or isn't on the home network or tailnet.
          */
         fun normalize(url: String): String? {
@@ -338,10 +338,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
             if (u.startsWith("https://")) return true
             val host = u.substringAfter("://").let { if (it.startsWith("[")) it.substringBefore("]").removePrefix("[") else it.substringBeforeLast(':', it) }
             if (host.endsWith(".ts.net")) return true
-            val a = EdgeRules.literal(host) ?: return false
-            val b = a.address
-            return (b.size == 4 && (b[0].toInt() and 0xff) == 100 && (b[1].toInt() and 0xff) in 64..127) ||
-                (b.size == 16 && (b[0].toInt() and 0xff) == 0xfd && (b[1].toInt() and 0xff) == 0x7a && (b[2].toInt() and 0xff) == 0x11 && (b[3].toInt() and 0xff) == 0x5c)
+            return EdgeRules.isTailnetLiteral(host)
         }
 
         /** Why [url] can't be used, for the Settings field; null if it can. */

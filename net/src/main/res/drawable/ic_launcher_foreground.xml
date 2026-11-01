@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- A plain line globe with a highlighter stroke under it: the helper that reaches the web. -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FFD400" android:pathData="M36,70h36v8h-36z" />
-    <path android:strokeColor="#FFFFFF" android:strokeWidth="3.5" android:fillColor="#00000000"
-        android:pathData="M54,32a20,20 0 1,0 0.01,0zM34,52h40M54,32c7,8 7,32 0,40M54,32c-7,8 -7,32 0,40" />
-</vector>

@@ -2,7 +2,6 @@ package com.lfmpixel.lfm.web
 
 import android.content.Context
 import android.content.Intent
-import com.lfmpixel.lfm.ipc.NetContract
 import com.lfmpixel.lfm.llm.CheckResult
 import com.lfmpixel.lfm.llm.KnownModel
 import com.lfmpixel.lfm.llm.ModelCatalog
@@ -26,9 +25,9 @@ import java.security.MessageDigest
 
 /**
  * The in-app model downloads (spec section 7, model management): one file at a time from Hugging Face through
- * LFM Net, streamed into the app's storage, hashed as it arrives, checked against the pinned SHA-256, then
+ * the network module, streamed into the app's storage, hashed as it arrives, checked against the pinned SHA-256, then
  * loaded. Pause keeps what arrived and resume asks only for the rest, also after the app or the phone restarts.
- * Wi-Fi only by default; LFM Net checks that, since LFM can't see the network at all.
+ * Wi-Fi only by default; the network module checks that.
  */
 class ModelDownloads(
     private val context: Context,
@@ -114,7 +113,7 @@ class ModelDownloads(
     fun pauseAll() {
         val moving = _items.value.values.filter { it.state in setOf(State.Waiting, State.Running, State.NoWifi) }
         moving.forEach { pause(it.model) }
-        // Marked so they carry on by themselves: when LFM Net is back on, or the next time LFM opens.
+        // Marked so they carry on by themselves: when Offline is turned off, or the next time Inkling opens.
         _items.update { map -> map.mapValues { (k, v) -> if (moving.any { it.model.fileName == k }) v.copy(interrupted = true) else v } }
         save()
     }
@@ -217,7 +216,7 @@ class ModelDownloads(
                 update(m, save = true) { it.copy(state = State.Failed, done = 0, error = "SHA-256 does not match the pinned hash, so the file was deleted") }
             }
         } catch (e: NetException) {
-            val wifi = e.code == NetContract.NO_WIFI
+            val wifi = e.code == NO_WIFI
             update(m, save = true) { it.copy(state = if (wifi) State.NoWifi else State.Failed, done = part.length(), speed = 0,
                 error = if (wifi) "Waiting for Wi-Fi" else e.message) }
         } catch (e: java.io.IOException) {

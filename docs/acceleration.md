@@ -4,7 +4,7 @@
 > GGUF are gone from it. See [model-pool.md](model-pool.md). The research below is kept for its reasons and numbers.
 
 Research as of 31 October 2026, for Inkling on a Pixel 10 Pro (Tensor G5: Imagination PowerVR D-Series DXT-48-1536
-GPU, Google TPU). Inkling has no INTERNET permission and no Play Services, and that rules some options out.
+GPU, Google TPU). Inkling has no Play Services, and only its `:net` module may use the network (LFMP-9), and that rules some options out.
 
 ## Recommendation
 
@@ -71,8 +71,8 @@ How to read the labels:
 - **License and dependencies.** The runtime is Apache-2.0. The weights are under the LFM Open License v1.0, which
   limits commercial use by organisations with revenue of $10M or more.
 - **Network and Play Services.** It comes as a Maven AAR, `com.google.ai.edge.litertlm:litertlm-android:0.19.0`. That
-  pulls in only Gson, kotlin-reflect and coroutines: no Play Services and no network code. Inkling cannot reach the
-  network anyway, because its manifest has no INTERNET permission (`checkDebugNoNetwork`). The GPU needs
+  pulls in only Gson, kotlin-reflect and coroutines: no Play Services and no network code. `checkDebugNetworkConfinement`
+  checks that, native code included (since LFMP-9 Inkling has `INTERNET`, confined to `:net`). The GPU needs
   `<uses-native-library>` entries for `libOpenCL.so` and `libvndksupport.so`, both with `required="false"`.
 - **Tool calls and streaming.** It streams. Tool calls arrive as LFM3's XML text, and Inkling parses those itself (as
   it does for llama.cpp). Inkling sends raw prompts through `Session`, not LiteRT-LM's `Conversation`, so the prompt
@@ -280,5 +280,5 @@ Run Settings → Models → Benchmark, then Copy results.
   - `llm/ModelManager.kt`: picks a backend for each model and falls back.
 - **Benchmark.** `llm/Benchmark.kt`: every model on every backend, side by side.
 - **Models screen.** `ui/screens/ModelsScreens.kt`: Runs on, and the Benchmark table.
-- **Model pins.** `llm/ModelCatalog.kt` and `ipc/PinnedFiles.kt` pin the `.litertlm` file. It is downloaded through
-  Inkling Net or imported; it is never committed.
+- **Model pins.** `llm/ModelCatalog.kt` and `net/PinnedFiles.kt` pin the `.litertlm` file. It is downloaded by
+  `:net` or imported; it is never committed.

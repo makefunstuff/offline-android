@@ -36,7 +36,7 @@ data class SearchOutcome(val forModel: String, val searchId: Long?, val cardLabe
 
 /**
  * One web search, start to end (spec section 4): check the words for personal data, show them first when the
- * mode or a warning says so, send them through LFM Net, open the top pages (unless "Snippets only"), read them
+ * mode or a warning says so, send them through the network module, open the top pages (unless "Snippets only"), read them
  * on the phone and hand the model numbered sources.
  */
 class WebSearch(
@@ -63,14 +63,9 @@ class WebSearch(
         val q = query.replace(Regex("\\s+"), " ").trim().take(200)
         if (q.isEmpty()) return SearchOutcome("Error: empty search", null, "Could not search", "No search words", "")
         if (prefs.searchMode == SearchMode.Off) return off("Web search is off. It can be turned on in Settings.")
-        when (net.state()) {
-            NetClient.State.On -> Unit
-            NetClient.State.NotInstalled -> return off("Inkling Net, the helper app for web search, is not installed.")
-            NetClient.State.WrongSigner -> return off("Inkling Net is signed with another key, so it was not used.")
-            NetClient.State.Off -> return off("Inkling Net is turned off in Settings → Privacy.")
-        }
-        val info = try { net.info() } catch (e: NetException) { return off(e.message ?: "Inkling Net did not answer") }
-        if (!info.ready) return off("No search provider is set up. Set one in Inkling Net.")
+        if (net.state() == NetClient.State.Offline) return off("Inkling is offline (Settings → Privacy), so nothing was searched.")
+        val info = net.info()
+        if (!info.ready) return off("No search provider is set up. Set one in Settings → Web search.")
 
         // Names in contacts can only be checked if LFM may read them: ask once, here, where it matters.
         if (prefs.warnPersonalWords && contacts != null && !contacts.canRead()) permissionGate?.ensure(listOf(android.Manifest.permission.READ_CONTACTS))
@@ -132,7 +127,7 @@ class WebSearch(
         return SearchOutcome(forModel, id, "Searched ${results.provider.ifEmpty { "the web" }}", sendQuery, detail)
     }
 
-    private fun com.lfmpixel.lfm.ipc.SearchHit.host() = url.substringAfter("://").substringBefore('/').removePrefix("www.")
+    private fun com.lfmpixel.lfm.net.SearchHit.host() = url.substringAfter("://").substringBefore('/').removePrefix("www.")
 
     private fun off(why: String) = SearchOutcome("Web search is not available: $why Answer from what you know, and say it may be out of date.",
         null, "No web search", why, "")

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- No INTERNET permission, on purpose: the build fails if any library adds it (see app/build.gradle.kts). -->
+<!-- INTERNET comes from the network module (:net), the only code allowed to use it: :app:checkDebugNetworkConfinement
+     fails the build if any other code or library could open a connection (docs/spec.md section 3). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
@@ -17,20 +18,18 @@
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
-    <!-- A model download keeps running while you leave the app. The bytes come from LFM Net, not the network. -->
+    <!-- A model download keeps running while you leave the app. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- An answer, a scanned document or a queue of messages keeps going while you leave the app (WorkService). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- To install the LFM Net helper from the copy inside this app; Android asks you first. -->
+    <!-- Moving from two apps: to update the old Inkling Net to its hand-off version from the copy inside this app, then
+         to offer its uninstall (NetHandoff). Android asks you first, each time. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-
-    <!-- LFM Net's service only lets apps signed with this key bind. Declared here too, so install order doesn't matter. -->
-    <permission android:name="com.lfmpixel.lfm.permission.LFM_NET" android:protectionLevel="signature"
-        android:label="Use Inkling Net" />
-    <uses-permission android:name="com.lfmpixel.lfm.permission.LFM_NET" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <queries>
+        <!-- The old Inkling Net, to bring its settings over and offer its uninstall. -->
         <package android:name="com.lfmpixel.lfm.net" />
         <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent>
         <intent><action android:name="android.intent.action.SENDTO" /><data android:scheme="smsto" /></intent>
@@ -49,7 +48,10 @@
         android:label="Inkling"
         android:supportsRtl="true"
         android:theme="@style/Theme.Lfm"
+        android:usesCleartextTraffic="true"
         tools:targetApi="36">
+        <!-- Cleartext only so your own SearXNG and your own server (Edge mode) on your network or tailnet can be plain
+             http; search providers, Wikipedia and Hugging Face are https. -->
         <!-- LiteRT-LM reaches the GPU through the vendor's OpenCL (docs/acceleration.md); without them it stays on the CPU. -->
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
@@ -109,7 +111,7 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="On-device AI: finishes an answer the owner asked for, with a Stop button" />
         </service>
-        <receiver android:name=".web.NetInstallReceiver" android:exported="false" />
+        <receiver android:name=".web.NetHandoffReceiver" android:exported="false" />
         <receiver android:name=".tools.ReminderReceiver" android:exported="false" />
         <receiver android:name=".assistant.FocusReceiver" android:exported="false" />
         <receiver android:name=".tools.BootReceiver" android:exported="false">

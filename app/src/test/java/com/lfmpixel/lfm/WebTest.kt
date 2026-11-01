@@ -1,7 +1,7 @@
 package com.lfmpixel.lfm
 
 import com.lfmpixel.lfm.data.SearchSource
-import com.lfmpixel.lfm.ipc.PinnedFiles
+import com.lfmpixel.lfm.net.PinnedFiles
 import com.lfmpixel.lfm.llm.ModelCatalog
 import com.lfmpixel.lfm.llm.ModelRole
 import com.lfmpixel.lfm.web.ArticleText

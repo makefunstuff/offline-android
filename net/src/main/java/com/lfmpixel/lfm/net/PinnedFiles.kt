@@ -1,8 +1,8 @@
-package com.lfmpixel.lfm.ipc
+package com.lfmpixel.lfm.net
 
 /**
- * The only files LFM Net will download: name, Hugging Face repo, exact size, and where it sits in the repo at a pinned
- * revision. LFM checks each file's SHA-256 on arrival (ModelCatalog); a unit test keeps the two lists the same.
+ * The only files the network module will download: name, Hugging Face repo, exact size, and where it sits in the repo at a pinned
+ * revision. Inkling checks each file's SHA-256 on arrival (ModelCatalog); a unit test keeps the two lists the same.
  */
 object PinnedFiles {
     data class File(val name: String, val repo: String, val size: Long, val path: String = name, val rev: String = "main") {

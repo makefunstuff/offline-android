@@ -1,16 +1,16 @@
-package com.lfmpixel.lfm.ipc
+package com.lfmpixel.lfm.net
 
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
 
 /**
- * Where Edge mode may go: the owner's own server on their home network or tailnet, never the internet. Both apps
- * use these rules: Inkling to check the address the owner types, Inkling Net before every request (and on every
+ * Where Edge mode may go: the owner's own server on their home network or tailnet, never the internet. Settings
+ * uses these rules to check the address the owner types, the network module before every request (and on every
  * address a name resolves to, so a name can't point it elsewhere).
  */
 object EdgeRules {
-    /** The only paths Inkling Net will open on the server: health, models, text, speech in and speech out. */
+    /** The only paths Inkling will open on the server: health, models, text, speech in and speech out. */
     val PATHS = setOf("/health", "/v1/models", "/v1/completions", "/v1/chat/completions", "/v1/audio/transcriptions", "/tts")
 
     /**
@@ -27,6 +27,13 @@ object EdgeRules {
         else -> false
     }
 
+    /** A Tailscale address literal: 100.64/10 or Tailscale's IPv6 fd7a:115c:a1e0::/48. Never looked up. */
+    fun isTailnetLiteral(host: String): Boolean {
+        val b = literal(host)?.address ?: return false
+        return (b.size == 4 && (b[0].toInt() and 0xff) == 100 && (b[1].toInt() and 0xff) in 64..127) ||
+            (b.size == 16 && (b[0].toInt() and 0xff) == 0xfd && (b[1].toInt() and 0xff) == 0x7a && (b[2].toInt() and 0xff) == 0x11 && (b[3].toInt() and 0xff) == 0x5c)
+    }
+
     /** An IPv4 or IPv6 literal, parsed without any lookup; null for a name. */
     fun literal(host: String): InetAddress? {
         val h = host.removePrefix("[").removeSuffix("]")
@@ -40,7 +47,7 @@ object EdgeRules {
 
     /**
      * Why [host] can't be the server, or null if it may be: a private address, or a name (a tailnet name like
-     * beefy.tail1234.ts.net, or one on the home network), which Inkling Net checks when it resolves it.
+     * beefy.tail1234.ts.net, or one on the home network), which the network module checks when it resolves it.
      */
     fun refuse(host: String): String? {
         if (host.isBlank()) return "No address"

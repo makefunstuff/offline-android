@@ -63,7 +63,8 @@ LFM3 model to fall back on.
 | ExecuTorch | Third-party export of text, VL and Audio, 8K context, no Omni [21] | CPU (XNNPACK) | No: no Omni, short context, no gain over llama.cpp |
 | ONNX Runtime | ONNX builds of all four [7] | CPU | No: no gain over llama.cpp |
 
-**Speech out without a network.** The assistant app has no `INTERNET` permission (section 3). An app without the `INTERNET` permission cannot open network sockets, not even to
+**Speech out without a network.** (Written when the assistant app had no `INTERNET` permission; since LFMP-9 only
+`:net` may open a connection, section 3.) An app without the `INTERNET` permission cannot open network sockets, not even to
 itself on `localhost`, so the `llama serve` endpoints cannot be used as they are. Read-aloud is low risk: `llama-tts`
 is a standalone tool whose code can be called in-process through JNI. Liquid's own `llama-tts` example uses the Q8_0 projector (507 MB), so Phase 0 also checks speech quality with the
 smaller Q4_K_M one. Live Talk is the real risk: its streaming
@@ -80,47 +81,55 @@ untested for this: the only data point is one unconfirmed 2025 Vulkan score, wel
 a driver issue [20]. So the plan starts on the CPU and treats the GPU as a bonus. Phase 0 measures all of this with
 `llama-bench`.
 
-## 3. Network and privacy: two apps
+## 3. Network and privacy: one app, network kept in one module
 
-The new promise: **no server of ours, all inference and features on the phone, no telemetry, no accounts. The
-network is used only for web search, opening pages the search found, and model downloads** — and, only if the owner
-turns on Edge mode, for their own server (below).
+The promise: **no server of ours, all inference and features on the phone, no telemetry, no accounts. The network is
+used only for web search, opening pages the search found, and model downloads** — and, only if the owner turns on
+Edge mode, for their own server (below).
 
-v1 made "no network" an operating-system fact by leaving out the `INTERNET` permission. v2 keeps that fact for
-everything personal by splitting the product into two apps, signed with the same key:
+v1 made "no network" an operating-system fact by leaving out the `INTERNET` permission. v2 first kept that fact by
+splitting the product into two apps: Inkling (all personal data, no `INTERNET`) and Inkling Net (a small helper with
+`INTERNET` and no personal data). LFMP-9 (2026-11-01) merged them back into **one app, Inkling, with `INTERNET`**: the
+owner found two apps not worth their cost. The trade, stated plainly: Android no longer refuses Inkling's sockets, so
+the privacy now rests on rules in the code that the build checks, not on the operating system.
 
-| | **LFM** (the assistant) | **LFM Net** (a small helper) |
-|---|---|---|
-| Holds | Models, chats, notes, ideas, journal, to-dos, contacts and calendar access, the network log | No personal data: only its settings (provider address, key, proxy) and its latest result addresses, to check `fetch`. Answers go straight back to LFM; a download is streamed to LFM through a file descriptor (a pipe), not stored |
-| `INTERNET` permission | **No.** Android refuses every network socket it opens | Yes |
-| What it can do | Everything except the network | Exactly four calls: `search(query)`, `fetch(url)` (only an address from its own latest search results), `download(model)` (only a pinned model from Hugging Face, which serves files from huggingface.co and its download CDN), and `edge(…)` (only the owner's own server on a private or tailnet address, Edge mode below) |
-| Who can call it | | Only LFM: a bound service guarded by a signature-level permission |
-| Can be removed | | Yes. Uninstall it and LFM is fully offline, as in v1 |
+| | **Inkling** |
+|---|---|
+| Holds | Models, chats, notes, ideas, journal, to-dos, contacts and calendar access, the network log, and the search settings (provider address, key, proxy) |
+| `INTERNET` permission | Yes, declared by the network module `:net` itself |
+| Who may open a connection | Only `:net` (`com.lfmpixel.lfm.net`) and the OkHttp it uses. Its whole interface is four calls: `search(query)`, `fetch(url)` (only an address from its own latest search results), `download(model)` (only a pinned model from Hugging Face, which serves files from huggingface.co and its download CDN), and `edge(…)` (only the owner's own server on a private or tailnet address, Edge mode below) |
+| Offline | One switch, Settings → Privacy → Offline, turns all of it off: `:net` refuses every request before it opens a socket, and one under way stops at its next piece |
 
-Why two apps rather than one app with a network allow-list: with one app, any bug or library could send the journal
-out; the allow-list is a promise. With the split, the app holding your data still cannot reach the network at all,
-and the only things that ever cross to LFM Net are a search query, a result address, or a model name, each shown in
-a network log. The one remaining channel is the search query itself, which is why queries are checked and, by
-default, shown to you before they go (section 4). No code of ours runs on any server; there is no account with us.
+The search query itself remains the one channel for personal words, which is why queries are checked and, by default,
+shown to you before they go (section 4). No code of ours runs on any server; there is no account with us.
 
 How each guarantee is enforced:
 
 | Guarantee | Enforced by |
 |---|---|
-| Personal data never reaches the network directly | LFM has no `INTERNET` permission; a build check fails if any dependency adds it |
-| Only queries, result addresses and model names leave (plus the provider key or password, if any) | LFM Net's whole interface is those three calls; `fetch` refuses any address that was not in its own latest results (so a page cannot make the model send text out inside a made-up URL); `download` takes only pinned model names; it has no access to LFM's storage |
-| Links and maps never leak silently | Opening a link in the browser or a place in Maps hands it to another app. This one is a code rule, not an OS fact: a single launcher class is the only code allowed to start such intents (a lint check bans others), and it runs only from your tap on a card that shows the full address |
-| No telemetry, crash reports or accounts | Neither app includes Firebase, Play Services, analytics or crash SDKs; dependency allow-list checked in the build |
-| You see every request | LFM Net reports each request (time, host, what was sent, size) back to LFM, which keeps the log under Settings → Privacy |
+| Only `:net` can reach the network | `:app:checkDebugNetworkConfinement` reads every class in the APK (the app's own and every library's) and every packaged native library, and fails the build on any reference to sockets, socket factories, URL connections, HTTP clients (OkHttp, Apache, Cronet, `java.net.http`), WebView, DNS lookups (`InetAddress.getByName`, `Network.getAllByName`) or, in native code, imports of `socket`, `connect` or `getaddrinfo`, outside `:net` and OkHttp. The app's own code may not even hold a `URL`, `InetAddress` or `Proxy`. A short list in `app/build.gradle.kts` names the few library classes that hold such code but are never reached (a Kotlin `URL.readText()` helper, Linkify's address reader, LiteRT's Play asset delivery whose Play Services are excluded), each with why. This is a code rule, not an OS fact: a library could still reach the network by reflection; the dependency allow-list keeps the libraries few and known |
+| Only queries, result addresses and model names leave (plus the provider key or password, if any) | `:net`'s whole interface is those four calls; `fetch` refuses any address that was not in its own latest results (so a page cannot make the model send text out inside a made-up URL); `download` takes only pinned model names |
+| No other permissions slip in | `:app:checkDebugPermissions`: the merged manifest may ask only for the permissions listed in `app/build.gradle.kts` |
+| Links and maps never leak silently | Opening a link in the browser or a place in Maps hands it to another app. A single launcher class is the only code allowed to start such intents, and it runs only from your tap on a card that shows the full address |
+| No telemetry, crash reports or accounts | No Firebase, Play Services, analytics or crash SDKs; `:app:checkDebugDependencies` checks the dependency allow-list, and the confinement check refuses Firebase and Play Services classes too |
+| You see every request | Each `:net` call returns the requests it made (time, host, what was sent, size); Inkling keeps them in the log under Settings → Privacy, a placeholder first, so one cut off midway is listed too |
 | You control search | Search is Off, Ask first (default) or Automatic, for Wikipedia and web alike; each query can be edited before it goes; any query written after reading web text always asks |
-| Offline any time | One switch turns LFM Net off; uninstalling it is the hard version |
-| Data stays on the phone | `allowBackup="false"` and data-extraction rules that exclude everything from cloud backup and device-to-device transfer; data leaves LFM only when you tap Export, Share or Copy, or when a tool writes into another app (below) |
-| Tool writes are not hidden syncs | An event, contact or alarm written by a tool belongs to that app: Google Calendar or Contacts sync it to your Google account if you use one. So LFM writes events to its own **on-phone calendar** (a local calendar, never synced) unless you pick another calendar, and the confirmation card names the calendar |
+| Each kind on its own | Search has its mode, downloads start only from your tap (Wi-Fi only by default), Edge mode has its own switch; Offline turns them all off at once |
+| Data stays on the phone | `allowBackup="false"` and data-extraction rules that exclude everything from cloud backup and device-to-device transfer; data leaves Inkling only when you tap Export, Share or Copy, or when a tool writes into another app (below) |
+| Tool writes are not hidden syncs | An event, contact or alarm written by a tool belongs to that app: Google Calendar or Contacts sync it to your Google account if you use one. So Inkling writes events to its own **on-phone calendar** (a local calendar, never synced) unless you pick another calendar, and the confirmation card names the calendar |
 | Optional lock | Biometric lock for the whole app or only the Journal |
 
-**Model downloads.** LFM Net can download the GGUF files from Hugging Face (huggingface.co, no login) and hand them
-to LFM, which checks each against a pinned SHA-256 before use. Manual import through the file picker stays, for a
-fully offline phone.
+**Model downloads.** `:net` downloads the pinned LiteRT files from Hugging Face (huggingface.co, no login) and hands
+them to Inkling, which checks each against a pinned SHA-256 before use. Manual import through the file picker stays,
+for a fully offline phone.
+
+**Moving from two apps.** The update keeps Inkling's package name, so every chat, note, model and setting stays. The
+Edge server (address and sealed key) was always in Inkling. The search provider, its key and the proxy were in the
+old Inkling Net's own storage, which Inkling cannot read; so Inkling carries one last Inkling Net (`:handoff`, version
+2, same key, no network, no screen) inside its APK. Settings → Web search and Privacy show "Bring over Inkling Net's
+settings": one tap, Android asks to update Inkling Net, the hand-off answers Inkling (and only Inkling, checked by
+package and signing key) with those settings, and the card turns into "Uninstall Inkling Net". The old "Inkling Net
+on/off" switch was stored as `net_enabled` and becomes Offline unchanged.
 
 ### Edge mode: your own server (LP-32)
 
@@ -136,20 +145,15 @@ recordings, and text to read aloud. That is personal data leaving the phone, whi
 goes to the address they saved (their own machine) and nowhere else; use its tailnet address so that it is also
 encrypted and can't be impersonated on a strange network (below). Nothing is stored there beyond llama.cpp's prompt cache in memory.
 
-**Why through LFM Net, and LFM still has no `INTERNET` permission.** Two designs were weighed:
-
-- *A direct connection from LFM*, with `INTERNET` and a check that only the server's private address is opened.
-  Android has no per-host permission, so that check would be code in the app that holds every note: one bug or one
-  library, and the journal could go anywhere. It would also undo section 3's main fact.
-- *Through LFM Net* (chosen). LFM keeps no network at all. LFM Net gets one more call, `edge`, which opens only the
-  server's address and only six paths (`/health`, `/v1/models`, `/v1/completions`, `/v1/chat/completions`,
-  `/v1/audio/transcriptions`, `/tts`). It costs one Binder hop per streamed piece, well under a millisecond, against
-  20–300 ms for the request itself, so nothing is lost in speed.
+**Why through `:net`.** Edge requests go through the same network module as search: one more call, `edge`, which
+opens only the server's address and only six paths (`/health`, `/v1/models`, `/v1/completions`,
+`/v1/chat/completions`, `/v1/audio/transcriptions`, `/tts`). Until LFMP-9 that module was a separate app reached over
+Binder; now it is in-process, which only takes a hop away.
 
 | Guarantee | Enforced by |
 |---|---|
-| LFM itself still can't reach the network | No `INTERNET` permission; `:app:checkDebugNoNetwork` fails the build otherwise |
-| Edge requests go only to the owner's server | LFM Net keeps the address saved in Settings (`edgePin`) and sends prompts, audio and the key only there; any other address is opened only for Settings' Test (`/health`, `/v1/models`). It refuses any address that is not private (`EdgeRules`: 10/8, 172.16/12, 192.168/16, the tailnet's 100.64/10, IPv6 fc00::/7) — a name must resolve only to such addresses, checked on every lookup; no redirects, no proxy; only the six paths above. Unit tests check each refusal |
+| Nothing else opens a connection | `:app:checkDebugNetworkConfinement` (above) |
+| Edge requests go only to the owner's server | `:net` keeps the address saved in Settings (`edgePin`) and sends prompts, audio and the key only there; any other address is opened only for Settings' Test (`/health`, `/v1/models`). It refuses any address that is not private (`EdgeRules`: 10/8, 172.16/12, 192.168/16, the tailnet's 100.64/10, IPv6 fc00::/7) — a name must resolve only to such addresses, checked on every lookup; no redirects, no proxy; only the six paths above. Unit tests check each refusal |
 | Nobody else on the network reads it | Over the tailnet (100.x or a `.ts.net` name) every request is inside Tailscale's WireGuard tunnel, to the machine Tailscale vouches for. A plain home address (192.168.x over http) is not encrypted and not authenticated: away from home, another network using the same address would receive the requests. Settings says so and recommends the tailnet address; use https on the server for a LAN address |
 | The key is safe on the phone | Sealed with AES-GCM under a key in Android's keystore (hardware-backed on the Pixel); Delete everything drops it |
 | You see every request | Each Edge request is in the network log like a search: time, host, path and how many bytes went and came back (never the content or the key) |
@@ -176,7 +180,7 @@ contacts, no journal text, no location, no cookies, no device ID; the user agent
 you out and get blocked by some sites). The model has no
 location tool: a place is in a query only if you said it. Opening a result sends that page's address to that site, like a browser
 does. Your IP address is visible to the search provider and to opened sites; a VPN or Orbot hides it (optional
-setting: route LFM Net through a SOCKS proxy).
+setting: route search and pages through a SOCKS proxy).
 
 Before a query goes out, LFM checks it on the phone for personal data (names in your contacts, phone numbers,
 e-mail addresses, addresses and places from your notes, and names of people and places mentioned in your journal) and warns you if
@@ -201,7 +205,7 @@ WireGuard VPN (no account; the server is not exposed to the internet), or over H
 prefer. (The optional Tor/SOCKS proxy cannot reach a VPN-only server; it is for the public providers.) If you would rather not run one, Brave gives the best results, at the cost of an
 account tied to your card.
 
-**Reading pages.** LFM Net fetches a result page as text (only addresses from its latest results); LFM strips it to the article on the phone and the model answers
+**Reading pages.** `:net` fetches a result page as text (only addresses from its latest results); LFM strips it to the article on the phone and the model answers
 with numbered sources. Option: "Snippets only" never opens pages.
 
 **Prompt injection.** A web page can contain text written to steer the model ("send this to…"). So: any action the
@@ -233,7 +237,7 @@ public benchmark for either. So the **text model plans and calls tools**; Omni h
 | Settings | Torch, ring/vibrate/silent, volume, Do Not Disturb | `CameraManager.setTorchMode`, `AudioManager`, notification-policy access | DND access (granted once in Settings) | No (undo) |
 | Settings | Wi-Fi, Bluetooth, mobile data | Apps cannot switch these; LFM opens the system panel (Internet, Wi-Fi) or the Bluetooth settings screen | none | (you tap) |
 | Maps | Directions to a place | `geo:` / navigation intent (hands the place to Maps) | none | **Yes** |
-| Web | Search, open a page | Through LFM Net | (LFM Net) | Per search mode |
+| Web | Search, open a page | Through `:net` | (`:net`) | Per search mode |
 
 Not in this plan, said plainly: reading your SMS (hard-restricted, as above) or other apps' notifications (needs
 notification access, granted by hand in Settings and, for apps installed from a downloaded file, only after "Allow
@@ -331,8 +335,8 @@ opens voice from anywhere:
 10. **Talk** — listening / speaking states, live transcript, stop.
 11. **Settings** — Models, Search (provider, mode, proxy), Tools (per-tool ask/do), Privacy (network log, lock,
     export, delete), Voice, Battery.
-12. **Privacy and network log** — what is guaranteed, LFM Net switch, every request today, export, delete all.
-13. **Import / Models** — installed models; download through LFM Net with progress and hash check; import from a file.
+12. **Privacy and network log** — what is guaranteed, the Offline switch, every request today, export, delete all.
+13. **Import / Models** — installed models; download with progress and hash check; import from a file.
 
 Also drawn, as states: **first run** (models: download or import; search mode), **import and verify** (copy, known
 model, SHA-256, test prompt, delete the originals), **a search query with a personal word** (warning, Remove name /
@@ -343,7 +347,7 @@ Send anyway), and **an action suggested by web text** (the confirmation says why
 - **Capture by voice:** assistant gesture → "Buy oat milk and remind me to call the plumber at 9" → Omni transcribes → 1.7B
   makes a to-do and a reminder → two small cards, each with Undo.
 - **Ask with search:** question → model decides it needs the web → (Ask first) query card "Search for 'plumber
-  call-out fee Leeds 2026'" with Edit / Send → LFM Net fetches results and the top three pages → answer with
+  call-out fee Leeds 2026'" with Edit / Send → `:net` fetches results and the top three pages → answer with
   numbered sources.
 - **Do something risky:** "Add dinner with Ana Friday 8 pm" → confirmation sheet with title, time, calendar → Add
   → event added → "Added. Undo".
@@ -352,7 +356,7 @@ Send anyway), and **an action suggested by web text** (the confirmation says why
 
 ### Model management
 
-Models screen: each model with size, quantisation, verified mark, which modes use it, Delete. Download through LFM Net
+Models screen: each model with size, quantisation, verified mark, which modes use it, Delete. Download
 (progress, pause, hash check) or import a file (and offer to delete the original). One tap sets which models stay in
 memory.
 
@@ -370,7 +374,7 @@ minutes (Omni and text reload in seconds). Search and fetches are small network 
 - Room with SQLite full-text search (FTS4 through Room; FTS5 needs a bundled SQLite build such as androidx `BundledSQLiteDriver`) for notes, ideas, journal, to-dos and chats (on-phone search); DataStore for settings.
 - CameraX, `AudioRecord` 16 kHz, `AudioTrack` 24 kHz, `PdfRenderer`, Photo Picker.
 - `VoiceInteractionService` to be the default assistant; a Quick Settings tile and a Glance widget.
-- LFM Net: a separate tiny app (OkHttp, no other libraries), bound service with a signature permission.
+- `:net`: the network module inside Inkling (OkHttp, no other libraries); the only code allowed to open a connection (since LFMP-9; before, a separate app).
 - minSdk 36 (Android 16); sideloaded APKs, not the Play Store.
 
 ## 8. Build plan (follow-up tasks)
@@ -384,7 +388,7 @@ minutes (Omni and text reload in seconds). Search and fetches are small network 
 3. **Phase 2, capture and library.** Notes, ideas, journal, to-dos, FTS search, voice capture with Omni, sorting.
 4. **Phase 3, tools.** Tool registry, confirmation sheet, reminders, alarms, calendar, contacts, messages, calls,
    settings; action history and undo.
-5. **Phase 4, LFM Net and search.** Helper app, providers, query preview, personal-data check, page reading, sources,
+5. **Phase 4, LFM Net and search.** Helper app (merged into Inkling as `:net` by LFMP-9), providers, query preview, personal-data check, page reading, sources,
    network log, model downloads.
 6. **Phase 5, see.** Camera, photos, video clips, documents (VL).
 7. **Phase 6, talk.** Live Talk and read-aloud; default-assistant role; Quick Settings tile and widget.
@@ -424,8 +428,8 @@ minutes (Omni and text reload in seconds). Search and fetches are small network 
 
 ## 10. Open questions for the owner
 
-1. Is the two-app split (LFM with no network, LFM Net for search and downloads) right, or is one app with a network
-   allow-list enough for you?
+1. ~~Is the two-app split right, or is one app with a network allow-list enough?~~ Answered 2026-11-01: one app
+   (section 3, LFMP-9).
 2. Search provider: your own SearXNG (no account; do you have a computer or server to run it?), or Brave with your
    own key (best results, but an account with your card; queries reportedly kept up to 90 days)?
 3. Search mode by default: Ask first (recommended), Automatic, or Off?

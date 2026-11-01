@@ -95,7 +95,6 @@ class ExternalLauncher(private val context: Context) {
     fun panel(action: String) = start(Intent(action))
     /** A search source, in the browser: only from the owner's tap on a sheet that shows the full address. */
     fun openPage(url: String) = (url.startsWith("https://") || url.startsWith("http://")) && start(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-    /** LFM Net's own settings (provider, key, proxy). */
     fun openApp(intent: Intent) = start(intent)
     /** The apps on the launcher, as label and package, for open_app. */
     fun apps(): List<Pair<String, String>> = runCatching {

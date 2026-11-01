@@ -120,7 +120,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 ListRow("Action history", "Everything the assistant did, with undo", "history", { nav.go(Route.History) }) { Chevron() }
             }
             Group {
-                ListRow("Privacy", "Network log, Inkling Net, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
+                ListRow("Privacy", (if (p.netEnabled) "" else "Offline · ") + "Network log, what is kept, delete", "shield", { nav.go(Route.Privacy) }) { Chevron() }
             }
             Group {
                 ListRow("Voice and Talk", if (g.engine.hasVoice()) "${p.speechVoice.label} · ${p.speechLanguage.label} · assistant opens ${p.assistOpens.label.lowercase()}"
@@ -244,11 +244,7 @@ fun HistoryScreen(g: AppGraph, nav: Nav) {
 fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
     val c = Lfm.c
     val ctx = LocalContext.current
-    val hasInternet = ctx.packageManager.checkPermission(Manifest.permission.INTERNET, ctx.packageName) == PackageManager.PERMISSION_GRANTED
     val prefs by g.settings.prefs.collectAsState(null)
-    val netState by g.net.current.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(Unit) { g.net.refresh() }
-    val installed = netState != null && netState != com.lfmpixel.lfm.web.NetClient.State.NotInstalled
     val start = remember { java.time.LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
     val log by remember(start) { g.db.netLog().since(start) }.collectAsState(emptyList())
     val scope = rememberCoroutineScope()
@@ -258,25 +254,27 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Txt("Your data stays on this phone.", LfmType.answer.copy(fontSize = LfmType.answer.fontSize * 1.16f, fontWeight = LfmType.rowTitle.fontWeight),
                 modifier = Modifier.padding(top = 14.dp, bottom = 10.dp))
-            Guarantee("check", if (hasInternet) "Network permission found" else null, "Android blocks it: this app has no internet permission",
-                markedTitle = if (!hasInternet) "Assistant has no network access" else null)
+            val offline = prefs?.netEnabled == false
+            Guarantee("globe", "Offline", if (offline) "Nothing leaves the phone: no search, downloads or server" else
+                "Off: search, model downloads and your server may use the network, each with its own switch") {
+                Switch(offline, "Offline") { off ->
+                    // Offline means off: downloads in progress pause too (they resume when it is back on).
+                    if (off) g.downloads.pauseAll()
+                    scope.launch { g.settings.setNetEnabled(!off); g.net.refresh(); if (!off) g.downloads.resumeInterrupted() }
+                }
+            }
+            Guarantee("check", "Network code kept in one place", "Only search, opening result pages, pinned model downloads and your own server. The build fails if anything else could open a connection",
+                markedTitle = "Network code kept in one place")
             Guarantee("check", "No account, no telemetry", "No analytics, crash reports or Play Services in the app")
             Guarantee("check", "Not backed up", "Excluded from cloud backup and phone-to-phone transfer")
             Guarantee("cal", "Events go to “On this phone”", "A local calendar that never syncs to any account")
-            if (installed) {
-                val on = prefs?.netEnabled ?: true
-                Guarantee("globe", "Inkling Net handles search", if (on) "Search words, result addresses, model downloads" else "Off: nothing is searched or downloaded") {
-                    Switch(on, "Inkling Net") {
-                        // Off means off: downloads in progress pause too (they resume when it is back on).
-                        if (!it) g.downloads.pauseAll()
-                        scope.launch { g.settings.setNetEnabled(it); g.net.refresh(); if (it) g.downloads.resumeInterrupted() }
-                    }
-                }
-            } else {
-                Guarantee("globe", "Inkling Net is not installed", "Without the helper app, Inkling is fully offline: no search, no downloads")
-            }
+            SectionLabel("Each kind on its own")
+            Txt("Web search: ${prefs?.searchMode?.label ?: "…"} (Settings → Web search). Model downloads: only when you tap Download" +
+                (if (prefs?.downloadWifiOnly != false) ", on Wi-Fi" else "") + ". Your server: " + (if (prefs?.edgeOn == true) "on" else "off") + " (Settings → Your server).",
+                LfmType.small, c.text2)
+            HandoffCard(g)
             SectionLabel("Network log · today")
-            if (log.isEmpty()) Txt(if (installed) "No requests today." else "No requests. This app cannot make any.", LfmType.small, c.text2)
+            if (log.isEmpty()) Txt(if (prefs?.netEnabled == false) "No requests: Inkling is offline." else "No requests today.", LfmType.small, c.text2)
             log.forEach { e ->
                 Divider()
                 Row(Modifier.fillMaxWidth().padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -402,12 +400,10 @@ private fun Guarantee(icon: String, title: String?, detail: String, markedTitle:
     }
 }
 
-/** "Your SearXNG + Wikipedia", or why there is no search. Asks LFM Net about itself; no request goes out. */
+/** "Your SearXNG + Wikipedia", or why there is no search. Reads the settings only; no request goes out. */
 suspend fun webSearchLabel(g: AppGraph): String = when (g.net.state()) {
-    com.lfmpixel.lfm.web.NetClient.State.On -> runCatching { g.net.info() }.fold({ if (it.ready) it.provider.replaceFirstChar { c -> c.uppercase() } else "No provider set up" }, { "Inkling Net not answering" })
-    com.lfmpixel.lfm.web.NetClient.State.Off -> "Inkling Net off"
-    com.lfmpixel.lfm.web.NetClient.State.NotInstalled -> "Needs the Inkling Net helper"
-    com.lfmpixel.lfm.web.NetClient.State.WrongSigner -> "Inkling Net signed with another key"
+    com.lfmpixel.lfm.web.NetClient.State.On -> g.net.info().let { if (it.ready) it.provider.replaceFirstChar { c -> c.uppercase() } else "No provider set up" }
+    com.lfmpixel.lfm.web.NetClient.State.Offline -> "Offline"
 }
 
 @Composable
@@ -424,8 +420,7 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
                 Box(Modifier.width(28.dp).height(4.dp).background(c.line, RoundedCornerShape(2.dp)))
             }
             Txt("Your assistant,\non this phone", LfmType.title, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp))
-            Txt(if (g.net.installed()) "Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web."
-                else "Everything it thinks, hears and keeps stays here. No account. It cannot reach the internet.", LfmType.body, c.text2)
+            Txt("Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web.", LfmType.body, c.text2)
             SectionLabel("Step 1 of 2 · Models")
             val installed by g.models.installed.collectAsState()
             val downloads by g.downloads.items.collectAsState()
