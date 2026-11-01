@@ -1,10 +1,15 @@
 # offline-android
 
 Inkling (called LFM until LP-12), a private on-device assistant for the Pixel 10 Pro, built on Liquid AI's LFM3
-models, and Inkling Net, its small network helper. All thinking happens on the phone; Inkling itself has no internet
-permission. Design: [docs/spec.md](docs/spec.md); how it should feel to use: [docs/ux-spec.md](docs/ux-spec.md);
-mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-android>. In the code and below, "LFM" and
-"LFM Net" still name the app and its helper; package names did not change, so updates keep all data and models.
+models. All thinking happens on the phone. One app since LFMP-9: the network (search, model downloads, your own
+server) is in one small module, `:net`, the only code the build lets open a connection. Design: [docs/spec.md](docs/spec.md); how it should feel to use: [docs/ux-spec.md](docs/ux-spec.md);
+mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-android>. In the code and below, "LFM" still names
+the app; the package name did not change, so updates keep all data and models.
+
+**Updating from the two-app Inkling (Inkling + Inkling Net):** install the new Inkling over the old one; nothing is
+lost. Open Settings → Web search (or Privacy) and tap **Bring over settings**: Android asks once to update Inkling
+Net, which then hands your search provider, keys and proxy to Inkling. Then tap **Uninstall Inkling Net**: it is no
+longer needed. Your server's address and key were always in Inkling. If Inkling Net was off, Inkling starts Offline.
 
 ## Using it (LP-12)
 
@@ -21,7 +26,7 @@ mock-ups: `docs/mockups/`. Code: <https://github.com/makefunstuff/offline-androi
 This build covers every phase of the spec, 1–7: Today, Chat, Library (notes, ideas, journal), To-dos, Settings; chat with
 LFM3-1.7B through LiteRT-LM in-process (GPU or CPU); voice capture through LFM3-Omni-2B on LiteRT in-process; tools with a
 confirmation sheet, action history and undo; web search with sources, the network log, and in-app model downloads
-through LFM Net (Phase 4); **Ask about this**: camera, photos, short videos and documents, understood on the phone
+(Phase 4); **Ask about this**: camera, photos, short videos and documents, understood on the phone
 with no network (Phase 5); **Talk** and **read-aloud** with Omni's own voice, Inkling as the phone's assistant, a
 Quick Settings tile and a home-screen widget (Phase 6); and, new in Phase 7, heat handling, the app or journal lock,
 export and delete everything, an accessibility pass and a motion pass (below).
@@ -36,15 +41,14 @@ live on `/data`; `env.sh` sets the paths:
 git clone https://github.com/makefunstuff/offline-android.git && cd offline-android
 # The llama.cpp submodule is no longer built into the app; it stays only for desktop comparisons.
 . ./env.sh
-./gradlew assembleDebug                      # app/build/outputs/apk/debug/app-debug.apk (LFM, with LFM Net inside)
-                                             # net/build/outputs/apk/debug/net-debug.apk (LFM Net on its own)
+./gradlew assembleDebug                      # app/build/outputs/apk/debug/app-debug.apk: the one APK to install
 ./gradlew testDebugUnitTest                  # unit tests
 ```
 
 **Release builds** are signed with your own key, never the public debug key. Make one once (keep it and its passwords
 safe: an update must be signed with the same key) and point `keystore.properties` at it, at the top of the repo.
-That file and `*.jks` are in `.gitignore`; never commit them. Inkling and Inkling Net read the same file, so both are
-signed alike, as Inkling Net's service requires. Without the file, `assembleRelease` makes unsigned APKs.
+That file and `*.jks` are in `.gitignore`; never commit them. The Inkling Net hand-off inside Inkling is signed with it too,
+as Android requires to take it as an update of the old Inkling Net. Without the file, `assembleRelease` makes unsigned APKs.
 
 ```bash
 keytool -genkeypair -v -keystore ~/keys/inkling-release.jks -alias inkling -keyalg RSA -keysize 4096 -validity 10000
@@ -59,12 +63,15 @@ KEY
 
 `assembleDebug` also runs privacy checks and fails if any breaks (task classes in `buildSrc/`):
 
-- `:app:checkDebugNoNetwork`: LFM's merged manifest must not ask for `INTERNET` or other network permissions.
-- `:app:checkDebugDependencies`: every library in LFM must be on an allow-list (no analytics, crash, Play Services or
-  network SDKs).
-- `:net:checkDebugPermissions` (Edge mode changed none of these: Inkling still has no network): LFM Net may ask for `INTERNET` and `ACCESS_NETWORK_STATE` (to tell Wi-Fi from mobile
-  data) and nothing else: no contacts, files, location or phone state.
-- `:net:checkDebugDependencies`: LFM Net's libraries are AndroidX, Kotlin and OkHttp only.
+- `:app:checkDebugNetworkConfinement`: only `:net` (and the OkHttp it uses) may open a connection. It reads every
+  class in the APK, the app's and every library's, and every packaged native library, and fails on sockets, URL
+  connections, HTTP clients, WebView, DNS lookups, or native `socket`/`connect`/`getaddrinfo` anywhere else. The few
+  library classes that hold such code but are never reached are listed, with why, in `app/build.gradle.kts`. Report:
+  `app/build/reports/privacy/debug-network.txt`.
+- `:app:checkDebugPermissions`: the merged manifest asks only for the listed permissions (`INTERNET` and
+  `ACCESS_NETWORK_STATE` come from `:net`).
+- `:app:checkDebugDependencies`: every library must be on an allow-list (no analytics, crash, Play Services or
+  other network SDKs).
 
 The APK holds LiteRT's native code for `arm64-v8a` (the phone) and `x86_64` (the emulator). Since LFMP-8 every model
 on the phone runs on LiteRT: LiteRT-LM for LFM3-1.7B and LFM3-VL-2B (on the GPU through OpenCL, else the CPU), and
@@ -93,17 +100,15 @@ own build, turn on Developer options and USB debugging on the Pixel, connect it,
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-That is enough: LFM carries LFM Net inside it. Settings → Models (or first run) says when LFM Net is missing and offers
-**Install LFM Net**; Android asks you to allow installs from LFM once, then to confirm. You can also install it
-directly with `adb install -r net/build/outputs/apk/debug/net-debug.apk`. Both are signed with the same key, which
-LFM Net's service requires. Without LFM Net, LFM is fully offline: no search, no downloads, import still works.
+That is all: one app. Settings → Privacy → **Offline** turns all network use off (search, downloads, your server);
+import still works.
 
 ## Get the models
 
 **Download in the app.** Settings → Models lists LFM3-1.7B (chat and tools), LFM3-Omni-2B (voice) and LFM3-VL-2B
 (photos, video and documents), the LiteRT files from litert-community on Hugging Face, with size, what each is for
 and whether it is on the phone. **Download** fetches the model and the files it needs beside it (Omni's voice graphs,
-LFM3's tokenizer) through LFM Net, pinned to a repo revision. You see progress, speed and time left; Pause, Resume
+LFM3's tokenizer), pinned to a repo revision. You see progress, speed and time left; Pause, Resume
 and Cancel work, and a download cut off by closing the app or restarting the phone carries on where it stopped when
 you open LFM again. Downloads run on Wi-Fi only unless you switch that off. A finished file is checked against the
 SHA-256 pinned in `ModelCatalog.kt` and then loaded; a file that doesn't match is deleted. Old GGUF files from before
@@ -127,9 +132,8 @@ the wrong size or the wrong hash is not kept. The text model then answers a test
 
 ## Web search
 
-Search goes through LFM Net and a provider you set in LFM Net's own screen (Settings → Web search → the provider row):
-your own **SearXNG** (recommended, with **Wikipedia**, which is off until you turn it on: no account with anyone), Brave or Mojeek (an API key, tied to
-your card), or Wikipedia alone. Keys stay in LFM Net. SearXNG needs JSON output on in its `settings.yml`
+Search goes to a provider you set in Settings → Web search: your own **SearXNG** (recommended, with **Wikipedia**, which is off until you turn it on: no account with anyone), Brave or Mojeek (an API key, tied to
+your card), or Wikipedia alone. Keys stay on the phone, kept by `:net`. SearXNG needs JSON output on in its `settings.yml`
 (`search: formats: [html, json]`); reach it over your WireGuard VPN, or over https with a user and password.
 
 - **Modes:** Off, Ask first (default: the search words show in the chat with Edit / Send before they go) or
@@ -138,12 +142,12 @@ your card), or Wikipedia alone. Keys stay in LFM Net. SearXNG needs JSON output 
   e-mail addresses, street addresses and postcodes, and names of people and places from your journal and notes (LFM asks to read contacts at the first search;
   if you say no, the Search page says contacts weren't checked). If one
   is in it, the card marks it and offers Remove name / Send anyway.
-- **Reading pages:** LFM Net opens the top three results (from different sites) as text; LFM finds the article on the
+- **Reading pages:** Inkling opens the top three results (from different sites) as text; LFM finds the article on the
   phone and gives the model numbered sources. "Read the top result pages" off means snippets only.
 - **Sources:** the answer cites [1], [2]; the search card opens the Search page with what was sent, to whom, the
   sources (tap one to open it in your browser, address shown first) and what left the phone.
-- **Network log:** Settings → Privacy lists every request LFM Net made (time, host, what, size), including ones that
-  failed, with Export and Delete all, and a switch that turns LFM Net off.
+- **Network log:** Settings → Privacy lists every request `:net` made (time, host, what, size), including ones that
+  failed, with Export and Delete all, and the Offline switch.
 
 ## Ask about this (camera, photos, video, documents)
 
@@ -213,8 +217,8 @@ own computer running `local-ai-mode edge` (homelab `roles/local_ai`): its addres
 server doesn't answer on the host's loopback, so not `10.0.2.2`) and its API key (`~/.config/local-ai/edge.key`, kept encrypted with the phone's keystore).
 **Test** checks the key and that the server serves `lfm3-1.7b`, `lfm3-vl-2b` and `lfm3-omni-2b`.
 
-- Inkling still has no `INTERNET` permission: every request goes through Inkling Net's new `edge` call, which opens
-  only a private or tailnet address, only six paths, never a redirect (why: docs/spec.md, section 3, Edge mode).
+- Every request goes through `:net`'s `edge` call, which opens only a private or tailnet address, only six paths,
+  never a redirect, never through the proxy (why: docs/spec.md, section 3, Edge mode).
   Each request is in Privacy → Network log.
 - Chat sends the same LFM3 prompts the phone would run, to `/v1/completions`, so tools work as before; a prompt past
   32K tokens goes to `lfm3-1.7b-long` (262K), so long chats are no longer cut. Thinking stays off unless turned on.
@@ -298,11 +302,12 @@ read out when they change; progress bars report their value; buttons, tabs and r
 
 ## How it is put together
 
-- `ipc/`: the AIDL interface between the two apps (`info`, `search`, `fetch`, `download`, `edge`), the pinned file
-  list and `EdgeRules` (where Edge mode may go).
-- `net/`: LFM Net. `NetEngine` does the three network calls: `fetch` opens only addresses from its latest results,
-  `download` only pinned files from huggingface.co and its CDN over https. No cookies, cache or referrer; the user
-  agent of a current Chrome on Android; optional SOCKS proxy (Orbot). `NetService` answers only LFM.
+- `net/`: the network module, the only code allowed to open a connection. `Network` is its whole interface
+  (`search`, `fetch`, `download`, `edge`, and Offline); `NetEngine` makes the requests: `fetch` opens only addresses
+  from its latest results, `download` only pinned files (`PinnedFiles`) from huggingface.co and its CDN over https,
+  `edge` only the owner's server (`EdgeRules`). No cookies, cache or referrer; the user agent of a current Chrome on
+  Android; optional SOCKS proxy (Orbot). `NetSettings` keeps the provider, keys and proxy.
+- `handoff/`: the last Inkling Net, carried inside Inkling to move the old helper's settings over once (no network).
 - `llm/`: prompt format for LFM3's chat template, tool-call parser, model catalog with pinned hashes, import, loading.
 - `assistant/`: the loop (model → tool calls → confirm → run → log → back to the model), and simple rules that sort
   captures when no model is loaded.
@@ -314,8 +319,8 @@ read out when they change; progress bars report their value; buttons, tabs and r
 - `assist/`: the assistant service and session, the Quick Settings tile and the widget.
 - `see/`: Ask about this. `SeeRules` (which model looks, frame times, sizes, prompts), `MediaPrep` (photos, video
   frames, PDF pages and text layers into RGB for the model). The camera screen is `ui/screens/CameraScreen.kt` (CameraX).
-- `web/`: LFM's side of LFM Net: `NetClient` (binds to it, logs every request), `WebSearch` (the search flow),
-  `PersonalWords`, `ArticleText` (reads pages), `ModelDownloads` + `DownloadService`, `NetInstaller`.
+- `web/`: Inkling's side of `:net`: `NetClient` (Offline, logs every request), `WebSearch` (the search flow),
+  `PersonalWords`, `ArticleText` (reads pages), `ModelDownloads` + `DownloadService`, `NetHandoff` (from two apps to one).
 - `device/`: `Heat` (Android's thermal status to thread caps and waits) and `AppLock` (the optional lock).
 - `data/Export.kt`: Export all; `wipe` in `LfmApp.kt`: Delete everything. `assistant/WorkService.kt`: an answer keeps
   going in a foreground service when you leave.
@@ -336,7 +341,7 @@ Tested in an Android 16 emulator (x86_64, Pixel 10 Pro profile, software renderi
 - Phases 1–3: import and hash checks of all three files; chat and tool calls with LFM3-1.7B (about 15–26 tokens/s on
   the emulator's CPU); reminder, to-do and calendar tools with the confirmation sheet and undo; Omni transcription of a
   synthetic speech clip.
-- Phase 4, against real servers: installing LFM Net from inside LFM; searches through a real SearXNG (run locally in
+- Phase 4, against real servers (then through the separate Inkling Net app): searches through a real SearXNG (run locally in
   Docker) plus Wikipedia, with LFM3-1.7B deciding to search, the query card, the personal-word warning for a contact's
   name (Remove name and Send anyway), pages read and cited, the Search page, the network log, and a tool action after
   web text asking first. Downloads from Hugging Face of LFM3-VL-2B Q4_0 with its projector and LFM3-1.7B Q8_0: pause,

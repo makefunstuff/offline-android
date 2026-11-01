@@ -63,7 +63,10 @@ import com.lfmpixel.lfm.ui.components.Switch
 import com.lfmpixel.lfm.ui.components.Txt
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
-import com.lfmpixel.lfm.web.NetClient
+import com.lfmpixel.lfm.web.NetHandoff
+import com.lfmpixel.lfm.net.NetConfig
+import com.lfmpixel.lfm.net.WebProvider
+import androidx.compose.ui.text.input.KeyboardType
 import com.lfmpixel.lfm.web.NetException
 import com.lfmpixel.lfm.web.SearchRequest
 import kotlinx.coroutines.launch
@@ -300,55 +303,69 @@ private fun OpenPageSheet(s: SearchSource, onOpen: () -> Unit, onClose: () -> Un
     }
 }
 
-/** Settings → Web search: the mode, page reading, the personal-word check and LFM Net's provider. */
+/** Settings → Web search: the mode, the provider (address or key, Wikipedia, proxy), page reading and the personal-word check. */
 @Composable
 fun WebSearchScreen(g: AppGraph, nav: Nav) {
     val c = Lfm.c
     val prefs by g.settings.prefs.collectAsState(null)
     val scope = rememberCoroutineScope()
-    var refresh by remember { mutableIntStateOf(0) }
     var test by remember { mutableStateOf<String?>(null) }
-    val net by produceState<Pair<NetClient.State, String>?>(null, prefs?.netEnabled, refresh) {
-        val st = g.net.state()
-        value = st to if (st == NetClient.State.On) runCatching { g.net.info() }.fold({ if (it.ready) it.provider else "" }, { "?" }) else ""
-    }
+    var cfg by remember { mutableStateOf(g.net.config()) }
+    val handoff by g.handoff.status.collectAsState()
+    // A hand-off that lands while this screen is open shows at once.
+    androidx.compose.runtime.LaunchedEffect(handoff) { cfg = g.net.config() }
+    val set: (NetConfig) -> Unit = { cfg = it; g.net.save(it) }
     val p = prefs ?: return
     Column(Modifier.fillMaxSize()) {
         Header("Web search", onBack = { nav.back() })
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+            HandoffCard(g)
+            if (!p.netEnabled) Txt("Inkling is offline (Settings → Privacy): nothing is searched until you turn that off.",
+                LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), c.text, Modifier.padding(top = 12.dp))
             SectionLabel("Search mode")
             Segmented(SearchMode.entries.map { it.label }, p.searchMode.label, { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
             Txt(when (p.searchMode) {
-                SearchMode.Off -> "The assistant never searches. Nothing goes to Inkling Net."
+                SearchMode.Off -> "The assistant never searches. Nothing is sent."
                 SearchMode.AskFirst -> "You see the search words first, and can edit them, before they go."
                 SearchMode.Automatic -> "Searches go straight away, unless a personal word is in them or web pages were read: then it asks."
             }, LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             SectionLabel("Provider")
-            Group {
-                val (st, provider) = net ?: (null to "")
-                ListRow(when (st) {
-                    NetClient.State.On -> provider.ifEmpty { "No provider set up" }.replaceFirstChar { it.uppercase() }
-                    NetClient.State.Off -> "Inkling Net is off"
-                    NetClient.State.NotInstalled -> "Inkling Net is not installed"
-                    NetClient.State.WrongSigner -> "Inkling Net is signed with another key"
-                    null -> "…"
-                }, when (st) {
-                    NetClient.State.On -> "Set in Inkling Net: address or key, Wikipedia, proxy"
-                    NetClient.State.Off -> "Turn it on in Privacy"
-                    NetClient.State.NotInstalled -> "Install the Inkling Net helper app to search and download models"
-                    NetClient.State.WrongSigner -> "Install the Inkling Net built with this app"
-                    null -> ""
-                }, "globe", if (st == NetClient.State.On || st == NetClient.State.Off) ({
-                    if (st == NetClient.State.On) g.launcher.openApp(g.net.settingsIntent()) else nav.go(Route.Privacy)
-                }) else null) { if (st == NetClient.State.On || st == NetClient.State.Off) LIcon("right", tint = c.text3) }
+            Segmented(WebProvider.entries.map { it.label }, cfg.provider.label, { l -> set(cfg.copy(provider = WebProvider.entries.first { it.label == l })) })
+            when (cfg.provider) {
+                WebProvider.None -> Txt("Only Wikipedia, if it is on below.", LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
+                WebProvider.SearXNG -> {
+                    ServerField("Address", cfg.searxngUrl, { set(cfg.copy(searxngUrl = it)) }, "http://10.0.0.2:8888 or https://search.example.org", KeyboardType.Uri)
+                    ServerField("User (optional)", cfg.searxngUser, { set(cfg.copy(searxngUser = it)) }, "", KeyboardType.Text)
+                    ServerField("Password (optional)", cfg.searxngPassword, { set(cfg.copy(searxngPassword = it)) }, "", KeyboardType.Password, secret = true)
+                    Txt("Your own server, reached over your VPN or tailnet, or over https with a password. Turn on JSON output in its settings.yml " +
+                        "(search: formats: [html, json]). No account with anyone; the search engines it asks see your server's address.",
+                        LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
+                }
+                WebProvider.Brave -> {
+                    ServerField("API key", cfg.braveKey, { set(cfg.copy(braveKey = it)) }, "", KeyboardType.Password, secret = true)
+                    Txt("A Brave account with your card: every search with this key is tied to you, and reportedly kept up to 90 days.",
+                        LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
+                }
+                WebProvider.Mojeek -> {
+                    ServerField("API key", cfg.mojeekKey, { set(cfg.copy(mojeekKey = it)) }, "", KeyboardType.Password, secret = true)
+                    Txt("A Mojeek account with your card: every search with this key is tied to you; 90-day retention unless you ask for none.",
+                        LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
+                }
             }
-            if (net?.first == NetClient.State.On) Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically,
+            Spacer(Modifier.height(10.dp))
+            ToggleRow("Also search Wikipedia", "Facts only, no account", cfg.wikipedia) { set(cfg.copy(wikipedia = it)) }
+            if (cfg.wikipedia) ServerField("Wikipedia language", cfg.wikiLang, { set(cfg.copy(wikiLang = it)) }, "en", KeyboardType.Text)
+            ServerField("SOCKS proxy (optional)", cfg.proxy, { set(cfg.copy(proxy = it)) }, "127.0.0.1:9050 for Orbot", KeyboardType.Uri)
+            if (!cfg.proxyOk)
+                Txt("Not used: write it as host:port, like 127.0.0.1:9050.", LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight), c.text, Modifier.padding(top = 8.dp))
+            Txt("Hides your IP address from the provider and from opened pages. It can't reach a SearXNG that is only on your VPN. " +
+                "Your server (Edge mode) never goes through it.", LfmType.meta, c.text2, Modifier.padding(top = 8.dp))
+            if (cfg.ready && p.netEnabled) Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Btn("Try a search", {
                     test = "Searching…"
                     scope.launch {
                         test = try { "Works: ${g.net.search("weather").hits.size} results. It's in the network log." } catch (e: NetException) { "Failed: ${e.message}" }
-                        refresh++
                     }
                 }, small = true)
                 test?.let { Txt(it, LfmType.meta, c.text2, Modifier.weight(1f)) }
@@ -360,8 +377,41 @@ fun WebSearchScreen(g: AppGraph, nav: Nav) {
             Spacer(Modifier.height(8.dp))
             ToggleRow("Warn about personal words", "Names, places, numbers, e-mails", p.warnPersonalWords) { scope.launch { g.settings.setWarnPersonal(it) } }
             Txt("What leaves the phone: the search words, then the addresses of the pages it opens. Never your chats, notes, contacts or location. " +
-                "The provider and the opened sites see your IP address unless Inkling Net uses a proxy.", LfmType.meta, c.text2, Modifier.padding(top = 14.dp))
+                "The provider and the opened sites see your IP address unless a proxy is set.", LfmType.meta, c.text2, Modifier.padding(top = 14.dp))
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/**
+ * Moving from two apps to one: while the old Inkling Net is on the phone, bring its settings over (one tap, Android
+ * asks to update it), then offer to uninstall it. Nothing shows once it is gone.
+ */
+@Composable
+fun HandoffCard(g: AppGraph) {
+    val c = Lfm.c
+    val scope = rememberCoroutineScope()
+    val st by g.handoff.status.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { g.handoff.refresh() }
+    if (st == NetHandoff.Status.None) return
+    Column(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, c.text, RoundedCornerShape(8.dp)).padding(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LIcon("globe", size = 18.dp)
+            Txt(if (st == NetHandoff.Status.Done) "Inkling Net can be uninstalled" else "Bring over Inkling Net's settings",
+                LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+        }
+        Txt(if (st == NetHandoff.Status.Done) "Search, downloads and your server now run inside Inkling, and its settings are here. The old helper app does nothing any more."
+            else "Inkling now does search, downloads and your server itself. Your search provider, keys and proxy are still in the old Inkling Net: " +
+                "Android will ask to update it once so it can hand them over.", LfmType.small, c.text2, Modifier.padding(top = 6.dp))
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            when (val s = st) {
+                NetHandoff.Status.Done -> Btn("Uninstall Inkling Net", { g.launcher.start(g.handoff.uninstallIntent()) }, small = true, kind = BtnKind.Primary, icon = "trash")
+                else -> {
+                    Btn(if (s == NetHandoff.Status.Working) "Bringing over…" else "Bring over settings", { scope.launch { g.handoff.install() } },
+                        small = true, kind = BtnKind.Primary, icon = "download", enabled = s != NetHandoff.Status.Working)
+                    (s as? NetHandoff.Status.Failed)?.let { Txt(it.why, LfmType.meta, c.text2, Modifier.weight(1f)) }
+                }
+            }
         }
     }
 }

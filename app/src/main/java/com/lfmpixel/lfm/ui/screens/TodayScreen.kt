@@ -234,7 +234,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
         }
         item(key = "seal") {
             Column(Modifier.padding(horizontal = 16.dp)) {
-                // The seal (proposal 6): what left the phone that day, counted from Inkling Net's log.
+                // The seal (proposal 6): what left the phone that day, counted from the network log.
                 val left = sent.count { it.at < end }
                 val lockOn = prefs?.lockMode == com.lfmpixel.lfm.settings.LockMode.Journal
                 val seal = "Sealed · " + when {

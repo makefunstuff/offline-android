@@ -109,13 +109,13 @@ data class Reminder(
     val createdAt: Long = System.currentTimeMillis(),
 )
 
-/** One request LFM Net made for LFM: the network log under Settings → Privacy. */
+/** One request the network module made: the network log under Settings → Privacy. */
 @Entity(tableName = "netlog", indices = [Index("at")])
 data class NetLogEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val at: Long,
     val host: String,
-    val url: String,                // full address (API keys blanked by LFM Net)
+    val url: String,                // full address (API keys blanked)
     val label: String,              // "“plumber call-out fee”", "Opened source 1", "Model: LFM3-VL-2B"
     val sent: String,               // what went out beyond the address: the search words, a file name
     val bytes: Long,                // received
@@ -132,7 +132,7 @@ data class SearchRecord(
     val sources: String,            // SearchSource.encode
     val personalSent: String = "",  // personal words the owner chose to send anyway
     val answer: String = "",        // the answer written from it
-    val opened: Int = 0,            // result pages LFM Net was asked to open (some may not have answered)
+    val opened: Int = 0,            // result pages asked to open (some may not have answered)
     val at: Long = System.currentTimeMillis(),
 )
 

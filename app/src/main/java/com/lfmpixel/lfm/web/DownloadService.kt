@@ -44,7 +44,7 @@ class DownloadService : Service() {
     private fun note(title: String, done: Long, total: Long): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, CHANNEL).setSmallIcon(R.drawable.ic_stat_lfm).setContentTitle(title)
-            .setContentText(if (total > 0) "${formatBytes(done)} of ${formatBytes(total)} · through Inkling Net" else "Through Inkling Net")
+            .setContentText(if (total > 0) "${formatBytes(done)} of ${formatBytes(total)}" else "From Hugging Face")
             .setProgress(if (total > 0) 1000 else 0, if (total > 0) (done * 1000 / total).toInt() else 0, total <= 0)
             .setOngoing(true).setOnlyAlertOnce(true).setContentIntent(open).build()
     }

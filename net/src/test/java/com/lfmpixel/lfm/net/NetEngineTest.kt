@@ -1,6 +1,5 @@
 package com.lfmpixel.lfm.net
 
-import com.lfmpixel.lfm.ipc.PinnedFiles
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -16,7 +15,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
 
-/** LFM Net's calls against a local server: what is sent, what is refused, what is logged. */
+/** The network module's calls against a local server: what is sent, what is refused, what is logged. */
 class NetEngineTest {
     private val server = MockWebServer()
     private var cfg = NetConfig()
@@ -159,5 +158,34 @@ class NetEngineTest {
         assertNull(NetEngine.proxyOf(""))
         assertNull(NetEngine.proxyOf("nonsense"))
         assertEquals("https://x.example/", "https://x.example/".toHttpUrl().toString())
+    }
+
+    @Test fun offlineSendsNothing() {
+        cfg = NetConfig(provider = WebProvider.SearXNG, searxngUrl = base(), wikipedia = true)
+        var offline = true
+        val e = NetEngine({ cfg }, wikipediaBase = { base() }, downloadUrl = { base() + "/resolve/" + it.name },
+            downloadAllowed = { it.host == server.hostName }, edgeAddressAllowed = { it.isLoopbackAddress }, edgePinned = { base() },
+            blocked = { offline })
+        val s = e.search("weather")
+        assertTrue(s.hits.isEmpty())
+        assertTrue(s.error!!.contains(NetEngine.OFFLINE))
+        val d = e.download(PinnedFiles.all.first().name, 0, ByteArrayOutputStream())
+        assertEquals(NetEngine.OFFLINE, d.error)
+        val edge = e.edge(base(), "k", "GET", "/health", null, null) { true }
+        assertEquals(NetEngine.OFFLINE, edge.error)
+        assertEquals(0, server.requestCount)
+
+        // Turned on mid-download: it stops at the next piece.
+        offline = false
+        val file = PinnedFiles.byName("d1-omni-600M_tokenizer.json")!! // 4.7 MB: many pieces
+        server.enqueue(MockResponse.Builder().body(okio.Buffer().write(ByteArray(file.size.toInt()))).build())
+        val out = object : OutputStream() {
+            var n = 0L
+            override fun write(b: Int) { n++ }
+            override fun write(b: ByteArray, off: Int, len: Int) { n += len; offline = true }
+        }
+        val cut = e.download(file.name, 0, out)
+        assertEquals(NetEngine.OFFLINE, cut.error)
+        assertTrue(out.n < file.size)
     }
 }

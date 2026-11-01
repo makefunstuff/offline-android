@@ -192,11 +192,12 @@ class MainActivity : ComponentActivity() {
         // Back on screen (also after a permission dialog): the "keeps going" notice is not needed; it starts again
         // if Inkling is left while busy.
         stopService(android.content.Intent(this, com.lfmpixel.lfm.assistant.WorkService::class.java))
-        // LFM Net may have been installed, removed or set up meanwhile; downloads cut off by a restart carry on.
+        // Downloads cut off by a restart carry on.
         graph.net.refresh()
         graph.downloads.resumeInterrupted()
-        // Back from Android's install prompt without an answer: let Install be tapped again.
-        if (graph.netInstaller.status.value == com.lfmpixel.lfm.web.NetInstaller.Status.Working) graph.netInstaller.status.value = com.lfmpixel.lfm.web.NetInstaller.Status.Idle
+        // Back from Android's install or uninstall prompt: see what is there now (the old Inkling Net, its hand-off).
+        if (graph.handoff.status.value == com.lfmpixel.lfm.web.NetHandoff.Status.Working) graph.handoff.status.value = com.lfmpixel.lfm.web.NetHandoff.Status.Needed
+        graph.scope.launch { graph.handoff.refresh() }
     }
 
     companion object {

@@ -11,8 +11,9 @@ import java.util.Properties
  *     keyAlias=inkling
  *     keyPassword=…
  *
- * Inkling and Inkling Net read the same file, so both are signed with the same key, which Inkling Net's service
- * requires. Without the file, release builds come out unsigned (and never with the public debug key).
+ * Inkling and the Inkling Net hand-off read the same file: the hand-off must be signed with the old Inkling Net's key
+ * to install as its update, and it answers only Inkling signed with that key. Without the file, release builds come
+ * out unsigned (and never with the public debug key).
  */
 class ReleaseKey(val storeFile: File, val storePassword: String, val keyAlias: String, val keyPassword: String)
 

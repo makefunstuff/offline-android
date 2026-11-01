@@ -1,95 +1,93 @@
 package com.lfmpixel.lfm.web
 
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.content.pm.PackageManager
-import android.os.Bundle
-import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import com.lfmpixel.lfm.data.LfmDatabase
 import com.lfmpixel.lfm.data.NetLogEntry
-import com.lfmpixel.lfm.ipc.IEdgeReply
-import com.lfmpixel.lfm.ipc.ILfmNet
-import com.lfmpixel.lfm.ipc.NetContract
-import com.lfmpixel.lfm.ipc.SearchHit
-import com.lfmpixel.lfm.ipc.hits
-import com.lfmpixel.lfm.ipc.requests
+import com.lfmpixel.lfm.net.NetConfig
+import com.lfmpixel.lfm.net.NetInfo
+import com.lfmpixel.lfm.net.NetRequest
+import com.lfmpixel.lfm.net.Network
+import com.lfmpixel.lfm.net.SearchHit
 import com.lfmpixel.lfm.settings.Settings
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import java.io.InputStream
 
 /**
- * [code] is NetContract.NO_WIFI when a Wi-Fi-only download found no Wi-Fi; for Edge mode, [EDGE_UNREACHABLE] when
+ * [code] is [NO_WIFI] when a Wi-Fi-only download found no Wi-Fi; for Edge mode, [EDGE_UNREACHABLE] when
  * the server was never reached, [EDGE_REFUSED] when it answered with an error.
  */
 class NetException(message: String, val code: String? = null) : Exception(message)
 
+const val NO_WIFI = "no-wifi"
 const val EDGE_UNREACHABLE = "edge-unreachable"
 const val EDGE_REFUSED = "edge-refused"
 
-/** What LFM Net says about itself: is a provider set up, and which. */
-data class NetInfo(val ready: Boolean, val provider: String, val proxy: Boolean)
-
-/**
- * LFM's side of the line to LFM Net. LFM itself has no network: everything here crosses to the helper app over
- * Binder, and every request it reports goes into the network log. Off when the owner turns LFM Net off.
- */
 private const val NO_REPLY = " · asked, no reply yet"
 
-class NetClient(private val context: Context, private val settings: Settings, private val db: LfmDatabase, private val scope: CoroutineScope) {
-    private val lock = Mutex()
-    private var service: ILfmNet? = null
-    private var connection: ServiceConnection? = null
-    private var idle: Job? = null
-    private var calls = 0
+/**
+ * Inkling's side of the network module (:net, the only code allowed to open a connection). Every request goes into
+ * the network log, and nothing goes at all while Offline is on (Settings → Privacy): the module itself checks that
+ * before each request and between the pieces of one under way.
+ */
+class NetClient(context: Context, private val settings: Settings, private val db: LfmDatabase, private val scope: CoroutineScope) {
+    enum class State { Offline, On }
 
-    enum class State { NotInstalled, WrongSigner, Off, On }
+    /** Offline, as last read from Settings; the network module asks this before every request. */
+    @Volatile private var offline = false
 
-    /** The last known [state], for screens; [state] and [refresh] keep it current (after an install, say). */
-    val current = kotlinx.coroutines.flow.MutableStateFlow<State?>(null)
+    private val network = Network(context) { offline }
 
-    /** Installed, signed with our key, and switched on in Privacy. */
-    suspend fun state(): State = when {
-        !installed() -> State.NotInstalled
-        context.packageManager.checkSignatures(context.packageName, NetContract.NET_PACKAGE) != PackageManager.SIGNATURE_MATCH -> State.WrongSigner
-        !settings.now().netEnabled -> State.Off
-        else -> State.On
-    }.also { current.value = it }
+    /** The last known [state], for screens. */
+    val current = MutableStateFlow<State?>(null)
+
+    init {
+        scope.launch {
+            settings.prefs.collect { p ->
+                val was = offline
+                offline = !p.netEnabled
+                current.value = if (offline) State.Offline else State.On
+                if (offline && !was) network.stopAll()
+            }
+        }
+    }
+
+    suspend fun state(): State {
+        offline = !settings.now().netEnabled
+        return (if (offline) State.Offline else State.On).also { current.value = it }
+    }
 
     fun refresh() { scope.launch { state() } }
 
-    fun installed() = runCatching { context.packageManager.getPackageInfo(NetContract.NET_PACKAGE, 0); true }.getOrDefault(false)
+    /** The provider settings (Settings → Web search). Reading them makes no request. */
+    fun config(): NetConfig = network.settings.load()
+    fun save(c: NetConfig) = network.settings.save(c)
 
-    suspend fun info(): NetInfo = call { s ->
-        val b = s.info()
-        NetInfo(b.getBoolean(NetContract.READY), b.getString(NetContract.PROVIDER).orEmpty(), b.getBoolean(NetContract.PROXY))
-    }
+    suspend fun info(): NetInfo = network.info()
+
+    /** The old Inkling Net's settings, handed over once (NetHandoff). */
+    fun importLegacy(values: Map<String, Any?>) = network.settings.importLegacy(values)
+    fun imported() = network.settings.imported()
 
     data class Results(val provider: String, val hits: List<SearchHit>)
 
     suspend fun search(query: String): Results {
-        val b = exchange(started("search provider", "", "“$query”", query), query) { it.search(query) }
-        b.failure()?.let { throw NetException(it) }
-        return Results(b.getString(NetContract.PROVIDER).orEmpty(), b.hits())
+        val r = exchange(started("search provider", "", "“$query”", query), query) { network.search(query).let { it to it.log } }
+        r.error?.let { throw NetException(it) }
+        return Results(r.provider, r.hits)
     }
 
-    /** One result page's HTML (slimmed by LFM Net), or an error. [label] names it in the network log. */
+    /** One result page's HTML (slimmed), or an error. [label] names it in the network log. */
     suspend fun fetch(url: String, label: String): String {
-        val b = exchange(started(url.substringAfter("://").substringBefore('/'), url, label, ""), "") { it.fetch(url) }
-        b.failure()?.let { throw NetException(it) }
-        return b.getString(NetContract.TEXT).orEmpty()
+        val r = exchange(started(url.substringAfter("://").substringBefore('/'), url, label, ""), "") { network.fetch(url).let { it to it.log } }
+        r.error?.let { throw NetException(it) }
+        return r.text
     }
 
     /**
@@ -98,76 +96,69 @@ class NetClient(private val context: Context, private val settings: Settings, pr
      */
     suspend fun download(fileName: String, offset: Long, wifiOnly: Boolean, label: String, read: suspend (InputStream) -> Unit): Long {
         var readError: Throwable? = null
-        val b = exchange(started("huggingface.co", "", label, fileName), fileName) { s ->
+        val r = exchange(started("huggingface.co", "", label, fileName), fileName) {
             val (source, sink) = ParcelFileDescriptor.createPipe()
-            coroutineScopeReading(source, read, { readError = it }) { try { s.download(fileName, offset, wifiOnly, sink) } finally { sink.close() } }
+            val reply = reading(source, read, { readError = it }) {
+                ParcelFileDescriptor.AutoCloseOutputStream(sink).use { out -> network.download(fileName, offset, wifiOnly, out) }
+            }
+            reply to reply.log
         }
         // A failure on our side (a full disk) comes after the log is written.
         readError?.let { throw it }
-        b.failure()?.let { throw NetException(it, b.getString(NetContract.CODE)) }
-        return b.getLong(NetContract.BYTES)
+        r.error?.let { throw NetException(it, if (r.noWifi) NO_WIFI else null) }
+        return r.bytes
     }
 
     /**
-     * Edge mode: one request to the owner's server through LFM Net. [onData] gets the reply body as it comes, on a
-     * Binder thread; returning false (or this coroutine being cancelled) stops it. Returns the HTTP status; throws
-     * [NetException] ([EDGE_UNREACHABLE] or [EDGE_REFUSED]) when the server could not be reached or said no.
+     * Edge mode: one request to the owner's server. [onData] gets the reply body as it comes; returning false (or
+     * this coroutine being cancelled) stops it. Returns the HTTP status; throws [NetException] ([EDGE_UNREACHABLE]
+     * or [EDGE_REFUSED]) when the server could not be reached or said no.
      */
     suspend fun edge(base: String, key: String, method: String, path: String, contentType: String?, body: ByteArray?,
                      label: String, onData: (ByteArray) -> Boolean): Int {
         val job = kotlinx.coroutines.currentCoroutineContext()[Job]
         val host = base.substringAfter("://").substringBefore('/')
         val id = java.util.UUID.randomUUID().toString()
-        val b = exchange(started(host, "", label, ""), "") { s ->
-            // Stop reaches LFM Net at once, even before the server has sent anything.
+        val r = exchange(started(host, "", label, ""), "") {
+            // Stop reaches the request at once, even before the server has sent anything.
             @OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
             val onStop = job?.invokeOnCompletion(onCancelling = true, invokeImmediately = true) { cause ->
-                if (cause != null) kotlin.concurrent.thread(name = "edge-cancel") { runCatching { s.edgeCancel(id) } }
-            }
-            val pipe = body?.let { ParcelFileDescriptor.createPipe() }
-            pipe?.let { (source, sink) ->
-                // The body goes in on its own thread, so a large one can't block the call that reads it.
-                kotlin.concurrent.thread(name = "edge-body") {
-                    runCatching { ParcelFileDescriptor.AutoCloseOutputStream(sink).use { it.write(body) } }
-                }
-                source
+                if (cause != null) network.edgeCancel(id)
             }
             try {
-                s.edge(id, base, key, method, path, contentType, pipe?.get(0), object : IEdgeReply.Stub() {
-                    override fun data(bytes: ByteArray?): Boolean = job?.isActive != false && bytes != null && onData(bytes)
-                })
-            } finally {
-                onStop?.dispose()
-                pipe?.get(0)?.let { runCatching { it.close() } }
-            }
+                network.edge(id, base, key, method, path, contentType, body) { bytes -> job?.isActive != false && onData(bytes) }
+            } finally { onStop?.dispose() }.let { it to it.log }
         }
-        val status = b.getInt(NetContract.STATUS)
         // Stopped is ours: the reader had all it wanted.
-        b.failure()?.takeIf { it != "Stopped" }?.let { throw NetException(it, if (status == 0) EDGE_UNREACHABLE else EDGE_REFUSED) }
-        return status
+        r.error?.takeIf { it != "Stopped" }?.let { throw NetException(it, if (r.status == 0) EDGE_UNREACHABLE else EDGE_REFUSED) }
+        return r.status
     }
 
-    /** Tells LFM Net which server Settings saved: the only one Edge requests may go to. */
-    suspend fun edgePin(base: String) = call { it.edgePin(base) }
+    /** Which server Settings saved: the only one Edge requests may go to. */
+    fun edgePin(base: String) = network.edgePin(base)
 
     /**
-     * One network call, logged whatever happens: a placeholder goes in the log before it is asked, and LFM Net's own
-     * entries replace it when the reply comes, even if the owner tapped Stop meanwhile (the request went out anyway).
+     * One network call, logged whatever happens: a placeholder goes in the log before it is asked, and the module's
+     * own entries replace it when the reply comes, even if the owner tapped Stop meanwhile (the request went out anyway).
      */
-    private suspend fun exchange(pending: NetLogEntry, sent: String, rpc: suspend (ILfmNet) -> Bundle): Bundle = call { s ->
-        withContext(NonCancellable) {
+    private suspend fun <T> exchange(pending: NetLogEntry, sent: String, call: suspend () -> Pair<T, List<NetRequest>>): T {
+        if (state() == State.Offline) throw NetException("Inkling is offline. Turn Offline off in Settings → Privacy.")
+        return withContext(Dispatchers.IO + NonCancellable) {
             val id = db.netLog().insert(pending)
-            val b = rpc(s)
-            db.netLog().insertAll(b.requests().map { r ->
+            // A call that threw may still have gone out: its placeholder stays in the log.
+            val (reply, log) = try { call() } catch (e: NetException) { throw e } catch (e: Exception) {
+                throw NetException(e.message ?: "The request failed")
+            }
+            db.netLog().insertAll(log.map { r ->
                 NetLogEntry(at = r.at, host = r.host, url = r.url, label = pending.label.removeSuffix(NO_REPLY), sent = r.sent.ifEmpty { sent }, bytes = r.bytes, ok = r.ok)
             })
             db.netLog().delete(id)
-            b
+            reply
         }
     }
 
-    private suspend fun <T> coroutineScopeReading(source: ParcelFileDescriptor, read: suspend (InputStream) -> Unit,
-                                                  onReadError: (Throwable) -> Unit, body: suspend () -> T): T =
+    private suspend fun <T> reading(source: ParcelFileDescriptor, read: suspend (InputStream) -> Unit,
+                                    onReadError: (Throwable) -> Unit, body: suspend () -> T): T =
         kotlinx.coroutines.coroutineScope {
             val reader = launch(Dispatchers.IO) {
                 runCatching { ParcelFileDescriptor.AutoCloseInputStream(source).use { read(it) } }.exceptionOrNull()?.let(onReadError)
@@ -177,68 +168,10 @@ class NetClient(private val context: Context, private val settings: Settings, pr
             result.getOrThrow()
         }
 
-    /** Opens LFM Net's own settings screen (provider, key, proxy): those never come into LFM. */
-    fun settingsIntent(): Intent = Intent().setComponent(ComponentName(NetContract.NET_PACKAGE, NetContract.SETTINGS_ACTIVITY))
-
-    private fun Bundle.failure(): String? = if (getBoolean(NetContract.OK)) null else (getString(NetContract.ERROR) ?: "Inkling Net failed")
-
     /**
-     * A request is in the log from the moment it is asked for, so one whose reply never comes (LFM closed mid-download,
-     * LFM Net stopped) is still listed. LFM Net's own entries replace it once the reply arrives.
+     * A request is in the log from the moment it is asked for, so one whose reply never comes (Inkling closed
+     * mid-download) is still listed. The module's own entries replace it once the reply arrives.
      */
     private fun started(host: String, url: String, label: String, sent: String) =
         NetLogEntry(at = System.currentTimeMillis(), host = host, url = url, label = label + NO_REPLY, sent = sent, bytes = 0, ok = true)
-
-    private suspend fun <T> call(block: suspend (ILfmNet) -> T): T {
-        when (state()) {
-            State.NotInstalled -> throw NetException("Inkling Net is not installed")
-            State.WrongSigner -> throw NetException("Inkling Net is signed with another key, so Inkling won't use it")
-            State.Off -> throw NetException("Inkling Net is turned off in Privacy")
-            State.On -> Unit
-        }
-        val s = lock.withLock {
-            idle?.cancel()
-            service ?: bind()
-        }
-        lock.withLock { calls++ }
-        return try {
-            withContext(Dispatchers.IO) { block(s) }
-        } catch (e: android.os.RemoteException) {
-            // Only a dead helper is let go; a failed transaction (a reply too big) leaves other calls running.
-            if (!s.asBinder().isBinderAlive) lock.withLock { drop() }
-            throw NetException("Inkling Net stopped: ${e.message ?: "try again"}")
-        } catch (e: SecurityException) {
-            throw NetException("Inkling Net refused: ${e.message}")
-        } finally {
-            lock.withLock {
-                calls--
-                // Let the helper go a minute after the last call, so it isn't kept alive for nothing.
-                if (calls == 0) idle = scope.launch { delay(60_000); lock.withLock { if (calls == 0) drop() } }
-            }
-        }
-    }
-
-    private suspend fun bind(): ILfmNet {
-        drop() // a connection left from a helper that restarted
-        val ready = CompletableDeferred<ILfmNet>()
-        val conn = object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName, binder: IBinder) { ILfmNet.Stub.asInterface(binder).let { service = it; ready.complete(it) } }
-            override fun onServiceDisconnected(name: ComponentName) { service = null }
-            override fun onBindingDied(name: ComponentName) { scope.launch { lock.withLock { drop() } } }
-            override fun onNullBinding(name: ComponentName) { ready.completeExceptionally(NetException("Inkling Net refused the connection")) }
-        }
-        val intent = Intent(NetContract.ACTION_BIND).setPackage(NetContract.NET_PACKAGE)
-        val ok = try { context.bindService(intent, conn, Context.BIND_AUTO_CREATE) } catch (e: SecurityException) {
-            throw NetException("Inkling Net refused: ${e.message}")
-        }
-        if (!ok) { runCatching { context.unbindService(conn) }; throw NetException("Could not reach Inkling Net") }
-        connection = conn
-        return try { withTimeout(10_000) { ready.await() } } catch (e: Exception) { drop(); throw NetException("Inkling Net did not answer") }
-    }
-
-    private fun drop() {
-        connection?.let { runCatching { context.unbindService(it) } }
-        connection = null
-        service = null
-    }
 }

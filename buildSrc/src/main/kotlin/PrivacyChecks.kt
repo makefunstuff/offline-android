@@ -7,7 +7,7 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 
-// Privacy checks (docs/spec.md section 3), shared by LFM and LFM Net.
+// Privacy checks (docs/spec.md section 3). The network one is in NetworkConfinement.kt.
 
 /**
  * Fails the build if the merged manifest asks for a permission in [banned], or, when [allowed] is set, for any
@@ -74,14 +74,17 @@ fun runtimeModules(root: org.gradle.api.artifacts.result.ResolvedComponentResult
     return seen.toList()
 }
 
-/** Libraries both apps may use: AndroidX, Kotlin and their annotations. */
+/** Libraries any module may use: AndroidX, Kotlin and their annotations. */
 val baseAllowList = listOf("androidx.", "org.jetbrains.kotlin", "org.jetbrains.kotlinx", "org.jetbrains:annotations",
     "org.jspecify", "com.google.guava:listenablefuture", "com.google.errorprone:error_prone_annotations")
 
-/** Copies LFM Net's built APK into LFM's assets as lfm-net.apk, so LFM can offer to install it. */
+/** Copies a built APK (the Inkling Net hand-off) into Inkling's assets as [assetName]. */
 abstract class BundleApk : DefaultTask() {
     @get:org.gradle.api.tasks.InputDirectory
     abstract val apkDir: org.gradle.api.file.DirectoryProperty
+
+    @get:Input
+    abstract val assetName: org.gradle.api.provider.Property<String>
 
     @get:org.gradle.api.tasks.OutputDirectory
     abstract val outDir: org.gradle.api.file.DirectoryProperty
@@ -89,9 +92,9 @@ abstract class BundleApk : DefaultTask() {
     @TaskAction
     fun copy() {
         val apk = apkDir.get().asFile.listFiles().orEmpty().singleOrNull { it.name.endsWith(".apk") }
-            ?: throw GradleException("Expected one LFM Net APK in ${apkDir.get().asFile}")
+            ?: throw GradleException("Expected one APK in ${apkDir.get().asFile}")
         val out = outDir.get().asFile
         out.deleteRecursively(); out.mkdirs()
-        apk.copyTo(java.io.File(out, "lfm-net.apk"))
+        apk.copyTo(java.io.File(out, assetName.get()))
     }
 }

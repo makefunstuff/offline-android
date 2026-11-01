@@ -62,7 +62,6 @@ import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
 import com.lfmpixel.lfm.web.ModelDownloads
 import com.lfmpixel.lfm.web.NetClient
-import com.lfmpixel.lfm.web.NetInstaller
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 
@@ -102,7 +101,7 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
                 }
             }
             Btn("Import a file", onImport, Modifier.padding(top = 14.dp).fillMaxWidth(), icon = "folder")
-            Txt("Downloads come from Hugging Face with no login, through Inkling Net, and each file is checked against its pinned SHA-256 before it is used. " +
+            Txt("Downloads come from Hugging Face with no login, and each file is checked against its pinned SHA-256 before it is used. " +
                 "Import works fully offline: copy the file to the phone (adb push or USB), then pick it.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
             LeftoverFiles(g)
             SearchIndexSection(g)
@@ -204,35 +203,18 @@ private fun LeftoverFiles(g: AppGraph) {
     }
 }
 
-/** Said plainly: downloads need the helper app; offer to install it from the copy inside LFM. */
+/** Said plainly: Offline is on, so nothing downloads; offer to turn it off. */
 @Composable
-private fun NetMissingCard(g: AppGraph, st: NetClient.State) {
+private fun NetMissingCard(g: AppGraph, @Suppress("UNUSED_PARAMETER") st: NetClient.State) {
     val c = Lfm.c
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val install by g.netInstaller.status.collectAsState()
     Column(Modifier.padding(bottom = 10.dp).fillMaxWidth().border(1.dp, c.text, RoundedCornerShape(8.dp)).padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("download", size = 18.dp)
-            Txt(when (st) {
-                NetClient.State.NotInstalled -> "Inkling Net is not installed"
-                NetClient.State.Off -> "Inkling Net is turned off"
-                else -> "Inkling Net is signed with another key"
-            }, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+            Txt("Inkling is offline", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
         }
-        Txt(when (st) {
-            NetClient.State.NotInstalled -> "Downloads come through Inkling Net, a small helper app. It is the only part with network access; Inkling itself has none. Without it, import model files instead."
-            NetClient.State.Off -> "You turned it off in Privacy, so nothing is downloaded. Import works without it."
-            else -> "Inkling only talks to the Inkling Net built with it. Uninstall the Inkling Net you have, then come back here to install this one."
-        }, LfmType.small, c.text2, Modifier.padding(top = 6.dp))
-        val bundled = remember { g.netInstaller.bundled() }
-        if (st == NetClient.State.NotInstalled && bundled) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Btn(if (install == NetInstaller.Status.Working) "Installing…" else "Install Inkling Net",
-                { scope.launch { g.netInstaller.install() } }, small = true, kind = BtnKind.Primary, icon = "download",
-                enabled = install != NetInstaller.Status.Working)
-            (install as? NetInstaller.Status.Failed)?.let { Txt(it.why, LfmType.meta, c.text2, Modifier.weight(1f)) }
-        }
-        if (st == NetClient.State.Off) Btn("Turn on", { scope.launch { g.settings.setNetEnabled(true); g.net.refresh() } }, Modifier.padding(top = 10.dp), small = true)
+        Txt("You turned on Offline in Privacy, so nothing is downloaded. Import works without the network.", LfmType.small, c.text2, Modifier.padding(top = 6.dp))
+        Btn("Go online", { scope.launch { g.settings.setNetEnabled(true); g.net.refresh(); g.downloads.resumeInterrupted() } }, Modifier.padding(top = 10.dp), small = true)
     }
 }
 
@@ -246,7 +228,7 @@ private fun DownloadProgress(d: ModelDownloads.Item, highlighted: Boolean, onPau
         Row(verticalAlignment = Alignment.CenterVertically) {
             Txt(when (d.state) {
                 ModelDownloads.State.Waiting -> "Waiting to start"
-                ModelDownloads.State.Running -> "Downloading through Inkling Net"
+                ModelDownloads.State.Running -> "Downloading"
                 ModelDownloads.State.Pausing -> "Pausing…"
                 ModelDownloads.State.Cancelling -> "Cancelling…"
                 ModelDownloads.State.Paused -> d.error ?: "Paused"

@@ -19,7 +19,7 @@ the owner found them slow and hard on the battery. When Inkling needs a model, i
 | Token counts, Omni's prompts | LFM3's `tokenizer.json` | `BpeTokenizer` (Kotlin) | CPU | 18 MB |
 
 All files come from [litert-community](https://huggingface.co/litert-community) on Hugging Face. Each is pinned in
-`ModelCatalog.kt` and `ipc/PinnedFiles.kt` by repo revision, path, size and SHA-256. Inkling Net downloads them; it
+`ModelCatalog.kt` and `net/PinnedFiles.kt` by repo revision, path, size and SHA-256. `:net` downloads them; it
 resumes a cut download and checks the hash before the file is used. No model file is ever committed.
 
 ## Rules
@@ -54,8 +54,8 @@ EmbeddingGemma 2 (search by meaning, docs/embeddings.md) is Apache-2.0.
 Every file here is under the LFM Open License v1.0. Section 5 only limits commercial use by an organisation with
 $10M or more a year in revenue. A free, open-source app used by one person is within it. The runtimes, LiteRT-LM
 0.19.0 and LiteRT 2.3.0, are Apache-2.0. LiteRT's `ai-delivery` dependency (Play Store delivery of NPU models) is
-excluded, so there are no Play Services. `checkDebugDependencies` lists the two runtimes, and `checkDebugNoNetwork`
-still holds.
+excluded, so there are no Play Services. `checkDebugDependencies` lists the two runtimes, and `checkDebugNetworkConfinement`
+finds no network code in them, native code included.
 
 ## Measured
 

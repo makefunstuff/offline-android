@@ -358,7 +358,7 @@ Ranked by how much daily use they unlock per unit of effort. 1–6 are built in 
   phone" too.
 - **Why.** A daily, honest count is more reassuring than a badge, and it costs a glance.
 - **Borrowed.** iOS's App Privacy Report and the mic/camera indicators; Signal's "sealed sender" wording. **New here:**
-  it counts what actually left (the helper app's log), per day, on the home page.
+  it counts what actually left (the network log), per day, on the home page.
 
 ### 7. Three places, not four (built)
 
@@ -420,8 +420,8 @@ was written, so the owner's data carries over as is. The Room schema stays at ve
 
 ## 4. Privacy and permissions
 
-No new permission. The share target receives text only; nothing is fetched from a shared link. The main app keeps no
-`INTERNET` permission; `checkDebugNoNetwork` and `checkDebugDependencies` still guard it.
+No new permission. The share target receives text only; nothing is fetched from a shared link. Only `:net` may use the
+network; `checkDebugNetworkConfinement` and `checkDebugDependencies` guard it.
 
 ## 5. Search by meaning (LFMP-10)
 

@@ -74,7 +74,7 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
         Header("Your server", onBack = { nav.back() })
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             Txt("Run chat, pictures, documents and voice on your own computer instead of the phone: much faster, with " +
-                "long chats kept whole. Notes, chats and tools stay on the phone; each request goes through Inkling Net, " +
+                "long chats kept whole. Notes, chats and tools stay on the phone; each request goes " +
                 "only to this address, and is listed in Privacy → Network log. If the server can't be reached, the phone's " +
                 "own models answer until it is back.", LfmType.small, c.text2, Modifier.padding(top = 12.dp))
             Row(Modifier.padding(top = 14.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
@@ -133,7 +133,7 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
 }
 
 @Composable
-private fun ServerField(label: String, value: String, onChange: (String) -> Unit, placeholder: String, type: KeyboardType, secret: Boolean = false) {
+internal fun ServerField(label: String, value: String, onChange: (String) -> Unit, placeholder: String, type: KeyboardType, secret: Boolean = false) {
     val c = Lfm.c
     val shape = RoundedCornerShape(6.dp)
     Column(Modifier.padding(top = 10.dp)) {

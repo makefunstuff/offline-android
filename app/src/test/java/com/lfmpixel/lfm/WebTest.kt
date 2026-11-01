@@ -1,7 +1,7 @@
 package com.lfmpixel.lfm
 
 import com.lfmpixel.lfm.data.SearchSource
-import com.lfmpixel.lfm.ipc.PinnedFiles
+import com.lfmpixel.lfm.net.PinnedFiles
 import com.lfmpixel.lfm.llm.ModelCatalog
 import com.lfmpixel.lfm.llm.ModelRole
 import com.lfmpixel.lfm.web.ArticleText
@@ -81,7 +81,7 @@ class WebTest {
     }
 
     @Test fun lfmNetDownloadsExactlyTheCatalog() {
-        // LFM Net's pinned list and LFM's hash list must name the same files, sizes, repos, paths and revisions.
+        // The network module's pinned list and Inkling's hash list must name the same files, sizes, repos, paths and revisions.
         assertEquals(ModelCatalog.all.map { listOf(it.fileName, it.repo, it.sizeBytes, it.remotePath, it.rev) }.toSet(),
             PinnedFiles.all.map { listOf(it.name, it.repo, it.size, it.path, it.rev) }.toSet())
         // Every file is LiteRT's (no GGUF on the phone), pinned to a revision, and offered by one group or as a part.
