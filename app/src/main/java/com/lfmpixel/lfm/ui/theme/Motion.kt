@@ -46,11 +46,33 @@ object LfmMotion {
     /** How far an arriving thing rises as it fades in. */
     val rise = 8.dp
 
-    /** True when the owner turned animations off in Android's accessibility settings, or Battery Saver is on. */
+    /**
+     * True when the owner turned animations off in Android's accessibility settings, or Battery Saver is on. Watched
+     * live: turning Battery Saver on or off redraws open screens without reopening them.
+     */
     @Composable
     fun reduced(): Boolean {
-        val ctx = LocalContext.current
-        return remember { isReduced(ctx) }
+        val ctx = LocalContext.current.applicationContext
+        val state = remember { live(ctx) }
+        return state.value
+    }
+
+    private var watched: Pair<android.content.Context, androidx.compose.runtime.State<Boolean>>? = null
+
+    /** One app-wide watch on Battery Saver and the animator scale, started by the first screen that asks. */
+    internal fun live(ctx: android.content.Context): androidx.compose.runtime.State<Boolean> = synchronized(this) {
+        watched?.takeIf { it.first === ctx }?.let { return it.second }
+        val state = androidx.compose.runtime.mutableStateOf(isReduced(ctx))
+        val update = { state.value = isReduced(ctx) }
+        ctx.registerReceiver(object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context, i: android.content.Intent) = update()
+        }, android.content.IntentFilter(android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED), android.content.Context.RECEIVER_NOT_EXPORTED)
+        ctx.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false,
+            object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean) = update()
+            })
+        watched = ctx to state
+        state
     }
 
     fun isReduced(ctx: android.content.Context) =

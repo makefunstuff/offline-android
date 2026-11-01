@@ -107,8 +107,8 @@ Three voices, all the phone's own fonts (nothing bundled, no licence to track):
   breathe (1.8 s) while it thinks. The only loop.
 - **Small wins**: a ticked to-do fills with the sun and pops with a soft spring.
 - **Tabs**: the highlighter's stroke draws in under the picked word (150 ms).
-- With "Remove animations" on, or Battery Saver on when a screen opens, everything lands where it ends: no rise, no
-  breath, no pop.
+- With "Remove animations" or Battery Saver on (followed live, open screens included), everything lands where it
+  ends: no rise, no breath, no pop.
 
 ## 5. Sound and haptics
 

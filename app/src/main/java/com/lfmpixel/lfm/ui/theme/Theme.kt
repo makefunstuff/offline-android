@@ -179,6 +179,10 @@ object LfmType {
     val citeWidth = 18.sp
     val citeWidthWide = 22.sp
     val citeHeight = 15.sp
+    /** Today's dial: the 06, 12 and 18 by their ticks (drawn on the canvas, so only the size is used). */
+    val dialHour = TextStyle(fontFamily = condensed, fontSize = 10.sp, lineHeight = 10.sp)
+    /** The smallest a bottom bar word shrinks to before it would be cut off. */
+    val barMin = 9.sp
 
     /** Material's own type scale, for the few stock pieces drawn inside the shared components (menus, the date picker). */
     val material = Typography(

@@ -266,7 +266,8 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
             }
         }
         if (showWhere && known) item(key = "where") {
-            WhereWasI(g, nav, away, lines) { g.focus.seenFor = leftAt; whereSeen = leftAt }
+            // Now's Start (or Plan my day) is the page's one primary when it shows.
+            WhereWasI(g, nav, away, lines, primary = next == null && plan.isNotEmpty()) { g.focus.seenFor = leftAt; whereSeen = leftAt }
         }
         if (isToday && known) {
             item(key = "now") { NowCard(g, nav, next, plan.isEmpty(), onSteps = { stepsFor = it }, onPlan = { planning = true }) }
@@ -527,7 +528,7 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
                         .semantics { contentDescription = "Write a line on today's page" })
             }
             if (draft.isNotBlank()) IconButtonPlain("send", { commit() }, tint = c.text, desc = if (kind == InkKind.Ask) "Ask" else "Add to the page")
-            else MicButton(onMic, listening = listening)
+            if (draft.isBlank() || listening) MicButton(onMic, listening = listening)
         }
     }
 }

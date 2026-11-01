@@ -281,10 +281,10 @@ internal fun PlanBlock(g: AppGraph, nav: Nav, plan: List<Entry>, stepsLeft: Map<
 
 /**
  * Where was I (proposal 7): after 20 minutes away, what was being worked on and what came in since, with Resume and
- * a recap the model writes.
+ * a recap the model writes. Its Resume is primary only when Now below has no primary of its own: one action word a page.
  */
 @Composable
-internal fun WhereWasI(g: AppGraph, nav: Nav, away: Long, lines: List<Entry>, onClose: () -> Unit) {
+internal fun WhereWasI(g: AppGraph, nav: Nav, away: Long, lines: List<Entry>, primary: Boolean, onClose: () -> Unit) {
     val c = Lfm.c
     val run by g.focus.run.collectAsState()
     var last by remember { mutableStateOf<Entry?>(null) }
@@ -320,8 +320,9 @@ internal fun WhereWasI(g: AppGraph, nav: Nav, away: Long, lines: List<Entry>, on
             else if (job.running) Txt("Thinking back…", LfmType.small, c.text2, Modifier.padding(start = 8.dp, top = 6.dp))
             LaunchedEffect(job.finished) { if (job.finished && job.text.isBlank()) recap = Recap.rules(focusTitle, lines) }
             FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (r != null) Btn("Resume", { onClose(); nav.go(Route.Focus) }, kind = BtnKind.Primary)
-                else last?.let { e -> Btn("Resume", { onClose(); nav.go(if (e.isDump()) Route.Dump(e.id) else Route.Editor(e.id, e.kind)) }, kind = BtnKind.Primary) }
+                val kind = if (primary) BtnKind.Primary else BtnKind.Secondary
+                if (r != null) Btn("Resume", { onClose(); nav.go(Route.Focus) }, kind = kind)
+                else last?.let { e -> Btn("Resume", { onClose(); nav.go(if (e.isDump()) Route.Dump(e.id) else Route.Editor(e.id, e.kind)) }, kind = kind) }
                 if (said == null && !job.running) Btn("Recap", {
                     if (g.engine.hasText()) job.start(Recap.ask(focusTitle, lines), Recap.MAX_TOKENS) else recap = Recap.rules(focusTitle, lines)
                 })

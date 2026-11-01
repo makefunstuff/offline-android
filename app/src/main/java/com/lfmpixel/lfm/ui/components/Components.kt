@@ -14,6 +14,9 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
@@ -91,18 +94,26 @@ fun Marked(text: String, style: TextStyle, modifier: Modifier = Modifier, maxLin
     // The stroke sits behind the words, from a little above the baseline to just under it, so the words keep the
     // page's ink in both themes.
     Text(text, style = style, color = c.text, maxLines = maxLines, overflow = TextOverflow.Ellipsis, onTextLayout = { layout = it },
-        modifier = modifier.padding(horizontal = 3.dp).drawBehind {
-            val l = layout ?: return@drawBehind
+        modifier = modifier.padding(horizontal = 3.dp).drawWithContent {
+            val l = layout ?: return@drawWithContent drawContent()
             val p = progress.value
-            if (p <= 0f) return@drawBehind
-            for (i in 0 until l.lineCount) {
+            if (p <= 0f) return@drawWithContent drawContent()
+            val strokes = (0 until l.lineCount).map { i ->
                 val left = l.getLineLeft(i) - pad
                 val right = l.getLineRight(i) + pad
                 val base = l.getLineBaseline(i)
                 val h = (l.getLineBottom(i) - l.getLineTop(i))
                 // In dark mode the stroke sits just under the letters (only descenders cross it), so light words stay off the yellow.
                 val top = base + h * if (c.dark) 0.03f else -0.1f; val bottom = base + h * if (c.dark) 0.17f else 0.16f
-                drawRect(c.highlight, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Size((right - left) * p, bottom - top))
+                androidx.compose.ui.geometry.Rect(left, top, left + (right - left) * p, bottom)
+            }
+            strokes.forEach { drawRect(c.highlight, it.topLeft, it.size) }
+            drawContent()
+            // The descenders that do cross it are inked again in the highlight's own ink, so they read on the yellow.
+            if (c.dark) strokes.forEach { r ->
+                clipRect(r.left, r.top, r.right, r.bottom) {
+                    drawIntoCanvas { l.multiParagraph.paint(it, color = c.onHighlight) }
+                }
             }
         })
 }
@@ -142,11 +153,13 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
     val c = Lfm.c
     val shape = LfmShape.round
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
-    val fill by androidx.compose.animation.animateColorAsState(if (listening) (if (floating) c.text2 else c.text) else if (primary) c.mic else if (floating) c.text else c.text.copy(alpha = 0.08f),
+    val fill by androidx.compose.animation.animateColorAsState(if (listening) (if (floating) c.bg else c.text) else if (primary) c.mic else if (floating) c.text else c.text.copy(alpha = 0.08f),
         motion.spec(if (listening) motion.TINY else motion.MEDIUM, if (listening) motion.standard else motion.emphasizedDecelerate), label = "mic")
     val voice = LocalMicLevel.current
     val pulse by androidx.compose.animation.core.animateFloatAsState(if (listening) voice.value.coerceIn(0f, 1f) else 0f, motion.level(), label = "pulse")
     val src = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    // On the pill (navy in light, near-white in dark) the listening mic turns the page's colour, so it reads as on in
+    // both themes; its ring is the action blue, which shows on the page around the pill.
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         // The pulse: an outline that grows up to 8 dp out and fades as it goes, only while listening.
         if (listening) Box(Modifier.matchParentSize().graphicsLayer {
@@ -159,11 +172,13 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
                 .pressScale(src)
                 .clip(shape)
                 .background(fill)
-                .clickable(src, androidx.compose.material3.ripple(color = if (listening) c.bg else if (primary) c.onMic else c.text), role = Role.Button, onClick = onClick)
+                // An edge in the action blue, so the page-coloured circle holds its shape where it meets the page.
+                .let { if (listening && floating) it.border(2.dp, c.action, shape) else it }
+                .clickable(src, androidx.compose.material3.ripple(color = if (floating) (if (listening) c.text else c.bg) else if (listening) c.bg else if (primary) c.onMic else c.text), role = Role.Button, onClick = onClick)
                 .semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
             contentAlignment = Alignment.Center,
         ) {
-            LIcon(if (listening) "stop" else "mic", tint = if (listening || floating) c.bg else if (primary) c.onMic else c.text)
+            LIcon(if (listening) "stop" else "mic", tint = if (listening && floating) c.text else if (listening || floating) c.bg else if (primary) c.onMic else c.text)
         }
     }
 }
@@ -440,8 +455,9 @@ fun ThinkChip(on: Boolean, onChange: (Boolean) -> Unit, onInfo: () -> Unit) {
 @Composable
 fun NewPill(onNew: () -> Unit, newDesc: String, onMic: () -> Unit, listening: Boolean, modifier: Modifier = Modifier) {
     val c = Lfm.c
-    Row(modifier.height(56.dp).clip(LfmShape.pill).background(c.text), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(56.dp).clickable(role = Role.Button, onClick = onNew).semantics { contentDescription = newDesc },
+    // Not clipped, so the mic's pulse can breathe out past the pill.
+    Row(modifier.height(56.dp).background(c.text, LfmShape.pill), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(56.dp).clip(LfmShape.round).clickable(role = Role.Button, onClick = onNew).semantics { contentDescription = newDesc },
             contentAlignment = Alignment.Center) { LIcon("plus", tint = c.bg) }
         // The same mic as everywhere else (its pulse follows the voice), in the pill's navy.
         MicButton(onMic, size = 56.dp, listening = listening, floating = true)
