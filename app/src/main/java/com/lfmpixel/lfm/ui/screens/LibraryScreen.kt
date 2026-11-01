@@ -1,6 +1,11 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import com.lfmpixel.lfm.ui.components.WashCard
+import com.lfmpixel.lfm.ui.components.PlaceTitle
+import com.lfmpixel.lfm.ui.components.MenuItem
+import com.lfmpixel.lfm.ui.components.Menu
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -19,9 +24,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -120,9 +122,8 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Txt("Notebook", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 12.dp)
-                .semantics { heading() })
-            InputLine(query, { query = it }, "Search notes, ideas, quotes, journal, to-dos", "search", Modifier.padding(horizontal = 16.dp)) {
+            PlaceTitle("Notebook")
+            InputLine(query, { query = it }, "Search notes, ideas, quotes, journal, to-dos", "search", Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
                 if (query.isNotEmpty()) IconButtonPlain("x", { query = "" }, desc = "Clear search")
             }
             val r = results
@@ -217,7 +218,7 @@ fun LazyItemScope.EntryRow(e: Entry, showKind: Boolean, onClick: () -> Unit, act
                 }
                 // A quote shows where it came from; its words are the title.
                 val body = if (e.isQuote()) com.lfmpixel.lfm.assistant.Quotes.source(e).ifEmpty { null } else e.body.takeIf { it.isNotEmpty() && it != e.title }
-                if (body != null) Txt(body, LfmType.small.copy(fontSize = LfmType.small.fontSize * 0.93f), c.text2, Modifier.padding(top = 3.dp), maxLines = 2)
+                if (body != null) Txt(body, LfmType.preview, c.text2, Modifier.padding(top = 3.dp), maxLines = 2)
                 val tags = buildList {
                     if (e.voiceSeconds > 0) add("%d:%02d".format(e.voiceSeconds / 60, e.voiceSeconds % 60) to "wave")
                     else if (e.source == "voice") add("voice" to "wave")
@@ -231,13 +232,12 @@ fun LazyItemScope.EntryRow(e: Entry, showKind: Boolean, onClick: () -> Unit, act
                 Divider()
             }
         }
-        DropdownMenu(menu, { menu = false }) {
-            DropdownMenuItem({ Txt(right.label) }, { menu = false; right.run() }, leadingIcon = { LIcon(right.icon, size = 18.dp) })
+        Menu(menu, { menu = false }) {
+            MenuItem(right.label, { menu = false; right.run() }, icon = right.icon)
             EntryKind.entries.filter { it != e.kind }.forEach { k ->
-                DropdownMenuItem({ Txt("Move to ${k.place()}") },
-                    { menu = false; actions.move(e, k) }, leadingIcon = { LIcon(k.icon(), size = 18.dp) })
+                MenuItem("Move to ${k.place()}", { menu = false; actions.move(e, k) }, icon = k.icon())
             }
-            DropdownMenuItem({ Txt("Delete") }, { menu = false; actions.delete(e) }, leadingIcon = { LIcon("trash", size = 18.dp) })
+            MenuItem("Delete", { menu = false; actions.delete(e) }, icon = "trash")
         }
     }
 }
@@ -277,18 +277,15 @@ private fun JournalList(list: List<Entry>, nav: Nav, onMic: (EntryKind) -> Unit,
     val prompt = prompts[LocalDate.now().dayOfYear % prompts.size]
     LazyColumn(Modifier.fillMaxSize()) {
         item {
-            val shape = RoundedCornerShape(8.dp)
-            Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().background(c.fill, shape).border(1.dp, c.line, shape).padding(16.dp)) {
+            WashCard(Modifier.padding(horizontal = 16.dp)) { Column {
                 Label("Today's prompt")
-                Txt(prompt, LfmType.answer.copy(fontSize = LfmType.answer.fontSize * 1.1f), modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
+                Txt(prompt, LfmType.voice, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MicButton({ onMic(EntryKind.Journal) }, listening = listening)
-                    Box(Modifier.background(c.bg, RoundedCornerShape(6.dp))) {
-                        Btn("Write", { nav.go(Route.Editor(kind = EntryKind.Journal)) }, icon = "edit", small = true)
-                    }
+                    Btn("Write", { nav.go(Route.Editor(kind = EntryKind.Journal)) }, icon = "edit", small = true)
                     Txt("or tap the mic to speak", LfmType.label.copy(fontWeight = null), c.text2)
                 }
-            }
+            } }
         }
         if (list.isEmpty()) item { Box(Modifier.padding(horizontal = 16.dp)) { Empty("No entries yet", "A line a day is enough. Only you can read this; it never leaves the phone.") } }
         byDay.forEach { (day, items) ->
@@ -322,11 +319,12 @@ fun snackLift(nav: Nav): androidx.compose.ui.unit.Dp =
 /** Where a kind lives, as a place name: "Notes", "Ideas", "Journal", "To-dos". */
 fun EntryKind.place() = when (this) { EntryKind.Note -> "Notes"; EntryKind.Idea -> "Ideas"; EntryKind.Journal -> "Journal"; EntryKind.Todo -> "To-dos" }
 
+/** An empty list: Inkling says so in its own words (the serif), then what to do, in the page's. */
 @Composable
 fun Empty(title: String, body: String) {
     val c = Lfm.c
     Column(Modifier.padding(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Txt(title, LfmType.rowTitle)
+        Txt(title, LfmType.voice)
         Txt(body, LfmType.small, c.text2)
     }
 }

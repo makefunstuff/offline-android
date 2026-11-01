@@ -1,6 +1,10 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.animation.AnimatedContent
+import com.lfmpixel.lfm.ui.components.SkyBand
+import com.lfmpixel.lfm.ui.components.MenuItem
+import com.lfmpixel.lfm.ui.components.Menu
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -27,12 +31,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -221,7 +222,8 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                 onTalk = { nav.go(Route.Talk) }, onLook = { nav.go(Route.Camera) }, onAsk = { nav.go(Route.Chat) })
         }
         else item(key = "head") {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            SkyBand {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).semantics(mergeDescendants = true) { heading() }) {
                     Label(when (day) {
                         today -> "Today · " + day.format(DateTimeFormatter.ofPattern("MMMM", Locale.ENGLISH))
@@ -236,6 +238,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                 IconButtonPlain("chat", { nav.go(Route.Chat) }, desc = "Ask Inkling")
                 IconButtonPlain("user", { nav.go(Route.Settings) }, desc = "Settings")
             }
+            }
         }
         item(key = "seal") {
             Column(Modifier.padding(horizontal = 16.dp)) {
@@ -248,7 +251,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                     left == 1 -> "1 web request ${if (isToday) "today" else "that day"}"
                     else -> "$left web requests ${if (isToday) "today" else "that day"}"
                 } + if (lockOn && hideJournal) " · journal locked" else ""
-                Row(Modifier.fillMaxWidth().heightIn(min = 32.dp).clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button, onClickLabel = "See what left the phone") { nav.go(Route.Privacy) },
+                Row(Modifier.fillMaxWidth().heightIn(min = 32.dp).clip(LfmShape.control).clickable(role = Role.Button, onClickLabel = "See what left the phone") { nav.go(Route.Privacy) },
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     LIcon("shield", size = 15.dp, tint = c.text2)
                     Txt(seal, LfmType.meta, c.text2, Modifier.weight(1f), maxLines = 1)
@@ -276,7 +279,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
         item(key = "page-label") { PageLabel("The page") }
         if (known && shownLines.isEmpty() && lockedLines == 0) item(key = "empty") {
             Txt(if (isToday) "A clean page. Write a line below and I'll file it: a to-do, an idea, a journal line or a note."
-                else "Nothing was written on this day.", LfmType.small, c.text2, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                else "Nothing was written on this day.", LfmType.voiceBody, c.text2, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         }
         items(shownLines, key = { it.id }) { e -> PageLine(e, open, actions, Modifier.animateItem(), onSteps = { stepsFor = it }) }
         if (lockedLines > 0) item(key = "locked") {
@@ -335,7 +338,7 @@ private fun TimelineRow(item: AgendaItem, isNext: Boolean, zone: ZoneId) {
 @Composable
 private fun Carried(g: AppGraph, nav: Nav, list: List<Entry>, today: LocalDate, zone: ZoneId) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     fun moveTo(e: Entry, d: LocalDate?) = e.copy(dueAt = d?.atTime(9, 0)?.atZone(zone)?.toInstant()?.toEpochMilli(), dueHasTime = false,
         updatedAt = System.currentTimeMillis())
     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).fillMaxWidth().clip(shape).border(1.dp, c.line, shape).padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 4.dp)) {
@@ -420,14 +423,14 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
             }
             if (e.pinned) Box(Modifier.padding(top = 14.dp)) { LIcon("pin", size = 14.dp, tint = c.text2) }
         }
-        DropdownMenu(menu, { menu = false }) {
-            if (e.kind == EntryKind.Todo && !e.done) DropdownMenuItem({ Txt("Smaller steps") }, { menu = false; onSteps(e) }, leadingIcon = { LIcon("steps", size = 18.dp) })
-            DropdownMenuItem({ Txt(if (e.pinned) "Unpin" else "Pin") }, { menu = false; actions.pin(e) }, leadingIcon = { LIcon("pin", size = 18.dp) })
+        Menu(menu, { menu = false }) {
+            if (e.kind == EntryKind.Todo && !e.done) MenuItem("Smaller steps", { menu = false; onSteps(e) }, icon = "steps")
+            MenuItem(if (e.pinned) "Unpin" else "Pin", { menu = false; actions.pin(e) }, icon = "pin")
             EntryKind.entries.filter { it != e.kind }.forEach { k ->
-                DropdownMenuItem({ Txt("Make it ${if (k == EntryKind.Idea) "an idea" else if (k == EntryKind.Journal) "a journal line" else "a " + k.label.lowercase()}") },
-                    { menu = false; actions.move(e, k) }, leadingIcon = { LIcon(k.icon(), size = 18.dp) })
+                MenuItem("Make it ${if (k == EntryKind.Idea) "an idea" else if (k == EntryKind.Journal) "a journal line" else "a " + k.label.lowercase()}",
+                    { menu = false; actions.move(e, k) }, icon = k.icon())
             }
-            DropdownMenuItem({ Txt("Delete") }, { menu = false; actions.delete(e) }, leadingIcon = { LIcon("trash", size = 18.dp) })
+            MenuItem("Delete", { menu = false; actions.delete(e) }, icon = "trash")
         }
     }
 }
@@ -496,14 +499,14 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
         }
         Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            val shape = RoundedCornerShape(6.dp)
+            val shape = LfmShape.control
             Box(Modifier.size(48.dp).clip(shape).combinedClickable(role = Role.Button, onClickLabel = "Change where it goes",
                     onLongClickLabel = "Pick where it goes", onLongClick = { kinds = true }) {
                     picked = InkLine.next(kind, guess.kind).name
                 }.semantics { contentDescription = "Goes to: ${kind.label}" }, contentAlignment = Alignment.Center) {
-                DropdownMenu(kinds, { kinds = false }) {
+                Menu(kinds, { kinds = false }) {
                     InkLine.cycle(guess.kind).forEach { k ->
-                        DropdownMenuItem({ Txt(k.label) }, { kinds = false; picked = k.name }, leadingIcon = { LIcon(k.icon, size = 18.dp) })
+                        MenuItem(k.label, { kinds = false; picked = k.name }, icon = k.icon)
                     }
                 }
                 Box(Modifier.size(34.dp).clip(shape).background(c.fill).border(1.dp, c.line, shape), contentAlignment = Alignment.Center) {
@@ -512,7 +515,7 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
                     }, label = "glyph") { k -> LIcon(k.icon, size = 18.dp, tint = c.text) }
                 }
             }
-            val fieldShape = RoundedCornerShape(8.dp)
+            val fieldShape = LfmShape.card
             Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(fieldShape).border(1.dp, c.control, fieldShape).padding(horizontal = 12.dp, vertical = 10.dp),
                 contentAlignment = Alignment.CenterStart) {
                 if (draft.isEmpty()) Txt("Write a line…", LfmType.body, c.text2, maxLines = 1)

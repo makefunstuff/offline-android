@@ -2,7 +2,7 @@
 <!-- Home-screen widget: Capture (the mic, yellow), Talk and a new note, one tap each. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@drawable/w_bg" android:orientation="horizontal" android:gravity="center_vertical"
+    android:background="@drawable/w_capture" android:orientation="horizontal" android:gravity="center_vertical"
     android:padding="10dp">
     <LinearLayout android:id="@+id/capture" android:layout_width="0dp" android:layout_weight="1.4" android:layout_height="52dp"
         android:background="@drawable/w_mic" android:gravity="center" android:orientation="horizontal"
@@ -16,13 +16,13 @@
         android:contentDescription="Talk">
         <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_w_talk" android:importantForAccessibility="no" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp"
-            android:text="Talk" android:textColor="@color/ink" android:textSize="14sp" />
+            android:text="Talk" android:textColor="@color/sky_ink" android:textSize="14sp" />
     </LinearLayout>
     <LinearLayout android:id="@+id/note" android:layout_width="0dp" android:layout_weight="1" android:layout_height="52dp"
         android:layout_marginStart="8dp" android:background="@drawable/w_btn" android:gravity="center" android:orientation="horizontal"
         android:contentDescription="New note">
         <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_w_note" android:importantForAccessibility="no" />
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp"
-            android:text="Note" android:textColor="@color/ink" android:textSize="14sp" />
+            android:text="Note" android:textColor="@color/sky_ink" android:textSize="14sp" />
     </LinearLayout>
 </LinearLayout>

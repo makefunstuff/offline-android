@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The capture widget: the hour's sky at its two ends, day in the light theme and night in the dark (docs/ux-spec.md). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient android:angle="270" android:startColor="@color/sky_top" android:endColor="@color/sky_horizon" />
+    <corners android:radius="20dp" />
+</shape>

@@ -1,6 +1,7 @@
 package com.lfmpixel.lfm.ui.screens
 
 import android.Manifest
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -33,7 +34,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -125,7 +125,7 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
     Column(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(sky.top), Color(sky.horizon))))) {
         // Look (Edge mode): the camera's view, described live, so Talk can answer about what it sees.
         val edgeOn by g.edge.configured.collectAsState()
-        Header("Talk", onBack = { close() }, leftIcon = "x") {
+        Header("Talk", onBack = { close() }, leftIcon = "x", onSky = false) {
             if (edgeOn && available) com.lfmpixel.lfm.ui.components.IconButtonPlain("camera", {
                 if (looking) looking = false else scope.launch { if (gate.ensure(listOf(Manifest.permission.CAMERA))) looking = true }
             }, tint = if (looking) c.text else c.text2, desc = if (looking) "Look is on. Turn it off" else "Look: let Talk see the camera")
@@ -155,7 +155,7 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
             }
             AnimatedVisibility(state.warm, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),
                 exit = fadeOut(LfmMotion.spec()) + shrinkVertically(LfmMotion.spec())) {
-                val shape = RoundedCornerShape(6.dp)
+                val shape = LfmShape.control
                 Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.control, shape).padding(horizontal = 12.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LIcon("warn", size = 16.dp, tint = c.text)
@@ -312,7 +312,7 @@ private fun ActionLine(g: AppGraph, nav: Nav, a: com.lfmpixel.lfm.voice.TalkActi
 @Composable
 private fun SmallAction(text: String, onClick: () -> Unit) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(6.dp)
+    val shape = LfmShape.control
     Box(Modifier.clip(shape).border(1.dp, c.control, shape).clickable(role = Role.Button, onClick = onClick)
         .size(width = 64.dp, height = 36.dp), contentAlignment = Alignment.Center) {
         Txt(text, LfmType.button, c.text)
@@ -348,7 +348,7 @@ private fun Controls(phase: TalkPhase, spoken: Boolean, onSpoken: () -> Unit, on
             if (rest) MicButton(onMain, size = 64.dp)
             else {
                 val stopLabel = when (phase) { TalkPhase.Speaking, TalkPhase.Thinking -> "Stop the answer"; else -> "Pause" }
-                Box(Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)).background(c.text).clickable(role = Role.Button, onClick = onMain)
+                Box(Modifier.size(64.dp).clip(LfmShape.card).background(c.text).clickable(role = Role.Button, onClick = onMain)
                     .semantics { contentDescription = stopLabel }, contentAlignment = Alignment.Center) { LIcon("stop", tint = c.bg) }
             }
         }
@@ -359,7 +359,7 @@ private fun Controls(phase: TalkPhase, spoken: Boolean, onSpoken: () -> Unit, on
 @Composable
 private fun Round(icon: String, desc: String, on: Boolean, onClick: () -> Unit) {
     val c = Lfm.c
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     Box(Modifier.size(46.dp).clip(shape).background(if (on) c.fill else Color.Transparent).border(1.dp, c.control, shape)
         .clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc }, contentAlignment = Alignment.Center) {
         LIcon(icon, tint = c.text2)

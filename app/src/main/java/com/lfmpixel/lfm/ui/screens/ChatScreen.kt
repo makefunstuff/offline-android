@@ -1,6 +1,9 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.background
+import com.lfmpixel.lfm.ui.components.SkyBand
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,7 +20,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -194,7 +196,9 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
     }
 
     Column(Modifier.fillMaxSize().imePadding()) {
-        Column {
+        SkyBand {
+            // On the sky: its ink, not the page's.
+            @Suppress("NAME_SHADOWING") val c = Lfm.c
             Row(Modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButtonPlain("back", { nav.back() }, desc = "Back")
                 Column(Modifier.weight(1f).clickable(onClickLabel = "Models") { modelSheet = true }.padding(start = 4.dp, top = 2.dp, bottom = 2.dp)
@@ -203,9 +207,9 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         val dot = Modifier.size(7.dp)
                         when (status.text) {
-                            LoadState.Ready -> Box(dot.background(c.text, RoundedCornerShape(2.dp)))
-                            LoadState.Loading -> Box(dot.border(1.dp, c.text, RoundedCornerShape(2.dp)))
-                            else -> Box(dot.border(1.dp, c.text3, RoundedCornerShape(2.dp)))
+                            LoadState.Ready -> Box(dot.background(c.text, LfmShape.mark))
+                            LoadState.Loading -> Box(dot.border(1.dp, c.text, LfmShape.mark))
+                            else -> Box(dot.border(1.dp, c.text3, LfmShape.mark))
                         }
                         Txt(modelState(g) + (status.unloadAt?.takeIf { status.text == LoadState.Ready && tick >= 0 }?.let { " · ${untilLabel(it)}" } ?: ""),
                             LfmType.meta, c.text2, maxLines = 1)
@@ -219,7 +223,6 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                     if (queued.isNotEmpty()) nav.show("New chat. ${queued.size} queued ${if (queued.size == 1) "message moves" else "messages move"} with you.")
                 }, desc = "New chat")
             }
-            com.lfmpixel.lfm.ui.components.Divider()
         }
         Box(Modifier.weight(1f)) {
             LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(16.dp), reverseLayout = true,
@@ -272,7 +275,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 }
                 if (loadedMessages != null && visible.isEmpty() && stream == null && queued.isEmpty()) item(key = "empty") {
                     Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Txt("Ask, capture or do.", LfmType.answer)
+                        Txt("Ask, capture or do.", LfmType.voice)
                         listOf("Remind me to call the plumber at six", "Add oat milk to my list", "What did I note about the boiler?").forEach { ex ->
                             Btn(ex, { draft = ex }, small = true)
                         }
@@ -375,7 +378,7 @@ private fun TypingDots() {
             Box(Modifier.size(6.dp).graphicsLayer {
                 val d = if (reduced) 1f else (1f - kotlin.math.abs(((phase.value - i + 3f) % 3f) - 0.5f) / 1.5f).coerceIn(0f, 1f)
                 alpha = 0.3f + 0.7f * d
-            }.background(c.text, RoundedCornerShape(1.5.dp)))
+            }.background(c.text, LfmShape.mark))
         }
     }
 }
@@ -430,7 +433,7 @@ private fun ThoughtBlock(thought: String, ms: Long, live: Boolean, since: Long, 
     val c = Lfm.c
     val turn by animateFloatAsState(if (open) 90f else 0f, LfmMotion.spec(LfmMotion.MEDIUM), label = "chevron")
     Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(6.dp))
+        Row(Modifier.heightIn(min = 48.dp).clip(LfmShape.control)
             .clickable(role = androidx.compose.ui.semantics.Role.Button, onClickLabel = if (open) "Hide thinking" else "Show thinking", onClick = onToggle)
             .padding(start = 2.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)
             .semantics(mergeDescendants = true) { if (live) liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
@@ -487,7 +490,7 @@ private fun untilLabel(at: Long): String {
 private fun QueuedBubble(q: com.lfmpixel.lfm.assistant.Queued, n: Int, of: Int, onClick: () -> Unit) {
     val c = Lfm.c
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-        val shape = RoundedCornerShape(8.dp, 8.dp, 2.dp, 8.dp)
+        val shape = LfmShape.bubble
         Column(Modifier.widthIn(max = 300.dp).clip(shape).dashedBorder(c.control, 8.dp).clickable(onClickLabel = "Edit queued message", onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp).semantics(mergeDescendants = true) { contentDescription = "Queued, $n of $of: ${q.text}" }) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 4.dp)) {
@@ -519,7 +522,7 @@ private fun QueuedSheet(g: AppGraph, q: com.lfmpixel.lfm.assistant.Queued, index
         Txt("Queued message", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
         Txt(if (size == 1) "Runs once the current answer ends." else "Number ${index + 1} of $size. They run in this order.", LfmType.small, c.text2,
             Modifier.padding(top = 4.dp))
-        val shape = RoundedCornerShape(6.dp)
+        val shape = LfmShape.control
         Box(Modifier.padding(top = 12.dp).fillMaxWidth().background(c.fill, shape).border(1.dp, c.control, shape).padding(12.dp)) {
             androidx.compose.foundation.text.BasicTextField(text, { text = it }, textStyle = LfmType.body.copy(color = c.text),
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(c.text), minLines = 2, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Message" })
@@ -540,7 +543,7 @@ private fun QueuedSheet(g: AppGraph, q: com.lfmpixel.lfm.assistant.Queued, index
 private fun UserBubble(m: ChatMessage) {
     val c = Lfm.c
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-        val shape = RoundedCornerShape(8.dp, 8.dp, 2.dp, 8.dp)
+        val shape = LfmShape.bubble
         Column(Modifier.widthIn(max = 300.dp).background(c.fill, shape).border(1.dp, c.line, shape).padding(horizontal = 14.dp, vertical = 10.dp)) {
             if (m.media.isNotEmpty()) MediaThumb(m)
             if (m.voiceSeconds > 0) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -564,7 +567,7 @@ private fun MediaThumb(m: ChatMessage) {
     Column(Modifier.padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         bitmap?.let { b ->
             val ratio = (b.width.toFloat() / b.height).coerceIn(0.6f, 1.8f)
-            Image(b, m.mediaLabel, Modifier.widthIn(max = 220.dp).aspectRatio(ratio).clip(RoundedCornerShape(6.dp)).alpha(alpha),
+            Image(b, m.mediaLabel, Modifier.widthIn(max = 220.dp).aspectRatio(ratio).clip(LfmShape.control).alpha(alpha),
                 contentScale = ContentScale.Crop)
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -581,7 +584,7 @@ private class ReadState(val on: Boolean, val preparing: Boolean, val toggle: () 
 private fun AssistantText(text: String, meta: String, citations: Boolean = false, read: ReadState? = null, writing: Boolean = false) {
     val c = Lfm.c
     Column {
-        // Short answers are set large, long ones in body text. An answer being written crosses that line once: the two
+        // Inkling's words, in the serif: short answers are set large, long ones in body size. An answer being written crosses that line once: the two
         // sizes cross-fade and the height eases, instead of the text jumping to its new size.
         val sizeChange = LfmMotion.spec<Float>(LfmMotion.MEDIUM)
         val heightChange = LfmMotion.spec<androidx.compose.ui.unit.IntSize>(LfmMotion.MEDIUM)
@@ -589,7 +592,7 @@ private fun AssistantText(text: String, meta: String, citations: Boolean = false
             androidx.compose.animation.fadeIn(sizeChange) togetherWith androidx.compose.animation.fadeOut(sizeChange) using
                 androidx.compose.animation.SizeTransform(clip = false) { _, _ -> heightChange }
         }, label = "answer size") { long ->
-            AnswerText(text, if (long) LfmType.bodyLarge else LfmType.answer, markKeyFact = false, citations = citations, writing = writing)
+            AnswerText(text, if (long) LfmType.voiceBody else LfmType.voice, markKeyFact = false, citations = citations, writing = writing)
         }
         if (meta.isNotEmpty() || read != null) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             if (meta.isNotEmpty()) Txt(meta, LfmType.meta, c.text2, Modifier.weight(1f, fill = false))
@@ -603,7 +606,7 @@ private fun AssistantText(text: String, meta: String, citations: Boolean = false
 private fun ReadAloudButton(r: ReadState) {
     val c = Lfm.c
     val label = when { r.preparing -> "Getting the voice ready…"; r.on -> "Stop reading"; else -> "Read aloud" }
-    Row(Modifier.padding(start = 8.dp).clip(RoundedCornerShape(6.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = r.toggle)
+    Row(Modifier.padding(start = 8.dp).clip(LfmShape.control).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = r.toggle)
         .padding(horizontal = 6.dp, vertical = 6.dp).semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         val fadeIn = LfmMotion.spec<Float>(LfmMotion.SHORT)
@@ -619,11 +622,11 @@ private fun ReadAloudButton(r: ReadState) {
 fun ToolCard(m: ChatMessage, record: ActionRecord?, onUndo: (Long) -> Unit) {
     val c = Lfm.c
     val status = record?.status
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     val failed = status == ActionStatus.Failed || status == ActionStatus.Cancelled
     Row(Modifier.fillMaxWidth().border(1.dp, c.line, shape).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(36.dp).border(1.dp, c.line, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp).border(1.dp, c.line, LfmShape.control), contentAlignment = Alignment.Center) {
             LIcon(when { failed -> "x"; status == ActionStatus.Undone -> "undo"; m.cardLabel.startsWith("Added") -> "plus"; else -> "check" }, tint = c.text)
         }
         Column(Modifier.weight(1f)) {

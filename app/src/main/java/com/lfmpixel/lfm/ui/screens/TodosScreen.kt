@@ -1,6 +1,7 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.clickable
+import com.lfmpixel.lfm.ui.components.PlaceTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -94,7 +95,7 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
-            Txt("Plans", LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).semantics { heading() })
+            PlaceTitle("Plans")
             val counts = TodoTab.entries.associateWith { t -> all.count { !it.done && todoTab(it, endOfToday) == t } }
             Tabs(TodoTab.entries.map { t -> counts[t].takeIf { it != 0 }?.let { "${t.label} $it" } ?: t.label },
                 TodoTab.entries.first { it == tab }.let { t -> counts[t].takeIf { it != 0 }?.let { "${t.label} $it" } ?: t.label },

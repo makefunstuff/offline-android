@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.border
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,7 +15,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -173,7 +174,7 @@ private fun FactSheet(title: String, start: String, action: String, onDelete: ((
     var text by remember { mutableStateOf(start) }
     FlatSheet(onDismiss = onClose) {
         Txt(title, LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.semantics { heading() })
-        val shape = RoundedCornerShape(8.dp)
+        val shape = LfmShape.card
         BasicTextField(text, { text = it }, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text),
             modifier = Modifier.padding(top = 10.dp).fillMaxWidth().heightIn(min = 48.dp).border(1.dp, c.control, shape).padding(12.dp))
         Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

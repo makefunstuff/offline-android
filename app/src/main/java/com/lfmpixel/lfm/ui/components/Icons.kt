@@ -85,7 +85,7 @@ object LfmIcons {
         val b = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
         val w = if (name == "more") 3f else strokeWidth
         paths[name]?.forEach { d ->
-            b.addPath(PathParser().parsePathString(d).toNodes(), stroke = SolidColor(Color.Black), strokeLineWidth = w,
+            b.addPath(PathParser().parsePathString(d).toNodes(), stroke = SolidColor(com.lfmpixel.lfm.ui.theme.IconMask), strokeLineWidth = w,
                 strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
         }
         b.build()

@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.background
+import com.lfmpixel.lfm.ui.components.FlatSheet
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,7 +99,7 @@ class MarginRun(private val g: AppGraph) {
 fun MarginSheet(g: AppGraph, nav: Nav, onPick: (MarginAsk, String) -> Unit, onClose: () -> Unit) {
     val c = Lfm.c
     FlatSheet(onClose) {
-        Txt("Ink in the margin", LfmType.header)
+        Txt("Ink in the margin", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
         Txt("Runs on this phone. Your text changes only if you add what it writes.", LfmType.small, c.text2, Modifier.padding(top = 2.dp, bottom = 10.dp))
         if (!g.engine.hasText()) {
             Txt("This needs a chat model on the phone.", LfmType.body, modifier = Modifier.padding(bottom = 10.dp))
@@ -124,8 +125,8 @@ fun MarginSheet(g: AppGraph, nav: Nav, onPick: (MarginAsk, String) -> Unit, onCl
 fun MarginBlock(run: MarginRun, nav: Nav, onAddToNote: (String) -> Unit, modifier: Modifier = Modifier) {
     val c = Lfm.c
     val ask = run.ask ?: return
-    val shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
-    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(shape).background(c.fill)) {
+    val shape = LfmShape.margin
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(shape).background(c.wash)) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(c.highlight))
         Column(Modifier.weight(1f).padding(start = 12.dp, end = 10.dp, top = 10.dp, bottom = 10.dp)) {
             Label("Inkling · ${ask.heading.lowercase()} · on this phone")
@@ -134,7 +135,8 @@ fun MarginBlock(run: MarginRun, nav: Nav, onAddToNote: (String) -> Unit, modifie
                 run.text.isBlank() && run.running -> "Writing…"
                 else -> run.text
             }
-            Txt(shown, LfmType.body, if (run.text.isBlank()) c.text2 else c.text,
+            // Inkling's words, in the serif; its own "Writing…" and failures stay in the page's type.
+            Txt(shown, if (run.text.isBlank()) LfmType.body else LfmType.voiceBody, if (run.text.isBlank()) c.text2 else c.text,
                 Modifier.padding(top = 4.dp).semantics { liveRegion = LiveRegionMode.Polite })
             FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (run.running) Btn("Stop", { run.stop() }, small = true, icon = "stop")

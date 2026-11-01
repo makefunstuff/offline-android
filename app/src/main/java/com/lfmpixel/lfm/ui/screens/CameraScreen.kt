@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import android.Manifest
+import com.lfmpixel.lfm.ui.theme.CameraColors
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
@@ -40,8 +42,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -267,8 +267,8 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
         }
     }
 
-    Column(Modifier.fillMaxSize().background(Color.Black).imePadding()) {
-        Box(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)).background(Color(0xFF161618))) {
+    Column(Modifier.fillMaxSize().background(CameraColors.ground).imePadding()) {
+        Box(Modifier.weight(1f).fillMaxWidth().clip(LfmShape.viewfinder).background(CameraColors.frame)) {
             if (allowed && !noCamera) AndroidView({ previewView }, Modifier.fillMaxSize())
             else Column(Modifier.align(Alignment.Center).padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -291,28 +291,28 @@ private fun CameraContent(g: AppGraph, nav: Nav, gate: PermissionGate, pickers: 
             Column(Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 AnimatedVisibility(recording, enter = fadeIn(LfmMotion.spec(LfmMotion.SHORT)), exit = fadeOut(LfmMotion.spec(LfmMotion.SHORT))) {
                     Txt("● " + MediaPrep.clock(recordedMs / 1000) + " / " + MediaPrep.clock(SeeRules.VIDEO_MAX_SECONDS), LfmType.label,
-                        Color.White, Modifier.background(Color(0xAA000000), RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 5.dp))
+                        CameraColors.ink, Modifier.background(CameraColors.glass, LfmShape.control).padding(horizontal = 10.dp, vertical = 5.dp))
                 }
                 val status = busy ?: error
                 // Keeps the last words while the pill fades out, instead of an empty box.
                 var shown by remember { mutableStateOf("") }
                 if (status != null) shown = status
                 AnimatedVisibility(status != null, enter = fadeIn(LfmMotion.spec(LfmMotion.SHORT)), exit = fadeOut(LfmMotion.spec(LfmMotion.SHORT))) {
-                    Txt(shown, LfmType.small, Color.White,
-                        Modifier.padding(horizontal = 24.dp).background(Color(0xCC000000), RoundedCornerShape(6.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
+                    Txt(shown, LfmType.small, CameraColors.ink,
+                        Modifier.padding(horizontal = 24.dp).background(CameraColors.glassStrong, LfmShape.control).padding(horizontal = 12.dp, vertical = 8.dp),
                         textAlign = TextAlign.Center)
                 }
             }
         }
         // The question: said with the mic or typed. Optional; a plain one is asked otherwise.
-        Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 12.dp).background(DarkColors.fill, RoundedCornerShape(8.dp))
-            .border(1.dp, DarkColors.control, RoundedCornerShape(8.dp)).padding(start = 6.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
+        Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 12.dp).background(DarkColors.fill, LfmShape.card)
+            .border(1.dp, DarkColors.control, LfmShape.card).padding(start = 6.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MicButton(onMic, size = 36.dp, listening = listening)
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                 if (question.text.isEmpty()) Txt("Ask about it, or leave blank", LfmType.small, DarkColors.text2, maxLines = 1)
-                BasicTextField(question.text, { question.text = it }, textStyle = LfmType.small.copy(color = Color.White),
-                    cursorBrush = SolidColor(Color.White), maxLines = 3,
+                BasicTextField(question.text, { question.text = it }, textStyle = LfmType.small.copy(color = CameraColors.ink),
+                    cursorBrush = SolidColor(CameraColors.ink), maxLines = 3,
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Question" })
             }
         }
@@ -336,14 +336,14 @@ private fun ModeSwitch(mode: SeeKind, enabled: Boolean, onSelect: (SeeKind) -> U
     val itemW = 86.dp
     val modes = SeeKind.entries
     val x by animateDpAsState(itemW * modes.indexOf(mode), LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate), label = "mode")
-    Box(Modifier.background(Color(0xAA000000), RoundedCornerShape(6.dp)).padding(3.dp)) {
-        Box(Modifier.offset(x = x).size(itemW, 30.dp).background(Color.White, RoundedCornerShape(4.dp)))
+    Box(Modifier.background(CameraColors.glass, LfmShape.control).padding(3.dp)) {
+        Box(Modifier.offset(x = x).size(itemW, 30.dp).background(CameraColors.ink, LfmShape.tag))
         Row {
             modes.forEach { m ->
                 val on = m == mode
-                val color by androidx.compose.animation.animateColorAsState(if (on) Color.Black else Color.White,
+                val color by androidx.compose.animation.animateColorAsState(if (on) CameraColors.ground else CameraColors.ink,
                     LfmMotion.spec(LfmMotion.SHORT), label = "modeText")
-                Box(Modifier.size(itemW, 30.dp).clip(RoundedCornerShape(4.dp))
+                Box(Modifier.size(itemW, 30.dp).clip(LfmShape.tag)
                     .clickable(enabled = enabled, role = Role.Tab) { onSelect(m) }, contentAlignment = Alignment.Center) {
                     Txt(m.label, LfmType.label, color)
                 }
@@ -360,19 +360,19 @@ private fun Shutter(mode: SeeKind, recording: Boolean, enabled: Boolean, onClick
     val inner by animateDpAsState(if (recording) 28.dp else 58.dp, LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate), label = "shutterSize")
     val corner by animateDpAsState(if (recording) 6.dp else 29.dp, LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate), label = "shutterCorner")
     val desc = when { mode != SeeKind.Video -> "Take photo"; recording -> "Stop recording"; else -> "Record video" }
-    Box(Modifier.size(76.dp).scale(scale).border(2.dp, Color.White.copy(alpha = if (enabled || recording) 1f else 0.4f), CircleShape)
-        .clip(CircleShape).clickable(press, null, enabled = enabled || recording, role = Role.Button, onClick = onClick)
+    Box(Modifier.size(76.dp).scale(scale).border(2.dp, CameraColors.ink.copy(alpha = if (enabled || recording) 1f else 0.4f), LfmShape.round)
+        .clip(LfmShape.round).clickable(press, null, enabled = enabled || recording, role = Role.Button, onClick = onClick)
         .semantics { contentDescription = desc }, contentAlignment = Alignment.Center) {
-        Box(Modifier.size(inner).background(Color.White.copy(alpha = if (enabled || recording) 1f else 0.4f), RoundedCornerShape(corner)))
+        Box(Modifier.size(inner).background(CameraColors.ink.copy(alpha = if (enabled || recording) 1f else 0.4f), LfmShape.shutter(corner)))
     }
 }
 
 @Composable
 private fun RoundIcon(icon: String, desc: String, onClick: () -> Unit, plain: Boolean = false, on: Boolean = false) {
-    val shape = RoundedCornerShape(8.dp)
-    Box(Modifier.size(46.dp).clip(shape).let { if (plain) it.background(if (on) Color.White else Color(0x66000000), shape) else it.border(1.dp, DarkColors.control, shape) }
+    val shape = LfmShape.card
+    Box(Modifier.size(46.dp).clip(shape).let { if (plain) it.background(if (on) CameraColors.ink else CameraColors.glassLight, shape) else it.border(1.dp, DarkColors.control, shape) }
         .clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc }, contentAlignment = Alignment.Center) {
-        Crossfade(on, animationSpec = LfmMotion.spec(LfmMotion.SHORT), label = "icon") { o -> LIcon(icon, tint = if (o) Color.Black else Color.White) }
+        Crossfade(on, animationSpec = LfmMotion.spec(LfmMotion.SHORT), label = "icon") { o -> LIcon(icon, tint = if (o) CameraColors.ground else CameraColors.ink) }
     }
 }
 

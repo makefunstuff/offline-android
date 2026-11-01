@@ -1,6 +1,8 @@
 package com.lfmpixel.lfm.ui.screens
 
 import android.graphics.Bitmap
+import com.lfmpixel.lfm.ui.theme.CameraColors
+import com.lfmpixel.lfm.ui.theme.LfmShape
 import android.graphics.Matrix
 import android.util.Size
 import androidx.camera.core.CameraSelector
@@ -20,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -97,14 +98,14 @@ fun LookTile(g: AppGraph, showSpeed: Boolean, modifier: Modifier = Modifier) {
             executor.shutdown()
         }
     }
-    val shape = RoundedCornerShape(8.dp)
+    val shape = LfmShape.card
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.fillMaxWidth().height(190.dp).clip(shape).background(Color.Black).border(1.dp, c.control, shape)
+        Box(Modifier.fillMaxWidth().height(190.dp).clip(shape).background(CameraColors.ground).border(1.dp, c.control, shape)
             .clickable(role = Role.Button, onClickLabel = "Look again") { now.set(true) }
             .semantics { contentDescription = "Camera, Look is on" }) {
             AndroidView({ previewView }, Modifier.fillMaxSize())
-            if (busy) Txt("Looking…", LfmType.meta, Color.White, Modifier.align(Alignment.TopEnd).padding(8.dp)
-                .background(Color(0xAA000000), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
+            if (busy) Txt("Looking…", LfmType.meta, CameraColors.ink, Modifier.align(Alignment.TopEnd).padding(8.dp)
+                .background(CameraColors.glass, LfmShape.tag).padding(horizontal = 6.dp, vertical = 2.dp))
         }
         Txt(scene?.text ?: "Looking at what the camera sees…", LfmType.small, c.text2,
             Modifier.padding(top = 8.dp).fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }, maxLines = 3)

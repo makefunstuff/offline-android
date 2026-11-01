@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    // JVM screenshots of the screens (Robolectric, no emulator): ScreenshotTest.
+    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -60,7 +62,11 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         // Robolectric reaches into FileDescriptor on JDK 17+.
-        unitTests.all { it.jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") }
+        unitTests.all {
+            it.jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+            // ScreenshotTest writes its pictures on every run (build/outputs/roborazzi), to look at; nothing is compared.
+            it.systemProperty("roborazzi.test.record", "true")
+        }
     }
 
     packaging {
@@ -111,6 +117,10 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
 }
 
 // --- Privacy checks (docs/spec.md section 3; task classes in buildSrc) ---------------------------
