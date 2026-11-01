@@ -114,9 +114,9 @@ fun SunMark(modifier: Modifier = Modifier) {
  * A group that must stand out (a privacy warning, "Inkling is offline"): the wash with the highlighter's bar down its
  * start edge, instead of an outline.
  */
-fun Modifier.callout(c: com.lfmpixel.lfm.ui.theme.LfmColors): Modifier = this.background(c.wash, LfmShape.card).drawBehind {
+fun Modifier.callout(c: com.lfmpixel.lfm.ui.theme.LfmColors): Modifier = this.clip(LfmShape.card).background(c.wash).drawBehind {
     drawRect(c.highlight, size = androidx.compose.ui.geometry.Size(4.dp.toPx(), size.height))
-}.clip(LfmShape.card)
+}
 
 /**
  * One of Inkling's own blocks on the page (Now, today's plan, Where was I): no box, no fill. Generous space and the

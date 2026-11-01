@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.border
 import com.lfmpixel.lfm.ui.components.WashCard
@@ -474,12 +475,11 @@ internal fun SizeChips(minutes: Int, guess: Int, onPick: (Int) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Sizes.choices.forEach { m ->
             val on = minutes == m
-            val shape = LfmShape.control
-            // A word each; the picked one on the pastel, navy and bold.
-            Box(Modifier.heightIn(min = 40.dp).clip(LfmShape.pill).background(if (on) c.mic else c.wash)
-                .clickable(role = Role.RadioButton) { onPick(if (on) 0 else m) }
+            // A word each on a soft pill; the picked one navy.
+            Box(Modifier.heightIn(min = 44.dp).clip(LfmShape.pill).background(if (on) c.text else c.wash)
+                .selectable(on, role = Role.RadioButton) { onPick(if (on) 0 else m) }
                 .padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
-                Txt(Sizes.label(m), if (on) LfmType.actionSmall else LfmType.button, if (on) c.onMic else c.text2)
+                Txt(Sizes.label(m), if (on) LfmType.actionSmall else LfmType.button, if (on) c.bg else c.text2)
             }
         }
     }

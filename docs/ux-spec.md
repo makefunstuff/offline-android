@@ -19,7 +19,7 @@ Every screen is built to the same rules:
    surfaces left (the message box, settings groups) sit on the pale wash with no edge (`DaylightGuardTest` keeps
    outlines out).
 3. **Time you can see.** The day is a half dial on Today's sky, the sun rides it to now, and the stretch to the next
-   plan is drawn in the sun's yellow. "Now, for about 15 minutes" and "Next · 15:00 Dentist · in 5 hours" say it in
+   plan is drawn in the sun's yellow. "Now, for about 15 min" and "Next · 15:00 Dentist · in 5 hours" say it in
    words.
 4. **Capture in one tap.** The pastel talk button sits in the middle of the bottom bar on Today, Notebook and Plans,
    and a brain dump is one tap from Today's sky.
@@ -42,8 +42,6 @@ one of two inks that reads at 4.5:1 against both ends of the sky at every minute
 - **Dark theme** keeps the hour but dims the sky toward `#05070D` (45 % at the top, 50 % at the horizon).
 - Between a light and a dark look the sky leans a touch darker until the light ink reads; the ink turns twice a day,
   at first and last light.
-- **The sky strip.** Every screen has the hour's sky under the status bar, and the status icons take its ink, so
-  Library or Settings still say what time of day it is. The camera keeps its black.
 - **The sky strip.** Every screen has the hour's sky under the status bar, and the status icons take its ink. The
   camera keeps its black. On the sky, action words and soft surfaces take the sky's ink (`OnSky`).
 
@@ -107,7 +105,8 @@ Three voices, all the phone's own fonts (nothing bundled, no licence to track):
   breathe (1.8 s) while it thinks. The only loop.
 - **Small wins**: a ticked to-do fills with the sun and pops with a soft spring.
 - **Tabs**: the highlighter's stroke draws in under the picked word (150 ms).
-- With "Remove animations" or Battery Saver on, everything lands where it ends: no rise, no breath, no pop.
+- With "Remove animations" on, or Battery Saver on when a screen opens, everything lands where it ends: no rise, no
+  breath, no pop.
 
 ## 5. Sound and haptics
 
@@ -138,14 +137,15 @@ The app's copy follows it: first person where Inkling speaks ("I'm listening", "
 
 ### Today
 
-From the top: the sky (352 dp), then the page.
+From the top: the sky (as tall as its words need), then the page.
 
 - **In the sky:** the date, then the day before, Look, brain dump and settings; the day as a half dial (06:00–22:00,
   stretched for early or late plans) with an hour tick each hour, plans as bold marks, the sun at now and the stretch
-  to the next plan in yellow; the time inside the dial.
+  to the next plan in yellow; the time inside the dial, its foot on the horizon. Every header on the sky elsewhere
+  ends with the SunMark.
 - **Under the horizon:** Inkling's one sentence of the day (`DaySentence`, never counts), then the next plan, or the
-  one tapped on the dial, with **Open** for to-dos.
-- **Below:** the seal line; Where was I; **Now**: "Now, for about 15 minutes", the task in the condensed bold with the
+  one tapped on the dial, with **Open** for to-dos; nothing when no plan is left.
+- **Below:** the seal line; Where was I; **Now**: "Now, for about 15 min", the task in the condensed bold with the
   highlighter, then Start · Done · Not now as words; today's plan; the timeline; still open; the page; the Ink line.
   No cards: each block is a label, its words and space.
 

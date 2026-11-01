@@ -97,9 +97,15 @@ internal fun SkyHead(
         DialCanvas(sky, layout, hy, radius, Modifier.matchParentSize(), selected = picked, sunAt = rise.value)
         OnSky(sky) {
             val c = Lfm.c
+            // The time, inside the dial, its foot on the horizon at any font size.
+            Box(Modifier.fillMaxWidth().height(hy - 2.dp), contentAlignment = Alignment.BottomCenter) {
+                Txt(now.format(DateTimeFormatter.ofPattern("HH:mm")), LfmType.clock, c.text, Modifier.semantics {
+                    contentDescription = "It's " + now.format(DateTimeFormatter.ofPattern("HH:mm"))
+                })
+            }
             Column(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().height(headerH).padding(start = 24.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Txt("Today · " + now.format(DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH)), LfmType.label, c.text2,
+                    Txt("Today · " + now.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)), LfmType.label, c.text2,
                         Modifier.weight(1f).semantics { heading() }, maxLines = 1)
                     IconButtonPlain("back", onDayBefore, tint = c.text2, desc = "The day before")
                     IconButtonPlain("camera", onLook, tint = c.text2, desc = "Look")
@@ -114,11 +120,6 @@ internal fun SkyHead(
                     PlanLine(shown, layout, isPicked = pickedPair != null)
                 }
             }
-            // The time, inside the dial, resting on the horizon.
-            Txt(now.format(DateTimeFormatter.ofPattern("HH:mm")), LfmType.clock, c.text,
-                Modifier.align(Alignment.TopCenter).offset(y = hy - 66.dp).semantics {
-                    contentDescription = "It's " + now.format(DateTimeFormatter.ofPattern("HH:mm"))
-                })
             // Plans on the dial: a 44 dp target each, read out with its time.
             val density = androidx.compose.ui.platform.LocalDensity.current
             val geo = with(density) { com.lfmpixel.lfm.daylight.SkyPainter.DialGeometry(maxWidth.toPx() / 2, hy.toPx(), radius.toPx()) }

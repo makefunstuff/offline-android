@@ -222,6 +222,7 @@ fun ChatScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                     g.assistant.newChat()
                     if (queued.isNotEmpty()) nav.show("New chat. ${queued.size} queued ${if (queued.size == 1) "message moves" else "messages move"} with you.")
                 }, desc = "New chat")
+                com.lfmpixel.lfm.ui.components.SunMark(Modifier.padding(start = 4.dp, end = 10.dp))
             }
         }
         Box(Modifier.weight(1f)) {

@@ -169,7 +169,7 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
         }
         Row(Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = snackLift(nav)), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Fab("plus", { nav.go(Route.Editor(kind = filter.kind)) }, "New ${filter.kind.label.lowercase()}")
-            MicButton({ onMic(filter.kind) }, size = 56.dp, listening = listening)
+            MicButton({ onMic(filter.kind) }, size = 56.dp, listening = listening, floating = true)
         }
     }
 }

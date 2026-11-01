@@ -239,6 +239,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                 if (isToday) IconButtonPlain("cloud", { nav.go(Route.Dump()) }, desc = "Brain dump")
                 IconButtonPlain("chat", { nav.go(Route.Chat) }, desc = "Ask Inkling")
                 IconButtonPlain("user", { nav.go(Route.Settings) }, desc = "Settings")
+                com.lfmpixel.lfm.ui.components.SunMark(Modifier.padding(start = 4.dp, end = 10.dp))
             }
             }
         }

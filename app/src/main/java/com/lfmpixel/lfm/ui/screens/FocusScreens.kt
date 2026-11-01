@@ -247,6 +247,7 @@ fun DumpScreen(g: AppGraph, nav: Nav, route: Route.Dump, onMic: () -> Unit, list
                     Txt(if (text.isBlank()) "Kept as you type" else if (saved) "Saved" else "Saving…", LfmType.meta, Lfm.c.text2)
                 }
                 MicButton(onMic, listening = listening)
+                com.lfmpixel.lfm.ui.components.SunMark(Modifier.padding(start = 4.dp, end = 10.dp))
             }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {

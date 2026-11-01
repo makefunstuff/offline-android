@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -99,7 +100,7 @@ fun Marked(text: String, style: TextStyle, modifier: Modifier = Modifier, maxLin
                 val right = l.getLineRight(i) + pad
                 val base = l.getLineBaseline(i)
                 val h = (l.getLineBottom(i) - l.getLineTop(i))
-                // In dark mode the stroke sits just under the letters, so light words never sit on the yellow.
+                // In dark mode the stroke sits just under the letters (only descenders cross it), so light words stay off the yellow.
                 val top = base + h * if (c.dark) 0.03f else -0.1f; val bottom = base + h * if (c.dark) 0.17f else 0.16f
                 drawRect(c.highlight, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Size((right - left) * p, bottom - top))
             }
@@ -131,15 +132,17 @@ val LocalMicLevel = androidx.compose.runtime.compositionLocalOf<androidx.compose
 
 /**
  * The mic: round. The [primary] one (Talk's own, and the bottom bar's talk button) is the highlighter's pastel; the
- * others (dictation into a line or a list) are a quiet fill, so one screen never has two yellow buttons. Listening,
+ * others (dictation into a line or a list) are a quiet fill, so one screen never has two yellow buttons, or solid
+ * blue when [floating] over a list. Listening,
  * it turns navy with a Stop square, and a soft ring breathes out with your voice.
  */
 @Composable
-fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.dp, listening: Boolean = false, primary: Boolean = false) {
+fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.dp, listening: Boolean = false, primary: Boolean = false,
+              floating: Boolean = false) {
     val c = Lfm.c
     val shape = LfmShape.round
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
-    val fill by androidx.compose.animation.animateColorAsState(if (listening) c.text else if (primary) c.mic else c.text.copy(alpha = 0.08f),
+    val fill by androidx.compose.animation.animateColorAsState(if (listening) c.text else if (primary) c.mic else if (floating) c.text2 else c.text.copy(alpha = 0.08f),
         motion.spec(if (listening) motion.TINY else motion.MEDIUM, if (listening) motion.standard else motion.emphasizedDecelerate), label = "mic")
     val voice = LocalMicLevel.current
     val pulse by androidx.compose.animation.core.animateFloatAsState(if (listening) voice.value.coerceIn(0f, 1f) else 0f, motion.level(), label = "pulse")
@@ -149,7 +152,7 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
         if (listening) Box(Modifier.matchParentSize().graphicsLayer {
             val grow = 1f + 0.28f * pulse
             scaleX = grow; scaleY = grow; alpha = 0.25f + 0.55f * pulse
-        }.border(2.dp, c.mic, shape))
+        }.border(2.dp, c.action, shape))
         Box(
             Modifier
                 .matchParentSize()
@@ -160,7 +163,7 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
                 .semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
             contentAlignment = Alignment.Center,
         ) {
-            LIcon(if (listening) "stop" else "mic", tint = if (listening) c.bg else if (primary) c.onMic else c.text)
+            LIcon(if (listening) "stop" else "mic", tint = if (listening || floating) c.bg else if (primary) c.onMic else c.text)
         }
     }
 }
@@ -203,6 +206,7 @@ fun Btn(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: 
     Row(
         modifier
             .heightIn(min = 44.dp)
+            .widthIn(min = 44.dp)
             .pressScale(src)
             .clip(LfmShape.control)
             .clickable(src, androidx.compose.material3.ripple(color = c.action), enabled = enabled, role = Role.Button, onClick = onClick)

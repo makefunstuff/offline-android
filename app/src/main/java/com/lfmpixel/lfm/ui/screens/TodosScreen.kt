@@ -124,7 +124,7 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                 item { Spacer(Modifier.height(96.dp)) }
             }
         }
-        MicButton(onMic, Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = snackLift(nav)), size = 56.dp, listening = listening)
+        MicButton(onMic, Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = snackLift(nav)), size = 56.dp, listening = listening, floating = true)
     }
 }
 
