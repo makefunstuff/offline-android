@@ -386,13 +386,15 @@ class Talk(
         val recall = if (remembered != null) null else memory?.let { m -> withTimeoutOrNull(600) { runCatching { m.context(said, TALK_CONTEXT) }.getOrNull() } }
         recall?.let { Log.i(TAG, "talk: recall ${it.system.length} + ${it.turn.length} chars in ${it.ms} ms") }
         val prompt = SpeechFormat.talkPrompt(
-            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())), recall, before, said)
+            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date()), full = true), recall, before, said)
         val text = StringBuilder()
         var firstWord = 0L
         var firstAudio = 0L
         var model = ""
         var ran = 0
         val chunker = SpeechChunker()
+        // An offer of a reminder nobody asked for is not said (Persona.TOOLS asks for none; this catches the usual phrasings).
+        val offers = com.lfmpixel.lfm.assistant.OfferFilter(said)
         // Pieces to say, in order; one with [Piece.heard] waits until everything before it has been heard (a question).
         val pieces = Channel<Piece>(Channel.UNLIMITED)
         val voice = p.speechVoice.name.lowercase()
@@ -402,29 +404,33 @@ class Talk(
         var failure: Exception? = null
         // "Speaking" from the first audio, and again after a question was answered.
         var voiced = false
-        /** Shows and says [words] (the model's, or Talk's own). */
-        suspend fun say(words: String) {
+        /** Talk's own lines in this answer (a question, "Let me check."): never taken for an offer. */
+        val own = mutableListOf<String>()
+        /** Shows and says [words]: the model's, or Talk's [ownLine] (said whole, past the offer filter). */
+        suspend fun say(words: String, ownLine: Boolean = false) {
             if (firstWord == 0L) firstWord = SystemClock.elapsedRealtime()
             text.append(words)
+            if (ownLine) own += words.trim()
             set(run) { st ->
                 st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
-                    turns = st.turns.map { if (it.id == id) it.copy(it = text.toString().trim()) else it })
+                    turns = st.turns.map { if (it.id == id) it.copy(it = com.lfmpixel.lfm.assistant.Offers.strip(text.toString().trim(), said, own)) else it })
             }
-            if (spoken) chunker.feed(words).forEach { pieces.send(Piece(it)) }
+            if (spoken) (if (ownLine) chunker.feed(words) + chunker.flush() else chunker.feed(words).flatMap(offers::feed)).forEach { pieces.send(Piece(it)) }
         }
         val turnTools = TalkToolTurn(
             ask = { q ->
                 if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ')
-                say("$q ")
+                // What the model said so far is said first, so an unfinished sentence can't swallow the question.
+                if (spoken) (chunker.flush().flatMap(offers::feed) + offers.release()).forEach { pieces.send(Piece(it)) }
+                say("$q ", ownLine = true)
                 if (spoken) {
-                    chunker.flush().forEach { pieces.send(Piece(it)) }
                     val heard = kotlinx.coroutines.CompletableDeferred<Unit>()
                     pieces.send(Piece("", heard))
                     heard.await()
                 }
                 hearYesNo(run) { pcm -> edge.voice.transcribe(pcm, p.speechLanguage.asr) }.also { if (spoken) out.start(); voiced = false }
             },
-            looking = { if (text.isBlank()) say(TalkWeb.LOOKING + " ") },
+            looking = { if (text.isBlank()) say(TalkWeb.LOOKING + " ", ownLine = true) },
             onSearch = { found -> set(run) { st -> st.copy(turns = st.turns.map { if (it.id == id) it.copy(web = it.web + found) else it }) } },
             afterWebText = webRead)
         try {
@@ -484,14 +490,18 @@ class Talk(
                     roundOver = { if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ') })
                 try {
                     rounds.answer(if (toolBox == null) prompt else null, SpeechFormat.talkToolSystem(p.speechLanguage, web = webOn) + recall?.system.orEmpty(),
-                        toolBox, turnTools, msgs)?.let { exchanges[id] = it }
+                        toolBox, turnTools, msgs)?.let { ex ->
+                        // Read back without the offers the owner never heard, so the habit isn't learnt from them.
+                        exchanges[id] = ex.mapIndexed { i, m -> if (i == ex.lastIndex && m.role == com.lfmpixel.lfm.llm.PromptMessage.Role.Assistant)
+                            m.copy(content = "<think></think>" + com.lfmpixel.lfm.assistant.Offers.strip(m.content.removePrefix("<think></think>").trim(), said)) else m }
+                    }
                 } finally {
                     ran = rounds.ran
                     webRead = turnTools.afterWebText
                     model = com.lfmpixel.lfm.edge.EdgeModels.label(session.answeredBy)
                 }
                 }
-                if (spoken) chunker.flush().forEach { pieces.send(Piece(it)) }
+                if (spoken) (chunker.flush().flatMap(offers::feed) + offers.flush()).forEach { pieces.send(Piece(it)) }
                 pieces.close()
                 speaker?.join()
             }
@@ -522,7 +532,8 @@ class Talk(
             model = model, tools = ran)
         Log.i(TAG, "server answer: $timing: $text")
         val stopped = interrupted || !finished
-        set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = stopped) else it }) }
+        val shown = com.lfmpixel.lfm.assistant.Offers.strip(text.toString().trim(), said, own)
+        set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(it = shown, done = true, stopped = stopped) else it }) }
         return true
     }
 

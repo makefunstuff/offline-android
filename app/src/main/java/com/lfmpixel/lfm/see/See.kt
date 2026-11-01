@@ -81,8 +81,8 @@ object SeeRules {
         SeeKind.Document -> "What is this document about? Sum it up and give the key facts."
     }
 
-    private const val SYSTEM = "You are Wren, a private assistant that runs entirely on the owner's phone. " +
-        "Answer briefly and plainly from what you see. If you cannot tell, say so."
+    private const val SYSTEM = "You are Wren, the owner's own assistant, running entirely on their phone. " +
+        com.lfmpixel.lfm.assistant.Persona.SHORT + " Answer briefly from what you see. If you cannot tell, say so."
 
     /** A prompt with one media marker per picture, in LFM3's chat format. */
     fun prompt(kind: SeeKind, question: String, pictures: Int, seconds: Int = 0): String {
