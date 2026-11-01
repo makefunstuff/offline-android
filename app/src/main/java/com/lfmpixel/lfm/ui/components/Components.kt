@@ -99,7 +99,8 @@ fun Marked(text: String, style: TextStyle, modifier: Modifier = Modifier, maxLin
                 val right = l.getLineRight(i) + pad
                 val base = l.getLineBaseline(i)
                 val h = (l.getLineBottom(i) - l.getLineTop(i))
-                val top = base - h * 0.1f; val bottom = base + h * 0.16f
+                // In dark mode the stroke sits just under the letters, so light words never sit on the yellow.
+                val top = base + h * if (c.dark) 0.03f else -0.1f; val bottom = base + h * if (c.dark) 0.17f else 0.16f
                 drawRect(c.highlight, androidx.compose.ui.geometry.Offset(left, top), androidx.compose.ui.geometry.Size((right - left) * p, bottom - top))
             }
         })
@@ -138,7 +139,7 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
     val c = Lfm.c
     val shape = LfmShape.round
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
-    val fill by androidx.compose.animation.animateColorAsState(if (listening) c.onMic else if (primary) c.mic else c.fill,
+    val fill by androidx.compose.animation.animateColorAsState(if (listening) c.text else if (primary) c.mic else c.text.copy(alpha = 0.08f),
         motion.spec(if (listening) motion.TINY else motion.MEDIUM, if (listening) motion.standard else motion.emphasizedDecelerate), label = "mic")
     val voice = LocalMicLevel.current
     val pulse by androidx.compose.animation.core.animateFloatAsState(if (listening) voice.value.coerceIn(0f, 1f) else 0f, motion.level(), label = "pulse")
@@ -155,11 +156,11 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
                 .pressScale(src)
                 .clip(shape)
                 .background(fill)
-                .clickable(src, androidx.compose.material3.ripple(color = if (listening) c.mic else c.onMic), role = Role.Button, onClick = onClick)
+                .clickable(src, androidx.compose.material3.ripple(color = if (listening) c.bg else if (primary) c.onMic else c.text), role = Role.Button, onClick = onClick)
                 .semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
             contentAlignment = Alignment.Center,
         ) {
-            LIcon(if (listening) "stop" else "mic", tint = if (listening) c.mic else if (primary) c.onMic else c.text)
+            LIcon(if (listening) "stop" else "mic", tint = if (listening) c.bg else if (primary) c.onMic else c.text)
         }
     }
 }
@@ -201,7 +202,7 @@ fun Btn(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, kind: 
     val src = androidx.compose.runtime.remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     Row(
         modifier
-            .heightIn(min = if (small) 36.dp else 44.dp)
+            .heightIn(min = 44.dp)
             .pressScale(src)
             .clip(LfmShape.control)
             .clickable(src, androidx.compose.material3.ripple(color = c.action), enabled = enabled, role = Role.Button, onClick = onClick)
@@ -292,7 +293,7 @@ private fun WordTab(t: String, on: Boolean, role: Role, modifier: Modifier, onCl
     Box(modifier.heightIn(min = 44.dp).clip(LfmShape.control).selectable(on, role = role, onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center) {
         Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max), horizontalAlignment = Alignment.CenterHorizontally) {
-            Txt(t, LfmType.tab.copy(fontWeight = if (on) androidx.compose.ui.text.font.FontWeight.Bold else null), fg, maxLines = 1,
+            Txt(t, LfmType.tab.copy(fontWeight = if (on) androidx.compose.ui.text.font.FontWeight.Bold else null), fg, maxLines = 2,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Box(Modifier.padding(top = 3.dp).height(3.dp).fillMaxWidth(stroke).background(c.highlight, LfmShape.mark))
         }
@@ -314,8 +315,8 @@ fun Switch(on: Boolean, label: String = "", onChange: (Boolean) -> Unit) {
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
     val shape = LfmShape.round
     val x by androidx.compose.animation.core.animateDpAsState(if (on) 21.dp else 3.dp, motion.spec(motion.SHORT, motion.standard), label = "thumb")
-    val track by androidx.compose.animation.animateColorAsState(if (on) c.action else c.line, motion.spec(motion.TINY), label = "track")
-    val thumb by androidx.compose.animation.animateColorAsState(if (on) c.bg else c.control, motion.spec(motion.TINY), label = "thumbColor")
+    val track by androidx.compose.animation.animateColorAsState(if (on) c.action else c.control, motion.spec(motion.TINY), label = "track")
+    val thumb = c.bg
     // [label] names the setting for TalkBack, which then says "Show speed, switch, on".
     Box(Modifier.size(48.dp).toggleable(on, role = Role.Switch, onValueChange = onChange)
         .let { if (label.isNotEmpty()) it.semantics { contentDescription = label } else it }, contentAlignment = Alignment.Center) {
@@ -355,7 +356,7 @@ fun Card(modifier: Modifier = Modifier, borderColor: Color = Color.Transparent, 
          onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
     val shape = LfmShape.card
     Box(modifier.clip(shape).background(fill).let { if (borderColor.alpha > 0f) it.border(BorderStroke(1.dp, borderColor), shape) else it }
-        .let { if (onClick != null) it.clickable(onClick = onClick) else it }.padding(padding)) { content() }
+        .let { if (onClick != null) it.clickable(role = Role.Button, onClick = onClick) else it }.padding(padding)) { content() }
 }
 
 /** A row with title, subtitle and an optional icon and trailing part, divided by 1 px lines. */
@@ -538,7 +539,7 @@ fun SnackHost(snack: com.lfmpixel.lfm.ui.Snack?, onDone: () -> Unit, modifier: M
                     onDone()
                     if (!s.undone) { s.undone = true; scope.launch { runCatching { u() } } }
                 }.padding(horizontal = 14.dp),
-                    contentAlignment = Alignment.Center) { Txt("Undo", LfmType.action, c.mic) }
+                    contentAlignment = Alignment.Center) { Txt("Undo", LfmType.action, if (c.dark) c.onMic else c.mic) }
             }
         }
     }

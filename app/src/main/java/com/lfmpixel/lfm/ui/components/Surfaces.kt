@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
 import com.lfmpixel.lfm.daylight.OnSky
 import com.lfmpixel.lfm.daylight.rememberNow
 import com.lfmpixel.lfm.daylight.skyAt
@@ -107,6 +109,14 @@ fun SunMark(modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * A group that must stand out (a privacy warning, "Inkling is offline"): the wash with the highlighter's bar down its
+ * start edge, instead of an outline.
+ */
+fun Modifier.callout(c: com.lfmpixel.lfm.ui.theme.LfmColors): Modifier = this.background(c.wash, LfmShape.card).drawBehind {
+    drawRect(c.highlight, size = androidx.compose.ui.geometry.Size(4.dp.toPx(), size.height))
+}.clip(LfmShape.card)
 
 /**
  * One of Inkling's own blocks on the page (Now, today's plan, Where was I): no box, no fill. Generous space and the

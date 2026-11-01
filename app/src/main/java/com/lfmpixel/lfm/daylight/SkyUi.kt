@@ -48,24 +48,18 @@ fun OnSky(sky: Sky, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalLfm provides c.copy(
         text = ink, text2 = Color(sky.ink2), text3 = Color(sky.ink2),
         line = ink.copy(alpha = 0.22f), fill = ink.copy(alpha = 0.08f), control = Color(sky.ink2),
+        // Action words and the soft surfaces take the sky's ink too, so they read at every hour.
+        action = ink, wash = ink.copy(alpha = 0.1f),
         bg = mid, dark = sky.lightInk,
     ), content = content)
 }
 
-/** The sky with today's horizon, its plans and the sun. */
+/** Today's sky with the day as a half dial ([SkyPainter.drawDial]): its horizon [horizon] from the top, radius [radius]. */
 @Composable
-fun SkyCanvas(sky: Sky, layout: HorizonLayout, modifier: Modifier = Modifier, selected: String? = null, horizonAt: Float = SkyPainter.HORIZON,
-              arcHeight: androidx.compose.ui.unit.Dp? = null) {
+fun DialCanvas(sky: Sky, layout: HorizonLayout, horizon: androidx.compose.ui.unit.Dp, radius: androidx.compose.ui.unit.Dp,
+               modifier: Modifier = Modifier, selected: String? = null, sunAt: Float = 1f) {
     Canvas(modifier) {
-        drawIntoCanvas { SkyPainter.draw(it.nativeCanvas, size.width, size.height, density, sky, layout, selected, horizonAt = horizonAt,
-            arcHeight = arcHeight?.toPx()) }
-    }
-}
-
-/** Today's sky with the day as a half dial ([SkyPainter.drawDial]). */
-@Composable
-fun DialCanvas(sky: Sky, layout: HorizonLayout, horizonAt: Float, modifier: Modifier = Modifier, selected: String? = null, sunAt: Float = 1f) {
-    Canvas(modifier) {
-        drawIntoCanvas { SkyPainter.drawDial(it.nativeCanvas, size.width, size.height, density, sky, layout, selected, horizonAt, sunAt) }
+        val geo = SkyPainter.DialGeometry(size.width / 2, horizon.toPx(), radius.toPx())
+        drawIntoCanvas { SkyPainter.drawDial(it.nativeCanvas, size.width, size.height, density, sky, layout, geo, selected, sunAt) }
     }
 }

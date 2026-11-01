@@ -332,7 +332,7 @@ private fun SmallAction(text: String, onClick: () -> Unit) {
     val c = Lfm.c
     Box(Modifier.clip(LfmShape.control).clickable(role = Role.Button, onClick = onClick)
         .size(width = 56.dp, height = 44.dp), contentAlignment = Alignment.Center) {
-        Txt(text, LfmType.action, c.text)
+        Txt(text, LfmType.action, c.action)
     }
 }
 

@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import com.lfmpixel.lfm.ui.components.callout
 import android.net.Uri
 import com.lfmpixel.lfm.ui.components.FlatSheet
 import com.lfmpixel.lfm.ui.theme.LfmShape
@@ -209,7 +210,7 @@ private fun LeftoverFiles(g: AppGraph) {
 private fun NetMissingCard(g: AppGraph, @Suppress("UNUSED_PARAMETER") st: NetClient.State) {
     val c = Lfm.c
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    Column(Modifier.padding(bottom = 10.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(12.dp)) {
+    Column(Modifier.padding(bottom = 10.dp).fillMaxWidth().callout(c).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("download", size = 18.dp)
             Txt("Inkling is offline", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))

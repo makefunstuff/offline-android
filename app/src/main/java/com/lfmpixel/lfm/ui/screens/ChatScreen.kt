@@ -626,7 +626,7 @@ fun ToolCard(m: ChatMessage, record: ActionRecord?, onUndo: (Long) -> Unit) {
     val failed = status == ActionStatus.Failed || status == ActionStatus.Cancelled
     Row(Modifier.fillMaxWidth().background(c.wash, shape).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(36.dp).background(c.wash, LfmShape.round), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp).background(c.bg, LfmShape.round), contentAlignment = Alignment.Center) {
             LIcon(when { failed -> "x"; status == ActionStatus.Undone -> "undo"; m.cardLabel.startsWith("Added") -> "plus"; else -> "check" }, tint = c.text)
         }
         Column(Modifier.weight(1f)) {

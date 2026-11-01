@@ -140,13 +140,13 @@ object SkyPainter {
     /**
      * Horizon Almanac's dial (docs/ux-spec.md, "Today"): the waking day as a half dial standing on the horizon, an hour
      * tick for every hour, the plans as bold marks on it, and the sun riding it to now. The stretch the sun still has to
-     * ride to the next plan is drawn in the sun's colour: time left, as a shape. [sunAt] 0..1 draws the sun that far
-     * along its way from the start of the day to now (Today's opening rise); 1 is now.
+     * ride to the next plan is drawn in the sun's colour: time left, as a shape. The horizon is at [geo]'s centre; [sunAt]
+     * 0..1 draws the sun that far along its way from the start of the day to now (Today's opening rise); 1 is now.
      */
-    fun drawDial(canvas: Canvas, w: Float, h: Float, density: Float, sky: Sky, layout: HorizonLayout, selected: String? = null,
-                 horizonAt: Float, sunAt: Float = 1f) {
+    fun drawDial(canvas: Canvas, w: Float, h: Float, density: Float, sky: Sky, layout: HorizonLayout, geo: DialGeometry,
+                 selected: String? = null, sunAt: Float = 1f) {
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
-        val hy = h * horizonAt
+        val hy = geo.cy
         p.shader = LinearGradient(0f, 0f, 0f, hy, sky.top, sky.horizon, Shader.TileMode.CLAMP)
         canvas.drawRect(0f, 0f, w, hy, p)
         p.shader = LinearGradient(0f, hy, 0f, h, sky.horizon, mix(sky.horizon, sky.top, 0.25f), Shader.TileMode.CLAMP)
@@ -156,11 +156,6 @@ object SkyPainter {
             p.color = withAlpha(sky.sun, 0.55f)
             STARS.forEach { (sx, sy, r) -> canvas.drawCircle(sx * w, sy * hy * 0.8f, r * density, p) }
         }
-        val g = dialGeometry(w, h, density, horizonAt)
-        fun pt(f: Float, rr: Float = g.r): Pair<Float, Float> {
-            val a = PI * (1 - f)
-            return (g.cx + rr * kotlin.math.cos(a)).toFloat() to (g.cy - rr * sin(a)).toFloat()
-        }
         p.style = Paint.Style.STROKE
         p.strokeCap = Paint.Cap.ROUND
 
@@ -169,7 +164,7 @@ object SkyPainter {
         p.color = withAlpha(sky.ink, 0.22f)
         p.pathEffect = DashPathEffect(floatArrayOf(2f * density, 4f * density), 0f)
         val arc = Path()
-        for (i in 0..96) { val (x, y) = pt(i / 96f); if (i == 0) arc.moveTo(x, y) else arc.lineTo(x, y) }
+        for (i in 0..96) { val (x, y) = geo.at(i / 96f); if (i == 0) arc.moveTo(x, y) else arc.lineTo(x, y) }
         canvas.drawPath(arc, p)
         p.pathEffect = null
         val firstHour = (layout.startMin + 59) / 60
@@ -177,20 +172,19 @@ object SkyPainter {
         for (hr in firstHour..lastHour) {
             val f = layout.x(hr * 60)
             val major = hr % 6 == 0
-            val (x0, y0) = pt(f, g.r - (if (major) 9f else 5f) * density)
-            val (x1, y1) = pt(f, g.r)
+            val (x0, y0) = geo.at(f, -(if (major) 9f else 5f) * density)
+            val (x1, y1) = geo.at(f)
             p.color = withAlpha(sky.ink, if (major) 0.55f else 0.28f)
             p.strokeWidth = (if (major) 1.4f else 1f) * density
             canvas.drawLine(x0, y0, x1, y1, p)
         }
-        // 06, 12, 18 by their ticks, small.
+        // 06, 12 and 18 by their ticks.
         val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = withAlpha(sky.ink, 0.6f); textSize = 9f * density; textAlign = Paint.Align.CENTER
-            typeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
+            color = withAlpha(sky.ink, 0.7f); textSize = 10f * density; textAlign = Paint.Align.CENTER; typeface = CONDENSED
         }
-        for (hr in listOf(6, 12, 18)) if (hr * 60 in layout.startMin..layout.endMin) {
-            val (x, y) = pt(layout.x(hr * 60), g.r + 9f * density)
-            canvas.drawText("%02d".format(hr), x, y + 3f * density, tp)
+        for ((hr, label) in HOUR_LABELS) if (hr * 60 in layout.startMin..layout.endMin) {
+            val (x, y) = geo.at(layout.x(hr * 60), 10f * density)
+            canvas.drawText(label, x, y + 3.5f * density, tp)
         }
 
         // Walked: dawn to now, a touch stronger. Ahead: now to the next plan, in the sun's colour.
@@ -198,13 +192,13 @@ object SkyPainter {
         p.color = withAlpha(sky.ink, 0.4f)
         p.strokeWidth = 1.6f * density
         val walked = Path()
-        for (i in 0..48) { val (x, y) = pt(now * i / 48f); if (i == 0) walked.moveTo(x, y) else walked.lineTo(x, y) }
+        for (i in 0..48) { val (x, y) = geo.at(now * i / 48f); if (i == 0) walked.moveTo(x, y) else walked.lineTo(x, y) }
         canvas.drawPath(walked, p)
         layout.next?.let { n ->
             val to = layout.x(n.minute)
             if (to > now) {
                 val ahead = Path()
-                for (i in 0..40) { val (x, y) = pt(now + (to - now) * i / 40f); if (i == 0) ahead.moveTo(x, y) else ahead.lineTo(x, y) }
+                for (i in 0..40) { val (x, y) = geo.at(now + (to - now) * i / 40f); if (i == 0) ahead.moveTo(x, y) else ahead.lineTo(x, y) }
                 p.color = withAlpha(sky.sun, 0.95f)
                 p.strokeWidth = 3f * density
                 canvas.drawPath(ahead, p)
@@ -221,13 +215,13 @@ object SkyPainter {
             val f = layout.x(pl.minute)
             val isNext = pl == layout.next
             val past = layout.isPast(pl)
-            val (x0, y0) = pt(f, g.r - (if (isNext) 14f else 11f) * density)
-            val (x1, y1) = pt(f, g.r + 2f * density)
+            val (x0, y0) = geo.at(f, -(if (isNext) 14f else 11f) * density)
+            val (x1, y1) = geo.at(f, 2f * density)
             p.color = withAlpha(sky.ink, if (past) 0.35f else 0.95f)
             p.strokeWidth = (if (isNext) 3.2f else 2.4f) * density
             canvas.drawLine(x0, y0, x1, y1, p)
             if (pl.key == selected) {
-                val (dx, dy) = pt(f, g.r + 10f * density)
+                val (dx, dy) = geo.at(f, 10f * density)
                 p.style = Paint.Style.FILL
                 canvas.drawCircle(dx, dy, 3f * density, p)
                 p.style = Paint.Style.STROKE
@@ -236,7 +230,7 @@ object SkyPainter {
 
         // The sun (or the moon) on the dial at now, with a soft halo.
         p.style = Paint.Style.FILL
-        val (sx, sy) = pt(now)
+        val (sx, sy) = geo.at(now)
         val r = 9f * density
         p.shader = RadialGradient(sx, sy, r * 3f, intArrayOf(withAlpha(sky.sun, 0.4f), withAlpha(sky.sun, 0f)), null, Shader.TileMode.CLAMP)
         canvas.drawCircle(sx, sy, r * 3f, p)
@@ -249,19 +243,16 @@ object SkyPainter {
         }
     }
 
-    /** Where the dial sits in a [w] x [h] picture: its centre on the horizon and its radius, in pixels. */
+    private val CONDENSED: android.graphics.Typeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.NORMAL)
+    private val HOUR_LABELS = listOf(6 to "06", 12 to "12", 18 to "18")
+
+    /** Where the dial sits: its centre on the horizon at ([cx], [cy]) and its radius [r], in pixels. */
     class DialGeometry(val cx: Float, val cy: Float, val r: Float) {
         /** The point [f] (0..1 across the day) on the dial, pushed [out] pixels outward. */
         fun at(f: Float, out: Float = 0f): Pair<Float, Float> {
             val a = PI * (1 - f)
             return (cx + (r + out) * kotlin.math.cos(a)).toFloat() to (cy - (r + out) * sin(a)).toFloat()
         }
-    }
-
-    fun dialGeometry(w: Float, h: Float, density: Float, horizonAt: Float): DialGeometry {
-        val hy = h * horizonAt
-        val r = min(w / 2 - 34f * density, hy - 22f * density)
-        return DialGeometry(w / 2, hy, r)
     }
 
     /** Fixed star positions (x, y as shares of the sky; radius in dp). */

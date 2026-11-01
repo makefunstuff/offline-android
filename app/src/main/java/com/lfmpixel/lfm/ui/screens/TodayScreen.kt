@@ -292,7 +292,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
             }
         }
         if (isToday && !g.engine.canChat()) item(key = "nomodel") {
-            Card(Modifier.padding(horizontal = 10.dp, vertical = 16.dp).fillMaxWidth(), onClick = { nav.go(Route.Models) }) {
+            Card(Modifier.padding(16.dp).fillMaxWidth(), fill = c.wash, onClick = { nav.go(Route.Models) }) {
                 Column {
                     Txt("No model yet", LfmType.rowTitle)
                     Txt("The page works without one. Get LFM3-1.7B to ask questions and use Ink in the margin.", LfmType.small, c.text2)

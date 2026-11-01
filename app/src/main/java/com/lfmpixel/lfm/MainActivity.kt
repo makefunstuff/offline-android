@@ -45,7 +45,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.lfmpixel.lfm.data.EntryKind
@@ -470,21 +469,18 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
 
 /**
  * The bottom bar (docs/ux-spec.md, "Bottom bar"): the places as words, no boxes, and in the middle the pastel talk
- * button, the one way in that is there on every place. A tap opens Talk; a long-press opens a brain dump to write.
- * The place you are on is navy and bold with the sun's dot under it.
+ * button, there on every place. Ask opens the chat. The place you are on is navy and bold with the sun's dot under it.
  */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun BottomBar(nav: Nav) {
     val c = Lfm.c
-    val view = androidx.compose.ui.platform.LocalView.current
     Row(Modifier.fillMaxWidth().background(c.bg).height(76.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         @Composable
-        fun Place(label: String, route: Route, on: Boolean) {
-            Column(Modifier.weight(1f).height(76.dp).clickable(role = Role.Tab) {
+        fun Place(label: String, route: Route, on: Boolean, tab: Boolean = true) {
+            Column(Modifier.weight(1f).height(76.dp).clickable(role = if (tab) Role.Tab else Role.Button) {
                 if (route is Route.Library && nav.current is Route.Library) return@clickable
                 nav.go(route)
-            }.semantics { selected = on }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            }.let { if (tab) it.semantics { selected = on } else it }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Txt(label, LfmType.label.copy(fontWeight = if (on) androidx.compose.ui.text.font.FontWeight.Bold else null), if (on) c.text else c.text3, maxLines = 1)
                 Box(Modifier.padding(top = 5.dp).size(5.dp).background(if (on) c.highlight else Color.Transparent, LfmShape.round))
             }
@@ -492,14 +488,12 @@ internal fun BottomBar(nav: Nav) {
         Place("Today", Route.Today, nav.current == Route.Today)
         Place("Notebook", Route.Library(), nav.current is Route.Library)
         Box(Modifier.weight(1.1f), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(56.dp).clip(LfmShape.round).background(c.mic)
-                .combinedClickable(role = Role.Button, onClickLabel = "Talk", onLongClickLabel = "Brain dump",
-                    onLongClick = { view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); nav.go(Route.Dump()) }) { nav.go(Route.Talk) }
+            Box(Modifier.size(56.dp).clip(LfmShape.round).background(c.mic).clickable(role = Role.Button) { nav.go(Route.Talk) }
                 .semantics { contentDescription = "Talk to Inkling" }, contentAlignment = Alignment.Center) {
                 LIcon("mic", tint = c.onMic)
             }
         }
         Place("Plans", Route.Todos, nav.current == Route.Todos)
-        Place("Ask", Route.Chat, false)
+        Place("Ask", Route.Chat, false, tab = false)
     }
 }

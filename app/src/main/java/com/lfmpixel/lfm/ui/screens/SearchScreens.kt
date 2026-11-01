@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import com.lfmpixel.lfm.ui.components.callout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.lfmpixel.lfm.ui.components.RichTxt
@@ -99,7 +100,7 @@ fun QueryCard(req: SearchRequest) {
         }
         return
     }
-    Column(Modifier.fillMaxWidth().background(c.wash, shape).padding(12.dp)) {
+    Column(Modifier.fillMaxWidth().let { if (personal.isNotEmpty()) it.callout(c).padding(start = 4.dp) else it.background(c.wash, shape) }.padding(12.dp)) {
         if (personal.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("warn", size = 18.dp)
             Txt("This search has ${personal.first().kind.what}", LfmType.small.copy(fontWeight = FontWeight.Bold))
@@ -163,7 +164,7 @@ fun SearchCard(m: ChatMessage, onOpen: (Long) -> Unit) {
     Row(Modifier.fillMaxWidth().background(c.wash, LfmShape.card).let { if (id != null) it.clickable { onOpen(id) } else it }
         .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(36.dp).background(c.wash, LfmShape.round), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp).background(c.bg, LfmShape.round), contentAlignment = Alignment.Center) {
             LIcon(if (id != null) "globe" else "x")
         }
         Column(Modifier.weight(1f)) {
@@ -395,7 +396,7 @@ fun HandoffCard(g: AppGraph) {
     val st by g.handoff.status.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { g.handoff.refresh() }
     if (st == NetHandoff.Status.None) return
-    Column(Modifier.padding(top = 12.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(12.dp)) {
+    Column(Modifier.padding(top = 12.dp).fillMaxWidth().callout(c).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("globe", size = 18.dp)
             Txt(if (st == NetHandoff.Status.Done) "Inkling Net can be uninstalled" else "Bring over Inkling Net's settings",

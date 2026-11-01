@@ -21,16 +21,33 @@ Every screen is built to the same rules:
 3. **Time you can see.** The day is a half dial on Today's sky, the sun rides it to now, and the stretch to the next
    plan is drawn in the sun's yellow. "Now, for about 15 minutes" and "Next · 15:00 Dentist · in 5 hours" say it in
    words.
-4. **Capture in one tap, from anywhere.** The pastel talk button sits in the middle of the bottom bar on every place:
-   a tap opens Talk, a long-press a brain dump.
+4. **Capture in one tap.** The pastel talk button sits in the middle of the bottom bar on Today, Notebook and Plans,
+   and a brain dump is one tap from Today's sky.
 5. **Small wins, seen.** A ticked to-do fills with the sun and pops; nothing counted against you.
 6. **Easy resume.** Where was I, after 20 minutes away, with Resume as the one action word.
 7. **Forgiving.** Undo on every result, in the snackbar and under Talk's answers.
 
 ## 2. Colour
 
-The sky is unchanged from Daylight (`daylight/Sky.kt`, blended minute by minute; its inks read at 4.5:1). The page
-under it is one blue in four steps (`ui/theme/Theme.kt`):
+The sky is unchanged from Daylight: blended minute by minute between four looks (`daylight/Sky.kt`), with text on it in
+one of two inks that reads at 4.5:1 against both ends of the sky at every minute, in light and dark theme (unit-tested).
+
+| Part | Reached | Sky top → horizon | Sun | Ink |
+| --- | --- | --- | --- | --- |
+| Night | 20:30 – 05:00 | `#0E1630` → `#26305A` | moon `#DCE3F5`, a crescent | light `#F6F3EE` |
+| Dawn | 06:30 | `#9FB4D9` → `#F8CDB0` (peach) | `#FF9D5C` | dark `#0B1A2B` |
+| Day | 08:30 – 16:30 | `#8EC5F0` → `#E9F4FC` | `#FFD400`, the icon's highlighter | dark |
+| Dusk | 18:30 | `#3E3A78` (indigo) → `#F09A6B` (apricot) | `#FF7A45` | light |
+
+- **Dark theme** keeps the hour but dims the sky toward `#05070D` (45 % at the top, 50 % at the horizon).
+- Between a light and a dark look the sky leans a touch darker until the light ink reads; the ink turns twice a day,
+  at first and last light.
+- **The sky strip.** Every screen has the hour's sky under the status bar, and the status icons take its ink, so
+  Library or Settings still say what time of day it is. The camera keeps its black.
+- **The sky strip.** Every screen has the hour's sky under the status bar, and the status icons take its ink. The
+  camera keeps its black. On the sky, action words and soft surfaces take the sky's ink (`OnSky`).
+
+The page under the sky is one blue in four steps (`ui/theme/Theme.kt`):
 
 | Role | Light | Dark | Use |
 | --- | --- | --- | --- |
@@ -38,14 +55,20 @@ under it is one blue in four steps (`ui/theme/Theme.kt`):
 | `text` | `#0E2340` navy | `#E8F0F9` | what you read: the time, the task, titles |
 | `action` | `#2A66AE` | `#8EC5F0` | the one thing to tap, as a word (Start, Undo, Open) |
 | `text2` | `#3F6B98` | `#9DC2E6` | Inkling's voice, labels, the other action words |
-| `text3` | `#587393` | `#8098B6` | the quietest: unpicked tabs and places |
+| `text3` | `#546E8D` | `#8098B6` | the quietest: unpicked tabs and places |
 | `wash` | `#EAF1F8` | `#121B27` | the few surfaces left |
 | `highlight` | `#FFD400` | `#FFD400` | the one warm colour: the sun, time left, the highlighter, the sun's dot, a ticked to-do |
 | `mic` | `#FFEB9F` | `#FFEB9F` | the talk button: the highlighter mixed with white, a clean pastel, navy mic (13:1) |
 
-Contrast on `bg`: text 14.9:1, text2 5.3:1, text3 4.6:1, action 5.5:1 in light; all above 6:1 in dark.
+Contrast: text, text2 and text3 at least 4.5:1 and control edges 3:1 on `bg` and on `fill`; action at least 4.5:1 on `bg`
+and on the wash; navy on the pastel mic 13:1 (`ContrastTest`).
 
-## Controls
+**One look, guarded.** Colours, type sizes and corners come from `ui/theme`; the shared pieces are in `ui/components`.
+`DaylightGuardTest` fails the unit tests on a colour, type size or corner written out elsewhere, a stock Material piece
+outside the components, a platform dialog, a colour written out in a widget's layout, and an outlined box on a screen.
+`ScreenshotTest` draws the main screens in light and dark on the JVM (`build/outputs/roborazzi/`).
+
+## 2a. Controls
 
 - **Buttons are words** (`Btn`): the primary one bold in the action blue with the sun's dot before it, the others quiet
   blue words. No box, no edge; the 44 dp target is still there.
@@ -62,8 +85,8 @@ Contrast on `bg`: text 14.9:1, text2 5.3:1, text3 4.6:1, action 5.5:1 in light; 
 ### Bottom bar
 
 Today · Notebook · (talk) · Plans · Ask, as words; the place you are on is navy and bold with the sun's dot under it.
-The talk button in the middle opens Talk on a tap and a brain dump on a long-press. Talk and Ask moved here from
-Today's row of ways in; Look moved to the sky's corner.
+The talk button in the middle opens Talk; Ask opens the chat. Talk and Ask moved here from Today's row of ways in;
+Look moved to the sky's corner. The bar shows on the three places, as before.
 
 ## 3. Type
 
@@ -77,13 +100,14 @@ Three voices, all the phone's own fonts (nothing bundled, no licence to track):
 
 ## 4. Motion
 
-- **The sky never moves by itself**: it is redrawn when the minute changes (`rememberNow`).
+- **Nothing moves by itself.** The sky, the dial and the sun are redrawn when the minute changes and no more often
+  (`rememberNow`): no idle animation, no wake-ups, nothing for the battery.
 - **The sun rises** along Today's dial to now when Today first shows (900 ms, once a run).
 - **Talk's presence**: the sun inside a dial of 60 ticks; the ticks light round the dial with the voice level, and
   breathe (1.8 s) while it thinks. The only loop.
 - **Small wins**: a ticked to-do fills with the sun and pops with a soft spring.
 - **Tabs**: the highlighter's stroke draws in under the picked word (150 ms).
-- With "Remove animations" on, everything lands where it ends: no rise, no breath, no pop.
+- With "Remove animations" or Battery Saver on, everything lands where it ends: no rise, no breath, no pop.
 
 ## 5. Sound and haptics
 
@@ -143,7 +167,24 @@ The camera stays full-bleed black with its own glass controls.
 ### Notebook, Plans, Settings and the rest
 
 Paper under the hour's sky, each with its header on the sky. Settings groups sit on the wash with no edge; choices are
-words. The capture widget and the lock-screen widget keep Daylight's horizon painter (`daylight/HorizonWidget.kt`).
+words. A group that must stand out (a privacy warning, "Inkling is offline") has the highlighter's bar down its start
+edge (`callout`). Menus are the wash with a faint shadow; picking a day is a sheet with the highlighter on the chosen
+day.
+
+### Lock screen and widget
+
+**Inkling · Today**, a 4×2 widget (`daylight/HorizonWidget.kt`), declared for the home screen and the keyguard. It keeps
+Daylight's horizon (a wide strip suits the widget better than the dial):
+
+- the hour's sky with the horizon, today's plans and the sun (`SkyPainter.draw`);
+- the time as a live clock;
+- "Next · 15:00 Dentist" (said with its time, never "in 20 minutes", so a picture up to 30 minutes old still tells the
+  truth), or the day's sentence;
+- a tap opens Today.
+
+It is redrawn every 30 minutes and whenever Inkling is left. Android phones show keyguard widgets only where the
+launcher offers lock-screen widgets; a true lock-screen surface (Talk and Look from the lock screen), now possible
+with LFMP-9's single app, is not in this release.
 
 ## 8. No-nag rules (kept from the research)
 

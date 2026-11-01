@@ -250,6 +250,9 @@ class ContrastTest {
                 assertTrue("text3 ${c.dark}", ratio(c.text3, bg) >= 4.5)
                 assertTrue("control edges ${c.dark}", ratio(c.control, bg) >= 3.0)
             }
+            // Horizon Almanac: action words on the page and on the wash; the navy mic on the pastel talk button.
+            for (bg in listOf(c.bg, c.wash)) assertTrue("action ${c.dark}", ratio(c.action, bg) >= 4.5)
+            assertTrue("mic ${c.dark}", ratio(c.onMic, c.mic) >= 4.5)
             assertTrue("ink on the highlighter", ratio(c.onHighlight, c.highlight) >= 4.5)
             // Ink buttons: the page colour on ink.
             assertTrue(ratio(c.bg, c.text) >= 4.5)

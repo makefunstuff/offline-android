@@ -47,11 +47,11 @@ data class LfmColors(
     val onMic: Color,
 )
 
-// Contrast on bg: text 14.9:1, text2 5.3:1, text3 4.6:1, action 5.5:1, control 3.2:1 (light); 16.6, 10.3, 6.4, 10.4,
+// Contrast on bg and on fill: text 14.9:1, text2 5.3:1, text3 4.9:1, action 5.5:1, control 3.4:1 (light); 16.6, 10.3, 6.4, 10.4,
 // 3.9 (dark). Navy on the pastel mic 13.2:1.
 val LightColors = LfmColors(
-    bg = Color(0xFFF6F9FC), text = Color(0xFF0E2340), text2 = Color(0xFF3F6B98), text3 = Color(0xFF587393),
-    line = Color(0xFFE1E9F2), fill = Color(0xFFEAF1F8), control = Color(0xFF768DA9),
+    bg = Color(0xFFF6F9FC), text = Color(0xFF0E2340), text2 = Color(0xFF3F6B98), text3 = Color(0xFF546E8D),
+    line = Color(0xFFE1E9F2), fill = Color(0xFFEAF1F8), control = Color(0xFF738AA6),
     highlight = Color(0xFFFFD400), onHighlight = Color(0xFF0E2340), scrim = Color(0xFF0E2340), dark = false,
     wash = Color(0xFFEAF1F8), action = Color(0xFF2A66AE), mic = Color(0xFFFFEB9F), onMic = Color(0xFF0E2340),
 )
@@ -81,7 +81,7 @@ object CameraColors {
 }
 
 /** Inkling's own calendar in the phone's Calendar app: the page's ink, as ARGB. */
-const val CALENDAR_ARGB = 0xFF0E2340.toInt()
+const val CALENDAR_ARGB = 0xFF0B0B0C.toInt()
 
 /** The paint the line icons are built with; [androidx.compose.material3.Icon] tints it over, so it never shows. */
 val IconMask = Color(0xFF000000)
