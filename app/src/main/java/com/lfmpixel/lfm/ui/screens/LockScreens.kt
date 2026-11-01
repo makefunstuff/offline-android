@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import com.lfmpixel.lfm.ui.components.SkyPage
 import com.lfmpixel.lfm.ui.theme.LfmShape
@@ -50,7 +51,7 @@ fun Locked(g: AppGraph, title: String, body: String, prompt: String, modifier: M
     if (ask) LaunchedEffect(Unit) { g.lock.unlock(prompt) }
     Box(modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(56.dp).border(1.dp, c.control, LfmShape.card), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(56.dp).background(c.wash, LfmShape.card), contentAlignment = Alignment.Center) {
                 LIcon("lock", size = 26.dp, tint = c.text)
             }
             Txt(title, LfmType.header, modifier = Modifier.padding(top = 6.dp).semantics { heading() }, textAlign = TextAlign.Center)

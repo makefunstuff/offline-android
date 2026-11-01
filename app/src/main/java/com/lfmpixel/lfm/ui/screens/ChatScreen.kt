@@ -523,7 +523,7 @@ private fun QueuedSheet(g: AppGraph, q: com.lfmpixel.lfm.assistant.Queued, index
         Txt(if (size == 1) "Runs once the current answer ends." else "Number ${index + 1} of $size. They run in this order.", LfmType.small, c.text2,
             Modifier.padding(top = 4.dp))
         val shape = LfmShape.control
-        Box(Modifier.padding(top = 12.dp).fillMaxWidth().background(c.fill, shape).border(1.dp, c.control, shape).padding(12.dp)) {
+        Box(Modifier.padding(top = 12.dp).fillMaxWidth().background(c.wash, shape).padding(12.dp)) {
             androidx.compose.foundation.text.BasicTextField(text, { text = it }, textStyle = LfmType.body.copy(color = c.text),
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(c.text), minLines = 2, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Message" })
         }
@@ -544,7 +544,7 @@ private fun UserBubble(m: ChatMessage) {
     val c = Lfm.c
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         val shape = LfmShape.bubble
-        Column(Modifier.widthIn(max = 300.dp).background(c.fill, shape).border(1.dp, c.line, shape).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Column(Modifier.widthIn(max = 300.dp).background(c.wash, shape).padding(horizontal = 14.dp, vertical = 10.dp)) {
             if (m.media.isNotEmpty()) MediaThumb(m)
             if (m.voiceSeconds > 0) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(bottom = 4.dp)) {
@@ -624,9 +624,9 @@ fun ToolCard(m: ChatMessage, record: ActionRecord?, onUndo: (Long) -> Unit) {
     val status = record?.status
     val shape = LfmShape.card
     val failed = status == ActionStatus.Failed || status == ActionStatus.Cancelled
-    Row(Modifier.fillMaxWidth().border(1.dp, c.line, shape).padding(horizontal = 12.dp, vertical = 10.dp),
+    Row(Modifier.fillMaxWidth().background(c.wash, shape).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(36.dp).border(1.dp, c.line, LfmShape.control), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp).background(c.wash, LfmShape.round), contentAlignment = Alignment.Center) {
             LIcon(when { failed -> "x"; status == ActionStatus.Undone -> "undo"; m.cardLabel.startsWith("Added") -> "plus"; else -> "check" }, tint = c.text)
         }
         Column(Modifier.weight(1f)) {

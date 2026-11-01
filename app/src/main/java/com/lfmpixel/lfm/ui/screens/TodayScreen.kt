@@ -221,7 +221,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
         if (isToday) item(key = "sky") {
             SkyHead(g, now, com.lfmpixel.lfm.daylight.skyAt(now), timeline, page.count { it.kind == EntryKind.Todo && !it.done },
                 onDayBefore = { turn(day.minusDays(1)) }, onDump = { nav.go(Route.Dump()) }, onSettings = { nav.go(Route.Settings) },
-                onTalk = { nav.go(Route.Talk) }, onLook = { nav.go(Route.Camera) }, onAsk = { nav.go(Route.Chat) })
+                onLook = { nav.go(Route.Camera) })
         }
         else item(key = "head") {
             SkyBand {
@@ -243,7 +243,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
             }
         }
         item(key = "seal") {
-            Column(Modifier.padding(horizontal = 16.dp)) {
+            Column(Modifier.padding(horizontal = 24.dp)) {
                 // The seal (proposal 6): what left the phone that day, counted from the network log.
                 val left = sent.count { it.at < end }
                 val lockOn = prefs?.lockMode == com.lfmpixel.lfm.settings.LockMode.Journal
@@ -292,7 +292,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
             }
         }
         if (isToday && !g.engine.canChat()) item(key = "nomodel") {
-            Card(Modifier.padding(16.dp).fillMaxWidth(), onClick = { nav.go(Route.Models) }) {
+            Card(Modifier.padding(horizontal = 10.dp, vertical = 16.dp).fillMaxWidth(), onClick = { nav.go(Route.Models) }) {
                 Column {
                     Txt("No model yet", LfmType.rowTitle)
                     Txt("The page works without one. Get LFM3-1.7B to ask questions and use Ink in the margin.", LfmType.small, c.text2)
@@ -306,7 +306,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
 }
 
 @Composable
-private fun PageLabel(text: String) = Label(text, Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 4.dp))
+private fun PageLabel(text: String) = Label(text, Modifier.padding(start = 24.dp, end = 16.dp, top = 28.dp, bottom = 4.dp))
 
 /** "2 events · 3 to-dos · 1 carried over": the day in a line. */
 internal fun brief(timed: Int, openTodos: Int, carried: Int, lines: Int, isToday: Boolean): String {
@@ -322,7 +322,7 @@ internal fun brief(timed: Int, openTodos: Int, carried: Int, lines: Int, isToday
 @Composable
 private fun TimelineRow(item: AgendaItem, isNext: Boolean, zone: ZoneId) {
     val c = Lfm.c
-    Row(Modifier.fillMaxWidth().let { m -> item.onClick?.let { m.clickable(onClick = it) } ?: m }.heightIn(min = 44.dp).padding(horizontal = 16.dp, vertical = 6.dp),
+    Row(Modifier.fillMaxWidth().let { m -> item.onClick?.let { m.clickable(onClick = it) } ?: m }.heightIn(min = 44.dp).padding(horizontal = 24.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.width(56.dp)) {
             val t = item.at?.let { Instant.ofEpochMilli(it).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm")) } ?: ""
@@ -343,9 +343,9 @@ private fun Carried(g: AppGraph, nav: Nav, list: List<Entry>, today: LocalDate, 
     val shape = LfmShape.card
     fun moveTo(e: Entry, d: LocalDate?) = e.copy(dueAt = d?.atTime(9, 0)?.atZone(zone)?.toInstant()?.toEpochMilli(), dueHasTime = false,
         updatedAt = System.currentTimeMillis())
-    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp).fillMaxWidth().clip(shape).border(1.dp, c.line, shape).padding(start = 12.dp, end = 6.dp, top = 8.dp, bottom = 4.dp)) {
+    Column(Modifier.padding(start = 12.dp, end = 12.dp, top = 18.dp).fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Label("Still open · no rush", Modifier.weight(1f))
+            Label("Still open · no rush", Modifier.weight(1f).padding(start = 12.dp))
             if (list.size > 1) Btn("All to today", {
                 g.scope.launch {
                     list.forEach { g.db.entries().update(moveTo(it, today)) }
@@ -397,7 +397,7 @@ private fun PageLine(e: Entry, open: (Entry) -> Unit, actions: EntryActions, mod
     var menu by remember { mutableStateOf(false) }
     Box(modifier) {
         Row(Modifier.fillMaxWidth().combinedClickable(onClick = { open(e) }, onLongClick = { menu = true }, onLongClickLabel = "More")
-            .heightIn(min = 48.dp).padding(end = 16.dp, start = 4.dp), verticalAlignment = Alignment.Top) {
+            .heightIn(min = 48.dp).padding(end = 20.dp, start = 12.dp), verticalAlignment = Alignment.Top) {
             if (e.kind == EntryKind.Todo) CheckBox(e.done) { actions.done(e, it) }
             else Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                 LIcon(if (e.isQuote()) "quote" else if (e.isDump()) "cloud" else e.kind.icon(), size = 17.dp, tint = c.text2)
@@ -489,7 +489,6 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
         }
     }
     Column {
-        Divider()
         AnimatedVisibility(draft.isNotBlank(), enter = LfmMotion.appear(), exit = LfmMotion.leave()) {
             val detail = when (kind) {
                 InkKind.Todo -> "To-do · today"
@@ -511,14 +510,14 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
                         MenuItem(k.label, { kinds = false; picked = k.name }, icon = k.icon)
                     }
                 }
-                Box(Modifier.size(34.dp).clip(shape).background(c.fill).border(1.dp, c.line, shape), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(36.dp).clip(LfmShape.round).background(c.wash), contentAlignment = Alignment.Center) {
                     AnimatedContent(kind, transitionSpec = {
                         androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(LfmMotion.SHORT)) togetherWith androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(LfmMotion.TINY))
                     }, label = "glyph") { k -> LIcon(k.icon, size = 18.dp, tint = c.text) }
                 }
             }
             val fieldShape = LfmShape.card
-            Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(fieldShape).border(1.dp, c.control, fieldShape).padding(horizontal = 12.dp, vertical = 10.dp),
+            Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(fieldShape).background(c.wash).padding(horizontal = 14.dp, vertical = 10.dp),
                 contentAlignment = Alignment.CenterStart) {
                 if (draft.isEmpty()) Txt("Write a line…", LfmType.body, c.text2, maxLines = 1)
                 BasicTextField(draft, { draft = it; if (it.isBlank()) picked = null }, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text),

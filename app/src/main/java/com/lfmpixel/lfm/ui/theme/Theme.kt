@@ -19,8 +19,11 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
 /**
- * Daylight's page (docs/ux-spec.md, "Palette by hour"): paper and ink under the hour's sky, the highlighter yellow as the
- * one accent, and [wash] for Inkling's own cards (Now, the plan, Where was I), the pale of the day sky's horizon.
+ * Horizon Almanac's page (docs/ux-spec.md, "Colour"): sky-tinted paper under the hour's sky, and one blue in four steps
+ * for the order of importance: [text] (navy) for what you read, [action] for the one thing to tap, [text2] for
+ * Inkling's voice and quiet labels, [text3] for the quietest. The highlighter yellow is the one warm colour (the sun,
+ * the time left, the stroke under what matters now); [mic] is its pastel, for the talk button. [wash] is the pale of
+ * the day sky's horizon, under the few things that still need a surface (the message box, a search line).
  * The sky's colours are in daylight/Sky.kt; these are the only other colours the app draws with (DaylightGuardTest).
  */
 @Immutable
@@ -37,20 +40,27 @@ data class LfmColors(
     val scrim: Color,
     val dark: Boolean,
     val wash: Color,
+    /** The one thing to tap on a screen (Start, Undo, Open), as words: no box around it. */
+    val action: Color,
+    /** The talk button: the highlighter mixed with white, a clean pastel. */
+    val mic: Color,
+    val onMic: Color,
 )
 
+// Contrast on bg: text 14.9:1, text2 5.3:1, text3 4.6:1, action 5.5:1, control 3.2:1 (light); 16.6, 10.3, 6.4, 10.4,
+// 3.9 (dark). Navy on the pastel mic 13.2:1.
 val LightColors = LfmColors(
-    bg = Color(0xFFFFFFFF), text = Color(0xFF0B0B0C), text2 = Color(0xFF5C5C62), text3 = Color(0xFF6E6E75),
-    line = Color(0xFFE4E4E7), fill = Color(0xFFF4F4F5), control = Color(0xFF8B8B92),
-    highlight = Color(0xFFFFD400), onHighlight = Color(0xFF0B0B0C), scrim = Color(0xFF0B0B0C), dark = false,
-    wash = Color(0xFFE9F4FC),
+    bg = Color(0xFFF6F9FC), text = Color(0xFF0E2340), text2 = Color(0xFF3F6B98), text3 = Color(0xFF587393),
+    line = Color(0xFFE1E9F2), fill = Color(0xFFEAF1F8), control = Color(0xFF768DA9),
+    highlight = Color(0xFFFFD400), onHighlight = Color(0xFF0E2340), scrim = Color(0xFF0E2340), dark = false,
+    wash = Color(0xFFEAF1F8), action = Color(0xFF2A66AE), mic = Color(0xFFFFEB9F), onMic = Color(0xFF0E2340),
 )
 
 val DarkColors = LfmColors(
-    bg = Color(0xFF09090A), text = Color(0xFFF2F2F3), text2 = Color(0xFF9D9DA4), text3 = Color(0xFF86868D),
-    line = Color(0xFF27272A), fill = Color(0xFF161618), control = Color(0xFF6A6A72),
-    highlight = Color(0xFFFFD400), onHighlight = Color(0xFF09090A), scrim = Color(0xFF000000), dark = true,
-    wash = Color(0xFF111824),
+    bg = Color(0xFF0A1019), text = Color(0xFFE8F0F9), text2 = Color(0xFF9DC2E6), text3 = Color(0xFF8098B6),
+    line = Color(0xFF1A2533), fill = Color(0xFF121B27), control = Color(0xFF5B7393),
+    highlight = Color(0xFFFFD400), onHighlight = Color(0xFF0E2340), scrim = Color(0xFF000000), dark = true,
+    wash = Color(0xFF121B27), action = Color(0xFF8EC5F0), mic = Color(0xFFFFEB9F), onMic = Color(0xFF0E2340),
 )
 
 /**
@@ -71,7 +81,7 @@ object CameraColors {
 }
 
 /** Inkling's own calendar in the phone's Calendar app: the page's ink, as ARGB. */
-const val CALENDAR_ARGB = 0xFF0B0B0C.toInt()
+const val CALENDAR_ARGB = 0xFF0E2340.toInt()
 
 /** The paint the line icons are built with; [androidx.compose.material3.Icon] tints it over, so it never shows. */
 val IconMask = Color(0xFF000000)
@@ -82,12 +92,14 @@ object Lfm {
     val c: LfmColors @Composable get() = LocalLfm.current
 }
 
-/** Daylight's corners: square-ish controls, slightly softer cards, round only for marks that are circles. */
+/** Horizon Almanac's corners: soft, few of them (most things have no box at all), round for the talk button and dots. */
 object LfmShape {
-    /** Buttons, fields, tabs, switches, chips. */
-    val control = RoundedCornerShape(6.dp)
-    /** Cards, groups, the composer, the snackbar, the big buttons. */
-    val card = RoundedCornerShape(8.dp)
+    /** A tap's ripple, a field. */
+    val control = RoundedCornerShape(12.dp)
+    /** The few surfaces left: the message box, the snackbar, a menu. */
+    val card = RoundedCornerShape(16.dp)
+    /** A pill: the message box, a search line, the snackbar. */
+    val pill = RoundedCornerShape(50)
     /** Tags and small badges. */
     val tag = RoundedCornerShape(4.dp)
     /** Tiny marks: a status dot, a bar, the grab handle. */
@@ -95,7 +107,7 @@ object LfmShape {
     /** A switch's thumb. */
     val thumb = RoundedCornerShape(3.dp)
     /** Bottom sheets: their top corners. */
-    val sheet = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+    val sheet = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     /** Circles: a progress disc, a dot, a numbered step. */
     val round = RoundedCornerShape(50)
     /** A chat bubble: the corner by the speaker is tucked in. */
@@ -110,12 +122,26 @@ object LfmShape {
     val viewfinder = RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)
 }
 
-/** Roboto is the system font on the Pixel; FontFamily.Default is it. */
+/**
+ * Three voices (docs/ux-spec.md, "Type"): Roboto Condensed Bold for what matters now (the time, the one task, titles);
+ * the phone's serif for Inkling's own words; Roboto for your words and the controls. All three are the phone's own
+ * fonts (nothing bundled, no licence to track); FontFamily.Default is Roboto on the Pixel.
+ */
 object LfmType {
     private val f = FontFamily.Default
-    val title = TextStyle(fontFamily = f, fontSize = 32.sp, lineHeight = 35.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.025).em)
-    val title2 = TextStyle(fontFamily = f, fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.02).em)
-    val header = TextStyle(fontFamily = f, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.01).em)
+    @OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+    private val condensed = FontFamily(
+        androidx.compose.ui.text.font.Font(androidx.compose.ui.text.font.DeviceFontFamilyName("sans-serif-condensed"), FontWeight.Bold),
+        androidx.compose.ui.text.font.Font(androidx.compose.ui.text.font.DeviceFontFamilyName("sans-serif-condensed"), FontWeight.Medium),
+    )
+    val title = TextStyle(fontFamily = condensed, fontSize = 34.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.01).em)
+    val title2 = TextStyle(fontFamily = condensed, fontSize = 32.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.01).em)
+    val header = TextStyle(fontFamily = condensed, fontSize = 21.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold)
+    /** The one thing to do now, printed big (Today's Now, Focus). */
+    val task = TextStyle(fontFamily = condensed, fontSize = 30.sp, lineHeight = 33.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.005).em)
+    /** An action word: Start, Undo, Open. Bold, in the action blue, with no box. */
+    val action = TextStyle(fontFamily = f, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
+    val actionSmall = action.copy(fontSize = 13.sp, lineHeight = 18.sp)
     val big = TextStyle(fontFamily = f, fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium, letterSpacing = (-0.02).em, fontFeatureSettings = "tnum")
     val bigger = TextStyle(fontFamily = f, fontSize = 30.sp, lineHeight = 30.sp, fontWeight = FontWeight.Medium, letterSpacing = (-0.03).em, fontFeatureSettings = "tnum")
     val answer = TextStyle(fontFamily = f, fontSize = 19.sp, lineHeight = 25.sp, fontWeight = FontWeight.Medium, letterSpacing = (-0.01).em)
@@ -141,13 +167,13 @@ object LfmType {
     val voice = TextStyle(fontFamily = serif, fontSize = 21.sp, lineHeight = 28.sp, letterSpacing = (-0.005).em)
     /** Talk's caption of what Inkling says now. */
     val caption = TextStyle(fontFamily = serif, fontSize = 26.sp, lineHeight = 34.sp, letterSpacing = (-0.01).em)
-    val clock = TextStyle(fontFamily = f, fontSize = 64.sp, lineHeight = 66.sp, fontWeight = FontWeight.Light, letterSpacing = (-0.03).em, fontFeatureSettings = "tnum")
+    val clock = TextStyle(fontFamily = condensed, fontSize = 60.sp, lineHeight = 62.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.01).em, fontFeatureSettings = "tnum")
     /** Inkling's longer words: a chat answer, a recap, a web answer. */
     val voiceBody = TextStyle(fontFamily = serif, fontSize = 17.sp, lineHeight = 26.sp)
     /** Inkling's one big sentence on a screen of its own: first run, Privacy. */
     val voiceTitle = TextStyle(fontFamily = serif, fontSize = 30.sp, lineHeight = 37.sp, letterSpacing = (-0.015).em)
     /** Focus's minutes in the middle of the disc. */
-    val timer = TextStyle(fontFamily = f, fontSize = 40.sp, lineHeight = 42.sp, fontWeight = FontWeight.Light, letterSpacing = (-0.03).em, fontFeatureSettings = "tnum")
+    val timer = TextStyle(fontFamily = condensed, fontSize = 44.sp, lineHeight = 46.sp, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum")
     /** A citation's number in an answer, and the box it sits in. */
     val cite = TextStyle(fontFamily = f, fontSize = 10.sp, lineHeight = 10.sp, fontWeight = FontWeight.SemiBold)
     val citeWidth = 18.sp
@@ -156,7 +182,7 @@ object LfmType {
 
     /** Material's own type scale, for the few stock pieces drawn inside the shared components (menus, the date picker). */
     val material = Typography(
-        displaySmall = clock.copy(fontSize = 36.sp, lineHeight = 44.sp), headlineLarge = title, headlineMedium = title2,
+        displaySmall = clock.copy(fontSize = 36.sp, lineHeight = 44.sp, fontFamily = f, fontWeight = FontWeight.Light), headlineLarge = title, headlineMedium = title2,
         headlineSmall = big.copy(fontFeatureSettings = null), titleLarge = header, titleMedium = rowTitle, titleSmall = button,
         bodyLarge = bodyLarge, bodyMedium = body, bodySmall = meta, labelLarge = button, labelMedium = label, labelSmall = meta,
     )

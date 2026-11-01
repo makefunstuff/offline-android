@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.foundation.background
 import android.app.StatusBarManager
 import com.lfmpixel.lfm.ui.theme.LfmShape
 import android.app.role.RoleManager
@@ -93,7 +94,7 @@ fun VoiceSettingsScreen(g: AppGraph, nav: Nav) {
             SectionLabel("Language")
             Txt("What Talk listens for and answers in, and the accent read-aloud uses.", LfmType.small, c.text2, Modifier.padding(bottom = 8.dp))
             val shown = if (allLanguages) SpeechLanguage.entries else SpeechLanguage.entries.take(4).let { if (p.speechLanguage in it) it else it + p.speechLanguage }
-            Column(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card)) {
+            Column(Modifier.fillMaxWidth().background(c.wash, LfmShape.card)) {
                 shown.forEachIndexed { i, l ->
                     if (i > 0) Divider()
                     val on = l == p.speechLanguage
@@ -143,7 +144,7 @@ fun VoiceSettingsScreen(g: AppGraph, nav: Nav) {
 @Composable
 private fun WayIn(title: String, detail: String, action: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = Lfm.c
-    Row(modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
+    Row(modifier.fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(Modifier.weight(1f)) {
             Txt(title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))

@@ -61,3 +61,11 @@ fun SkyCanvas(sky: Sky, layout: HorizonLayout, modifier: Modifier = Modifier, se
             arcHeight = arcHeight?.toPx()) }
     }
 }
+
+/** Today's sky with the day as a half dial ([SkyPainter.drawDial]). */
+@Composable
+fun DialCanvas(sky: Sky, layout: HorizonLayout, horizonAt: Float, modifier: Modifier = Modifier, selected: String? = null, sunAt: Float = 1f) {
+    Canvas(modifier) {
+        drawIntoCanvas { SkyPainter.drawDial(it.nativeCanvas, size.width, size.height, density, sky, layout, selected, horizonAt, sunAt) }
+    }
+}

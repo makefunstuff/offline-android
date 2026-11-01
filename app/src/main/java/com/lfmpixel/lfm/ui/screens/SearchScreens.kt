@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.lfmpixel.lfm.ui.components.RichTxt
 import com.lfmpixel.lfm.ui.components.FlatSheet
@@ -86,7 +87,7 @@ fun QueryCard(req: SearchRequest) {
     val shape = LfmShape.card
     val personal = req.personal
     if (personal.isEmpty() && !editing) {
-        Row(Modifier.fillMaxWidth().border(1.dp, c.control, shape).padding(10.dp), verticalAlignment = Alignment.CenterVertically,
+        Row(Modifier.fillMaxWidth().background(c.wash, shape).padding(10.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("globe", size = 18.dp)
             Column(Modifier.weight(1f)) {
@@ -98,7 +99,7 @@ fun QueryCard(req: SearchRequest) {
         }
         return
     }
-    Column(Modifier.fillMaxWidth().border(1.dp, if (personal.isNotEmpty()) c.text else c.control, shape).padding(12.dp)) {
+    Column(Modifier.fillMaxWidth().background(c.wash, shape).padding(12.dp)) {
         if (personal.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("warn", size = 18.dp)
             Txt("This search has ${personal.first().kind.what}", LfmType.small.copy(fontWeight = FontWeight.Bold))
@@ -109,7 +110,7 @@ fun QueryCard(req: SearchRequest) {
                 Label("Search the web for")
                 if (editing) {
                     val fieldShape = LfmShape.control
-                    Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 40.dp).border(1.dp, c.control, fieldShape).padding(horizontal = 10.dp, vertical = 9.dp)) {
+                    Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 40.dp).background(c.wash, fieldShape).padding(horizontal = 10.dp, vertical = 9.dp)) {
                         BasicTextField(text, { text = it }, textStyle = LfmType.small.copy(color = c.text, fontWeight = FontWeight.Bold),
                             cursorBrush = SolidColor(c.text), modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search words" })
                     }
@@ -159,10 +160,10 @@ private fun markWords(text: String, words: List<String>): AnnotatedString {
 fun SearchCard(m: ChatMessage, onOpen: (Long) -> Unit) {
     val c = Lfm.c
     val id = m.searchId?.takeIf { it > 0 }
-    Row(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).let { if (id != null) it.clickable { onOpen(id) } else it }
+    Row(Modifier.fillMaxWidth().background(c.wash, LfmShape.card).let { if (id != null) it.clickable { onOpen(id) } else it }
         .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(36.dp).border(1.dp, c.line, LfmShape.control), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(36.dp).background(c.wash, LfmShape.round), contentAlignment = Alignment.Center) {
             LIcon(if (id != null) "globe" else "x")
         }
         Column(Modifier.weight(1f)) {
@@ -230,7 +231,7 @@ fun SearchScreen(g: AppGraph, nav: Nav, id: Long) {
         val sources = SearchSource.decode(r.sources)
         val read = sources.count { it.read }
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            Row(Modifier.padding(vertical = 14.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 12.dp, vertical = 10.dp),
+            Row(Modifier.padding(vertical = 14.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 LIcon("globe", size = 18.dp)
                 Column(Modifier.weight(1f)) {
@@ -394,7 +395,7 @@ fun HandoffCard(g: AppGraph) {
     val st by g.handoff.status.collectAsState()
     androidx.compose.runtime.LaunchedEffect(Unit) { g.handoff.refresh() }
     if (st == NetHandoff.Status.None) return
-    Column(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, c.text, LfmShape.card).padding(12.dp)) {
+    Column(Modifier.padding(top = 12.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LIcon("globe", size = 18.dp)
             Txt(if (st == NetHandoff.Status.Done) "Inkling Net can be uninstalled" else "Bring over Inkling Net's settings",
@@ -419,7 +420,7 @@ fun HandoffCard(g: AppGraph) {
 @Composable
 fun ToggleRow(title: String, detail: String, on: Boolean, onChange: (Boolean) -> Unit) {
     val c = Lfm.c
-    Row(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
+    Row(Modifier.fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Column(Modifier.weight(1f)) {
             Txt(title, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))

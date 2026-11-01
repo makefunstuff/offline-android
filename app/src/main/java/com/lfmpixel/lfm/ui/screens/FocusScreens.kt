@@ -318,7 +318,7 @@ private fun DumpRow(item: DumpSort.Item, kept: Boolean, onToggle: (() -> Unit)?,
         verticalAlignment = Alignment.CenterVertically) {
         // Kept: on the wash, in ink; left out: only an outline.
         Box(Modifier.size(36.dp).clip(LfmShape.round).background(if (kept) c.wash else androidx.compose.ui.graphics.Color.Transparent)
-            .border(1.dp, if (kept) c.wash else c.line, LfmShape.round)
+            .border(1.dp, if (kept) c.wash else c.control, LfmShape.round)
             .let { m -> onKind?.let { m.clickable(onClickLabel = "Change kind", onClick = it) } ?: m }, contentAlignment = Alignment.Center) {
             LIcon(when (item.kind) { InkKind.Todo -> "todo"; InkKind.Idea -> "bulb"; InkKind.Journal -> "book"; else -> "note" }, size = 17.dp, tint = if (kept) c.text else c.text3)
         }
