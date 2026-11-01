@@ -130,6 +130,14 @@ class MemoryEvolvesTest {
         assertEquals(MemoryCommand.Cmd.Forget("I like coffee"), MemoryCommand.parse("Can you forget that I like coffee?"))
         assertEquals(MemoryCommand.Cmd.Forget("my address", explicit = false), MemoryCommand.parse("Forget my address"))
         assertEquals(MemoryCommand.Cmd.Forget("Ana"), MemoryCommand.parse("Forget what I said about Ana"))
+        for (t in listOf("Remember: call the bank", "Remember, dentist on Friday at 3", "Remember my umbrella", "Remember I parked on level 3",
+            "Remember that I'm out on Friday")) assertNull(t, MemoryCommand.parse(t))
+        assertEquals(MemoryCommand.Cmd.Remember("Ana's birthday is on Friday"), MemoryCommand.parse("Remember that Ana's birthday is on Friday"))
+        // Working with someone is not an employer; trying to do something once is not a goal.
+        assertTrue(FactRules.find("I work with Tom on the quarterly report.").none { it.key == "place:work" })
+        for (t in listOf("Why does it crash when I'm trying to open the camera?", "I'm trying to fix this error in my code", "I plan to call my mum tomorrow"))
+            assertTrue(t, FactRules.find(t, chat = true).none { it.kind == FactKind.Goal })
+        assertEquals("You want to run a marathon with my brother".replace("my", "your"), FactRules.find("My goal is to run a marathon with my brother").single().text)
         // Reminders never become lasting facts through the rules either.
         for (t in listOf("Remember to buy milk", "Remember that my meeting is at 3pm tomorrow", "Remember that I need to call mum", "Remind me to call mum tonight"))
             assertTrue(t, FactRules.find(t, chat = true).isEmpty())
@@ -320,9 +328,16 @@ class MemoryEvolvesTest {
         File(out, "past-conversation.txt").writeText(c.turn)
         assertTrue(c.turn, c.turn.contains("From past conversations") && c.turn.contains("tulips by the fence"))
 
-        // Deleting a conversation: no longer recalled.
-        memory.deleteEpisode(memory.episodes.value.first { it.kind == "chat" }.id)
+        // Clear chats: what was kept from chats goes too.
+        val kept = memory.episodes.value.size
+        memory.forgetChats()
+        assertEquals(kept - 1, memory.episodes.value.size)
+        assertTrue(memory.episodes.value.none { it.kind == "chat" })
         assertFalse(memory.context("What did I say about the garden?", 4096).turn.contains("tulips"))
+        // Deleting a conversation: no longer recalled.
+        assertTrue(memory.context("What did I say about Kenji?", 4096).turn.contains("Kenji"))
+        memory.deleteEpisode(memory.episodes.value.single().id)
+        assertFalse(memory.context("What did I say about Kenji?", 4096).turn.contains("From past conversations"))
     }
 
     @Test fun oldChatsAreNotReadAfterTheUpdate() = runBlocking {

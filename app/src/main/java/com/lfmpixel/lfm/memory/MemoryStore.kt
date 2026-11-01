@@ -545,6 +545,14 @@ class MemoryStore(
         saveFacts(_facts.value.filter { it.id != id })
     }
 
+    /** Clear chats: the conversations kept from chats go too, and the chats being cleared are never kept. */
+    suspend fun forgetChats() = lock.withLock {
+        loadLocked()
+        saveEpisodes(_episodes.value.filter { it.kind != "chat" })
+        meta = meta.copy(episodeSeen = maxOf(meta.episodeSeen, db.messages().maxId() ?: 0))
+        saveMeta()
+    }
+
     /** The owner deleted a conversation: Wren no longer recalls it (facts already learned from it stay, each deletable). */
     suspend fun deleteEpisode(id: Long) = lock.withLock { saveEpisodes(_episodes.value.filter { it.id != id }) }
 

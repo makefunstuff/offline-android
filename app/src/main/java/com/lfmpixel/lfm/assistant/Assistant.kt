@@ -247,10 +247,10 @@ class Assistant(
     /** Clear chats: messages still waiting go too, with their file. */
     fun clearQueue() = mutate { emptyList() }
 
-    fun newChat() {
+    /** [keep]: the chat that ends becomes a conversation Wren remembers (not when chats are being cleared). */
+    fun newChat(keep: Boolean = true) {
         stop()
-        // The chat that ends becomes a conversation Wren remembers.
-        memory?.chatEnded(_thread.value)
+        if (keep) memory?.chatEnded(_thread.value)
         // Messages still waiting are not dropped: they run in the new chat.
         threadSet = true
         _thread.value = _thread.value + 1
@@ -298,7 +298,8 @@ class Assistant(
             db.messages().insert(ChatMessage(threadId = _thread.value, role = Role.User, text = input.text, voiceSeconds = input.voiceSeconds,
                 media = see?.kind?.name.orEmpty(), mediaPath = see?.thumbPath.orEmpty(), mediaLabel = see?.label.orEmpty()))
             // "Remember that…" and "Forget that…" are done by the memory itself, at once, with or without a model.
-            val remembered = if (see == null) memory?.let { m ->
+            // Not for Today's captures: "Remember: call the bank" there is a note or a reminder.
+            val remembered = if (see == null && input.source != "today") memory?.let { m ->
                 try { m.command(input.text) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { null }
             } else null
             when {

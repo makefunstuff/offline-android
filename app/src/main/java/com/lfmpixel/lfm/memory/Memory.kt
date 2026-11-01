@@ -124,11 +124,11 @@ object FactRules {
     private val relationAfter = Regex("""\b($NAME),? (?:is )?my ($RELATIONS)\b""")
     private val birthday = Regex("""\b($NAME)'s birthday(?: is| on|:)? ([\p{L}\d ]{3,20}?)(?:[.,;!]|$)""")
     private val live = Regex("""\bi (?:live|moved) (?:in|to) ([\p{L}][\p{L} '-]{1,30}?)(?:[.,;!]|\band\b|$)""", RegexOption.IGNORE_CASE)
-    private val work = Regex("""\bi (?:work|now work|started working|(?:started|got|have) a new job) (?:at|for|with) ([\p{L}\d][\p{L}\d &'-]{1,30}?)(?:[.,;!]|\band\b|\bas\b|$)""", RegexOption.IGNORE_CASE)
+    private val work = Regex("""\bi (?:work|now work|started working|(?:started|got|have) a new job) (?:at|for) ([\p{L}\d][\p{L}\d &'-]{1,30}?)(?:[.,;!]|\band\b|\bas\b|$)""", RegexOption.IGNORE_CASE)
     private val like = Regex("""\bi (really |)(love|like|enjoy|adore|hate|dislike|can't stand|cannot stand|don't like|do not like) ([^.,;!?]{3,50})""", RegexOption.IGNORE_CASE)
     private val prefer = Regex("""\bi (?:prefer|would rather|'d rather) ([^.;!?]{3,60})""", RegexOption.IGNORE_CASE)
     private val routine = Regex("""\b(?:i (?:usually|always|normally|tend to)|every (?:morning|evening|night|day|weekday|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday),? i) ([^.;!?]{3,60})""", RegexOption.IGNORE_CASE)
-    private val goal = Regex("""\b(?:my goal is to|i'm trying to|i am trying to|i plan to|i hope to|this year i want to|i'm saving (?:up )?for|i am saving (?:up )?for) ([^.,;!?]{3,60})""", RegexOption.IGNORE_CASE)
+    private val goal = Regex("""\b(?:my goal is to|this year i want to|i'm saving (?:up )?for|i am saving (?:up )?for) ([^.,;!?]{3,60})""", RegexOption.IGNORE_CASE)
     private val project = Regex("""\bi(?:'m| am) (?:working on|building|writing|learning|training for) ([^.,;!?]{3,50})""", RegexOption.IGNORE_CASE)
     private val wants = Regex("""^(?:please |from now on,? |in future,? )?((?:always |never |don't |do not )?(?:keep|answer|reply|call me|use|write|give|remind me|speak|talk)\b[^.!?]{3,80})""", RegexOption.IGNORE_CASE)
     private val boring = Regex("""^(?:it|that|this|them|you|to)\b""", RegexOption.IGNORE_CASE)
@@ -167,9 +167,9 @@ object FactRules {
                 val lead = if (head.lowercase().startsWith("every")) head.replace(Regex(""",?\s+i$""", RegexOption.IGNORE_CASE), "").cap() + ", you " else "You usually "
                 out += Found(FactKind.Routine, lead + m.groupValues[1].trim(), "routine:" + Words.content(m.groupValues[1]).take(3).joinToString(" "))
             }
-            goal.find(sentence)?.let { m ->
+            goal.find(sentence)?.takeIf { !sentence.endsWith("?") && !MemoryCommand.timely(sentence) }?.let { m ->
                 val saving = m.value.lowercase().contains("saving")
-                out += Found(FactKind.Goal, (if (saving) "You're saving for " else "You want to ") + m.groupValues[1].trim(), "goal:" + Words.content(m.groupValues[1]).take(3).joinToString(" "))
+                out += Found(FactKind.Goal, (if (saving) "You're saving for " else "You want to ") + you(m.groupValues[1].trim()), "goal:" + Words.content(m.groupValues[1]).take(3).joinToString(" "))
             }
             project.find(sentence)?.let { m -> out += Found(FactKind.Project, "You're working on ${m.groupValues[1].trim()}", "project:" + Words.content(m.groupValues[1]).take(3).joinToString(" ")) }
             if (chat) {
@@ -527,13 +527,14 @@ object MemoryCommand {
      * leave"): left to the model and its tools, never kept as a lasting fact.
      */
     private val timely = Regex("""\b(?:today|tonight|tomorrow|this (?:morning|afternoon|evening|week|weekend)|next (?:week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|""" +
-        """when i|before i|after i|""" +
+        """when i|before i|after i|(?<!birthday is )on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|""" +
         """need to|have to|got to|must|appointment|meeting|in \d+ (?:minutes?|hours?|days?))\b""", RegexOption.IGNORE_CASE)
     private val all = Regex("""^(?:everything|all of it|all|everything you know|everything about me|all you know)$""", RegexOption.IGNORE_CASE)
 
     private val forgetAll = Regex(LEAD + """forget\s+(?:everything|all of it|all|everything you know|everything about me|all you know)[\s.!]*$""", RegexOption.IGNORE_CASE)
 
     fun timely(text: String) = timely.containsMatchIn(text)
+    private val aboutMe = Regex("""^(?:i'm|i am|i (?:like|love|prefer|hate|don't like|can't stand)|my \w+(?: \w+)? (?:is|are|was)\b)""", RegexOption.IGNORE_CASE)
 
     fun parse(text: String): Cmd? {
         // "Can you remember that…?" asks for it all the same; any other question is just a question.
@@ -550,7 +551,10 @@ object MemoryCommand {
         if (t.endsWith("?")) return null
         (remember.find(t) ?: rememberMine.find(t))?.let { m ->
             val what = m.groupValues[1].trim()
-            if (!timely.containsMatchIn(what)) return Cmd.Remember(what)
+            // Without "that", only what reads as a fact about the owner ("Remember, I'm vegetarian"), not a to-do
+            // ("Remember: call the bank", "remember my umbrella").
+            val plain = Regex("""(?i)remember\s+that\b|forget\s+that\b""").containsMatchIn(t)
+            if (!timely.containsMatchIn(what) && (plain || aboutMe.containsMatchIn(what) || FactRules.find(what).isNotEmpty())) return Cmd.Remember(what)
         }
         return null
     }
