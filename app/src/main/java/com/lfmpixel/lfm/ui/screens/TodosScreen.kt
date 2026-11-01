@@ -124,7 +124,7 @@ fun TodosScreen(g: AppGraph, nav: Nav, onMic: () -> Unit, listening: Boolean) {
                         TodoRow(e, false, endOfToday, actions) { nav.go(Route.Editor(e.id, e.kind)) }
                     }
                 }
-                item { Spacer(Modifier.height(24.dp)) }
+                item { Spacer(Modifier.height(96.dp)) }
             }
         }
     }

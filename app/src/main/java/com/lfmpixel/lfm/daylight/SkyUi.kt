@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import com.lfmpixel.lfm.ui.theme.LfmType
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LocalLfm
 import kotlinx.coroutines.delay
@@ -60,6 +61,7 @@ fun DialCanvas(sky: Sky, layout: HorizonLayout, horizon: androidx.compose.ui.uni
                modifier: Modifier = Modifier, selected: String? = null, sunAt: Float = 1f) {
     Canvas(modifier) {
         val geo = SkyPainter.DialGeometry(size.width / 2, horizon.toPx(), radius.toPx())
-        drawIntoCanvas { SkyPainter.drawDial(it.nativeCanvas, size.width, size.height, density, sky, layout, geo, selected, sunAt) }
+        drawIntoCanvas { SkyPainter.drawDial(it.nativeCanvas, size.width, size.height, density, sky, layout, geo, selected, sunAt,
+            labelPx = LfmType.dialHour.fontSize.toPx()) }
     }
 }

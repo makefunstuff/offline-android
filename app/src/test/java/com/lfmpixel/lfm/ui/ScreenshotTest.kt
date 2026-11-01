@@ -75,9 +75,11 @@ class ScreenshotTest {
 
     @After fun tearDown() { DayClock.offset.value = 0L }
 
-    private fun shot(name: String, tabs: Boolean = false, route: Route = Route.Today, screen: @Composable (Nav) -> Unit) {
+    private fun shot(name: String, tabs: Boolean = false, route: Route = Route.Today, fontScale: Float = 1f, screen: @Composable (Nav) -> Unit) {
         for (dark in listOf(false, true)) {
             captureRoboImage("build/outputs/roborazzi/${name}_${if (dark) "dark" else "light"}.png") {
+                val d = androidx.compose.ui.platform.LocalDensity.current
+                androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, d.fontScale * fontScale)) {
                 LfmTheme(dark = dark) {
                     val nav = androidx.compose.runtime.remember { Nav(route) }
                     Column(Modifier.fillMaxSize().background(Lfm.c.bg)) {
@@ -86,6 +88,7 @@ class ScreenshotTest {
                         Box(Modifier.weight(1f)) { screen(nav) }
                         if (tabs) BottomBar(nav)
                     }
+                }
                 }
             }
         }
@@ -130,5 +133,14 @@ class ScreenshotTest {
             CrashNote({}, {}, Modifier.align(androidx.compose.ui.Alignment.BottomCenter).padding(bottom = 64.dp))
         }
     }
+    // The phone's font at 130 %: the bar's words shrink to fit (no "Noteb…"), the dial's hours grow.
+    @Test fun todayLargeFont() = shot("28_today_font130", tabs = true, fontScale = 1.3f) { TodayScreen(g, it, {}, false) }
+    // Back after an hour away, with Now under it: one primary word on the page (Now's Start).
+    @Test fun whereWasI() {
+        g.focus.left(System.currentTimeMillis() - 3_600_000L)
+        shot("29_today_where_was_i", tabs = true) { TodayScreen(g, it, {}, false) }
+    }
+    // The Notebook's pill while listening: the mic in pastel, its ring free of the pill.
+    @Test fun libraryListening() = shot("30_library_listening", tabs = true, route = Route.Library()) { LibraryScreen(g, it, LibFilter.All, {}, true) }
     @Test fun voiceInfo() = shot("19_sheet") { VoiceInfoSheet("Voice needs LFM3-Omni-2B and its projector file. Import both in Settings → Models.", {}, {}) }
 }

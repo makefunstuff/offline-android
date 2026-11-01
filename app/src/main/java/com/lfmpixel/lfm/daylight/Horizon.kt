@@ -142,9 +142,10 @@ object SkyPainter {
      * tick for every hour, the plans as bold marks on it, and the sun riding it to now. The stretch the sun still has to
      * ride to the next plan is drawn in the sun's colour: time left, as a shape. The horizon is at [geo]'s centre; [sunAt]
      * 0..1 draws the sun that far along its way from the start of the day to now (Today's opening rise); 1 is now.
+     * [labelPx] is the hour labels' size in pixels: 10 sp, so they grow with the phone's font size.
      */
     fun drawDial(canvas: Canvas, w: Float, h: Float, density: Float, sky: Sky, layout: HorizonLayout, geo: DialGeometry,
-                 selected: String? = null, sunAt: Float = 1f) {
+                 selected: String? = null, sunAt: Float = 1f, labelPx: Float = 10f * density) {
         val p = Paint(Paint.ANTI_ALIAS_FLAG)
         val hy = geo.cy
         p.shader = LinearGradient(0f, 0f, 0f, hy, sky.top, sky.horizon, Shader.TileMode.CLAMP)
@@ -180,11 +181,11 @@ object SkyPainter {
         }
         // 06, 12 and 18 by their ticks.
         val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = withAlpha(sky.ink, 0.7f); textSize = 10f * density; textAlign = Paint.Align.CENTER; typeface = CONDENSED
+            color = withAlpha(sky.ink, 0.7f); textSize = labelPx; textAlign = Paint.Align.CENTER; typeface = CONDENSED
         }
         for ((hr, label) in HOUR_LABELS) if (hr * 60 in layout.startMin..layout.endMin) {
-            val (x, y) = geo.at(layout.x(hr * 60), 10f * density)
-            canvas.drawText(label, x, y + 3.5f * density, tp)
+            val (x, y) = geo.at(layout.x(hr * 60), labelPx)
+            canvas.drawText(label, x, y + 0.35f * labelPx, tp)
         }
 
         // Walked: dawn to now, a touch stronger. Ahead: now to the next plan, in the sun's colour.

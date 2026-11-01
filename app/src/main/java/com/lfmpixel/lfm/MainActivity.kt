@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.lfmpixel.lfm.data.EntryKind
 import com.lfmpixel.lfm.llm.ToolCall
@@ -481,7 +482,10 @@ internal fun BottomBar(nav: Nav) {
                 if (route is Route.Library && nav.current is Route.Library) return@clickable
                 nav.go(route)
             }.let { if (tab) it.semantics { selected = on } else it }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Txt(label, LfmType.label.copy(fontWeight = if (on) androidx.compose.ui.text.font.FontWeight.Bold else null), if (on) c.text else c.text3, maxLines = 1)
+                // Shrinks to fit rather than cut off ("Noteb…") at large font sizes.
+                val style = LfmType.label.copy(fontWeight = if (on) androidx.compose.ui.text.font.FontWeight.Bold else null, color = if (on) c.text else c.text3)
+                androidx.compose.foundation.text.BasicText(label, style = style, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    autoSize = androidx.compose.foundation.text.TextAutoSize.StepBased(minFontSize = LfmType.barMin, maxFontSize = style.fontSize))
                 Box(Modifier.padding(top = 5.dp).size(5.dp).background(if (on) c.highlight else Color.Transparent, LfmShape.round))
             }
         }
