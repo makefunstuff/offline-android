@@ -230,6 +230,7 @@ class GatewayTest {
     @Test fun repliesRead() {
         assertTrue(Gateway.refused("""{"ok":false,"reason":"game"}"""))
         assertTrue(Gateway.refused("""{"status":"refused"}"""))
+        assertTrue(Gateway.refused("""{"mode": "edge", "state": "blocked", "reason": "game-on-gpu: game.exe"}"""))
         assertTrue(!Gateway.refused("""{"mode":"voice"}"""))
         assertTrue(!Gateway.refused("not json"))
         assertEquals("game on GPU 0", Gateway.reason("""{"reason":"game on GPU 0"}"""))
@@ -361,5 +362,20 @@ class GatewayTest {
         // Online again: the next chat asks at once.
         gw.wantQwen(); runCurrent()
         assertEquals(2, calls)
+    }
+
+    @Test fun wakingCountsAsAcceptedOnlyOnceTheGatewayTookIt() = runTest {
+        val (fake, gw) = setUp()
+        gw.talkOpened()
+        // Before any reply: Waking, not yet accepted, so Talk doesn't load Omni for a refusal that comes back at once.
+        assertEquals(false, (gw.state.value as QwenState.Waking).accepted)
+        runCurrent()
+        assertEquals(true, (gw.state.value as QwenState.Waking).accepted)
+        val (fake2, gw2) = setUp()
+        fake2.game = true
+        gw2.talkOpened(); runCurrent()
+        assertTrue(gw2.state.value is QwenState.Busy)
+        assertEquals(1, fake.warms)
+        assertEquals(1, fake2.warms)
     }
 }

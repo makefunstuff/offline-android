@@ -261,7 +261,7 @@ private fun Presence(g: AppGraph, phase: TalkPhase, sun: Color, modifier: Modifi
 
 /** Talk's calm line about Qwen on the gateway, or null when there is nothing to say. */
 internal fun qwenLine(q: com.lfmpixel.lfm.edge.QwenState): String? = when (q) {
-    is com.lfmpixel.lfm.edge.QwenState.Waking -> "Waking Qwen… LFM3 answers meanwhile"
+    is com.lfmpixel.lfm.edge.QwenState.Waking -> "Waking Qwen on your server… answering meanwhile"
     is com.lfmpixel.lfm.edge.QwenState.Busy -> "Qwen can't wake now (${q.reason.take(80)}); LFM3 answers"
     com.lfmpixel.lfm.edge.QwenState.KeyWrong -> "Your server's key is wrong: enter Wren's gateway key in Settings → Your server"
     com.lfmpixel.lfm.edge.QwenState.Ready, com.lfmpixel.lfm.edge.QwenState.Idle -> null

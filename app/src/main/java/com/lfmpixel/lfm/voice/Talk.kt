@@ -267,12 +267,13 @@ class Talk(
     }
 
     /**
-     * The server takes this turn: it answers ([usable]), and Qwen isn't waking while Omni is on the phone. During the
-     * swap the gateway holds speech in and out until voice mode is up (up to a minute), so the phone's Omni answers
-     * meanwhile; with no Omni here, the turn waits for the server.
+     * The server takes this turn: it answers ([usable]), and no swap the gateway accepted is under way while Omni is on
+     * the phone. During the swap the gateway holds speech in and out until voice mode is up (up to a minute), so the
+     * phone's Omni answers meanwhile; with no Omni here, the turn waits for the server. A refused or failed warm call
+     * comes back at once and never counts.
      */
     private fun serverTakes(usable: Boolean): Boolean =
-        usable && !(models.edge?.gateway?.state?.value is com.lfmpixel.lfm.edge.QwenState.Waking && models.hasVoice())
+        usable && !((models.edge?.gateway?.state?.value as? com.lfmpixel.lfm.edge.QwenState.Waking)?.accepted == true && models.hasVoice())
 
     private suspend fun runLoop(run: Int) {
         val p = settings.now()
@@ -282,7 +283,7 @@ class Talk(
         loadPace()
         try {
             // Edge mode needs nothing on the phone; Omni loads only for a turn the server can't take.
-            if (!serverTakes(models.edge?.usableNow() == true)) {
+            if (models.edge?.usableNow() != true) {
                 Log.i(TAG, "talk: server not in use (${models.edge?.state?.value ?: "Edge mode off"}): Omni on this phone")
                 val session = models.omniSession()
             }

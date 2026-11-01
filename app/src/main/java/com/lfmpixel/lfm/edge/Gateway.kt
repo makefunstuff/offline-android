@@ -17,8 +17,11 @@ import org.json.JSONObject
 sealed interface QwenState {
     /** Not asked for, or not served (a server without the gateway): LFM3 answers. */
     data object Idle : QwenState
-    /** Asked for: the server is swapping to voice mode (about a minute); LFM3 or the phone answers meanwhile. */
-    data class Waking(val since: Long) : QwenState
+    /**
+     * Asked for: the server is swapping to voice mode (about a minute); LFM3 or the phone answers meanwhile. [accepted]
+     * once the gateway took the warm call (a refusal, a 404 or a 401 comes back at once instead).
+     */
+    data class Waking(val since: Long, val accepted: Boolean = false) : QwenState
     /** Listed in /v1/models: it answers. */
     data object Ready : QwenState
     /** The gateway said no (a game is on the GPU): LFM3 answers. */
@@ -98,7 +101,7 @@ class Gateway(
         // With Talk closed nothing is sent that would check it (health needs no key): it stays said until a real try.
         if (_state.value != QwenState.KeyWrong || !talkAsked) return
         _state.value = QwenState.Idle
-        if (talkAsked) wake()
+        wake()
     }
 
     /**
@@ -148,7 +151,10 @@ class Gateway(
                 if (gen != mine) return@launch
                 when {
                     // Accepted, or its port dropped mid-swap: the list says when Qwen is up.
-                    (r.status in 200..299 && !refused(r.body)) || r.status == 0 -> true
+                    (r.status in 200..299 && !refused(r.body)) || r.status == 0 -> {
+                        (_state.value as? QwenState.Waking)?.let { _state.value = it.copy(accepted = true) }
+                        true
+                    }
                     else -> {
                         poll.cancel()
                         when {
@@ -238,11 +244,11 @@ class Gateway(
             (0 until data.length()).map { data.getJSONObject(it).getString("id") }
         }.getOrDefault(emptyList())
 
-        /** A 2xx reply that still says no: {"refused": true}, {"ok": false} or a status of refused or busy. */
+        /** A 2xx reply that still says no: {"refused": true}, {"ok": false}, a status of refused or busy, a state of blocked. */
         fun refused(body: String): Boolean = runCatching {
             val j = JSONObject(body)
             j.optBoolean("refused", false) || (j.has("ok") && !j.optBoolean("ok", true)) ||
-                j.optString("status").lowercase() in setOf("refused", "busy")
+                j.optString("status").lowercase() in setOf("refused", "busy") || j.optString("state").lowercase() == "blocked"
         }.getOrDefault(false)
 
         /** Why, from the reply ("reason", "message", "error"), else a plain guess. */
