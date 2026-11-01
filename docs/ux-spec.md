@@ -132,8 +132,8 @@ screens (sky-tinted headers, the serif for Inkling's margin notes) is a follow-u
 - a tap opens Today.
 
 It is redrawn every 30 minutes and whenever Inkling is left. Android phones show keyguard widgets only where the
-launcher offers lock-screen widgets; a true lock-screen surface (Talk and Look from the lock screen) waits for LFMP-9's
-single app and is not in this release.
+launcher offers lock-screen widgets; a true lock-screen surface (Talk and Look from the lock screen), now possible
+with LFMP-9's single app, is not in this release.
 
 ## 8. No-nag rules (kept from the research)
 
@@ -148,7 +148,7 @@ single app and is not in this release.
 
 1. **Offers, with a budget**: one engine for unasked offers, at most three a day, each with a reason.
 2. **Morning and evening rituals**: a drafted day at the first glance, a one-line evening.
-3. **Lock-screen Talk and Look** (with LFMP-9's single app).
+3. **Lock-screen Talk and Look** (one app since LFMP-9, so it can be built now).
 4. **What I know**: the readable, correctable memory page (LFMP-11).
 5. **Point-of-performance nudges**: leave-by and bring-this from calendar plus memory.
 6. **Remembers in the margin**: related old notes via on-device embeddings (LFMP-10).
