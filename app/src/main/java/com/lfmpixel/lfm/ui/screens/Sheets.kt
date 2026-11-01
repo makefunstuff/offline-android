@@ -64,7 +64,7 @@ private fun Field(label: String, value: String, onChange: (String) -> Unit, plac
     val shape = LfmShape.control
     Column(Modifier.padding(top = 10.dp)) {
         Label(label)
-        Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 44.dp).background(c.fill, shape).border(1.dp, c.control, shape)
+        Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 44.dp).background(c.wash, shape)
             .padding(horizontal = 12.dp, vertical = 10.dp)) {
             if (value.isEmpty()) Txt(placeholder, LfmType.body, c.text2)
             BasicTextField(value, onChange, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text),
@@ -85,7 +85,7 @@ fun ConfirmSheet(req: ConfirmRequest) {
             Txt(req.preview.title, LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
         }
         if (req.afterWebText) {
-            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).border(1.dp, c.control, LfmShape.control).padding(horizontal = 10.dp, vertical = 8.dp),
+            Row(Modifier.fillMaxWidth().padding(vertical = 6.dp).background(c.wash, LfmShape.control).padding(horizontal = 10.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LIcon("warn", size = 16.dp)
                 Column { Marked("Suggested after reading web pages.", LfmType.small); Txt("Check it before you confirm.", LfmType.small) }

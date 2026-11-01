@@ -1,8 +1,10 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.border
 import com.lfmpixel.lfm.ui.components.WashCard
+import com.lfmpixel.lfm.ui.components.Marked
 import com.lfmpixel.lfm.ui.components.BtnKind
 import com.lfmpixel.lfm.ui.components.Btn
 import com.lfmpixel.lfm.ui.components.MenuItem
@@ -180,8 +182,9 @@ class OrgJob(private val g: AppGraph) {
 }
 
 /**
- * Now (notebook-spec A.1, proposal 1): one next thing, large, with its size and where it comes from. Start opens
- * Focus; Done brings the next one in; Not now sends it to the back; ⋯ has smaller steps and other days.
+ * Now (notebook-spec A.1, proposal 1): one next thing, printed big in the condensed bold with the highlighter under
+ * it, with its size and where it comes from. Start (the one action word on the page) opens Focus; Done brings the
+ * next one in; Not now sends it to the back; ⋯ has smaller steps and other days. No box: space sets it apart.
  */
 @Composable
 internal fun NowCard(g: AppGraph, nav: Nav, now: NextAction.Now?, planEmpty: Boolean, onSteps: (Entry) -> Unit, onPlan: () -> Unit) {
@@ -198,13 +201,13 @@ internal fun NowCard(g: AppGraph, nav: Nav, now: NextAction.Now?, planEmpty: Boo
             val n = now?.takeIf { it.entry.id == id }
             Column(Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
                 if (n == null) {
-                    Label("Now")
-                    Txt("Nothing waiting on you. Jot a line below, or let me help plan the day.", LfmType.voiceBody, c.text, Modifier.padding(top = 4.dp))
-                    if (planEmpty) Btn("Plan my day", onPlan, Modifier.padding(top = 10.dp), icon = "sparkle")
+                    Label("Now", Modifier.padding(start = 8.dp))
+                    Txt("Nothing waiting on you. Jot a line below, or let me help plan the day.", LfmType.voiceBody, c.text2, Modifier.padding(start = 8.dp, top = 4.dp))
+                    if (planEmpty) Btn("Plan my day", onPlan, Modifier.padding(top = 6.dp), kind = BtnKind.Primary)
                     return@Column
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Txt("Now · about ${Sizes.label(n.minutes)}", LfmType.label, c.text2, Modifier.weight(1f))
+                Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Txt("Now, for about ${Sizes.label(n.minutes)}", LfmType.label, c.text2, Modifier.weight(1f))
                     var menu by remember { mutableStateOf(false) }
                     Box {
                         IconButtonPlain("more", { menu = true }, tint = c.text2, desc = "More for this")
@@ -216,18 +219,19 @@ internal fun NowCard(g: AppGraph, nav: Nav, now: NextAction.Now?, planEmpty: Boo
                         }
                     }
                 }
-                Txt(n.entry.title, LfmType.answer, c.text, Modifier.padding(end = 8.dp), maxLines = 3)
+                Marked(n.entry.title, LfmType.task, Modifier.padding(start = 5.dp, end = 8.dp), maxLines = 3)
                 val from = listOfNotNull(
                     n.parent?.let { (if (n.stepsLeft == 1) "Last step" else "${n.stepsLeft} steps left") + " · " + it.title },
                     if (n.plan > 0 && n.parent == null) "In today's plan · ${n.planSize} left" else null,
                 ).joinToString(" · ")
-                if (from.isNotEmpty()) Txt(from, LfmType.small, c.text2, Modifier.padding(top = 2.dp), maxLines = 2)
-                FlowRow(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (from.isNotEmpty()) Txt(from, LfmType.small, c.text2, Modifier.padding(start = 8.dp, top = 4.dp), maxLines = 2)
+                FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Btn("Start", {
                         g.focus.start(n.entry.id, n.entry.title, n.minutes)
                         nav.go(Route.Focus)
-                    }, icon = "play", kind = BtnKind.Primary)
-                    Btn("Done", { org.done(n.entry) }, icon = "check")
+                    }, kind = BtnKind.Primary)
+                    val view = androidx.compose.ui.platform.LocalView.current
+                    Btn("Done", { view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM); org.done(n.entry) })
                     Btn("Not now", { nav.skipped.remove(n.entry.id); nav.skipped.add(n.entry.id) })
                 }
             }
@@ -244,13 +248,11 @@ internal fun PlanBlock(g: AppGraph, nav: Nav, plan: List<Entry>, stepsLeft: Map<
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val done = plan.count { it.done }
-                Txt(if (plan.isEmpty()) "Today's plan" else "Today's plan · $done of ${plan.size} done", LfmType.label, c.text2, Modifier.weight(1f))
-                Box(Modifier.clip(LfmShape.control).clickable(role = Role.Button, onClick = onPlan).padding(horizontal = 10.dp, vertical = 6.dp)) {
-                    Txt(if (plan.isEmpty()) "Plan my day" else "Plan again", LfmType.button, c.text, decoration = TextDecoration.Underline)
-                }
+                Txt(if (plan.isEmpty()) "Today's plan" else "Today's plan · $done of ${plan.size} done", LfmType.label, c.text2, Modifier.weight(1f).padding(start = 8.dp))
+                Btn(if (plan.isEmpty()) "Plan my day" else "Plan again", onPlan, small = true)
             }
             if (plan.isEmpty()) {
-                Txt("Inkling picks up to three things that fit the ${leftLabel(bounds.minutesLeft)} left today.", LfmType.small, c.text2, Modifier.padding(top = 2.dp))
+                Txt("I'll pick up to three things that fit the ${leftLabel(bounds.minutesLeft)} left today.", LfmType.small, c.text2, Modifier.padding(start = 8.dp, top = 2.dp))
                 return@Column
             }
             plan.forEach { e ->
@@ -268,11 +270,11 @@ internal fun PlanBlock(g: AppGraph, nav: Nav, plan: List<Entry>, stepsLeft: Map<
             val need = plan.filter { !it.done }.sumOf { Sizes.of(it) }
             val frac = if (bounds.minutesLeft <= 0) 1f else (need.toFloat() / bounds.minutesLeft).coerceIn(0f, 1f)
             val shown by androidx.compose.animation.core.animateFloatAsState(frac, LfmMotion.spec(LfmMotion.LONG), label = "planBar")
-            Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(8.dp).clip(LfmShape.round).background(c.bg)) {
-                Box(Modifier.fillMaxWidth(shown.coerceAtLeast(if (need > 0) 0.03f else 0f)).height(8.dp).clip(LfmShape.round).background(c.highlight))
+            Box(Modifier.padding(start = 8.dp, top = 8.dp).fillMaxWidth().height(6.dp).clip(LfmShape.round).background(c.line)) {
+                Box(Modifier.fillMaxWidth(shown.coerceAtLeast(if (need > 0) 0.03f else 0f)).height(6.dp).clip(LfmShape.round).background(c.highlight))
             }
             Txt(if (need == 0) "All done. The rest of the day is yours." else
-                "about ${leftLabel(need)} still planned · ${leftLabel(bounds.minutesLeft)} left today", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
+                "about ${leftLabel(need)} still planned · ${leftLabel(bounds.minutesLeft)} left today", LfmType.meta, c.text2, Modifier.padding(start = 8.dp, top = 4.dp))
         }
     }
 }
@@ -297,7 +299,7 @@ internal fun WhereWasI(g: AppGraph, nav: Nav, away: Long, lines: List<Entry>, on
     WashCard(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Txt("Where was I · ${awayLabel(away)} ago", LfmType.label, c.text2, Modifier.weight(1f))
+                Txt("Where was I · ${awayLabel(away)} ago", LfmType.label, c.text2, Modifier.weight(1f).padding(start = 8.dp))
                 IconButtonPlain("x", onClose, tint = c.text2, desc = "Hide")
             }
             val r = run
@@ -307,22 +309,22 @@ internal fun WhereWasI(g: AppGraph, nav: Nav, away: Long, lines: List<Entry>, on
                 focusTitle != null -> "Last focus: $focusTitle"
                 else -> "Welcome back"
             }
-            Txt(head, LfmType.rowTitle, c.text, maxLines = 2)
+            Txt(head, LfmType.header, c.text, Modifier.padding(start = 8.dp), maxLines = 2)
             val detail = listOfNotNull(
                 r?.let { val m = (it.totalMs - it.leftMs(System.currentTimeMillis())) / 60_000; "Focus, $m of ${it.totalMs / 60_000} min" + if (it.paused) ", paused" else "" },
                 if (since > 0) (if (since == 1) "1 line captured since" else "$since lines captured since") else null,
             ).joinToString(" · ")
-            if (detail.isNotEmpty()) Txt(detail, LfmType.small, c.text2)
+            if (detail.isNotEmpty()) Txt(detail, LfmType.small, c.text2, Modifier.padding(start = 8.dp))
             val said = recap ?: job.text.takeIf { it.isNotBlank() }?.let { Recap.short(it) }
-            if (said != null) Txt(said, LfmType.voiceBody, c.text, Modifier.padding(top = 6.dp).semantics { liveRegion = LiveRegionMode.Polite })
-            else if (job.running) Txt("Thinking back…", LfmType.small, c.text2, Modifier.padding(top = 6.dp))
+            if (said != null) Txt(said, LfmType.voiceBody, c.text2, Modifier.padding(start = 8.dp, top = 6.dp).semantics { liveRegion = LiveRegionMode.Polite })
+            else if (job.running) Txt("Thinking back…", LfmType.small, c.text2, Modifier.padding(start = 8.dp, top = 6.dp))
             LaunchedEffect(job.finished) { if (job.finished && job.text.isBlank()) recap = Recap.rules(focusTitle, lines) }
             FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (r != null) Btn("Resume", { onClose(); nav.go(Route.Focus) }, icon = "play", kind = BtnKind.Primary)
-                else last?.let { e -> Btn("Resume", { onClose(); nav.go(if (e.isDump()) Route.Dump(e.id) else Route.Editor(e.id, e.kind)) }, icon = "edit", kind = BtnKind.Primary) }
+                if (r != null) Btn("Resume", { onClose(); nav.go(Route.Focus) }, kind = BtnKind.Primary)
+                else last?.let { e -> Btn("Resume", { onClose(); nav.go(if (e.isDump()) Route.Dump(e.id) else Route.Editor(e.id, e.kind)) }, kind = BtnKind.Primary) }
                 if (said == null && !job.running) Btn("Recap", {
                     if (g.engine.hasText()) job.start(Recap.ask(focusTitle, lines), Recap.MAX_TOKENS) else recap = Recap.rules(focusTitle, lines)
-                }, icon = "sparkle")
+                })
             }
         }
     }
@@ -474,11 +476,11 @@ internal fun SizeChips(minutes: Int, guess: Int, onPick: (Int) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Sizes.choices.forEach { m ->
             val on = minutes == m
-            val shape = LfmShape.control
-            Box(Modifier.heightIn(min = 36.dp).clip(shape).background(if (on) c.text else androidx.compose.ui.graphics.Color.Transparent)
-                .border(1.dp, if (on) c.text else c.control, shape).clickable(role = Role.RadioButton) { onPick(if (on) 0 else m) }
+            // A word each on a soft pill; the picked one navy.
+            Box(Modifier.heightIn(min = 44.dp).clip(LfmShape.pill).background(if (on) c.text else c.wash)
+                .selectable(on, role = Role.RadioButton) { onPick(if (on) 0 else m) }
                 .padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
-                Txt(Sizes.label(m), LfmType.button, if (on) c.bg else c.text2)
+                Txt(Sizes.label(m), if (on) LfmType.actionSmall else LfmType.button, if (on) c.bg else c.text2)
             }
         }
     }

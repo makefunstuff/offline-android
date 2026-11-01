@@ -46,13 +46,13 @@ import com.lfmpixel.lfm.ui.Nav
 import com.lfmpixel.lfm.ui.Route
 import com.lfmpixel.lfm.ui.components.Btn
 import com.lfmpixel.lfm.ui.components.Divider
-import com.lfmpixel.lfm.ui.components.Fab
 import com.lfmpixel.lfm.ui.components.IconButtonPlain
 import com.lfmpixel.lfm.ui.components.InputLine
 import com.lfmpixel.lfm.ui.components.LIcon
 import com.lfmpixel.lfm.ui.components.Label
 import com.lfmpixel.lfm.ui.components.Marked
 import com.lfmpixel.lfm.ui.components.MicButton
+import com.lfmpixel.lfm.ui.components.NewPill
 import com.lfmpixel.lfm.ui.components.SwipeAction
 import com.lfmpixel.lfm.ui.components.SwipeRow
 import com.lfmpixel.lfm.ui.components.Tabs
@@ -167,10 +167,9 @@ fun LibraryScreen(g: AppGraph, nav: Nav, filter: LibFilter, onMic: (EntryKind) -
                 }
             }
         }
-        Row(Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = snackLift(nav)), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Fab("plus", { nav.go(Route.Editor(kind = filter.kind)) }, "New ${filter.kind.label.lowercase()}")
-            MicButton({ onMic(filter.kind) }, size = 56.dp, listening = listening)
-        }
+        // New, written or said: one navy pill holding + and the mic, not two buttons.
+        NewPill({ nav.go(Route.Editor(kind = filter.kind)) }, "New ${filter.kind.label.lowercase()}", { onMic(filter.kind) }, listening,
+            Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = snackLift(nav)))
     }
 }
 

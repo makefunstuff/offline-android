@@ -28,6 +28,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clip
 import com.lfmpixel.lfm.daylight.OnSky
 import com.lfmpixel.lfm.daylight.rememberNow
 import com.lfmpixel.lfm.daylight.skyAt
@@ -66,22 +68,66 @@ fun SkyPage(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(modifier.background(Brush.verticalGradient(listOf(Color(sky.top), Color(sky.horizon))))) { OnSky(sky, content) }
 }
 
-/** The title of one of the bottom bar's places (Notebook, Plans), large, on the hour's sky. */
+/** The title of one of the bottom bar's places (Notebook, Plans), large, on the hour's sky, with the [SunMark]. */
 @Composable
 fun PlaceTitle(title: String, modifier: Modifier = Modifier, below: @Composable ColumnScope.() -> Unit = {}) {
     SkyBand(modifier) {
-        Txt(title, LfmType.title2, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 14.dp).semantics { heading() })
+        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Txt(title, LfmType.title2, modifier = Modifier.weight(1f).padding(start = 20.dp, end = 16.dp, top = 16.dp, bottom = 14.dp).semantics { heading() })
+            SunMark(Modifier.padding(end = 16.dp))
+        }
         below()
     }
 }
 
-/** One of Inkling's own cards on the page (Now, today's plan, Where was I): the pale of the horizon, ink on it. */
+/**
+ * Horizon Almanac's signature, on every screen's header: the waking day as a small half dial (07:00 to 22:00, as Today's dial) with the
+ * sun on it at now, or the moon resting on the horizon at night. Moves only when the minute changes; TalkBack skips it
+ * (the time is in the status bar).
+ */
 @Composable
-fun WashCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(modifier.fillMaxWidth().background(Lfm.c.wash, LfmShape.card).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) { content() }
+fun SunMark(modifier: Modifier = Modifier) {
+    val c = Lfm.c
+    val now by rememberNow()
+    val f = (now.hour * 60 + now.minute - 420) / 900f
+    androidx.compose.foundation.Canvas(modifier.width(40.dp).height(22.dp)) {
+        val r = size.width / 2 - 3.dp.toPx()
+        val cx = size.width / 2
+        val cy = size.height - 2.dp.toPx()
+        drawArc(c.text.copy(alpha = 0.35f), 180f, 180f, false, topLeft = androidx.compose.ui.geometry.Offset(cx - r, cy - r),
+            size = androidx.compose.ui.geometry.Size(r * 2, r * 2), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+        drawLine(c.text.copy(alpha = 0.45f), androidx.compose.ui.geometry.Offset(0f, cy), androidx.compose.ui.geometry.Offset(size.width, cy), 1.dp.toPx())
+        val day = f in 0f..1f
+        val a = Math.PI * (1 - f.coerceIn(0f, 1f))
+        val sx = cx + r * kotlin.math.cos(a).toFloat()
+        val sy = cy - r * kotlin.math.sin(a).toFloat()
+        if (day) {
+            drawCircle(c.highlight.copy(alpha = 0.25f), 7.dp.toPx(), androidx.compose.ui.geometry.Offset(sx, sy))
+            drawCircle(c.highlight, 4.dp.toPx(), androidx.compose.ui.geometry.Offset(sx, sy))
+        } else {
+            drawCircle(c.text.copy(alpha = 0.8f), 3.5.dp.toPx(), androidx.compose.ui.geometry.Offset(if (f < 0f) cx - r else cx + r, cy))
+        }
+    }
 }
 
-/** A flat bottom sheet: 12 dp top corners, a grab bar, a scrim, no shadow. */
+/**
+ * A group that must stand out (a privacy warning, "Inkling is offline"): the wash with the highlighter's bar down its
+ * start edge, instead of an outline.
+ */
+fun Modifier.callout(c: com.lfmpixel.lfm.ui.theme.LfmColors): Modifier = this.clip(LfmShape.card).background(c.wash).drawBehind {
+    drawRect(c.highlight, size = androidx.compose.ui.geometry.Size(4.dp.toPx(), size.height))
+}
+
+/**
+ * One of Inkling's own blocks on the page (Now, today's plan, Where was I): no box, no fill. Generous space and the
+ * type's size do the grouping, so the page reads as a few lines, not a stack of cards.
+ */
+@Composable
+fun WashCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Box(modifier.fillMaxWidth().padding(start = 8.dp, end = 0.dp, top = 8.dp, bottom = 8.dp)) { content() }
+}
+
+/** A flat bottom sheet: soft top corners, a round grab bar, a scrim, no shadow. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FlatSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
@@ -94,19 +140,18 @@ fun FlatSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit
         contentColor = c.text,
         tonalElevation = 0.dp,
         scrimColor = c.scrim.copy(alpha = 0.45f),
-        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 14.dp).width(36.dp).height(4.dp).background(c.text3, LfmShape.mark)) },
+        dragHandle = { Box(Modifier.padding(top = 12.dp, bottom = 14.dp).width(36.dp).height(4.dp).background(c.control, LfmShape.round)) },
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 18.dp).navigationBarsPadding(),
             content = content)
     }
 }
 
-/** A long-press or ⋯ menu: paper, a 1 dp edge in the control grey (3:1 against the page), the page's corners, no shadow. */
+/** A long-press or ⋯ menu: the wash, soft corners, a faint shadow and no edge. */
 @Composable
 fun Menu(expanded: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val c = Lfm.c
-    DropdownMenu(expanded, onDismiss, shape = LfmShape.card, containerColor = c.bg, tonalElevation = 0.dp, shadowElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, c.control), content = content)
+    DropdownMenu(expanded, onDismiss, shape = LfmShape.card, containerColor = c.wash, tonalElevation = 0.dp, shadowElevation = 3.dp, content = content)
 }
 
 /** One line of a [Menu], with its icon. */

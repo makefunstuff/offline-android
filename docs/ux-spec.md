@@ -1,28 +1,36 @@
-# Inkling: Daylight (UX spec v2)
+# Inkling: Horizon Almanac (UX spec v3)
 
-The owner found the v1 look "pretty meh and generic" and asked for something inspired by films like *Her*, "helpful
-every single day". LFMP-12 researched three directions ([ux-research.md](ux-research.md)); the owner picked
-**Daylight**: calm and ambient, home is a sky that follows the hour, plans sit on a horizon and the sun walks toward
-them, time is always visible, lock screen first. This file is Daylight's design spec. The v1 rules for flows, editing,
-motion timing and accessibility ([ux-spec-v1.md](ux-spec-v1.md), sections 3–8) still hold where this file is silent.
+The owner found Daylight (v2, LFMP-13 and LFMP-17) still "meh", generic, cluttered and not ADHD-friendly. LFMP-20
+drew three bolder takes on the same sky (Horizon, Glow, Almanac); the owner asked for something between Horizon and
+Almanac, with no boxes, no bordered buttons, a blue order of importance and a pastel talk button. That is **Horizon
+Almanac**: Daylight's sky that follows the hour, with Almanac's precision. This file is its spec. The v1 rules for
+flows, editing, motion timing and accessibility ([ux-spec-v1.md](ux-spec-v1.md), sections 3–8) still hold where this
+file is silent.
 
-Written 1 November 2026 (LFMP-13, first release).
+Written 1 November 2026 (LFMP-20). Daylight's sky, sounds, voice and no-nag rules carry over unchanged.
 
-## 1. The one problem to solve: calm, but one tap from everything
+## 1. ADHD first: one thing, at a glance
 
-The research's worry was that Daylight "hides too much to be the daily habit". Daylight answers it with three rules:
+Every screen is built to the same rules:
 
-1. **The sky is the top of Today, not a screen in front of it.** Under the sky sit Talk, Look and Ask, then the whole
-   page as before: Now, the plan, the timeline, the page's lines and the Ink line. Glance, or scroll one thumb's
-   length.
-2. **Every mark on the sky does something.** A plan on the horizon opens its line, with Open; the time and the
-   sentence are read out by TalkBack; the day before, brain dump and settings sit in the sky's corner.
-3. **The sky never replaces a word.** The sentence says what the picture shows, so nothing depends on reading colour.
+1. **One next step, obvious.** One task in the biggest type, with one action word in the action blue and the sun's dot
+   before it (Start). Everything else is quieter.
+2. **Low noise.** No outlined boxes, no bordered buttons, no chips. Space and two type sizes do the grouping; the few
+   surfaces left (the message box, settings groups) sit on the pale wash with no edge (`DaylightGuardTest` keeps
+   outlines out).
+3. **Time you can see.** The day is a half dial on Today's sky, the sun rides it to now, and the stretch to the next
+   plan is drawn in the sun's yellow. "Now, for about 15 min" and "Next · 15:00 Dentist · in 5 hours" say it in
+   words.
+4. **Capture in one tap.** The pastel talk button sits in the middle of the bottom bar on Today, Notebook and Plans,
+   and a brain dump is one tap from Today's sky.
+5. **Small wins, seen.** A ticked to-do fills with the sun and pops; nothing counted against you.
+6. **Easy resume.** Where was I, after 20 minutes away, with Resume as the one action word.
+7. **Forgiving.** Undo on every result, in the snackbar and under Talk's answers.
 
-## 2. Palette by hour
+## 2. Colour
 
-The sky is blended minute by minute between four looks (`daylight/Sky.kt`). Text on it uses one of two inks, picked so
-it reads at 4.5:1 against both ends of the sky at every minute, in light and dark theme (unit-tested).
+The sky is unchanged from Daylight: blended minute by minute between four looks (`daylight/Sky.kt`), with text on it in
+one of two inks that reads at 4.5:1 against both ends of the sky at every minute, in light and dark theme (unit-tested).
 
 | Part | Reached | Sky top → horizon | Sun | Ink |
 | --- | --- | --- | --- | --- |
@@ -34,39 +42,73 @@ it reads at 4.5:1 against both ends of the sky at every minute, in light and dar
 - **Dark theme** keeps the hour but dims the sky toward `#05070D` (45 % at the top, 50 % at the horizon).
 - Between a light and a dark look the sky leans a touch darker until the light ink reads; the ink turns twice a day,
   at first and last light.
-- **The sky strip.** Every screen has the hour's sky under the status bar, and the status icons take its ink, so
-  Library or Settings still say what time of day it is. The camera keeps its black.
-- The page below the sky keeps v1's paper and ink, and the highlighter yellow stays the one accent. Inkling's own cards
-  (Now, today's plan, Where was I, the journal's prompt) sit on one **wash**, the pale of the day sky's horizon
-  (`#E9F4FC`; dark `#111824`): the organizer's peach, lavender, mint and sky tints are gone.
-- **Every screen's header is on the sky** (`SkyBand`): it carries on from the sky strip, top to horizon, in the sky's
-  ink. The places of the bottom bar (Notebook, Plans) have their large title on it; the app lock and Talk are all sky.
-- **One set of pieces** (`ui/components`): Header, Btn, Switch, CheckBox, Tabs, Segmented, Card, WashCard, FlatSheet,
-  Menu, DaySheet and SnackHost. Colours, type sizes and corners come from `ui/theme` (`Lfm.c`, `LfmType`,
-  `LfmShape`, `CameraColors`); `DaylightGuardTest` fails the unit tests on a colour, type size or corner written out in
-  Kotlin elsewhere, on a stock Material piece outside the components, on a platform dialog, and on a colour written
-  out in a widget's layout or drawable. Spacing (dp) is not tokenised. `ScreenshotTest` draws the main screens
-  in light and dark on the JVM (`build/outputs/roborazzi/`).
+- **The sky strip.** Every screen has the hour's sky under the status bar, and the status icons take its ink. The
+  camera keeps its black. On the sky, action words and soft surfaces take the sky's ink (`OnSky`).
+
+The page under the sky is one blue in four steps (`ui/theme/Theme.kt`):
+
+| Role | Light | Dark | Use |
+| --- | --- | --- | --- |
+| `bg` | `#F6F9FC` | `#0A1019` | sky-tinted paper |
+| `text` | `#0E2340` navy | `#E8F0F9` | what you read: the time, the task, titles |
+| `action` | `#2A66AE` | `#8EC5F0` | the one thing to tap, as a word (Start, Undo, Open) |
+| `text2` | `#3F6B98` | `#9DC2E6` | Inkling's voice, labels, the other action words |
+| `text3` | `#546E8D` | `#8098B6` | the quietest: unpicked tabs and places |
+| `wash` | `#EAF1F8` | `#121B27` | the few surfaces left |
+| `highlight` | `#FFD400` | `#FFD400` | the one warm colour: the sun, time left, the highlighter, the sun's dot, a ticked to-do |
+| `mic` | `#FFEB9F` | `#FFEB9F` | the talk button: the highlighter mixed with white, a clean pastel, navy mic (13:1) |
+
+Contrast: text, text2 and text3 at least 4.5:1 and control edges 3:1 on `bg` and on `fill`; action at least 4.5:1 on `bg`
+and on the wash; navy on the pastel mic 13:1 (`ContrastTest`).
+
+**One look, guarded.** Colours, type sizes and corners come from `ui/theme`; the shared pieces are in `ui/components`.
+`DaylightGuardTest` fails the unit tests on a colour, type size or corner written out elsewhere, a stock Material piece
+outside the components, a platform dialog, a colour written out in a widget's layout, and an outlined box on a screen.
+`ScreenshotTest` draws the main screens in light and dark on the JVM (`build/outputs/roborazzi/`).
+
+## 2a. Controls
+
+- **Buttons are words** (`Btn`): the primary one bold in the action blue with the sun's dot before it, the others quiet
+  blue words. No box, no edge; the 44 dp target is still there.
+- **Tabs and choices are words** (`Tabs`, `Segmented`): the picked one navy and bold with the highlighter's stroke drawn
+  in under it.
+- **Switches** are round, the action blue when on; **check boxes** are rings that fill with the sun and give a
+  confirm tick (haptic, as Now's Done does): a small win, felt.
+- **The mic**: the primary one (Talk's own, the bottom bar's) is the pastel; dictation mics sit in a line as a quiet
+  fill (the Ink line, Plans' add line, the message box), and stay as Stop while listening. The only round thing above
+  the bar is Notebook's navy pill holding + and the mic.
+- **The highlighter** (`Marked`) is a stroke from just above the baseline to under it, drawn in from the left the
+  first time.
+- **The signature** (`SunMark`): every header on the sky ends with a small half dial with the sun on it at now (the
+  moon resting on the horizon at night).
+
+### Bottom bar
+
+Today · Notebook · (talk) · Plans · Ask, as words; the place you are on is navy and bold with the sun's dot under it.
+The talk button in the middle opens Talk; Ask opens the chat. Talk and Ask moved here from Today's row of ways in;
+Look moved to the sky's corner. The bar shows on the three places, as before.
 
 ## 3. Type
 
-- **Inkling's own words** (the day's sentence, Talk's captions, the widget's line, chat and web answers, margin notes, empty states,
-  the journal's prompt, the first-run and Privacy welcomes) are in the phone's serif (Noto
-  Serif via `FontFamily.Serif`). Nothing is bundled, so there is no font licence to track.
-- **Your words and the controls** stay in Roboto.
-- **The time** is large and light: Roboto Light 64 sp with even (tabular) figures. Daylight shows the time on Today,
-  in the widget, and under the status bar's sky.
-- Sizes: sentence 21/28 sp; Talk caption 26/34 sp, earlier captions 21 sp at 60 % opacity.
+Three voices, all the phone's own fonts (nothing bundled, no licence to track):
+
+- **What matters now** in Roboto Condensed Bold (`sans-serif-condensed`): the time (60 sp, even figures), the one
+  task (`task`, 30 sp), titles (32–34 sp) and headers (21 sp).
+- **Inkling's own words** in the phone's serif (Noto Serif): the day's sentence, Talk's captions, chat answers, empty
+  states and welcomes, in the `text2` blue.
+- **Your words and the controls** in Roboto; action words bold (`action`, 16 sp).
 
 ## 4. Motion
 
-- **Nothing moves by itself.** The sky, the sun and the horizon are redrawn when the minute changes and no more
-  often (`rememberNow`): no idle animation, no wake-ups, nothing for the battery.
-- The only loops: Talk's presence mark breathes while it thinks (1.8 s, ease in-out), and that stops with "Remove
-  animations" on.
-- The presence mark follows the real audio level with a no-bounce spring; with animations off it holds still and a
-  ring shows the state.
-- A picked plan's line fades through in 150 ms. Everything else keeps v1's motion tokens (`ui/theme/Motion.kt`).
+- **Nothing moves by itself.** The sky, the dial and the sun are redrawn when the minute changes and no more often
+  (`rememberNow`): no idle animation, no wake-ups, nothing for the battery.
+- **The sun rises** along Today's dial to now when Today first shows (900 ms, once a run).
+- **Talk's presence**: the sun inside a dial of 60 ticks; the ticks light round the dial with the voice level, and
+  breathe (1.8 s) while it thinks. The only loop.
+- **Small wins**: a ticked to-do fills with the sun and pops with a soft spring.
+- **Tabs**: the highlighter's stroke draws in under the picked word (150 ms).
+- With "Remove animations" on, or Battery Saver on when a screen opens, everything lands where it ends: no rise, no
+  breath, no pop.
 
 ## 5. Sound and haptics
 
@@ -97,47 +139,46 @@ The app's copy follows it: first person where Inkling speaks ("I'm listening", "
 
 ### Today
 
-From the top: the sky (340 dp), then the ways in, then the page.
+From the top: the sky (as tall as its words need), then the page.
 
-- **In the sky:** "Today · Sunday 1 November" with the day before, brain dump and settings; the time; **one sentence
-  of the day** (`DaySentence`), never counts. It leads with the next timed thing ("Dentist at 15:00, in 25 minutes")
-  when it is within 90 minutes, otherwise the day's weight ("A light day: …"), otherwise "The day is yours."
-- **The horizon:** today's events, reminders and timed to-dos as dots on the horizon line, the waking day 07:00–22:00
-  left to right (stretched to fit early or late plans and now). The sun stands on its arc at now; the stretch it still
-  has to walk to the next plan is drawn in the sun's colour, which makes time visible for time blindness. Past plans
-  fade; the next one has a ring.
-- **Under the horizon:** the next plan ("Next · 15:00 · in 25 minutes", its title), or the one tapped, with **Open**
-  for to-dos.
-- **The ways in:** Talk, Look, Ask, one tap each.
-- **Below:** the seal line, Where was I, Now, the plan, the timeline, carried to-dos, the page and the Ink line, as in
-  v1. Other days have their date on a band of the hour's sky, with the line of counts.
+- **In the sky:** the date, then the day before, Look, brain dump and settings; the day as a half dial (07:00–22:00,
+  stretched for early or late plans) with an hour tick each hour, plans as bold marks, the sun at now and the stretch
+  to the next plan in yellow; the time inside the dial, its foot on the horizon. Every header on the sky elsewhere
+  ends with the SunMark.
+- **Under the horizon:** Inkling's one sentence of the day (`DaySentence`, never counts), then the next plan, or the
+  one tapped on the dial, with **Open** for to-dos; nothing when no plan is left.
+- **Below:** the seal line; Where was I; **Now**: "Now, for about 15 min", the task in the condensed bold with the
+  highlighter, then Start · Done · Not now as words; today's plan; the timeline; still open; the page; the Ink line.
+  No cards: each block is a label, its words and space.
 
 ### Talk
 
-Captions over the sky of the hour (top-to-horizon gradient), the header and controls in the sky's ink.
+Captions over the sky of the hour. The presence is the sun inside a dial of ticks (see Motion); Inkling's answer large
+in the serif; "Reminder · Dentist at 15:00" with Undo and Show as action words. The main control is the pastel mic, or
+a navy round Stop while it works.
 
-- **The presence mark** is the hour's sun: it swells with your voice while listening (with a thin ring: the ear is
-  open), with its own voice while speaking, breathes while thinking, and is a quiet ring when paused.
-- **Captions:** your words small, Inkling's answer large in the serif; earlier exchanges smaller and faded above.
-- **Under a result:** "✓ Reminder set · Dentist at 15:00" with **Undo** (from the action log) and **Show** (the note or
-  to-do in the editor; reminders and events on Today; anything else in Action history).
+### A note
+
+The header on the sky with the SunMark; the title and body as before; the kind (Note, Idea, Journal, To-do) as word
+tabs; the to-do sizes as soft pills, the picked one navy.
 
 ### Look
 
-The camera stays full-bleed black (the one screen without the sky strip); Look's live description keeps its own tile
-inside Talk. Its look changes come in a later task.
+The camera stays full-bleed black with its own glass controls.
 
-### Library, Plans, Settings and the rest
+### Notebook, Plans, Settings and the rest
 
-Paper and ink under the hour's sky, each with its header on the sky (LFMP-17). Settings gains **Soft sounds**. Menus
-are paper with a 1 dp edge in the control grey (3:1) and no shadow; picking a day is a sheet with the highlighter on the chosen day, not the
-phone's own dialog. The capture widget sits on the day sky (the night sky in the dark theme).
+Paper under the hour's sky, each with its header on the sky. Settings groups sit on the wash with no edge; choices are
+words. A group that must stand out (a privacy warning, "Inkling is offline") has the highlighter's bar down its start
+edge (`callout`). Menus are the wash with a faint shadow; picking a day is a sheet with the highlighter on the chosen
+day.
 
 ### Lock screen and widget
 
-**Inkling · Today**, a 4×2 widget (`daylight/HorizonWidget.kt`), declared for the home screen and the keyguard:
+**Inkling · Today**, a 4×2 widget (`daylight/HorizonWidget.kt`), declared for the home screen and the keyguard. It keeps
+Daylight's horizon (a wide strip suits the widget better than the dial):
 
-- the hour's sky with the horizon, today's plans and the sun, drawn by the same painter as the app;
+- the hour's sky with the horizon, today's plans and the sun (`SkyPainter.draw`);
 - the time as a live clock;
 - "Next · 15:00 Dentist" (said with its time, never "in 20 minutes", so a picture up to 30 minutes old still tells the
   truth), or the day's sentence;

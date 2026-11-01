@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.lfmpixel.lfm.ui.components.FlatSheet
 import com.lfmpixel.lfm.ui.theme.LfmShape
@@ -179,7 +180,7 @@ private fun FactSheet(title: String, start: String, action: String, onDelete: ((
         Txt(title, LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.semantics { heading() })
         val shape = LfmShape.card
         BasicTextField(text, { text = it }, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text),
-            modifier = Modifier.padding(top = 10.dp).fillMaxWidth().heightIn(min = 48.dp).border(1.dp, c.control, shape).padding(12.dp))
+            modifier = Modifier.padding(top = 10.dp).fillMaxWidth().heightIn(min = 48.dp).background(c.wash, shape).padding(12.dp))
         Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (onDelete != null) Btn("Forget it", onDelete, Modifier.weight(1f), icon = "trash")
             Btn(action, { if (text.isNotBlank()) onSave(text) }, Modifier.weight(1f), BtnKind.Primary)

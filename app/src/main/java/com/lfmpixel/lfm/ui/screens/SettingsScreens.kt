@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import androidx.compose.ui.draw.clip
 import android.Manifest
 import com.lfmpixel.lfm.ui.components.SkyBand
 import com.lfmpixel.lfm.ui.components.FlatSheet
@@ -69,7 +70,7 @@ import java.util.Locale
 
 @Composable
 fun Group(content: @Composable () -> Unit) {
-    Column(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, Lfm.c.line, LfmShape.card)) { content() }
+    Column(Modifier.padding(top = 12.dp).fillMaxWidth().background(Lfm.c.wash, LfmShape.card)) { content() }
 }
 
 @Composable
@@ -141,7 +142,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                     "flash", { nav.go(Route.Models) }) { Chevron() }
             }
             SectionLabel("Thinking")
-            Row(Modifier.fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Think before answering", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -159,7 +160,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             SectionLabel("Web search")
             Segmented(SearchMode.entries.map { it.label }, p.searchMode.label, { l -> scope.launch { g.settings.setSearchMode(SearchMode.entries.first { it.label == l }) } })
-            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Warn about personal words", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -167,7 +168,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 }
                 Switch(p.warnPersonalWords, "Warn about personal words") { scope.launch { g.settings.setWarnPersonal(it) } }
             }
-            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Show speed", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -175,7 +176,7 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 }
                 Switch(p.showSpeed, "Show speed") { scope.launch { g.settings.setShowSpeed(it) } }
             }
-            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Soft sounds", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -409,7 +410,7 @@ private fun WipeSheet(g: AppGraph, onClose: () -> Unit, onDelete: (models: Boole
 private fun Guarantee(icon: String, title: String?, detail: String, markedTitle: String? = null, trailing: @Composable () -> Unit = {}) {
     val c = Lfm.c
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(30.dp).border(1.dp, c.line, LfmShape.control), contentAlignment = Alignment.Center) { LIcon(icon, size = 18.dp) }
+        Box(Modifier.size(30.dp).background(c.wash, LfmShape.round), contentAlignment = Alignment.Center) { LIcon(icon, size = 18.dp) }
         Column(Modifier.weight(1f)) {
             if (markedTitle != null) Marked(markedTitle, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             else Txt(title ?: "", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -436,9 +437,11 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             // The welcome sits on the hour's sky, as Today's top does.
             SkyBand { Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 18.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.width(28.dp).height(4.dp).background(Lfm.c.text, LfmShape.mark))
                     Box(Modifier.width(28.dp).height(4.dp).background(Lfm.c.line, LfmShape.mark))
+                    Spacer(Modifier.weight(1f))
+                    com.lfmpixel.lfm.ui.components.SunMark()
                 }
                 Txt("Your assistant,\non this phone", LfmType.voiceTitle, modifier = Modifier.padding(top = 8.dp, bottom = 10.dp))
                 Txt("Everything it thinks, hears and keeps stays here. No account. You decide if it may search the web.", LfmType.body, Lfm.c.text2)
@@ -490,7 +493,7 @@ fun FirstRunScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
 @Composable
 private fun Option(icon: String, title: String, detail: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     val c = Lfm.c
-    Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, if (selected) c.text else c.control, LfmShape.card)
+    Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().clip(LfmShape.card).background(if (selected) c.wash else androidx.compose.ui.graphics.Color.Transparent)
         .clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.RadioButton, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         LIcon(icon, tint = if (enabled) c.text else c.text3)

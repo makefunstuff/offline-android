@@ -119,6 +119,11 @@ class ScreenshotTest {
         com.lfmpixel.lfm.crash.Crashes.log!!.record(IllegalStateException("Engine is closed"), "main", true, com.lfmpixel.lfm.crash.Crashes.build)
         shot("25_crashes", route = Route.Crashes) { CrashesScreen(g, it) }
     }
+    // Another day's page: its date header on the sky, with the SunMark.
+    @Test fun yesterday() = shot("27_today_yesterday", tabs = true) {
+        androidx.compose.runtime.LaunchedEffect(Unit) { it.daysBack = 1 }
+        TodayScreen(g, it, {}, false)
+    }
     @Test fun crashNote() = shot("26_crash_note", tabs = true) {
         Box(Modifier.fillMaxSize()) {
             TodayScreen(g, it, {}, false)

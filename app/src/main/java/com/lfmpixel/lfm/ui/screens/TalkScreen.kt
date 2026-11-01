@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.ui.screens
 
+import com.lfmpixel.lfm.ui.components.SunDot
 import android.Manifest
 import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.animation.AnimatedContent
@@ -155,8 +156,7 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
             }
             AnimatedVisibility(state.warm, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),
                 exit = fadeOut(LfmMotion.spec()) + shrinkVertically(LfmMotion.spec())) {
-                val shape = LfmShape.control
-                Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.control, shape).padding(horizontal = 12.dp, vertical = 9.dp),
+                Row(Modifier.padding(top = 8.dp).fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LIcon("warn", size = 16.dp, tint = c.text)
                     Txt("Phone is warm, answers may be slower", LfmType.small)
@@ -186,9 +186,10 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
 }
 
 /**
- * The presence mark: the sun of the hour, a disc with a soft halo. It swells with the real voice level (the mic while it
- * listens, its own voice while it speaks), breathes slowly while it thinks, and lies as a quiet ring when paused. With
- * animations off it holds still and only the ring shows the state.
+ * The presence mark: the sun of the hour, a disc with a soft halo, inside a dial of 60 ticks (Horizon Almanac's
+ * signature). It swells with the real voice level (the mic while it listens, its own voice while it speaks) and the
+ * ticks light round the dial with it; it breathes slowly while it thinks, and lies as a quiet ring when paused. With
+ * animations off it holds still and the ticks show the state: all lit while it listens, half while it thinks.
  */
 @Composable
 private fun Presence(g: AppGraph, phase: TalkPhase, sun: Color, modifier: Modifier = Modifier) {
@@ -209,15 +210,32 @@ private fun Presence(g: AppGraph, phase: TalkPhase, sun: Color, modifier: Modifi
         t.animateFloat(0f, 1f, infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b").value
     } else 0f
     val resting = phase == TalkPhase.Paused || phase == TalkPhase.Failed || phase == TalkPhase.Off
-    androidx.compose.foundation.Canvas(modifier.size(170.dp).semantics { contentDescription = "Inkling"; stateDescription = phase.label }) {
+    androidx.compose.foundation.Canvas(modifier.size(210.dp).semantics { contentDescription = "Inkling"; stateDescription = phase.label }) {
         val center = this.center
-        val base = 30.dp.toPx()
+        val base = 34.dp.toPx()
+        // The dial: 60 ticks, every fifth longer; lit from the top, clockwise, as far as the voice (or the breath) goes.
+        val lit = when {
+            resting -> 0f
+            reduced -> if (phase == TalkPhase.Thinking || phase == TalkPhase.Loading) 0.5f else 1f
+            phase == TalkPhase.Thinking || phase == TalkPhase.Loading -> 0.25f + 0.5f * breath
+            else -> 0.2f + 0.8f * level
+        }
+        val outer = size.minDimension / 2 - 2.dp.toPx()
+        for (i in 0 until 60) {
+            val a = Math.PI * 2 * i / 60 - Math.PI / 2
+            val inner = outer - (if (i % 5 == 0) 9.dp.toPx() else 5.dp.toPx())
+            val on = i < 60 * lit
+            drawLine(c.text.copy(alpha = if (on) 0.75f else 0.2f),
+                androidx.compose.ui.geometry.Offset(center.x + inner * kotlin.math.cos(a).toFloat(), center.y + inner * kotlin.math.sin(a).toFloat()),
+                androidx.compose.ui.geometry.Offset(center.x + outer * kotlin.math.cos(a).toFloat(), center.y + outer * kotlin.math.sin(a).toFloat()),
+                (if (i % 5 == 0) 2.dp else 1.dp).toPx())
+        }
         if (resting) {
             drawCircle(c.text2, base, center, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
             return@Canvas
         }
-        val r = base * (1f + 0.45f * level + 0.08f * breath)
-        val halo = r * (2.1f + 0.5f * level)
+        val r = base * (1f + 0.35f * level + 0.08f * breath)
+        val halo = r * (1.9f + 0.4f * level)
         drawCircle(androidx.compose.ui.graphics.Brush.radialGradient(listOf(sun.copy(alpha = 0.30f + 0.30f * level + 0.1f * breath), sun.copy(alpha = 0f)),
             center, halo), halo, center)
         drawCircle(sun, r, center)
@@ -298,7 +316,7 @@ private fun ActionLine(g: AppGraph, nav: Nav, a: com.lfmpixel.lfm.voice.TalkActi
     val view = androidx.compose.ui.platform.LocalView.current
     var undone by androidx.compose.runtime.saveable.rememberSaveable(a.actionId) { androidx.compose.runtime.mutableStateOf(false) }
     Row(Modifier.padding(top = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        LIcon(when { !a.ok -> "x"; undone -> "undo"; else -> "check" }, size = 16.dp, tint = c.text2)
+        if (a.ok && !undone) SunDot(8.dp) else LIcon(if (!a.ok) "x" else "undo", size = 16.dp, tint = c.text2)
         Txt(listOf(if (undone) "Undone" else a.label, a.title).filter { it.isNotEmpty() }.joinToString(" · "), LfmType.small, c.text2,
             Modifier.weight(1f), maxLines = 2, decoration = if (undone) androidx.compose.ui.text.style.TextDecoration.LineThrough else null)
         val id = a.actionId
@@ -312,10 +330,9 @@ private fun ActionLine(g: AppGraph, nav: Nav, a: com.lfmpixel.lfm.voice.TalkActi
 @Composable
 private fun SmallAction(text: String, onClick: () -> Unit) {
     val c = Lfm.c
-    val shape = LfmShape.control
-    Box(Modifier.clip(shape).border(1.dp, c.control, shape).clickable(role = Role.Button, onClick = onClick)
-        .size(width = 64.dp, height = 36.dp), contentAlignment = Alignment.Center) {
-        Txt(text, LfmType.button, c.text)
+    Box(Modifier.clip(LfmShape.control).clickable(role = Role.Button, onClick = onClick)
+        .size(width = 56.dp, height = 44.dp), contentAlignment = Alignment.Center) {
+        Txt(text, LfmType.action, c.action)
     }
 }
 
@@ -345,10 +362,10 @@ private fun Controls(phase: TalkPhase, spoken: Boolean, onSpoken: () -> Unit, on
                 scaleIn(tween(LfmMotion.MEDIUM, easing = LfmMotion.emphasizedDecelerate), initialScale = 0.85f)) togetherWith
                 fadeOut(tween(90, easing = LfmMotion.emphasizedAccelerate))
         }, label = "main") { rest ->
-            if (rest) MicButton(onMain, size = 64.dp)
+            if (rest) MicButton(onMain, size = 64.dp, primary = true)
             else {
                 val stopLabel = when (phase) { TalkPhase.Speaking, TalkPhase.Thinking -> "Stop the answer"; else -> "Pause" }
-                Box(Modifier.size(64.dp).clip(LfmShape.card).background(c.text).clickable(role = Role.Button, onClick = onMain)
+                Box(Modifier.size(64.dp).clip(LfmShape.round).background(c.text).clickable(role = Role.Button, onClick = onMain)
                     .semantics { contentDescription = stopLabel }, contentAlignment = Alignment.Center) { LIcon("stop", tint = c.bg) }
             }
         }
@@ -359,8 +376,8 @@ private fun Controls(phase: TalkPhase, spoken: Boolean, onSpoken: () -> Unit, on
 @Composable
 private fun Round(icon: String, desc: String, on: Boolean, onClick: () -> Unit) {
     val c = Lfm.c
-    val shape = LfmShape.card
-    Box(Modifier.size(46.dp).clip(shape).background(if (on) c.fill else Color.Transparent).border(1.dp, c.control, shape)
+    val shape = LfmShape.round
+    Box(Modifier.size(48.dp).clip(shape).background(if (on) c.text.copy(alpha = 0.16f) else c.fill)
         .clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc }, contentAlignment = Alignment.Center) {
         LIcon(icon, tint = c.text2)
     }
@@ -370,8 +387,9 @@ private fun Round(icon: String, desc: String, on: Boolean, onClick: () -> Unit) 
 private fun NoVoice(onModels: () -> Unit) {
     val c = Lfm.c
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Txt("Talk needs LFM3-Omni-2B", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight), modifier = Modifier.padding(top = 24.dp))
-        Txt("Omni listens and answers out loud, all on this phone. Get it and its projector file (1.3 GB) in Models.", LfmType.body, c.text2)
-        Btn("Open Models", onModels, kind = BtnKind.Primary, icon = "chip")
+        Txt("Talk needs LFM3-Omni-2B", LfmType.title2, modifier = Modifier.padding(top = 24.dp))
+        Txt("Omni listens and answers out loud, all on this phone. Get it and its projector file (1.3 GB) in Models, and I'll be here.",
+            LfmType.voiceBody, c.text2)
+        Btn("Open Models", onModels, kind = BtnKind.Primary)
     }
 }

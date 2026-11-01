@@ -5,7 +5,7 @@ import org.junit.Test
 import java.io.File
 
 /**
- * Keeps Inkling one look (docs/ux-spec.md, Daylight): colours, type sizes and corners come from the theme
+ * Keeps Inkling one look (docs/ux-spec.md, Horizon Almanac): colours, type sizes and corners come from the theme
  * (ui/theme), stock Material pieces only through the shared components (ui/components), and nothing of the old look
  * (the organizer's tints, Material's default theme, the platform's dialogs) comes back. Each failure names the file,
  * the line and what to use instead.
@@ -51,6 +51,11 @@ class DaylightGuardTest {
         "Material used on a screen: use the shared piece (Txt, RichTxt, Btn, Switch, CheckBox, Card, Header, FlatSheet, Menu, DaySheet, SnackHost…)",
         find(code.filter { !it.inTheme() && !it.inComponents() },
             Regex("""androidx\.compose\.material3?\.(?!ExperimentalMaterial3Api\b)[A-Za-z*]|\bMaterialTheme\b""")))
+
+    /** Horizon Almanac has no outlined boxes: groups sit on the wash, buttons are words (the camera keeps its own look). */
+    @Test fun noOutlinedBoxes() = none("An outlined box on a screen: put the group on the wash (background(c.wash, …)) or use a Btn, which is a word",
+        find(code.filter { !it.inTheme() && !it.inComponents() && it.name != "CameraScreen.kt" },
+            Regex("""\.border\(\s*1\.dp,\s*(Lfm\.)?c\.(line|control|text)\s*,\s*(LfmShape\.(card|control)|shape|fieldShape)\)""")))
 
     @Test fun noPlatformDialogs() = none("A platform dialog or toast, drawn in the phone's look instead of Daylight's: use a FlatSheet, DaySheet or SnackHost",
         find(code, Regex("""android\.app\.(AlertDialog|DatePickerDialog|TimePickerDialog|ProgressDialog)|android\.widget\.Toast|\bToast\.makeText""")))

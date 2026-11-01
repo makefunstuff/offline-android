@@ -323,6 +323,7 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                 g.scope.launch { draft.discard()?.let { old -> nav.show("${old.kind.label} deleted") { g.db.entries().insert(old) } } }
                 nav.back()
             }, desc = "Delete")
+            com.lfmpixel.lfm.ui.components.SunMark(Modifier.padding(start = 4.dp, end = 10.dp))
         }
         }
         Box(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
@@ -331,7 +332,6 @@ fun EditorScreen(g: AppGraph, nav: Nav, route: Route.Editor) {
                 if (k != e.kind) draft.switchKind(k)
             }, Modifier.padding(top = 0.dp))
         }
-        Divider()
         Column(Modifier.weight(1f).onPlaced { page.viewport = it }.then(with(page) { Modifier.watchFingers(scroll) }).verticalScroll(scroll).padding(horizontal = 16.dp)) {
             if (loaded) BasicTextField(draft.text, { v ->
                     // A tap or a cursor move is not a change; only the text is.

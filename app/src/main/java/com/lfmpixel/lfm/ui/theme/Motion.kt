@@ -46,7 +46,7 @@ object LfmMotion {
     /** How far an arriving thing rises as it fades in. */
     val rise = 8.dp
 
-    /** True when the owner turned animations off in Android's accessibility settings. */
+    /** True when the owner turned animations off in Android's accessibility settings, or Battery Saver is on. */
     @Composable
     fun reduced(): Boolean {
         val ctx = LocalContext.current
@@ -54,7 +54,8 @@ object LfmMotion {
     }
 
     fun isReduced(ctx: android.content.Context) =
-        Settings.Global.getFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+        Settings.Global.getFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f ||
+            ctx.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true
 
     /** A tween with M3 easing, or a snap when animations are off. */
     @Composable

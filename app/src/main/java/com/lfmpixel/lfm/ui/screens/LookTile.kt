@@ -102,7 +102,7 @@ fun LookTile(g: AppGraph, showSpeed: Boolean, modifier: Modifier = Modifier) {
     }
     val shape = LfmShape.card
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.fillMaxWidth().height(190.dp).clip(shape).background(CameraColors.ground).border(1.dp, c.control, shape)
+        Box(Modifier.fillMaxWidth().height(190.dp).clip(shape).background(CameraColors.ground)
             .clickable(role = Role.Button, onClickLabel = "Look again") { now.set(true) }
             .semantics { contentDescription = "Camera, Look is on" }) {
             AndroidView({ previewView }, Modifier.fillMaxSize())

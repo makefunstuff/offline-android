@@ -43,7 +43,7 @@ import com.lfmpixel.lfm.daylight.HorizonLayout
 import com.lfmpixel.lfm.daylight.OnSky
 import com.lfmpixel.lfm.daylight.Plan
 import com.lfmpixel.lfm.daylight.Sky
-import com.lfmpixel.lfm.daylight.SkyCanvas
+import com.lfmpixel.lfm.daylight.DialCanvas
 import com.lfmpixel.lfm.ui.components.IconButtonPlain
 import com.lfmpixel.lfm.ui.components.LIcon
 import com.lfmpixel.lfm.ui.components.Txt
@@ -64,15 +64,15 @@ internal fun horizonPlans(timeline: List<AgendaItem>, zone: ZoneId): List<Pair<P
 }
 
 /**
- * Daylight's home (docs/ux-spec.md, "Today"): the sky at this hour, the time, the day in one sentence, and today's plans
- * on the horizon with the sun walking toward the next. A tap on a plan picks it: its line shows under the horizon,
- * with Open when it can be opened. Under the sky, one tap each: Talk, Look, Ask, and the whole page below.
+ * Horizon Almanac's home (docs/ux-spec.md, "Today"): the sky at this hour with the day as a half dial, the time in big
+ * figures inside it, the day in one serif sentence under the horizon, and the next plan with how long until it. Plans
+ * are marks on the dial; a tap on one picks it and its line shows, with Open when it can be opened. When Today first
+ * shows, the sun rises along the dial to now (900 ms, once a run; still with Remove animations).
  */
 @Composable
 internal fun SkyHead(
     g: AppGraph, now: LocalDateTime, sky: Sky, timeline: List<AgendaItem>, openTodos: Int,
-    onDayBefore: () -> Unit, onDump: () -> Unit, onSettings: () -> Unit,
-    onTalk: () -> Unit, onLook: () -> Unit, onAsk: () -> Unit,
+    onDayBefore: () -> Unit, onDump: () -> Unit, onSettings: () -> Unit, onLook: () -> Unit,
 ) {
     val zone = ZoneId.systemDefault()
     val pairs = horizonPlans(timeline, zone)
@@ -82,60 +82,65 @@ internal fun SkyHead(
     val pickedPair = pairs.firstOrNull { it.first.key == picked }
     val view = LocalView.current
     val sentence = DaySentence.of(now, pairs.map { it.first }, openTodos)
-    // The sun's arc stays low, under the time and the sentence, so it never sits behind words.
-    val skyH = 340.dp
-    val horizonAt = 0.82f
+    val reduced = LfmMotion.reduced()
+    val rise = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(if (reduced || risen) 1f else 0f) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (rise.value < 1f) rise.animateTo(1f, androidx.compose.animation.core.tween(900, easing = LfmMotion.emphasizedDecelerate))
+        risen = true
+    }
 
-    Column {
-        BoxWithConstraints(Modifier.fillMaxWidth().height(skyH)) {
-            SkyCanvas(sky, layout, Modifier.fillMaxSize(), selected = picked, horizonAt = horizonAt, arcHeight = 60.dp)
-            OnSky(sky) {
-                val c = Lfm.c
-                Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 6.dp, top = 6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Txt("Today · " + now.format(DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH)), LfmType.label, c.text2,
-                            Modifier.weight(1f).semantics { heading() })
-                        IconButtonPlain("back", onDayBefore, tint = c.text2, desc = "The day before")
-                        IconButtonPlain("cloud", onDump, tint = c.text2, desc = "Brain dump")
-                        IconButtonPlain("user", onSettings, tint = c.text2, desc = "Settings")
-                    }
-                    Txt(now.format(DateTimeFormatter.ofPattern("HH:mm")), LfmType.clock, c.text, Modifier.semantics {
-                        contentDescription = "It's " + now.format(DateTimeFormatter.ofPattern("HH:mm"))
-                    })
-                    Txt(sentence, LfmType.voice, c.text, Modifier.padding(top = 6.dp, end = 14.dp), maxLines = 3)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // The dial stands on the horizon; its top clears the header row, so a plan's target never sits on an icon.
+        val headerH = 52.dp
+        val radius = minOf(maxWidth / 2 - 34.dp, 150.dp)
+        val hy = headerH + 22.dp + radius
+        DialCanvas(sky, layout, hy, radius, Modifier.matchParentSize(), selected = picked, sunAt = rise.value)
+        OnSky(sky) {
+            val c = Lfm.c
+            // The time, inside the dial, its foot on the horizon at any font size.
+            Box(Modifier.fillMaxWidth().height(hy - 2.dp), contentAlignment = Alignment.BottomCenter) {
+                Txt(now.format(DateTimeFormatter.ofPattern("HH:mm")), LfmType.clock, c.text, Modifier.semantics {
+                    contentDescription = "It's " + now.format(DateTimeFormatter.ofPattern("HH:mm"))
+                })
+            }
+            Column(Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().height(headerH).padding(start = 24.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Txt("Today · " + now.format(DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)), LfmType.label, c.text2,
+                        Modifier.weight(1f).semantics { heading() }, maxLines = 1)
+                    IconButtonPlain("back", onDayBefore, tint = c.text2, desc = "The day before")
+                    IconButtonPlain("camera", onLook, tint = c.text2, desc = "Look")
+                    IconButtonPlain("cloud", onDump, tint = c.text2, desc = "Brain dump")
+                    IconButtonPlain("user", onSettings, tint = c.text2, desc = "Settings")
                 }
-                // Plans on the horizon: a 44 dp target each, read out with its time.
-                val w = maxWidth
-                val hy = skyH * horizonAt
-                val pad = 20.dp
-                pairs.forEach { (plan, item) ->
-                    val x = pad + (w - pad * 2) * layout.x(plan.minute)
-                    Box(Modifier.offset(x - 22.dp, hy - 22.dp).size(44.dp).clip(LfmShape.round)
-                        .clickable(role = Role.Button, onClickLabel = "Show") {
-                            picked = if (picked == plan.key) null else plan.key
-                            g.feel.cue(Cue.Tick, view)
-                        }
-                        .semantics {
-                            contentDescription = DaySentence.clock(plan.minute) + " " + item.title
-                            if (picked == plan.key) stateDescription = "Shown"
-                        })
-                }
-                // Under the horizon: the picked plan, else the next one, else a quiet line.
-                val shown = pickedPair ?: layout.next?.let { n -> pairs.firstOrNull { it.first == n } }
-                Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(skyH * (1 - horizonAt)).padding(horizontal = 20.dp),
-                    contentAlignment = Alignment.CenterStart) {
+                Spacer(Modifier.height(hy - headerH + 14.dp))
+                // Under the horizon: Inkling's sentence, then the picked plan, else the next one. The sky grows to fit.
+                Column(Modifier.fillMaxWidth().padding(start = 28.dp, end = 28.dp, bottom = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Txt(sentence, LfmType.voice, c.text2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    val shown = pickedPair ?: layout.next?.let { n -> pairs.firstOrNull { it.first == n } }
                     PlanLine(shown, layout, isPicked = pickedPair != null)
                 }
             }
-        }
-        // One tap from everything: the ways in sit right under the sky.
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            WayIn("wave", "Talk", Modifier.weight(1f), onTalk)
-            WayIn("camera", "Look", Modifier.weight(1f), onLook)
-            WayIn("chat", "Ask", Modifier.weight(1f), onAsk)
+            // Plans on the dial: a 44 dp target each, read out with its time.
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            val geo = with(density) { com.lfmpixel.lfm.daylight.SkyPainter.DialGeometry(maxWidth.toPx() / 2, hy.toPx(), radius.toPx()) }
+            pairs.forEach { (plan, item) ->
+                val (px, py) = geo.at(layout.x(plan.minute))
+                Box(Modifier.offset(with(density) { px.toDp() } - 22.dp, with(density) { py.toDp() } - 22.dp).size(44.dp).clip(LfmShape.round)
+                    .clickable(role = Role.Button, onClickLabel = "Show") {
+                        picked = if (picked == plan.key) null else plan.key
+                        g.feel.cue(Cue.Tick, view)
+                    }
+                    .semantics {
+                        contentDescription = DaySentence.clock(plan.minute) + " " + item.title
+                        if (picked == plan.key) stateDescription = "Shown"
+                    })
+            }
         }
     }
 }
+
+/** Today's sun rises to now once a run, not each time the page comes back into view. */
+private var risen = false
 
 @Composable
 private fun PlanLine(shown: Pair<Plan, AgendaItem>?, layout: HorizonLayout, isPicked: Boolean) {
@@ -146,11 +151,7 @@ private fun PlanLine(shown: Pair<Plan, AgendaItem>?, layout: HorizonLayout, isPi
         else fadeIn(androidx.compose.animation.core.tween(LfmMotion.SHORT, easing = LfmMotion.standard)) togetherWith
             fadeOut(androidx.compose.animation.core.tween(LfmMotion.TINY, easing = LfmMotion.standard))
     }, label = "plan") { key ->
-        val pair = if (key == shown?.first?.key) shown else null
-        if (pair == null) {
-            Txt("Nothing more at a set time today", LfmType.small, c.text2)
-            return@AnimatedContent
-        }
+        val pair = (if (key == shown?.first?.key) shown else null) ?: return@AnimatedContent
         val (plan, item) = pair
         val until = layout.minutesTo(plan)
         val whenText = when {
@@ -158,28 +159,16 @@ private fun PlanLine(shown: Pair<Plan, AgendaItem>?, layout: HorizonLayout, isPi
             until <= 0 -> "now"
             else -> "in " + DaySentence.span(until)
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
+        Row(Modifier.padding(top = 8.dp).heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.weight(1f, fill = false), horizontalAlignment = Alignment.CenterHorizontally) {
                 Txt((if (isPicked) "" else "Next · ") + DaySentence.clock(plan.minute) + " · " + whenText, LfmType.meta, c.text2, maxLines = 1)
-                Txt(item.title, LfmType.rowTitle, c.text, maxLines = 1)
+                Txt(item.title, LfmType.rowTitle, c.text, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
             item.onClick?.let { open ->
-                val shape = LfmShape.control
-                Txt("Open", LfmType.button, c.text, Modifier.clip(shape).border(1.dp, c.control, shape).clickable(role = Role.Button, onClick = open)
-                    .heightIn(min = 36.dp).padding(horizontal = 14.dp, vertical = 9.dp))
+                Txt("Open", LfmType.action, c.action, Modifier.clip(LfmShape.control).clickable(role = Role.Button, onClick = open)
+                    .heightIn(min = 44.dp).padding(horizontal = 8.dp, vertical = 12.dp))
             }
         }
-    }
-}
-
-@Composable
-private fun WayIn(icon: String, label: String, modifier: Modifier, onClick: () -> Unit) {
-    val c = Lfm.c
-    val shape = LfmShape.card
-    Row(modifier.clip(shape).border(1.dp, c.line, shape).clickable(role = Role.Button, onClick = onClick).heightIn(min = 48.dp)
-        .padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-        LIcon(icon, size = 18.dp, tint = c.text)
-        Spacer(Modifier.width(8.dp))
-        Txt(label, LfmType.button, c.text)
     }
 }

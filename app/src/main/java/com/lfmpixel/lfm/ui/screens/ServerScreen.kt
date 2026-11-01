@@ -77,7 +77,7 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
                 "long chats kept whole. Notes, chats and tools stay on the phone; each request goes " +
                 "only to this address, and is listed in Privacy → Network log. If the server can't be reached, the phone's " +
                 "own models answer until it is back.", LfmType.small, c.text2, Modifier.padding(top = 12.dp))
-            Row(Modifier.padding(top = 14.dp).fillMaxWidth().border(1.dp, c.line, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
+            Row(Modifier.padding(top = 14.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column(Modifier.weight(1f)) {
                     Txt("Use my server", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
@@ -138,7 +138,7 @@ internal fun ServerField(label: String, value: String, onChange: (String) -> Uni
     val shape = LfmShape.control
     Column(Modifier.padding(top = 10.dp)) {
         Label(label)
-        Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 44.dp).background(c.fill, shape).border(1.dp, c.control, shape)
+        Box(Modifier.padding(top = 4.dp).fillMaxWidth().heightIn(min = 44.dp).background(c.wash, shape)
             .padding(horizontal = 12.dp, vertical = 10.dp)) {
             if (value.isEmpty()) Txt(placeholder, LfmType.body, c.text2)
             BasicTextField(value, onChange, textStyle = LfmType.body.copy(color = c.text), cursorBrush = SolidColor(c.text), singleLine = true,
