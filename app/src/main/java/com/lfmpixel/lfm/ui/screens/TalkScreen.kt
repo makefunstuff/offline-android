@@ -118,7 +118,7 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
         Column(Modifier.weight(1f).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             if (looking && edgeOn) LookTile(g, prefs?.showSpeed == true, Modifier.padding(top = 12.dp, bottom = 10.dp))
             else VoiceBox(g, state.phase, Modifier.padding(top = 24.dp, bottom = 14.dp))
-            PhaseLine(state.phase, state.spoken)
+            PhaseLine(state.phase, state.spoken, state.answering)
             AnimatedVisibility(state.error != null, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),
                 exit = fadeOut(LfmMotion.spec()) + shrinkVertically(LfmMotion.spec())) {
                 Txt(state.error ?: "", LfmType.small, c.text2, Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
@@ -126,11 +126,11 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
             Transcript(state.turns, Modifier.weight(1f).padding(top = 14.dp))
             // Where the last answer came from, and how soon it was heard (Settings → Show speed).
             val showSpeed = prefs?.showSpeed == true
-            state.timing?.takeIf { showSpeed && it.firstSoundMs > 0 }?.let { t ->
+            state.timing?.takeIf { showSpeed && (it.firstSoundMs > 0 || it.firstWordMs > 0) }?.let { t ->
                 Txt((if (t.viaServer) "Your server" else "This phone") + (if (t.model.isNotEmpty()) " · ${t.model}" else "") +
                     (if (t.tools > 0) " · ${t.tools} ${if (t.tools == 1) "action" else "actions"}" else "") +
                     (if (t.firstWordMs > 0) " · first word %.1f s".format(java.util.Locale.ENGLISH, t.firstWordMs / 1000.0) else "") +
-                    " · first sound %.1f s".format(java.util.Locale.ENGLISH, t.firstSoundMs / 1000.0),
+                    (if (t.firstSoundMs > 0) " · first sound %.1f s".format(java.util.Locale.ENGLISH, t.firstSoundMs / 1000.0) else ""),
                     LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
             }
             AnimatedVisibility(state.warm, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),
@@ -206,7 +206,7 @@ private fun wave(t: Float, i: Int): Float = (kotlin.math.sin((t * 2f + i / 7f) *
 
 /** What it is doing now, marked; a short hint under it. Changes fade through. */
 @Composable
-private fun PhaseLine(phase: TalkPhase, spoken: Boolean) {
+private fun PhaseLine(phase: TalkPhase, spoken: Boolean, answering: String) {
     val c = Lfm.c
     val reduced = LfmMotion.reduced()
     AnimatedContent(phase, transitionSpec = {
@@ -218,10 +218,11 @@ private fun PhaseLine(phase: TalkPhase, spoken: Boolean) {
             if (doing) Marked(p.label, LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
             else Txt(p.label, LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
             Txt(when (p) {
-                TalkPhase.Loading -> "Loading Omni on this phone"
+                TalkPhase.Loading -> "Getting ready"
                 TalkPhase.Listening -> "Speak when you're ready"
                 TalkPhase.Hearing -> "Pause and it answers"
-                TalkPhase.Thinking -> "Working it out on this phone"
+                // Which model is answering, and where (Qwen on the server, or Omni on the phone).
+                TalkPhase.Thinking -> answering.ifEmpty { "Writing down what you said" }
                 TalkPhase.Speaking -> if (spoken) "Tap stop to cut in" else "Answers in text only"
                 TalkPhase.Paused -> "Tap the mic to carry on"
                 TalkPhase.Failed -> "Tap the mic to try again"
