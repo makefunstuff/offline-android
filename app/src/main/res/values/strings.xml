@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="widget_horizon_description">Today\'s horizon: the time, the sun and the next thing</string>
     <string name="widget_description">Capture by voice, Talk, or a new note</string>
     <string name="tile_capture">Capture</string>
     <string name="shortcut_line">Write a line</string>

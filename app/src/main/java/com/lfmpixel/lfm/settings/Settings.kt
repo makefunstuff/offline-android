@@ -52,6 +52,8 @@ data class Prefs(
     val downloadWifiOnly: Boolean = true,
     /** A small "28 tokens/s · first token 0.4 s" line under each answer. */
     val showSpeed: Boolean = true,
+    /** Daylight's soft sounds (Talk listening, a thing done, undone); haptics follow the phone's own setting. */
+    val softSounds: Boolean = true,
     val speechLanguage: SpeechLanguage = SpeechLanguage.EnglishUK,
     val speechVoice: SpeechVoice = SpeechVoice.Female,
     /** Talk answers out loud; off, it answers in text only (faster, silent). */
@@ -101,6 +103,7 @@ class Settings(private val context: Context) {
         val wifiOnly = booleanPreferencesKey("download_wifi_only")
         val chatModel = stringPreferencesKey("chat_model")
         val speed = booleanPreferencesKey("show_speed")
+        val sounds = booleanPreferencesKey("soft_sounds")
         val speechLanguage = stringPreferencesKey("speech_language")
         val speechVoice = stringPreferencesKey("speech_voice")
         val talkSpoken = booleanPreferencesKey("talk_spoken")
@@ -142,6 +145,7 @@ class Settings(private val context: Context) {
         downloadWifiOnly = this[K.wifiOnly] ?: true,
         chatModel = this[K.chatModel] ?: "",
         showSpeed = this[K.speed] ?: true,
+        softSounds = this[K.sounds] ?: true,
         speechLanguage = this[K.speechLanguage]?.let { runCatching { SpeechLanguage.valueOf(it) }.getOrNull() } ?: SpeechLanguage.EnglishUK,
         speechVoice = this[K.speechVoice]?.let { runCatching { SpeechVoice.valueOf(it) }.getOrNull() } ?: SpeechVoice.Female,
         talkSpoken = this[K.talkSpoken] ?: true,
@@ -174,6 +178,7 @@ class Settings(private val context: Context) {
     suspend fun setDownloadWifiOnly(on: Boolean) = context.store.edit { it[K.wifiOnly] = on }
     suspend fun setSpeechLanguage(l: SpeechLanguage) = context.store.edit { it[K.speechLanguage] = l.name }
     suspend fun setSpeechVoice(v: SpeechVoice) = context.store.edit { it[K.speechVoice] = v.name }
+    suspend fun setSoftSounds(on: Boolean) = context.store.edit { it[K.sounds] = on }
     suspend fun setTalkSpoken(on: Boolean) = context.store.edit { it[K.talkSpoken] = on }
     suspend fun setVoicePace(rtf: Double, usualMs: Double) = context.store.edit { it[K.voiceRtf] = rtf; it[K.voiceUsualMs] = usualMs }
     suspend fun setAssistOpens(o: AssistOpens) = context.store.edit { it[K.assistOpens] = o.name }

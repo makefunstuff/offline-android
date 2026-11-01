@@ -164,6 +164,14 @@ fun SettingsScreen(g: AppGraph, nav: Nav) {
                 }
                 Switch(p.showSpeed, "Show speed") { scope.launch { g.settings.setShowSpeed(it) } }
             }
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Txt("Soft sounds", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+                    Txt("A quiet note when Talk listens and when something is done or undone. Never on silent", LfmType.label.copy(fontWeight = null), c.text2)
+                }
+                Switch(p.softSounds, "Soft sounds") { scope.launch { g.settings.setSoftSounds(it) } }
+            }
             Label("Thread count", Modifier.padding(top = 20.dp, bottom = 6.dp))
             // A count the benchmark picked that is not one of these shows too.
             val counts = listOf(2, 4, 5, 6).let { if (p.threads > 0 && p.threads !in it) (it + p.threads).sorted() else it }

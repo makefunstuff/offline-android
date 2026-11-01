@@ -5,7 +5,7 @@ for ideation, reading, privacy stuff, scheduling. The UI is too generic right no
 convenient, so I use it daily and privately." And: "The results should be proper suggestions to user experience."
 
 So Inkling stops being a chat app with a notebook bolted on and becomes **a notebook with an assistant in it**. This
-file holds the ranked UX proposals, then the screen rules the build follows. [ux-spec.md](ux-spec.md) (LP-12) still
+file holds the ranked UX proposals, then the screen rules the build follows. [ux-spec-v1.md](ux-spec-v1.md) (LP-12) still
 holds for everything not named here: palette, editing rules, motion, accessibility. Where they disagree, this file wins.
 
 Written 31 October 2026. The mockups (dark and light) are in the LP-35 artifact.
@@ -165,7 +165,7 @@ server when LP-32 (Edge mode) is there:
 - **Focus.** A pushed screen (shared axis X); its state (which to-do, when it started, minutes, paused) is kept in
   preferences so it survives the app being closed; the end notification is an exact alarm on its own channel.
 - **Brain dump.** A full-height sheet with one text field; its text is saved into the dump note half a second after
-  typing stops and on close. Keyboard rules from ux-spec section 6.
+  typing stops and on close. Keyboard rules from ux-spec-v1 section 6.
 - **Where was I.** When Inkling leaves the screen it writes the time; on return after 20 min the card shows once.
 - **Shortcuts.** Static launcher shortcuts for *Write a line*, *Brain dump* and *Now* open MainActivity with
   `EXTRA_OPEN`.
@@ -389,9 +389,9 @@ gains the Reading filter), To-dos is renamed Plans. The app now reads as a noteb
   muted. Done to-dos: struck through, muted. Empty page: "A blank page. Write a line below — it sorts itself."
 - **Ink line.** Pinned at the bottom (today only; past days show "Back to today" there). Glyph button, text field,
   mic, send. While typing, a hint above it says where the line goes ("To-do · today", "Reminder · today 18:00"). The
-  mic fills the line with what it heard, to be read before it goes on the page. A to-do written here is due today. Keyboard rules from ux-spec section 6; the page keeps the last line in view as lines are added.
+  mic fills the line with what it heard, to be read before it goes on the page. A to-do written here is due today. Keyboard rules from ux-spec-v1 section 6; the page keeps the last line in view as lines are added.
 - **Day swipe.** A horizontal swipe of 80 dp or more turns the page; the new day slides in on the shared X
-  axis (ux-spec section 7, 300 ms). Days with nothing still open (a blank page).
+  axis (ux-spec-v1 section 7, 300 ms). Days with nothing still open (a blank page).
 - **States.** No model: the Ink line still works (the sorter is rule-based); a "?" line stays in the line with a note
   that asking needs a chat model (Settings → Models), rather than being filed as a note.
 

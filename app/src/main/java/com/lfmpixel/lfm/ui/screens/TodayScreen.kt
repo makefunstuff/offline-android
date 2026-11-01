@@ -151,8 +151,8 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
     val isToday = day == today
     val start = day.atStartOfDay(zone).toInstant().toEpochMilli()
     val end = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    var now by remember { mutableStateOf(LocalDateTime.now()) }
-    LaunchedEffect(Unit) { while (true) { delay(30_000); now = LocalDateTime.now() } }
+    // Daylight's clock, read again at each new minute.
+    val now by com.lfmpixel.lfm.daylight.rememberNow()
     // Null until first read, so the page shows once known rather than "blank" for a moment first.
     val linesRead by remember(start) { g.db.entries().day(start, end) }.collectAsState(null)
     val remindersRead by remember(start) { g.db.reminders().between(start, end) }.collectAsState(null)
@@ -215,7 +215,12 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
     }
 
     LazyColumn(Modifier.fillMaxSize(), state = list) {
-        item(key = "head") {
+        if (isToday) item(key = "sky") {
+            SkyHead(g, now, com.lfmpixel.lfm.daylight.skyAt(now), timeline, page.count { it.kind == EntryKind.Todo && !it.done },
+                onDayBefore = { turn(day.minusDays(1)) }, onDump = { nav.go(Route.Dump()) }, onSettings = { nav.go(Route.Settings) },
+                onTalk = { nav.go(Route.Talk) }, onLook = { nav.go(Route.Camera) }, onAsk = { nav.go(Route.Chat) })
+        }
+        else item(key = "head") {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).semantics(mergeDescendants = true) { heading() }) {
                     Label(when (day) {
@@ -250,7 +255,8 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
                     val heat by g.heat.heat.collectAsState()
                     if (heat != com.lfmpixel.lfm.device.Heat.Normal) Pill(heat.label.substringBefore(" ·"), "warn")
                 }
-                if (known) Txt(brief(timeline.size, page.count { it.kind == EntryKind.Todo && !it.done }, carried.size, page.size, isToday),
+                // Today opens with the sky's sentence; other days keep their line of counts.
+                if (known && !isToday) Txt(brief(timeline.size, page.count { it.kind == EntryKind.Todo && !it.done }, carried.size, page.size, isToday),
                     LfmType.small, c.text2)
             }
         }
@@ -269,7 +275,7 @@ private fun DayPage(g: AppGraph, nav: Nav, day: LocalDate, today: LocalDate, tur
         if (carried.isNotEmpty()) item(key = "carried") { Carried(g, nav, carried, today, zone) }
         item(key = "page-label") { PageLabel("The page") }
         if (known && shownLines.isEmpty() && lockedLines == 0) item(key = "empty") {
-            Txt(if (isToday) "A blank page. Write a line below: it sorts itself into a to-do, an idea, a journal line or a note."
+            Txt(if (isToday) "A clean page. Write a line below and I'll file it: a to-do, an idea, a journal line or a note."
                 else "Nothing was written on this day.", LfmType.small, c.text2, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
         }
         items(shownLines, key = { it.id }) { e -> PageLine(e, open, actions, Modifier.animateItem(), onSteps = { stepsFor = it }) }

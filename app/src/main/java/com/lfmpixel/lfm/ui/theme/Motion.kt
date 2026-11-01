@@ -29,7 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 /**
  * The motion tokens, one set for the whole app: Material 3 easings, 100–300 ms, springs without bounce for what
  * follows a finger, and nothing at all when the phone's "Remove animations" is on (animator duration scale 0).
- * The rules are in docs/ux-spec.md section 7.
+ * The rules are in docs/ux-spec-v1.md section 7.
  */
 object LfmMotion {
     val emphasizedDecelerate: Easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
