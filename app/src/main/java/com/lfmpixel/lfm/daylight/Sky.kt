@@ -16,7 +16,7 @@ enum class DayPart(val label: String) { Dawn("Dawn"), Day("Day"), Dusk("Dusk"), 
 
 /**
  * The sky at one moment: [top] fades to [horizon]; [sun] is the sun (or the moon at night); [ink] is the text drawn on
- * it, [ink2] the quieter text. [ink] always meets 4.5:1 against [top] and against [horizon].
+ * it, [ink2] the quieter text. Both always meet 4.5:1 against [top] and against [horizon].
  */
 data class Sky(val part: DayPart, val top: Int, val horizon: Int, val sun: Int, val ink: Int, val ink2: Int, val night: Boolean) {
     /** True when text on the sky is light (dusk and night): status bar icons go light too. */

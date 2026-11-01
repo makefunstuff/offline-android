@@ -99,7 +99,7 @@ class MarginRun(private val g: AppGraph) {
 fun MarginSheet(g: AppGraph, nav: Nav, onPick: (MarginAsk, String) -> Unit, onClose: () -> Unit) {
     val c = Lfm.c
     FlatSheet(onClose) {
-        Txt("Ink in the margin", LfmType.header)
+        Txt("Ink in the margin", LfmType.answer.copy(fontWeight = LfmType.rowTitle.fontWeight))
         Txt("Runs on this phone. Your text changes only if you add what it writes.", LfmType.small, c.text2, Modifier.padding(top = 2.dp, bottom = 10.dp))
         if (!g.engine.hasText()) {
             Txt("This needs a chat model on the phone.", LfmType.body, modifier = Modifier.padding(bottom = 10.dp))
