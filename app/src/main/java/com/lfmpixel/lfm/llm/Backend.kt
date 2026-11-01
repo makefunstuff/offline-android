@@ -3,20 +3,17 @@ package com.lfmpixel.lfm.llm
 import java.util.Locale
 
 /**
- * Where a model runs (docs/acceleration.md). llama.cpp runs the GGUF files on the CPU, or on the GPU through Vulkan;
- * LiteRT-LM runs the chat model's .litertlm file on the GPU (OpenCL) or the CPU (XNNPACK).
+ * Where a model runs (docs/model-pool.md): LiteRT-LM on the GPU (OpenCL) or the CPU (XNNPACK). llama.cpp and its
+ * GGUF files left the phone in LFMP-8; Omni's voice graphs and d1 run on LiteRT's CPU beside these.
  */
-enum class Backend(val label: String, val short: String, val liteRt: Boolean) {
-    Cpu("llama.cpp on the CPU", "CPU", false),
-    Vulkan("llama.cpp on the GPU (Vulkan)", "GPU · Vulkan", false),
-    LiteRtGpu("LiteRT-LM on the GPU", "GPU · LiteRT", true),
-    LiteRtCpu("LiteRT-LM on the CPU", "CPU · LiteRT", true),
+enum class Backend(val label: String, val short: String, val liteRt: Boolean = true) {
+    LiteRtGpu("LiteRT-LM on the GPU", "GPU"),
+    LiteRtCpu("LiteRT-LM on the CPU", "CPU"),
 }
 
-/** The owner's pick in Settings → Models. Auto chooses for each model by what the benchmark measured. */
+/** The owner's pick in Settings → Models. Auto takes the GPU where the phone has one, unless the benchmark says otherwise. */
 enum class BackendChoice(val label: String, val backend: Backend?) {
-    Auto("Auto", null), Cpu("CPU", Backend.Cpu), Vulkan("Vulkan", Backend.Vulkan), LiteRtGpu("LiteRT GPU", Backend.LiteRtGpu),
-    LiteRtCpu("LiteRT CPU", Backend.LiteRtCpu),
+    Auto("Auto", null), LiteRtGpu("GPU", Backend.LiteRtGpu), LiteRtCpu("CPU", Backend.LiteRtCpu),
 }
 
 /**
@@ -46,21 +43,22 @@ data class BackendSpeed(val genTps: Double, val promptTps: Double, val ok: Boole
 
 object Backends {
     /**
-     * The backend for one model. [available] are the backends this phone and these files allow (the CPU always).
-     * A manual pick holds while it is available, else the CPU. Auto takes the measured backend with the quickest
-     * typical turn, but leaves the CPU only for one that answered right and was at least [MARGIN] quicker; anything
-     * unmeasured stays on the CPU, which works everywhere.
+     * The backend for one model. [available] are the backends this phone allows (the CPU always). A manual pick holds
+     * while it is available, else the CPU. Auto takes the GPU when it is there and has not failed its check or its
+     * load: it is what LiteRT is for, quicker and lighter on the battery than the CPU (docs/model-pool.md). Only a
+     * measured CPU at least [MARGIN] quicker than a measured GPU keeps a model on the CPU.
      */
     fun pick(choice: BackendChoice, available: Set<Backend>, speeds: Map<Backend, BackendSpeed>,
              freshShare: Double = BackendSpeed.FRESH_SHARE): Backend {
-        choice.backend?.let { return if (it in available) it else Backend.Cpu }
-        val cpu = speeds[Backend.Cpu]?.turnSeconds(freshShare) ?: return Backend.Cpu
-        val best = speeds.filter { (b, s) -> b in available && b != Backend.Cpu && s.ok }.minByOrNull { it.value.turnSeconds(freshShare) }
-            ?: return Backend.Cpu
-        return if (best.value.turnSeconds(freshShare) * MARGIN <= cpu) best.key else Backend.Cpu
+        choice.backend?.let { return if (it in available) it else Backend.LiteRtCpu }
+        if (Backend.LiteRtGpu !in available) return Backend.LiteRtCpu
+        val gpu = speeds[Backend.LiteRtGpu]
+        if (gpu != null && !gpu.ok) return Backend.LiteRtCpu
+        val cpu = speeds[Backend.LiteRtCpu]?.takeIf { it.ok } ?: return Backend.LiteRtGpu
+        return if (gpu != null && cpu.turnSeconds(freshShare) * MARGIN <= gpu.turnSeconds(freshShare)) Backend.LiteRtCpu else Backend.LiteRtGpu
     }
 
-    /** Another backend must be this much quicker for Auto to move a model off the CPU. */
+    /** The CPU must be this much quicker for Auto to keep a model off the GPU. */
     const val MARGIN = 1.1
 
     /** Short questions with one right answer, asked greedily with thinking off: a broken backend gets them wrong. */
@@ -74,7 +72,8 @@ object Backends {
     fun passes(answers: List<String>): Boolean =
         checks.zip(answers).count { (q, a) -> Regex("\\b${q.second}\\b").containsMatchIn(a.lowercase(Locale.ROOT)) } >= 2
 
-    // Stored in Settings as "file|LiteRtGpu=12.30,140.50,1,3.20;file|Cpu=…": per model file, so a Q8 is measured apart from a Q4.
+    // Stored in Settings as "file|LiteRtGpu=12.30,140.50,1,3.20;file|LiteRtCpu=…": per model file. Entries for the old
+    // llama.cpp backends (Cpu, Vulkan) no longer parse and drop out.
     fun encode(map: Map<String, Map<Backend, BackendSpeed>>): String = map.flatMap { (file, speeds) ->
         speeds.map { (b, s) -> "$file|${b.name}=${"%.2f".format(Locale.ENGLISH, s.genTps)},${"%.2f".format(Locale.ENGLISH, s.promptTps)},${if (s.ok) 1 else 0}," +
             "%.2f".format(Locale.ENGLISH, s.restartSeconds) }

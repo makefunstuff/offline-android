@@ -70,11 +70,10 @@ class ModelDownloads(
         kick()
     }
 
-    /** A model and, when it has none yet, the projector it needs. */
-    fun startWithProjector(m: KnownModel) {
+    /** A model and the files it needs beside it (Omni's voice graphs, the tokenizer) that are not here yet. */
+    fun startWithParts(m: KnownModel) {
         val group = ModelCatalog.groups.firstOrNull { m in it.variants }
-        val proj = group?.projector?.takeIf { p -> store.installed.value.none { it.known.role == p.role && it.verified } }
-        start(listOfNotNull(m, proj))
+        start(listOf(m) + group?.parts.orEmpty())
     }
 
     fun pause(m: KnownModel) = update(m, save = true) {
@@ -233,7 +232,8 @@ class ModelDownloads(
             when (m.role) {
                 // Loaded now only if no chat model is in memory; otherwise it takes over at the next message.
                 ModelRole.Text -> if (e.status.value.text != com.lfmpixel.lfm.llm.LoadState.Ready) e.localTextSession() else return
-                ModelRole.Omni, ModelRole.OmniProjector -> if (e.hasVoice()) e.omniSession() else return
+                ModelRole.Omni, ModelRole.OmniSpeech, ModelRole.Tokenizer -> if (e.hasVoice()) e.omniSession() else return
+                ModelRole.Vision -> if (e.hasVision()) e.visionSession() else return
                 else -> return
             }
         }.onSuccess { update(m) { it.copy(loaded = true) } }

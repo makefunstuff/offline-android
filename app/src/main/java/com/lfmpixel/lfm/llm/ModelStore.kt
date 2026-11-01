@@ -20,7 +20,7 @@ class ModelStore(private val context: Context) {
     val installed: StateFlow<List<InstalledModel>> = _installed
 
     private fun scan(): List<InstalledModel> = dir.listFiles().orEmpty()
-        .filter { it.isFile && (it.name.endsWith(".gguf") || it.name.endsWith(".litertlm")) }
+        .filter { it.isFile }
         .mapNotNull { f ->
             val known = ModelCatalog.byName(f.name) ?: return@mapNotNull null
             InstalledModel(known, f, verified = File(dir, f.name + ".sha256").let { it.exists() && it.readText().trim() == known.sha256 })
@@ -37,13 +37,30 @@ class ModelStore(private val context: Context) {
     fun text(preferred: String): InstalledModel? =
         _installed.value.firstOrNull { it.known.role == ModelRole.Text && it.verified && it.file.name == preferred } ?: text()
     fun omni(): InstalledModel? = newest(ModelRole.Omni)
-    fun omniProjector(): InstalledModel? = newest(ModelRole.OmniProjector)
+    /** Every voice graph Omni needs is here and checked. */
+    fun omniSpeech(): Boolean = ModelCatalog.all.filter { it.role == ModelRole.OmniSpeech }
+        .all { m -> _installed.value.any { it.known == m && it.verified } }
+    fun tokenizer(): InstalledModel? = newest(ModelRole.Tokenizer)
     fun vision(): InstalledModel? = newest(ModelRole.Vision)
-    fun visionProjector(): InstalledModel? = newest(ModelRole.VisionProjector)
-    fun liteRt(): InstalledModel? = newest(ModelRole.TextLiteRt)
+    /** Every d1 file is here and checked. */
+    fun decide(): Boolean = ModelCatalog.all.filter { it.role == ModelRole.Decide }
+        .all { m -> _installed.value.any { it.known == m && it.verified } }
+
+    /**
+     * Model files from before LFMP-8 (GGUF for llama.cpp, which the phone no longer runs) and files of an older
+     * pin: nothing uses them, so the Models screen offers to free the space.
+     */
+    fun leftovers(): List<File> = dir.listFiles().orEmpty().filter { f ->
+        f.isFile && (f.name.endsWith(".gguf") || f.name.endsWith(".gguf.sha256") ||
+            (f.name.endsWith(".litertlm") && ModelCatalog.byName(f.name) == null))
+    }
+
+    fun deleteLeftovers(): Long = leftovers().sumOf { f -> f.length().also { f.delete() } }.also { refresh() }
 
     fun delete(m: InstalledModel) {
         m.file.delete()
+        // Omni's XNNPACK weight cache (about 2.7 GB) is made from its .litertlm: it goes with it.
+        if (m.known.role == ModelRole.Omni) File(dir, com.lfmpixel.lfm.voice.OmniVoice.CACHE_DIR).deleteRecursively()
         File(dir, m.file.name + ".sha256").delete()
         refresh()
     }
@@ -54,7 +71,7 @@ class ModelStore(private val context: Context) {
     data class Picked(val uri: Uri, val name: String, val size: Long)
 
     fun describe(uri: Uri): Picked {
-        var name = uri.lastPathSegment?.substringAfterLast('/') ?: "model.gguf"
+        var name = uri.lastPathSegment?.substringAfterLast('/') ?: "model.litertlm"
         var size = -1L
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
             if (c.moveToFirst()) {

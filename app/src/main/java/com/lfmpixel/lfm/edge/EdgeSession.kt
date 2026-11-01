@@ -46,7 +46,7 @@ class EdgeSession(
     private val answers: Boolean = false,
 ) : TextSession {
     override val path = "edge:$model"
-    override val backend = Backend.Cpu
+    override val backend = Backend.LiteRtCpu
     /** The answer model's window while it answers (prompts are fitted to it), else the long LFM3 model's. */
     override val contextTokens get() = when {
         answers && answerReady -> EdgeModels.ANSWER_CONTEXT

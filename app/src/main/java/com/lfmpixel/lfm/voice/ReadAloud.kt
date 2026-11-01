@@ -65,7 +65,6 @@ class ReadAloud(context: android.content.Context, private val models: ModelManag
                     if (viaServer) return@launch
                 }
                 val session = models.omniSession()
-                if (!session.canSpeak()) throw LlmException("This Omni projector file has no voice part.")
                 focus.take()
                 out.start()
                 for (chunk in SpeechFormat.chunks(speech)) {

@@ -109,7 +109,6 @@ class VoiceBench(private val models: ModelManager, private val settings: Setting
         val t0 = System.nanoTime()
         val s = models.omniSession()
         val loadMs = (System.nanoTime() - t0) / 1e6
-        if (!s.canSpeak()) throw LlmException("This Omni projector file has no voice part.")
 
         step("Speaking the question…")
         val q24 = ArrayList<FloatArray>()
@@ -157,7 +156,7 @@ class VoiceBench(private val models: ModelManager, private val settings: Setting
         }
         models.keepAlive()
         settings.setVoicePace(Jitter.prior.rtf, Jitter.prior.usualMs)
-        return VoiceReport(LocalDateTime.now(), s.backend.label, loadMs, tts, q16.size / 16.0, vad[0], vad[1], vad[2],
+        return VoiceReport(LocalDateTime.now(), com.lfmpixel.lfm.llm.Backend.LiteRtCpu.label, loadMs, tts, q16.size / 16.0, vad[0], vad[1], vad[2],
             asrMs, asr.prefillMs, asr.decodeTokens, said, prewarmMs, warmTokens, heardInMs, turns, log)
     }
 

@@ -35,22 +35,14 @@ data class BenchReport(
     val chosen: Map<Slot, Backend> = emptyMap(),
     val gpu: String = "",
 ) {
-    /** llama.cpp's CPU run of the chat model: the one the thread sweep is about. */
-    private val cpuRun get() = backends.firstOrNull { it.slot == Slot.Text && it.backend == Backend.Cpu }?.run ?: main.takeIf { it.threads > 0 }
-
-    /** The sweep's fastest thread count, if it beats the one llama.cpp's CPU run used by 5% or more. */
-    val better: BenchRun? get() {
-        val cpu = cpuRun ?: return null
-        val best = sweep.maxByOrNull { it.genTps } ?: return null
-        val current = sweep.firstOrNull { it.threads == cpu.threads }?.genTps ?: cpu.genTps
-        return best.takeIf { it.threads != cpu.threads && it.genTps >= current * 1.05 }
-    }
+    /** A thread count to suggest; LiteRT picks its own CPU threads, so none since LFMP-8. */
+    val better: BenchRun? get() = null
 
     fun text(): String = buildString {
         fun f(v: Double, d: Int = 1) = "%.${d}f".format(Locale.ENGLISH, v)
         appendLine("Inkling benchmark · ${at.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ENGLISH))}")
         appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL} · ${Build.SOC_MANUFACTURER} ${Build.SOC_MODEL} · Android ${Build.VERSION.RELEASE}")
-        appendLine("GPU (Vulkan): ${gpu.ifEmpty { "none found" }}")
+        appendLine("Runtime: ${gpu}")
         appendLine("Model: $model")
         appendLine("Backends (write tok/s · read tok/s · first token s · check):")
         backends.forEach { b ->
@@ -73,9 +65,9 @@ data class BenchReport(
 }
 
 /**
- * Settings → Models → Benchmark: measures each model on this phone on every backend it can run on (llama.cpp on the
- * CPU and through Vulkan, LiteRT-LM on the GPU and the CPU), checks each gets three easy answers right, and keeps the
- * numbers so Auto can choose (see [Backends.pick]). Then it writes through the chat on the backend now in use.
+ * Settings → Models → Benchmark: measures the chat model and VL on every backend LiteRT-LM has here (the GPU and the
+ * CPU), checks each gets three easy answers right, and keeps the numbers so Auto can choose (see [Backends.pick]).
+ * Then it writes through the chat on the backend now in use. Omni has the voice benchmark.
  * Runs in the app's scope, so it carries on if the screen is left.
  */
 class Benchmark(private val engine: ModelManager, private val store: ModelStore, private val settings: Settings, private val scope: CoroutineScope) {
@@ -100,8 +92,8 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
         }
     }
 
-    /** One model on one backend: speed, the check questions and, on llama.cpp's CPU, the thread sweep. */
-    private suspend fun measure(slot: Slot, backend: Backend, nPrompt: Int, nGen: Int, sweep: MutableList<BenchRun>?): BackendResult {
+    /** One model on one backend: speed and the check questions. */
+    private suspend fun measure(slot: Slot, backend: Backend, nPrompt: Int, nGen: Int): BackendResult {
         val name = "${slot.label} on ${backend.short}"
         _state.value = State.Running("Loading $name…")
         val s = try { engine.benchSession(slot, backend, fromBenchmark = true) } catch (e: Exception) {
@@ -109,18 +101,10 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
         }
         try {
             // LiteRT-LM starts a new engine for each fresh prompt, so it gets no separate warm-up.
-            if (!backend.liteRt) { _state.value = State.Running("Warming up $name…"); s.bench(32, 8) }
             _state.value = State.Running("$name: reading $nPrompt tokens, writing $nGen…")
             val run = s.bench(nPrompt, nGen)
             _state.value = State.Running("$name: checking its answers…")
             val answers = s.checkAnswers()
-            if (sweep != null && s is LlamaSession) {
-                val counts = (2..LlamaNative.fastCores().coerceAtMost(8)).toList()
-                counts.forEach { t ->
-                    _state.value = State.Running("Trying $t threads…")
-                    sweep += s.bench(64, SWEEP_TOKENS, t, 0)
-                }
-            }
             return BackendResult(slot, backend, run, Backends.passes(answers), answers, restartMs = (s as? LiteRtSession)?.restartMs ?: 0.0)
         } catch (e: Exception) {
             return BackendResult(slot, backend, null, false, emptyList(), e.message ?: "did not run")
@@ -131,7 +115,7 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
 
     private suspend fun run(): BenchReport {
         val model = engine.chatModel() ?: throw LlmException("No text model yet. Import LFM3-1.7B first.")
-        val gpu = engine.gpuName()
+        val gpu = engine.systemInfo()
         val results = mutableListOf<BackendResult>()
         val sweep = mutableListOf<BenchRun>()
         // Chat, Talk and pictures wait: they would close the model being measured, or load a second copy beside it,
@@ -145,16 +129,16 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
     }
 
     private suspend fun measureAll(results: MutableList<BackendResult>, sweep: MutableList<BenchRun>) {
-        for (slot in Slot.entries) {
+        for (slot in listOf(Slot.Text, Slot.Vision)) {
             if (engine.file(slot) == null) continue
             val (nPrompt, nGen) = if (slot == Slot.Text) PROMPT_TOKENS to GEN_TOKENS else OTHER_PROMPT_TOKENS to OTHER_GEN_TOKENS
             val tried = engine.available(slot).sortedBy { it.ordinal }.map { b ->
-                measure(slot, b, nPrompt, nGen, sweep.takeIf { slot == Slot.Text && b == Backend.Cpu })
+                measure(slot, b, nPrompt, nGen)
             }
             results += tried
-            // Kept per file: llama.cpp's backends under the GGUF, LiteRT-LM's under the .litertlm.
-            tried.groupBy { if (it.backend.liteRt) store.liteRt()?.file?.name else engine.file(slot)?.file?.name }.forEach { (file, rs) ->
-                if (file != null) settings.setBackendSpeeds(file, settings.now().backendSpeeds[file].orEmpty() + rs.associate { it.backend to it.speed })
+            // Kept per file, so a new pin is measured apart.
+            engine.file(slot)?.file?.name?.let { file ->
+                settings.setBackendSpeeds(file, settings.now().backendSpeeds[file].orEmpty() + tried.associate { it.backend to it.speed })
             }
         }
     }
@@ -189,10 +173,9 @@ class Benchmark(private val engine: ModelManager, private val store: ModelStore,
     companion object {
         const val PROMPT_TOKENS = 512
         const val GEN_TOKENS = 128
-        /** Omni and VL: shorter, they only check the backend works and how fast it writes. */
+        /** VL: shorter, it only checks the backend works and how fast it writes. */
         const val OTHER_PROMPT_TOKENS = 256
         const val OTHER_GEN_TOKENS = 64
         const val CHAT_TOKENS = 96
-        const val SWEEP_TOKENS = 48
     }
 }

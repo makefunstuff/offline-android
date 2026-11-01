@@ -50,6 +50,10 @@ LFM3 model to fall back on.
 
 ## 2. Running it on Android
 
+> **Changed in LFMP-8 (1 November 2026):** the phone now runs every model on LiteRT (LiteRT-LM and LiteRT), with the
+> homelab server first and LiteRT second; llama.cpp left the phone. See [model-pool.md](model-pool.md). The table
+> below is the original research.
+
 | Runtime | LFM3 support | Pixel 10 Pro acceleration | Verdict |
 |---|---|---|---|
 | **llama.cpp** (NDK + JNI) | All four models as GGUF (b11960+); images and audio in through `mtmd` and the projector file [8][9][10]. Omni speech out through the `llama-tts` tool (language and voice options), and live voice conversation through the `/v1/realtime` WebSocket of `llama serve` [9] | CPU (arm64, runtime feature detection). Vulkan and OpenCL backends exist but "need device-specific testing"; OpenCL targets Adreno, and the Pixel's GPU is an Imagination PowerVR DXT-48-1536 [15][16]. No Tensor TPU backend | **Use this.** Liquid's own docs now point here [17] |

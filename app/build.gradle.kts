@@ -19,32 +19,13 @@ android {
         versionName = "0.1.0"
 
         ndk {
-            // arm64-v8a for the Pixel; x86_64 so the emulator runs the same native code.
+            // arm64-v8a for the Pixel; x86_64 so the emulator runs the same LiteRT natives.
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
-        externalNativeBuild {
-            cmake {
-                arguments += listOf(
-                    "-DCMAKE_BUILD_TYPE=Release",
-                    "-DBUILD_SHARED_LIBS=ON",
-                    "-DLLAMA_BUILD_COMMON=OFF",
-                    "-DLLAMA_BUILD_TESTS=OFF",
-                    "-DLLAMA_BUILD_TOOLS=OFF",
-                    "-DLLAMA_BUILD_EXAMPLES=OFF",
-                    "-DLLAMA_BUILD_SERVER=OFF",
-                    "-DLLAMA_BUILD_APP=OFF",
-                    "-DLLAMA_BUILD_MTMD=ON",
-                    "-DLLAMA_OPENSSL=OFF",
-                    "-DLLAMA_SUBPROCESS=OFF",
-                    "-DGGML_NATIVE=OFF",
-                    "-DGGML_BACKEND_DL=ON",
-                    "-DGGML_CPU_ALL_VARIANTS=ON",
-                    "-DGGML_LLAMAFILE=OFF",
-                )
-            }
-        }
+        externalNativeBuild { cmake { arguments += "-DCMAKE_BUILD_TYPE=Release" } }
     }
 
+    // One small library since LFMP-8: OmniVoice's bridge to LiteRT's C API (omni_rt.cpp). No llama.cpp.
     externalNativeBuild {
         cmake {
             path("src/main/cpp/CMakeLists.txt")
@@ -62,10 +43,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            // Native code is always built optimised: a debug llama.cpp is far too slow to chat with.
-            externalNativeBuild { cmake { arguments += "-DCMAKE_BUILD_TYPE=Release" } }
-        }
         release {
             isMinifyEnabled = false
             // The owner's key from keystore.properties (ReleaseKey.kt); unsigned without it, never the debug key.
@@ -87,7 +64,7 @@ android {
     }
 
     packaging {
-        // Extracted to disk: llama.cpp picks its CPU backend at run time by loading libggml-cpu-*.so from nativeLibraryDir.
+        // Extracted to disk, as LiteRT-LM loads its GPU accelerator from nativeLibraryDir.
         jniLibs { useLegacyPackaging = true }
     }
 }
@@ -121,6 +98,13 @@ dependencies {
     // LiteRT-LM runs the chat model on the GPU (docs/acceleration.md). Google's on-device runtime: no Play Services,
     // no network code of its own, and Inkling has no INTERNET permission anyway (checkDebugNoNetwork).
     implementation(libs.litertlm.android)
+    // LiteRT runs the graphs LiteRT-LM can't: Omni's voice (voice/OmniRt.kt) and d1's decisions (docs/model-pool.md), on
+    // the CPU, no network code. Its Play asset delivery (AiPackModelProvider, Play Services) is left out: models come
+    // from the app's own downloads.
+    implementation(libs.litert) {
+        exclude(group = "com.google.android.play")
+        exclude(group = "com.google.android.gms")
+    }
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -150,7 +134,9 @@ androidComponents {
             allowed.set(baseAllowList + listOf("com.squareup.okio:", "offline-android:ipc",
                 "com.google.guava:", "com.google.dagger:dagger", "com.google.auto.value:auto-value-annotations",
                 "jakarta.inject:", "javax.inject:", "com.google.code.findbugs:jsr305", "org.checkerframework:checker-qual",
-                "com.google.j2objc:j2objc-annotations", "com.google.ai.edge.litertlm:litertlm-android", "com.google.code.gson:gson"))
+                "com.google.j2objc:j2objc-annotations", "com.google.ai.edge.litertlm:litertlm-android", "com.google.code.gson:gson",
+                // LiteRT (OmniVoice's graphs, voice/OmniRt.kt): the on-device runtime, no networking; it brings Guava's failureaccess.
+                "com.google.ai.edge.litert:litert", "com.google.ai.edge.litert:litert-api", "com.google.guava:failureaccess"))
             report.set(layout.buildDirectory.file("reports/privacy/${variant.name}-dependencies.txt"))
         }
         tasks.matching { it.name == "assemble$name" || it.name == "check" }.configureEach {

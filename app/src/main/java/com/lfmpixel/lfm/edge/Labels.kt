@@ -22,14 +22,22 @@ data class IntentLabel(val intent: String, val ms: Long) {
  * Small, fast classifiers on the owner's server (docs/notebook-spec.md, section B): LFM3-1.7B for text and LFM3-VL-2B
  * for photos, each one short instruction with no history, thinking off, temperature 0, and output held to a JSON
  * schema by the server's grammar, so a small model can't break the format. About 150-250 ms each on the server.
- * Each returns null when the server is not in use or doesn't answer in time: the phone's rules decide then.
+ * When the server is not in use or doesn't answer in time, [local] (d1 on the phone, [com.lfmpixel.lfm.assistant.Decide])
+ * labels text if its files are there; otherwise each returns null and the phone's rules decide.
  */
-class Labels(private val edge: Edge) {
+class Labels(private val edge: Edge, private val local: suspend () -> com.lfmpixel.lfm.assistant.Decide? = { null }) {
     suspend fun capture(line: String): CaptureLabel? {
         val t0 = SystemClock.elapsedRealtime()
-        val o = ask(EdgeModels.TEXT, CAPTURE_SYSTEM, JSONObject().put("role", "user").put("content", line.take(400)), CAPTURE_SCHEMA, 60) ?: return null
+        val o = ask(EdgeModels.TEXT, CAPTURE_SYSTEM, JSONObject().put("role", "user").put("content", line.take(400)), CAPTURE_SCHEMA, 60)
+            ?: return onPhone { it.capture(line) }
         return CaptureLabel(o.optString("kind"), o.optString("when").trim(), o.optString("urgency"), o.optString("energy"),
             o.optBoolean("sensitive"), SystemClock.elapsedRealtime() - t0)
+    }
+
+    /** d1 on the phone, or null when it isn't there or fails. */
+    private suspend fun <T> onPhone(f: suspend (com.lfmpixel.lfm.assistant.Decide) -> T): T? {
+        val d = runCatching { local() }.onFailure { Log.w(Edge.TAG, "d1 unavailable: ${it.message}") }.getOrNull() ?: return null
+        return runCatching { f(d) }.onFailure { Log.w(Edge.TAG, "d1 label failed: ${it.message}") }.getOrNull()
     }
 
     suspend fun photo(jpegDataUrl: String): PhotoLabel? {
@@ -43,7 +51,8 @@ class Labels(private val edge: Edge) {
 
     suspend fun intent(said: String): IntentLabel? {
         val t0 = SystemClock.elapsedRealtime()
-        val o = ask(EdgeModels.TEXT, INTENT_SYSTEM, JSONObject().put("role", "user").put("content", said.take(300)), INTENT_SCHEMA, 12) ?: return null
+        val o = ask(EdgeModels.TEXT, INTENT_SYSTEM, JSONObject().put("role", "user").put("content", said.take(300)), INTENT_SCHEMA, 12)
+            ?: return onPhone { it.intent(said) }
         return IntentLabel(o.optString("intent"), SystemClock.elapsedRealtime() - t0)
     }
 

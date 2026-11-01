@@ -1,0 +1,121 @@
+# Inkling label set (written for the d1 evaluation, invented names). C line kind urgency energy sensitive / T utterance intent
+C	buy oat milk and bananas	todo	soon	low	false
+C	call the dentist to move my appointment	todo	soon	low	true
+C	pay the electricity bill today it's overdue	todo	now	low	true
+C	email Marta the slides before the 2pm meeting	todo	now	low	false
+C	fix the squeaky bathroom door	todo	later	low	false
+C	renew passport, expires in March	todo	later	high	false
+C	send the landlord photos of the mould	todo	soon	low	false
+C	clean out the garage	todo	later	high	false
+C	need to finish the tax return before friday	todo	soon	high	true
+C	pick up the prescription from the pharmacy	todo	now	low	true
+C	reply to Jonas about the weekend	todo	soon	low	false
+C	change my bank password, got a weird login alert	todo	now	low	true
+C	book a haircut	todo	later	low	false
+C	return the parcel to the post office, last day today	todo	now	low	false
+C	write the cover letter for the design job	todo	soon	high	false
+C	water the plants	todo	now	low	false
+C	get a birthday present for mum	todo	soon	low	false
+C	cancel the gym membership	todo	soon	low	true
+C	sort the pile of paper on my desk	todo	later	high	false
+C	take the bins out tonight	todo	now	low	false
+C	submit the expense report, the boss is waiting on it	todo	now	low	true
+C	refill my ADHD meds before they run out on thursday	todo	soon	low	true
+C	text Priya back	todo	now	low	false
+C	defrost the freezer	todo	later	high	false
+C	ask HR about the parental leave form	todo	soon	low	true
+C	fill in the insurance claim for the broken phone	todo	soon	high	true
+C	buy batteries for the smoke alarm, it keeps beeping	todo	now	low	false
+C	charge the laptop	todo	now	low	false
+C	dentist tuesday at 3	event	soon	low	true
+C	team standup tomorrow 9:30	event	soon	low	false
+C	Leo's wedding on 14 June	event	later	high	false
+C	parent-teacher evening thursday 6pm	event	soon	high	false
+C	flight to Lisbon on the 3rd at 7am	event	later	high	false
+C	therapy session friday 4pm	event	soon	high	true
+C	dinner with Sam and Alex tonight at 8	event	now	low	false
+C	court hearing about the parking fine on 2 December	event	later	high	true
+C	yoga class every monday at 7	event	soon	low	false
+C	job interview at Northwind on wednesday 11am	event	soon	high	false
+C	mum arrives saturday afternoon	event	soon	low	false
+C	blood test monday 8am, fasting	event	soon	low	true
+C	concert next month, the 21st	event	later	low	false
+C	work deadline for the report is today at 5	event	now	high	false
+C	what if the app had a dark mode for night writing	idea	later	low	false
+C	maybe we could do a picnic for Ana's birthday instead	idea	later	low	false
+C	idea: a podcast about forgotten inventions	idea	later	high	false
+C	could turn the spare room into a little studio	idea	later	high	false
+C	start a group chat for the neighbours to share tools	idea	later	low	false
+C	what if I tried working from the library on mondays	idea	later	low	false
+C	business idea: rent out board games by the week	idea	later	high	false
+C	write a short story about a lighthouse keeper's cat	idea	later	high	false
+C	a timer that buzzes when I've been scrolling for 20 minutes	idea	later	low	false
+C	maybe paint the kitchen green	idea	later	high	false
+C	learn to make sourdough this winter?	idea	later	high	false
+C	game night theme: only 90s games	idea	later	low	false
+C	wifi password at the cabin is pinetree42	note	later	low	true
+C	the blue key opens the shed	note	later	low	false
+C	Marta's kids are called Ole and Ida	note	later	low	false
+C	bike tyre size 700x28c	note	later	low	false
+C	the parking spot is level 3, row F	note	now	low	false
+C	pharmacy opens at 8 on weekdays	note	later	low	false
+C	my blood pressure was 142/91 this morning	note	soon	low	true
+C	Jonas doesn't eat nuts	note	later	low	false
+C	rent went up to 1150 from january	note	later	low	true
+C	bank card PIN reminder: same as the old one	note	later	low	true
+C	train to the office leaves at 7:42 from platform 2	note	later	low	false
+C	the good coffee place is on Lindenstrasse	note	later	low	false
+C	allergic to penicillin, tell the new doctor	note	soon	low	true
+C	plumber's number is 0176 5550123	note	later	low	false
+C	I feel so tired today, couldn't focus at all	journal	later	high	false
+C	today was actually good, finished the whole report	journal	later	low	false
+C	felt anxious all afternoon after the call with my manager	journal	later	high	false
+C	slept badly again, woke up at 4	journal	later	high	true
+C	so proud I went for a run even though I didn't want to	journal	later	low	false
+C	had a fight with Sam about money, feeling awful	journal	later	high	true
+C	grateful for the sunny walk with the dog	journal	later	low	false
+C	forgot the meeting again, I hate how my brain works sometimes	journal	later	high	false
+C	panic attack on the train this morning	journal	soon	high	true
+C	hyperfocused on the garden for five hours, lost track of time	journal	later	low	false
+C	lonely tonight	journal	later	high	true
+C	the new meds make me feel calmer but sleepy	journal	later	low	true
+T	what is this thing	look
+T	read me the ingredients	look
+T	what does this sign say	look
+T	how many pills are in my hand	look
+T	what colour is this shirt	look
+T	is this milk still good, check the date	look
+T	what plant is this	look
+T	can you read the time on that clock	look
+T	which one of these is the charger	look
+T	what's written on the whiteboard	look
+T	does this look ripe to you	look
+T	how much does it say this costs	look
+T	what's in front of me	look
+T	is the stove off	look
+T	remind me to order more of these	act
+T	add milk to the shopping list	act
+T	make a note of this receipt	act
+T	set a timer for ten minutes	act
+T	put the dentist on my calendar for tuesday	act
+T	save this as an idea	act
+T	add 'fix the shelf' to my to-dos	act
+T	remind me in an hour to take my pills	act
+T	change my alarm to 7	act
+T	plan my afternoon around the laundry	act
+T	mark the bins task as done	act
+T	note that the shed key is blue	act
+T	write down what's on this whiteboard	act
+T	how is your day going	chat
+T	tell me a joke	chat
+T	I'm feeling overwhelmed today	chat
+T	what's the capital of Portugal	chat
+T	thanks, that helped	chat
+T	why do I always procrastinate	chat
+T	what should I cook tonight	chat
+T	good morning	chat
+T	can you explain what dopamine does	chat
+T	never mind	chat
+T	how long do I boil an egg	chat
+T	what day is it	chat
+T	you're funny	chat
