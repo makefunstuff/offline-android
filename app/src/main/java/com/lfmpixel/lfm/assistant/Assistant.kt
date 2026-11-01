@@ -182,10 +182,10 @@ class Assistant(
     init {
         queue.value = QueueStore.read(queueFile).also { list -> nextId = (list.maxOfOrNull { it.id } ?: 0) + 1 }
         scope.launch {
-            val last = db.messages().lastThread()
+            val last = runCatching { db.messages().lastThread() }.getOrDefault(1L)
             if (!threadSet) _thread.value = last
             shown.await()
-            while (true) {
+            while (true) try {
                 // Too hot: nothing new starts until the phone cools (the chat says so); then the queue goes on.
                 if (heat.value.holdsEverything && queue.value.isNotEmpty()) {
                     busy.value = true
@@ -205,6 +205,13 @@ class Assistant(
                 job = scope.launch { handle(next) }
                 job?.join()
                 working.value = false
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+                // The worker must outlive one bad turn (the queue file or the database refused): otherwise chat and
+                // Talk never answer again and the "answering" notice stays up. It says so in the log and goes on.
+                android.util.Log.w("lfm", "queue worker", e)
+                working.value = false
+                busy.value = false
+                kotlinx.coroutines.delay(1_000)
             }
         }
     }

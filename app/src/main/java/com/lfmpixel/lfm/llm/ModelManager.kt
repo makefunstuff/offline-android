@@ -294,11 +294,13 @@ class ModelManager(
         embedder ?: run {
             // A file that failed to load is not tried again on every index pass and search for a while: each try costs
             // hundreds of MB for a moment.
-            embedFailed?.let { (path, at) ->
-                if (path == m.file.path && System.currentTimeMillis() - at < EMBED_RETRY_MS) throw LlmException("EmbeddingGemma did not load")
+            // The same file, unchanged: a new download or import of it is tried at once.
+            val which = "${m.file.path}:${m.file.length()}:${m.file.lastModified()}"
+            embedFailed?.let { (file, at) ->
+                if (file == which && System.currentTimeMillis() - at < EMBED_RETRY_MS) throw LlmException("EmbeddingGemma did not load")
             }
             try { GemmaEmbedder.open(m.file.path, liteRtCache.path, threads()).also { embedder = it; embedFailed = null } }
-            catch (e: LlmException) { embedFailed = m.file.path to System.currentTimeMillis(); throw e }
+            catch (e: LlmException) { embedFailed = which to System.currentTimeMillis(); throw e }
         }
     }
 
@@ -330,11 +332,13 @@ class ModelManager(
         runCatching { omni?.close() }; omni = null
         runCatching { vision?.close() }; vision = null
         runCatching { decide?.close() }; decide = null
-        // Its close waits for a batch under way: off the main thread (the idle unload runs there), and to the end even
-        // though the idle job cancelled itself above.
-        embedder?.let { e -> withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) { runCatching { e.close() } } }
+        val e = embedder
         embedder = null
         _status.value = EngineStatus()
+        // Last, after everything above is let go: its close waits for a batch under way, so it runs off the main thread
+        // (the idle unload runs there) and to the end, though the idle job cancelled itself above (and so this throws
+        // CancellationException on the way back, with nothing left to do).
+        if (e != null) withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) { runCatching { e.close() } }
     }
 
     /** Loads one model by hand, so the next question doesn't wait for it. */

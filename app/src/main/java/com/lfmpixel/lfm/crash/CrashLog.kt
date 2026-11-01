@@ -25,16 +25,28 @@ class CrashLog(val dir: File, private val keep: Int = 10) {
     private val marker get() = File(dir, UNSEEN)
 
     /** Writes a report and keeps the newest [keep]. A fatal one is pointed out on the next launch ([unseen]). */
-    fun record(t: Throwable, thread: String, fatal: Boolean, build: BuildInfo, now: Long = System.currentTimeMillis()): File? = try {
+    fun record(t: Throwable, thread: String, fatal: Boolean, build: BuildInfo, now: Long = System.currentTimeMillis()): File? =
+        try { write(format(t, thread, fatal, build, now), fatal, now) } catch (_: Throwable) { null }
+
+    /** A report already written out: a closing Android saw but no Java handler did (native crash, ANR, low memory). */
+    fun recordText(text: String, fatal: Boolean, at: Long): File? = try { write(text, fatal, at) } catch (_: Throwable) { null }
+
+    @Synchronized
+    private fun write(text: String, fatal: Boolean, now: Long): File {
         dir.mkdirs()
         var f = File(dir, "${if (fatal) FATAL else CAUGHT}-$now.txt")
         var n = 1
         while (f.exists()) f = File(dir, "${if (fatal) FATAL else CAUGHT}-$now-${n++}.txt")
-        f.writeText(format(t, thread, fatal, build, now))
+        f.writeText(text)
         if (fatal) marker.writeText(f.name)
-        files().drop(keep).forEach { it.delete() }
-        f
-    } catch (_: Throwable) { null }
+        // Over [keep]: the oldest caught ones go first, so a job failing over and over never pushes out a closed app.
+        val all = files()
+        if (all.size > keep) {
+            val (closed, caught) = all.partition { it.name.startsWith(FATAL) }
+            (caught.reversed() + closed.reversed()).take(all.size - keep).forEach { it.delete() }
+        }
+        return f
+    }
 
     /** Every report, newest first. */
     fun reports(): List<Report> = files().mapNotNull { read(it) }
@@ -65,15 +77,19 @@ class CrashLog(val dir: File, private val keep: Int = 10) {
         fun format(t: Throwable, thread: String, fatal: Boolean, build: BuildInfo, now: Long, zone: ZoneId = ZoneId.systemDefault()): String {
             val sw = StringWriter()
             runCatching { t.printStackTrace(PrintWriter(sw)) }.onFailure { sw.write(t.javaClass.name) }
-            val trace = sw.toString().let { if (it.length > MAX_TRACE) it.take(MAX_TRACE) + "\n… (cut at ${MAX_TRACE / 1024} KB)" else it }
+            return report(listOf("Thread: $thread", if (fatal) "Inkling closed" else "Caught; Inkling kept running"), sw.toString(), build, now, zone)
+        }
+
+        /** The report's header (when, build, phone, then [lines]), a blank line, and [body] cut at [MAX_TRACE]. */
+        fun report(lines: List<String>, body: String, build: BuildInfo, now: Long, zone: ZoneId = ZoneId.systemDefault()): String {
+            val trace = body.let { if (it.length > MAX_TRACE) it.take(MAX_TRACE) + "\n… (cut at ${MAX_TRACE / 1024} KB)" else it }
             val time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx", Locale.ENGLISH).format(Instant.ofEpochMilli(now).atZone(zone))
             return buildString {
                 appendLine("Inkling crash report")
                 appendLine("When: $time")
                 appendLine("Build: ${build.sha} (${build.version}, ${build.buildType})")
                 appendLine("Android: ${build.android} (API ${build.sdk}) · ${build.device}")
-                appendLine("Thread: $thread")
-                appendLine(if (fatal) "Inkling closed" else "Caught; Inkling kept running")
+                lines.forEach { appendLine(it) }
                 appendLine()
                 append(trace.trimEnd())
                 appendLine()

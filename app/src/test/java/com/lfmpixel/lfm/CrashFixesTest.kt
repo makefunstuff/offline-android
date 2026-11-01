@@ -73,6 +73,12 @@ class CrashFixesTest {
         }
     }
 
+    @Test fun aDamagedSettingsFileComesBackOffline() {
+        val p = com.lfmpixel.lfm.settings.Settings(context).prefsOf(com.lfmpixel.lfm.settings.Settings.afterDamage())
+        assertEquals(false, p.netEnabled)
+        assertEquals(true, p.firstRunDone)
+    }
+
     @Test fun absurdTimesAreNoTimeNotAThrow() {
         val now = java.time.LocalDateTime.of(2026, 11, 1, 9, 0)
         // Before: DateTimeException / NumberFormatException / ArithmeticException, out of the Ink line's direct tool run.

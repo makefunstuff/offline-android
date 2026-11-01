@@ -27,6 +27,11 @@ object Crashes {
         unseen.value = l.unseen()
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(handler(l, previous) { build })
+        // What Android saw end the last run (native crash, ANR, low memory) is read off the main thread.
+        kotlin.concurrent.thread(name = "crash-exits", isDaemon = true) {
+            runCatching { Exits.collect(context, l, build) }
+            l.unseen()?.let { unseen.value = it }
+        }
     }
 
     /** Writes the report, then lets [previous] (Android's own) close the app as before. */
@@ -38,6 +43,11 @@ object Crashes {
 
     /** For the app's long-lived scope: a job that fails is written down and logged; the rest of Inkling goes on. */
     val keepRunning = CoroutineExceptionHandler { _, e ->
+        // Out of memory or a stack overflow leaves the app in no state to go on: it closes as before, written down.
+        if (e is VirtualMachineError) {
+            Thread.getDefaultUncaughtExceptionHandler()?.uncaughtException(Thread.currentThread(), e) ?: throw e
+            return@CoroutineExceptionHandler
+        }
         android.util.Log.e("lfm", "background job failed", e)
         log?.record(e, Thread.currentThread().name, fatal = false, build = runCatching { build }.getOrElse { UNKNOWN })
     }

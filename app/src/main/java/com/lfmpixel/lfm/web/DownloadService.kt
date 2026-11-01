@@ -61,13 +61,13 @@ class DownloadService : Service() {
 
     /**
      * Every startForegroundService is answered with startForeground, also one that lands while the service is stopping.
-     * Android 15+ refuses it once the day's 6 hours of data sync are used: the downloads pause instead of the app closing.
+     * Android 15+ refuses it once the day's 6 hours of data sync are used: then the service goes and the download runs
+     * while Inkling is open, as when the start itself is refused (ModelDownloads.kick).
      */
     private fun foreground(): Boolean = try {
         startForeground(ID, note("Starting download", 0, 0), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC); true
     } catch (e: Exception) {
         android.util.Log.w("lfm-download", "download notice refused", e)
-        (application as LfmApp).graph.downloads.pauseAll()
         false
     }
 

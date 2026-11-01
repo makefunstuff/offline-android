@@ -10,7 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.map
 import com.lfmpixel.lfm.voice.SpeechLanguage
 import com.lfmpixel.lfm.voice.SpeechVoice
@@ -84,10 +84,10 @@ data class Prefs(
 val THINK_BUDGETS = listOf(256, 512, 1024, 2048)
 const val DEFAULT_THINK_BUDGET = 1024
 
-// A settings file cut short (the phone died mid-write) starts again from the defaults instead of failing every read,
-// which would close Inkling at each start.
+// A settings file that can't be read (damaged) starts again instead of failing every read, which would close Inkling
+// at each start: from the defaults, but Offline, so a lost choice never lets the network back in unasked.
 private val Context.store by preferencesDataStore("settings",
-    corruptionHandler = androidx.datastore.core.handlers.ReplaceFileCorruptionHandler { androidx.datastore.preferences.core.emptyPreferences() })
+    corruptionHandler = androidx.datastore.core.handlers.ReplaceFileCorruptionHandler { Settings.afterDamage() })
 
 class Settings(private val context: Context) {
     private object K {
@@ -126,8 +126,17 @@ class Settings(private val context: Context) {
         val learning = booleanPreferencesKey("learning")
     }
 
+    companion object {
+        /** What a damaged settings file is replaced with: the defaults, Offline, past the first run. */
+        internal fun afterDamage(): Preferences = androidx.datastore.preferences.core.mutablePreferencesOf(K.net to false, K.firstRun to true)
+    }
+
+    internal fun prefsOf(p: Preferences): Prefs = p.toPrefs()
+
     val prefs: Flow<Prefs> = context.store.data
-        .catch { e -> if (e is java.io.IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw e }
+        // A read that fails for a moment is read again, a little later each time: never answered with the defaults
+        // (that would read as "online" while Offline), and the flow keeps going for those who collect it.
+        .retryWhen { e, attempt -> (e is java.io.IOException).also { if (it) kotlinx.coroutines.delay(minOf(30_000L, 500L shl attempt.toInt().coerceAtMost(6))) } }
         .map { it.toPrefs() }
 
     suspend fun now(): Prefs = prefs.first()

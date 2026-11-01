@@ -74,7 +74,8 @@ fun CrashesScreen(g: AppGraph, nav: Nav) {
         LazyColumn(Modifier.padding(horizontal = 16.dp)) {
             item {
                 Txt("When Inkling closes unexpectedly, what went wrong is written down here, on this phone only. Nothing is sent: " +
-                    "copy or share one yourself if you want help with it. The last ten are kept.", LfmType.small, c.text2, Modifier.padding(vertical = 12.dp))
+                    "copy or share one yourself if you want help with it. A report can quote words from a note or a chat: read it " +
+                    "before you share it. The last ten are kept.", LfmType.small, c.text2, Modifier.padding(vertical = 12.dp))
             }
             if (reports.isEmpty()) item { Empty("No crashes", "Inkling has not closed unexpectedly since this was added.") }
             items(reports, key = { it.file.name }) { r ->
