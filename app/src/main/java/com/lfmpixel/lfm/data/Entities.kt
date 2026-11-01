@@ -59,6 +59,19 @@ data class EntryVector(
     val vec: ByteArray,
 )
 
+/**
+ * Something Inkling learned (memory/Memory.kt): a fact, a correction, or a line heard in Talk waiting to be read.
+ * [type] says which; everything else is in [sealed], AES-GCM under a key in Android's keystore (memory/Sealer.kt), so
+ * the table is unreadable without this phone. Forget drops the rows and the key.
+ */
+@Entity(tableName = "learned", indices = [Index("type")])
+data class LearnedRow(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val type: String,
+    val sealed: String,
+    val updatedAt: Long = System.currentTimeMillis(),
+)
+
 enum class Role { User, Assistant, Tool, Notice }
 
 /** One line of the chat. Assistant lines keep the model's raw output so the next prompt matches the context. */

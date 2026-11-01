@@ -447,3 +447,46 @@ Rules: indexed in the background, a moment after any entry is written, edited or
 (a hash of each entry's text); not while the phone is hot. Vectors live in the `vectors` table of the notes' own
 database (Room version 7), so Delete everything removes them and nothing new is exported. Nothing is sent anywhere.
 Without the model, search is keyword search as before.
+
+## 6. Inkling learns from your notes (LFMP-11)
+
+The owner: "would be nice if over time our assistant app gets smarter based on accumulated notes and knowledge". So
+Inkling keeps a small memory of what lasts, uses it in every answer, and learns from the owner's corrections, all on
+the phone. Parts, ranked by how much they help per unit of effort:
+
+1. **A personal memory, shown in "What Inkling knows" (built).** Durable facts in short sentences ("Ana is your
+   sister", "You prefer mornings for deep work"), each with where it came from (a note, a chat message, Talk, or the
+   owner) and how often it was seen; tap to edit, × to forget, or add one by hand. Rules on the phone find the clear
+   first-person sentences in every new entry, chat message and Talk turn a few seconds after it is written (people,
+   birthdays, home and work, likes, preferences, routines, projects, "remember that…", "keep answers short"). A newer
+   fact about the same slot replaces the older ("my dentist is now Dr Park"); the owner's own words are never changed.
+   Settings → What Inkling knows.
+2. **Memory and notes in every answer (built).** Chat and Talk get a compact profile in the system prompt (preferences
+   first, then people, routines, projects, places, likes, patterns) and, after the owner's message, the facts and 3–5
+   notes nearest to it (LFMP-10's search by meaning, plus the names the memory knows: "my sister" also looks for
+   "Ana"). Sized to the answering model: about 350 tokens for LiteRT's 4k models, 600 for Talk on the server, up to
+   1,600 for Qwen's 32k. Only the last message carries notes, so the profile stays a stable prefix the server keeps
+   read in. Omni on the phone gets the short profile only.
+3. **Corrections stick (built).** Changing the Ink line's mark, an entry's kind or a to-do's list in the editor is
+   remembered; a line sharing most of its words with a corrected one goes the owner's way next time, on the phone
+   before any model, and the three closest corrections go to the server's classifier as examples (few-shot). The
+   newest correction wins; each is listed and can be removed. Reminder times are a follow-up (it needs telling a
+   default time apart from a chosen one).
+4. **Nightly tidy-up (built).** Once a day while charging and idle (JobScheduler, no Play Services): the small model
+   (LFM3-1.7B, on the server in Edge mode, else the phone) reads entries changed since its last run in batches of 8 and
+   lists facts as `kind: fact [n]` lines; duplicates are merged, facts from deleted notes and facts seen once and not
+   for 120 days are let go (at most 400 kept), missing vectors are made and patterns found. "Learn now" runs it at once.
+5. **Patterns, gently (built).** When there is enough to go on: the hours to-dos usually get done, the hours the owner
+   writes most, themes that keep coming back, to-dos that keep moving ("maybe smaller steps"). Shown on the screen and
+   in the profile only; never a notification.
+6. **Fine-tuning or LoRA on the phone (not done).** LiteRT-LM has no on-device training, a 1.7B LoRA step would be
+   minutes of hot phone per few examples, and retrieval plus few-shot already carries the owner's facts and fixes
+   with no training and instant Forget.
+
+Privacy: everything is in the `learned` table of the notes' own database (Room 8), each row sealed with AES-GCM under
+a key in Android's keystore that never leaves the phone. Only what one answer needs goes with it to the owner's
+server, as notes already do; sensitive facts (health, money, passwords, legal, intimate) stay out of the standing
+profile, secrets (a password, a PIN, a card number) are never kept, the journal is left out while it is locked, and
+the nightly pass sends nothing sensitive and nothing from the journal to the server. One switch turns learning off
+(nothing is learned and nothing learned is used; notes are still read). **Forget everything** deletes every fact,
+correction and pattern and the keystore key; the notes stay and are not read again. Delete everything wipes it too.

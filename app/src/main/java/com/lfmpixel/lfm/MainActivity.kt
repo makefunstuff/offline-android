@@ -413,6 +413,7 @@ private fun Root(g: AppGraph, gate: PermissionGate, pickers: Pickers, opened: ko
                     Route.Tools -> ToolsScreen(g, nav)
                     Route.History -> HistoryScreen(g, nav)
                     Route.Privacy -> PrivacyScreen(g, nav, pickers)
+                    Route.Knows -> com.lfmpixel.lfm.ui.screens.KnowsScreen(g, nav)
                     Route.FirstRun -> FirstRunScreen(g, nav) { nav.go(Route.Models); startImport() }
                     is Route.Search -> SearchScreen(g, nav, r.id)
                     Route.WebSearch -> WebSearchScreen(g, nav)

@@ -26,9 +26,12 @@ data class IntentLabel(val intent: String, val ms: Long) {
  * labels text if its files are there; otherwise each returns null and the phone's rules decide.
  */
 class Labels(private val edge: Edge, private val local: suspend () -> com.lfmpixel.lfm.assistant.Decide? = { null }) {
+    /** The owner's corrections (memory/Memory.kt): the closest go into the capture prompt as examples. Set by AppGraph. */
+    @Volatile var corrections: suspend () -> List<com.lfmpixel.lfm.memory.Correction> = { emptyList() }
+
     suspend fun capture(line: String): CaptureLabel? {
         val t0 = SystemClock.elapsedRealtime()
-        val o = ask(EdgeModels.TEXT, CAPTURE_SYSTEM, JSONObject().put("role", "user").put("content", line.take(400)), CAPTURE_SCHEMA, 60)
+        val o = ask(EdgeModels.TEXT, CAPTURE_SYSTEM + learnedExamples(line, corrections()), JSONObject().put("role", "user").put("content", line.take(400)), CAPTURE_SCHEMA, 60)
             ?: return onPhone { it.capture(line) }
         return CaptureLabel(o.optString("kind"), o.optString("when").trim(), o.optString("urgency"), o.optString("energy"),
             o.optBoolean("sensitive"), SystemClock.elapsedRealtime() - t0)
@@ -79,6 +82,16 @@ class Labels(private val edge: Edge, private val local: suspend () -> com.lfmpix
 
     companion object {
         const val TIMEOUT_MS = 1_500L
+
+        /** Up to three of the owner's corrections like [line], as more examples (few-shot); "" when there are none. */
+        fun learnedExamples(line: String, list: List<com.lfmpixel.lfm.memory.Correction>): String {
+            val kinds = mapOf("Todo" to "todo", "Idea" to "idea", "Journal" to "journal", "Note" to "note")
+            val ex = com.lfmpixel.lfm.memory.Corrections.examples(line, list, com.lfmpixel.lfm.memory.CorrectionKind.Kind)
+                .filter { it.to in kinds && com.lfmpixel.lfm.memory.Corrections.similarity(line, it.text) > 0 && !com.lfmpixel.lfm.memory.Sensitive.looks(it.text) }
+            if (ex.isEmpty()) return ""
+            return "\nThe owner corrected these before; label lines like them the same way:\n" +
+                ex.joinToString("\n") { "\"${it.text.replace("\"", "'")}\" -> kind \"${kinds[it.to]}\"" }
+        }
 
         /** The prompt the server's tests settled on (docs/notebook-spec.md B.2): definitions, then three examples. */
         const val CAPTURE_SYSTEM = "Label one line the owner wrote in their notebook. Fill each field:\n" +

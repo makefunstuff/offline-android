@@ -18,6 +18,7 @@ sealed interface Route {
     data object Tools : Route
     data object History : Route
     data object Privacy : Route
+    data object Knows : Route
     data object FirstRun : Route
     data class Search(val id: Long) : Route
     data object WebSearch : Route

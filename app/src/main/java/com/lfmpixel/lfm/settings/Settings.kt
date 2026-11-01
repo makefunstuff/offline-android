@@ -75,6 +75,8 @@ data class Prefs(
     val edgeKeySealed: String = "",
     /** What the server benchmark measured last, "key=value;…" (see EdgeBench). */
     val edgeBench: String = "",
+    /** Inkling learns from notes, chats, Talk and corrections, and uses what it learned (What Inkling knows). */
+    val learning: Boolean = true,
 )
 
 /** Thinking budgets offered in Settings, in tokens. */
@@ -117,6 +119,7 @@ class Settings(private val context: Context) {
         val edgeUrl = stringPreferencesKey("edge_url")
         val edgeKey = stringPreferencesKey("edge_key_sealed")
         val edgeBench = stringPreferencesKey("edge_bench")
+        val learning = booleanPreferencesKey("learning")
     }
 
     val prefs: Flow<Prefs> = context.store.data.map { it.toPrefs() }
@@ -159,6 +162,7 @@ class Settings(private val context: Context) {
         edgeUrl = this[K.edgeUrl] ?: "",
         edgeKeySealed = this[K.edgeKey] ?: "",
         edgeBench = this[K.edgeBench] ?: "",
+        learning = this[K.learning] ?: true,
     )
 
     suspend fun setFirstRunDone() = context.store.edit { it[K.firstRun] = true }
@@ -197,6 +201,7 @@ class Settings(private val context: Context) {
     suspend fun setEdgeBench(text: String) = context.store.edit { it[K.edgeBench] = text }
     /** Wipe: every setting back to how it was on first run. */
     suspend fun clear() = context.store.edit { it.clear() }
+    suspend fun setLearning(on: Boolean) = context.store.edit { it[K.learning] = on }
     suspend fun setShowSpeed(on: Boolean) = context.store.edit { it[K.speed] = on }
     suspend fun setToolPolicy(tool: String, policy: ToolPolicy) = context.store.edit {
         val map = it.toPrefs().toolPolicies + (tool to policy)

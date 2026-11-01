@@ -115,6 +115,7 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="On-device AI: finishes an answer the owner asked for, with a Stop button" />
         </service>
+        <service android:name=".memory.LearnJob" android:exported="false" android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver android:name=".web.NetHandoffReceiver" android:exported="false" />
         <receiver android:name=".tools.ReminderReceiver" android:exported="false" />
         <receiver android:name=".assistant.FocusReceiver" android:exported="false" />

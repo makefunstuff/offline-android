@@ -456,11 +456,20 @@ private fun InkLineBar(g: AppGraph, nav: Nav, today: LocalDate, draftState: andr
         kotlinx.coroutines.delay(450)
         g.labels.capture(draft.trim())?.let { labelled = draft to InkLine.withLabel(draft, it) }
     }
-    val guess = labelled?.takeIf { it.first == draft }?.second ?: remember(draft) { InkLine.guess(draft) }
+    // Where the owner put a line like this before (a correction, memory/Memory.kt) wins over the rules and the label.
+    var learned by remember { mutableStateOf<Pair<String, InkKind>?>(null) }
+    LaunchedEffect(draft) {
+        val k = g.memory.learnedKind(draft.trim())?.let { runCatching { InkKind.valueOf(it) }.getOrNull() }
+        learned = k?.let { draft to it }
+    }
+    val sorted = labelled?.takeIf { it.first == draft }?.second ?: remember(draft) { InkLine.guess(draft) }
+    val guess = InkLine.withLearned(draft, sorted, learned?.takeIf { it.first == draft }?.second)
     val kind = picked?.let { InkKind.valueOf(it) }?.takeIf { it in InkLine.cycle(guess.kind) } ?: guess.kind
     fun commit() {
         val line = draft.trim()
         if (line.isEmpty()) return
+        // Picked by hand over the guess: remembered, so a line like it goes there next time.
+        if (picked != null && kind != guess.kind) g.scope.launch { g.memory.corrected(com.lfmpixel.lfm.memory.CorrectionKind.Kind, line, guess.kind.name, kind.name) }
         draft = ""; picked = null
         if (kind == InkKind.Ask) {
             // Without a model a question would be sorted into the notebook: it waits in the line instead.
