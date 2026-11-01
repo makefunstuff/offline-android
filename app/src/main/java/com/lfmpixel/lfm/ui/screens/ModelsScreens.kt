@@ -161,7 +161,7 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
                         Txt("${m.quant} · LiteRT", LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight))
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             val partsSize = grp.parts.sumOf { it.sizeBytes }
-                            Txt(m.sizeLabel + if (grp.parts.isNotEmpty()) " + ${formatBytes(partsSize)} of ${if (grp.parts.size == 1) "tokenizer" else "voice files"}" else "",
+                            Txt(m.sizeLabel + if (grp.parts.isNotEmpty()) " + ${formatBytes(partsSize)} of ${if (grp.parts.size == 1) "tokenizer" else "files it needs"}" else "",
                                 LfmType.label.copy(fontWeight = null), c.text2)
                             if (have != null) {
                                 Txt("·", LfmType.label, c.text2)
@@ -407,6 +407,7 @@ fun slotOf(role: ModelRole) = when (role) {
     ModelRole.Text, ModelRole.Tokenizer -> Slot.Text
     ModelRole.Omni, ModelRole.OmniSpeech -> Slot.Omni
     ModelRole.Vision -> Slot.Vision
+    ModelRole.Decide -> Slot.Text
 }
 
 private val idleChoices = listOf(0 to "Never", 1 to "1 min", 5 to "5 min", 15 to "15 min", 30 to "30 min")

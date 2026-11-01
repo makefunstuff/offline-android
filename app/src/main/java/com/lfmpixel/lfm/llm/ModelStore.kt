@@ -42,6 +42,9 @@ class ModelStore(private val context: Context) {
         .all { m -> _installed.value.any { it.known == m && it.verified } }
     fun tokenizer(): InstalledModel? = newest(ModelRole.Tokenizer)
     fun vision(): InstalledModel? = newest(ModelRole.Vision)
+    /** Every d1 file is here and checked. */
+    fun decide(): Boolean = ModelCatalog.all.filter { it.role == ModelRole.Decide }
+        .all { m -> _installed.value.any { it.known == m && it.verified } }
 
     /**
      * Model files from before LFMP-8 (GGUF for llama.cpp, which the phone no longer runs) and files of an older
@@ -56,6 +59,8 @@ class ModelStore(private val context: Context) {
 
     fun delete(m: InstalledModel) {
         m.file.delete()
+        // Omni's XNNPACK weight cache (about 2.7 GB) is made from its .litertlm: it goes with it.
+        if (m.known.role == ModelRole.Omni) File(dir, com.lfmpixel.lfm.voice.OmniVoice.CACHE_DIR).deleteRecursively()
         File(dir, m.file.name + ".sha256").delete()
         refresh()
     }

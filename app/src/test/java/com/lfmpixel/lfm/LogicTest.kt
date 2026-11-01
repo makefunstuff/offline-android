@@ -86,17 +86,18 @@ class TimeArgsTest {
 
 class ModelCheckTest {
     @Test fun knownModelsArePinned() {
-        val m = ModelCatalog.byName("LFM3-1.7B-QAD-Q4_0.gguf")!!
-        assertEquals(1049615680L, m.sizeBytes)
+        val m = ModelCatalog.byName("LFM3-1.7B_mixed_int4_ekv4096.litertlm")!!
+        assertEquals(1441629120L, m.sizeBytes)
         assertEquals(64, m.sha256.length)
         assertTrue(ModelCatalog.all.all { it.sha256.matches(Regex("[0-9a-f]{64}")) })
         assertEquals(ModelCatalog.all.size, ModelCatalog.all.map { it.fileName }.toSet().size)
     }
 
     @Test fun precheckRejectsUnknownNamesAndWrongSizes() {
-        assertTrue(ModelCheck.precheck("random.gguf", 10) is CheckResult.Unknown)
-        assertTrue(ModelCheck.precheck("LFM3-1.7B-QAD-Q4_0.gguf", 10) is CheckResult.WrongSize)
-        assertTrue(ModelCheck.precheck("lfm3-1.7b-qad-q4_0.gguf", 1049615680L) is CheckResult.Ok)
+        // GGUF files are unknown now: the phone runs LiteRT only.
+        assertTrue(ModelCheck.precheck("LFM3-1.7B-QAD-Q4_0.gguf", 1049615680L) is CheckResult.Unknown)
+        assertTrue(ModelCheck.precheck("LFM3-VL-2B_int4.litertlm", 10) is CheckResult.WrongSize)
+        assertTrue(ModelCheck.precheck("lfm3-vl-2b_int4.litertlm", 2071595259L) is CheckResult.Ok)
     }
 
     @Test fun copyAndHashComputesSha256WhileCopying() {

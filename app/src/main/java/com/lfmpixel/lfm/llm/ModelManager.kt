@@ -267,6 +267,20 @@ class ModelManager(
         }
     }
 
+    private val decideLock = Mutex()
+    @Volatile private var decide: com.lfmpixel.lfm.assistant.Decide? = null
+
+    /**
+     * d1-omni-600M for the small classifiers when the server is away (Labels), or null when its files are not here.
+     * Loaded on first use and kept: a capture line is sorted in well under a second. Its XNNPACK weight cache sits
+     * beside LiteRT-LM's, so a second load maps it instead of holding the weights in memory again.
+     */
+    suspend fun decide(): com.lfmpixel.lfm.assistant.Decide? = decideLock.withLock {
+        decide ?: if (!store.decide()) null else withContext(kotlinx.coroutines.Dispatchers.IO) {
+            com.lfmpixel.lfm.assistant.Decide.open(store.dir, threads(), java.io.File(liteRtCache, "d1-omni-600M_xnnpack.cache"))
+        }.also { decide = it }
+    }
+
     /** Long jobs (a scanned PDF read page by page) call this between steps so the idle unload waits. */
     fun keepAlive() { if (_status.value.anyLoaded) touch() }
 
@@ -291,6 +305,7 @@ class ModelManager(
         runCatching { text?.close() }; text = null
         runCatching { omni?.close() }; omni = null
         runCatching { vision?.close() }; vision = null
+        runCatching { decide?.close() }; decide = null
         _status.value = EngineStatus()
     }
 

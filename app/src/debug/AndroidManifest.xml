@@ -35,5 +35,9 @@
             android:permission="android.permission.DUMP">
             <intent-filter><action android:name="com.lfmpixel.lfm.DEBUG_DECIDE" /></intent-filter>
         </receiver>
+        <receiver android:name=".DebugOmniReceiver" android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter><action android:name="com.lfmpixel.lfm.DEBUG_OMNI" /></intent-filter>
+        </receiver>
     </application>
 </manifest>

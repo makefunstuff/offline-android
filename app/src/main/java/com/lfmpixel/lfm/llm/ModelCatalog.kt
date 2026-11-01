@@ -15,6 +15,8 @@ enum class ModelRole(val label: String) {
     Tokenizer("Tokenizer"),
     /** LFM3-VL-2B for LiteRT-LM: photos, video frames and documents. */
     Vision("Photos and documents"),
+    /** d1-omni-600M: the small classifiers when the server is away (assistant/Decide.kt). */
+    Decide("Sorting and routing"),
 }
 
 /**
@@ -44,6 +46,11 @@ object ModelCatalog {
     private const val OMNI_REV = "a287b6e6e2535de6a4b48b50e5a5a5b9b82632cc"
     private const val VL = "litert-community/LFM3-VL-2B-LiteRT"
     private const val VL_REV = "580859278a59710b3c93b298982f3f9e884d80e8"
+    private const val D1 = "litert-community/d1-omni-600M-LiteRT"
+    private const val D1_REV = "afce506e80dee25c007a88e6ab24fd62fd456eab"
+
+    private fun d1(name: String, size: Long, sha: String, path: String) =
+        KnownModel("d1-omni-600M_$name", "d1-omni-600M", "fp16", ModelRole.Decide, size, sha, D1, path, D1_REV)
 
     private fun speech(name: String, size: Long, sha: String, path: String = "speech/$name") =
         KnownModel(name, "Omni voice", "graph", ModelRole.OmniSpeech, size, sha, OMNI, path, OMNI_REV)
@@ -63,6 +70,13 @@ object ModelCatalog {
         KnownModel("LFM3_tokenizer.json", "LFM3 tokenizer", "", ModelRole.Tokenizer, 17908634, "41927bd314d17d7d7fadb44e10cd0919f7b71528d7741596d8cbd15c6945ec44", OMNI, "tokenizer.json", OMNI_REV),
         // int4 decoder, a 2,048-token cache: 2.5 times the float16 file's speed on a phone GPU (its card).
         KnownModel("LFM3-VL-2B_int4.litertlm", "LFM3-VL-2B", "int4", ModelRole.Vision, 2071595259, "8c208746b7758996c41e27eec8507b3c875a9e3bbde4b6da0e4c145d3e450c41", VL, rev = VL_REV),
+        // A decision model: it reads one line and gives each option's probability, never text. The 128-position graph
+        // fits a capture line and a Talk turn; longer ones are cut, as its reference host does.
+        d1("decide_L128_fp16.tflite", 896250176, "69720aa44d60a7feb0bd3056b55c7a038e67761b5d810cd5d5b0496ec61273f3", "d1-omni-600M_decide_L128_fp16.tflite"),
+        d1("contract.json", 69654, "93304d36dbc17ff691f5cda0c3d947fd7671e630eb9d1e1441fa8e90270ccf79", "contract.json"),
+        d1("tokenizer.json", 4733371, "1efc3a6609abf6b63b1f47188d139f3b59973a6a434dffe970a7261a51ed2711", "tokenizer.json"),
+        d1("LICENSE", 10572, "9953509cbd8c1c6ce7b06ddf74fcc204a892692316201dd8f7400a84790d4120", "LICENSE"),
+        d1("NOTICE", 1233, "34a17f2861182c4f20f7dc84cfc82355ca40024c06a11487e20a547580b3c3e5", "NOTICE"),
     )
 
     /** A model as the Models screen lists it: what it is for, the file offered, and the files it needs beside it. */
@@ -75,6 +89,8 @@ object ModelCatalog {
         Group("LFM3-Omni-2B", "Voice: dictation, read-aloud and Talk", listOf(byName("LFM3-Omni-2B_int8.litertlm")!!),
             all.filter { it.role == ModelRole.OmniSpeech } + tokenizer),
         Group("LFM3-VL-2B", "Photos, short videos and documents", listOf(byName("LFM3-VL-2B_int4.litertlm")!!), emptyList()),
+        Group("d1-omni-600M", "Sorts captures and routes Talk when your server is away", listOf(byName("d1-omni-600M_decide_L128_fp16.tflite")!!),
+            all.filter { it.role == ModelRole.Decide && !it.fileName.endsWith(".tflite") }),
     )
 
     /** What first run downloads: chat and voice. */

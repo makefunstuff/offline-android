@@ -22,6 +22,15 @@ android {
             // arm64-v8a for the Pixel; x86_64 so the emulator runs the same LiteRT natives.
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
+        externalNativeBuild { cmake { arguments += "-DCMAKE_BUILD_TYPE=Release" } }
+    }
+
+    // One small library since LFMP-8: OmniVoice's bridge to LiteRT's C API (omni_rt.cpp). No llama.cpp.
+    externalNativeBuild {
+        cmake {
+            path("src/main/cpp/CMakeLists.txt")
+            version = "3.31.6"
+        }
     }
 
     releaseKey()?.let { key ->
@@ -89,9 +98,13 @@ dependencies {
     // LiteRT-LM runs the chat model on the GPU (docs/acceleration.md). Google's on-device runtime: no Play Services,
     // no network code of its own, and Inkling has no INTERNET permission anyway (checkDebugNoNetwork).
     implementation(libs.litertlm.android)
-    // LiteRT runs the graphs LiteRT-LM can't: Omni's speech loop and d1's decisions (docs/model-pool.md). Its
-    // ai-delivery dependency fetches NPU models through the Play Store; Inkling has no Play Services, so it is left out.
-    implementation(libs.litert) { exclude(group = "com.google.android.play") }
+    // LiteRT runs the graphs LiteRT-LM can't: Omni's voice (voice/OmniRt.kt) and d1's decisions (docs/model-pool.md), on
+    // the CPU, no network code. Its Play asset delivery (AiPackModelProvider, Play Services) is left out: models come
+    // from the app's own downloads.
+    implementation(libs.litert) {
+        exclude(group = "com.google.android.play")
+        exclude(group = "com.google.android.gms")
+    }
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -122,7 +135,8 @@ androidComponents {
                 "com.google.guava:", "com.google.dagger:dagger", "com.google.auto.value:auto-value-annotations",
                 "jakarta.inject:", "javax.inject:", "com.google.code.findbugs:jsr305", "org.checkerframework:checker-qual",
                 "com.google.j2objc:j2objc-annotations", "com.google.ai.edge.litertlm:litertlm-android", "com.google.code.gson:gson",
-                "com.google.ai.edge.litert:litert", "com.google.ai.edge.litert:litert-api"))
+                // LiteRT (OmniVoice's graphs, voice/OmniRt.kt): the on-device runtime, no networking; it brings Guava's failureaccess.
+                "com.google.ai.edge.litert:litert", "com.google.ai.edge.litert:litert-api", "com.google.guava:failureaccess"))
             report.set(layout.buildDirectory.file("reports/privacy/${variant.name}-dependencies.txt"))
         }
         tasks.matching { it.name == "assemble$name" || it.name == "check" }.configureEach {
