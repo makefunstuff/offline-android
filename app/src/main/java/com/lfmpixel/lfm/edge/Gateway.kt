@@ -63,6 +63,8 @@ class Gateway(
     fun talkOpened() {
         if (talkAsked) return
         talkAsked = true
+        // A key refused earlier is tried again: a new Talk is the owner's next try.
+        if (_state.value == QwenState.KeyWrong) _state.value = QwenState.Idle
         wake()
     }
 
@@ -89,11 +91,12 @@ class Gateway(
     }
 
     /**
-     * Settings' Check now: a refused key is tried again (an open Talk asks for Qwen with it). Only then or on a new key,
+     * Settings' Check now: a refused key is tried again while Talk is open (it asks for Qwen with it). Only then, a new key or a new Talk,
      * never on another request's success: the gateway may check the key on the warm call alone.
      */
     fun recheck() {
-        if (_state.value != QwenState.KeyWrong) return
+        // With Talk closed nothing is sent that would check it (health needs no key): it stays said until a real try.
+        if (_state.value != QwenState.KeyWrong || !talkAsked) return
         _state.value = QwenState.Idle
         if (talkAsked) wake()
     }
@@ -244,7 +247,8 @@ class Gateway(
 
         /** Why, from the reply ("reason", "message", "error"), else a plain guess. */
         fun reason(body: String): String = runCatching {
-            val j = JSONObject(body)
+            // The network module's error text: "HTTP 409: {…the server's reply…}".
+            val j = JSONObject(body.replace(Regex("""^HTTP \d{3}:?\s*"""), ""))
             listOf("reason", "message", "detail").firstNotNullOfOrNull { k -> j.optString(k).takeIf { it.isNotBlank() } }
                 ?: j.optJSONObject("error")?.optString("message")?.takeIf { it.isNotBlank() }
                 ?: j.optString("error").takeIf { it.isNotBlank() }

@@ -266,6 +266,14 @@ class Talk(
         scope.launch { settings.setTalkSpoken(on) }
     }
 
+    /**
+     * The server takes this turn: it answers ([usable]), and Qwen isn't waking while Omni is on the phone. During the
+     * swap the gateway holds speech in and out until voice mode is up (up to a minute), so the phone's Omni answers
+     * meanwhile; with no Omni here, the turn waits for the server.
+     */
+    private fun serverTakes(usable: Boolean): Boolean =
+        usable && !(models.edge?.gateway?.state?.value is com.lfmpixel.lfm.edge.QwenState.Waking && models.hasVoice())
+
     private suspend fun runLoop(run: Int) {
         val p = settings.now()
         set(run) { it.copy(spoken = p.talkSpoken) }
@@ -274,7 +282,7 @@ class Talk(
         loadPace()
         try {
             // Edge mode needs nothing on the phone; Omni loads only for a turn the server can't take.
-            if (models.edge?.usableNow() != true) {
+            if (!serverTakes(models.edge?.usableNow() == true)) {
                 Log.i(TAG, "talk: server not in use (${models.edge?.state?.value ?: "Edge mode off"}): Omni on this phone")
                 val session = models.omniSession()
             }
@@ -289,7 +297,7 @@ class Talk(
                 // While the owner speaks, Omni reads the conversation so far in, so the answer starts sooner. Not when
                 // the server answers (Edge mode): that would load Omni for nothing. Asked each turn, an Offline server
                 // again too, so Qwen answers again as soon as the server is back.
-                val local = models.edge?.usableNow() != true
+                val local = !serverTakes(models.edge?.usableNow() == true)
                 val prefix = SpeechFormat.talkPrefix(system(), doneTurns())
                 warm = if (local) scope.launch { runCatching { models.omniSession().talkPrewarm(prefix) } } else null
                 // Heard early: once the owner pauses, transcribe what they said while the silence that ends the turn
@@ -308,7 +316,7 @@ class Talk(
                 val ended = System.nanoTime()
                 val endedAt = SystemClock.elapsedRealtime()
                 // Asked again: the server may have come back (or gone) while the owner spoke.
-                val viaServer = models.edge?.usable() == true
+                val viaServer = serverTakes(models.edge?.usable() == true)
                 set(run) { it.copy(phase = TalkPhase.Thinking, answering = if (viaServer) "" else PHONE_ANSWER) }
                 if (!viaServer) Log.i(TAG, "talk: server not in use (${models.edge?.state?.value ?: "Edge mode off"}): Omni on this phone")
                 if (viaServer) {

@@ -52,7 +52,8 @@ class GatewayTest {
             if (dropping(t)) throw NetException("Failed to connect to /192.168.1.138:18110", EDGE_UNREACHABLE)
             if (sentKey != key) throw NetException("HTTP 401: Invalid API Key", EDGE_REFUSED)
             return when (path) {
-                EdgeRules.WARM -> if (game) throw NetException("HTTP 409: a game is running on GPU 0", EDGE_REFUSED)
+                // As the real gateway (homelab HOME-8) refuses, and as NetEngine words the error.
+                EdgeRules.WARM -> if (game) throw NetException("""HTTP 409: {"mode": "edge", "state": "blocked", "reason": "game-on-gpu: game.exe"}""", EDGE_REFUSED)
                     else { if (warmAt == null) warmAt = t; GatewayReply(202, """{"mode":"edge","target":"voice"}""") }
                 "/v1/chat/completions" -> GatewayReply(200, "data: [DONE]")
                 "/v1/models" -> {
@@ -121,7 +122,7 @@ class GatewayTest {
         fake.game = true
         gw.talkOpened(); runCurrent()
         val st = gw.state.value
-        assertTrue("$st", st is QwenState.Busy && st.reason == "a game is running on GPU 0")
+        assertTrue("$st", st is QwenState.Busy && st.reason == "game-on-gpu: game.exe")
         advanceTimeBy(600_000); runCurrent()
         assertEquals("one warm call, no polling, no retry loop", listOf("POST ${EdgeRules.WARM}"), fake.calls)
         // Once a Talk session, also while it is busy.
