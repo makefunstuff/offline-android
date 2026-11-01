@@ -6,6 +6,7 @@ import com.lfmpixel.lfm.net.EdgeRules
 import com.lfmpixel.lfm.settings.Prefs
 import com.lfmpixel.lfm.settings.Settings
 import com.lfmpixel.lfm.web.EDGE_REFUSED
+import com.lfmpixel.lfm.web.EDGE_UNREACHABLE
 import com.lfmpixel.lfm.web.NetClient
 import com.lfmpixel.lfm.web.NetException
 import kotlinx.coroutines.CoroutineScope
@@ -89,6 +90,9 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
 
     data class Server(val url: String, val key: String)
 
+    /** The owner's gateway: wakes Qwen (voice mode) for Talk, chat and Ask ([Gateway]). */
+    val gateway = Gateway(scope, ::gatewaySend, { answerId }, SystemClock::elapsedRealtime)
+
     init {
         // Turning it on, or a new address, checks at once.
         // Off the main thread, and with the settings it was handed: a second read from inside the collector, on a
@@ -99,6 +103,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
                     configured.value = p.edgeOn && p.edgeUrl.isNotBlank()
                     // The network module opens only this server (Settings' Test excepted).
                     if (configured.value) runCatching { net.edgePin(p.edgeUrl) }
+                    gateway.reset()
                     scope.launch(kotlinx.coroutines.Dispatchers.Default) { runCatching { check(p) } }
                 }
         }
@@ -120,7 +125,8 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
     suspend fun usable(): Boolean {
         if (server() == null) return false
         if (_state.value is EdgeState.Off || _state.value is EdgeState.Checking) runCatching { check() }
-        return _state.value is EdgeState.Online
+        // A wrong key: the phone answers until the owner fixes it in Settings → Your server.
+        return _state.value is EdgeState.Online && !gateway.keyRefused
     }
 
     /**
@@ -151,19 +157,26 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         val s = server() ?: return emptyMap()
         val out = ByteArrayOutputStream()
         request(s, "GET", "/v1/models", null, null, "Your server: models") { out.write(it); true }
-        val data = JSONObject(out.toString(Charsets.UTF_8.name())).getJSONArray("data")
+        remember(out.toString(Charsets.UTF_8.name()))
+        gateway.listed(served.keys)
+        return served
+    }
+
+    /** Keeps a /v1/models reply as [served]. */
+    private fun remember(models: String) {
+        val data = JSONObject(models).getJSONArray("data")
         served = (0 until data.length()).associate { i ->
             data.getJSONObject(i).let { it.getString("id") to (it.optJSONObject("status")?.optString("value") ?: "loaded") }
         }
         servedAt = SystemClock.elapsedRealtime()
-        return served
     }
 
     /** The answer model now ready on the server, or null: then [EdgeModels.TEXT] answers. */
     suspend fun answerModel(): String? {
         val m = runCatching { models() }.getOrNull() ?: return null
         val id = answerId
-        val st = m[id] ?: return null
+        // Not served: the server is in Edge mode. The gateway is asked for voice mode; LFM3 answers meanwhile.
+        val st = m[id] ?: run { gateway.wantQwen(); return null }
         if (st == "loaded") return id
         // Served but asleep (the router unloads it when idle): woken in the background, LFM3 answers meanwhile.
         if (SystemClock.elapsedRealtime() - wokeAt > 120_000) {
@@ -196,6 +209,8 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         checkedAt = t0
         return try {
             request(s, "GET", "/health", null, null, "Your server: check") { true }
+            // The key was refused: asked with the key again (health may not need it), so a fixed key is seen.
+            if (gateway.keyRefused) request(s, "GET", "/v1/models", null, null, "Your server: check the key") { true }
             val ms = SystemClock.elapsedRealtime() - t0
             online(ms)
             ms
@@ -253,13 +268,39 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         }
     }
 
-    /** One request; a failure that means the server is gone turns the state Offline. */
+    /**
+     * One request; a failure that means the server is gone turns the state Offline. While the server was answering, a
+     * request that never got a reply is tried again through a mode swap's brief port drop ([Gateway.throughSwap]);
+     * the warm call's own "no" (503 during a game) is an answer, not a drop. A 401 says the key is wrong.
+     */
     suspend fun request(s: Server, method: String, path: String, contentType: String?, body: ByteArray?, label: String,
-                        onData: (ByteArray) -> Boolean): Int = try {
-        net.edge(s.url, s.key, method, path, contentType, body, label, onData)
-    } catch (e: NetException) {
-        failed(e)
-        throw e
+                        onData: (ByteArray) -> Boolean): Int {
+        var delivered = false
+        val budget = if (_state.value is EdgeState.Online) SWAP_RETRY_MS else 0L
+        return try {
+            Gateway.throughSwap(SystemClock::elapsedRealtime, budget, { e -> !delivered && Gateway.isDrop(e) && (path != EdgeRules.WARM || e.code == EDGE_UNREACHABLE) }) {
+                net.edge(s.url, s.key, method, path, contentType, body, label) { bytes -> delivered = true; onData(bytes) }
+            }.also { if (path != "/health") gateway.keyOk() }
+        } catch (e: NetException) {
+            if (Gateway.httpCode(e) == 401) gateway.keyWrong()
+            failed(e)
+            throw e
+        }
+    }
+
+    /** One request for [Gateway]: its status and reply, or status 0 and why it was not reached. */
+    private suspend fun gatewaySend(method: String, path: String): GatewayReply {
+        val s = server() ?: return GatewayReply(0, "No server is set up")
+        val out = ByteArrayOutputStream()
+        return try {
+            val label = if (path == EdgeRules.WARM) "Your server: wake Qwen" else "Your server: is Qwen up?"
+            val status = request(s, method, path, null, if (method == "POST") ByteArray(0) else null, label) { out.write(it); true }
+            val text = out.toString(Charsets.UTF_8.name())
+            if (path == "/v1/models") runCatching { remember(text) }
+            GatewayReply(status, text)
+        } catch (e: NetException) {
+            GatewayReply(if (e.code == EDGE_UNREACHABLE) 0 else Gateway.httpCode(e) ?: 0, e.message.orEmpty())
+        }
     }
 
     /** POSTs JSON to [path] and hands each server-sent event's data (one JSON object) to [onEvent], until [DONE]. */
@@ -311,6 +352,8 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
 
     companion object {
         const val TAG = "lfm-edge"
+        /** How long a request is tried again through a mode swap's port drop (about 8 s) before the phone answers. */
+        const val SWAP_RETRY_MS = 15_000L
 
         /**
          * The address as the network module takes it: http(s)://host[:port], no path ("/v1" at the end is dropped). Null if

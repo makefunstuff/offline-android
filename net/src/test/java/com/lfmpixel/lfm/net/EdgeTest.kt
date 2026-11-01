@@ -87,4 +87,21 @@ class EdgeTest {
         assertEquals("Stopped", s.error)
         assertEquals(1, pieces)
     }
+
+    @Test fun theGatewaysWarmCallOnly() {
+        server.enqueue(MockResponse.Builder().code(202).body("{\"mode\":\"voice\"}").build())
+        val r = engine().edge(base(), "inkling-key", "POST", EdgeRules.WARM, null, null) { true }
+        assertNull(r.error)
+        assertEquals(202, r.status)
+        val req = server.takeRequest()
+        assertEquals("POST", req.method)
+        assertEquals("/route/warm", req.url.encodedPath)
+        assertEquals("mode=voice", req.url.encodedQuery)
+        assertEquals("Bearer inkling-key", req.headers["Authorization"])
+        // No other query, on it or on any other path.
+        assertNotNull(engine().edge(base(), "k", "POST", "/route/warm?mode=edge", null, null) { true }.error)
+        assertNotNull(engine().edge(base(), "k", "GET", "/v1/models?x=1", null, null) { true }.error)
+        assertNotNull(engine().edge(base(), "k", "POST", "/route/swap", null, null) { true }.error)
+        assertEquals(1, server.requestCount)
+    }
 }

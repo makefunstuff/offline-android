@@ -36,6 +36,9 @@ import com.lfmpixel.lfm.AppGraph
 import com.lfmpixel.lfm.edge.Edge
 import com.lfmpixel.lfm.edge.EdgeKey
 import com.lfmpixel.lfm.edge.EdgeState
+import com.lfmpixel.lfm.edge.Gateway
+import com.lfmpixel.lfm.edge.QwenState
+import com.lfmpixel.lfm.web.NetException
 import com.lfmpixel.lfm.ui.Nav
 import com.lfmpixel.lfm.ui.components.Btn
 import com.lfmpixel.lfm.ui.components.BtnKind
@@ -57,6 +60,7 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
     val c = Lfm.c
     val prefs by g.settings.prefs.collectAsState(null)
     val state by g.edge.state.collectAsState()
+    val qwen by g.edge.gateway.state.collectAsState()
     val scope = rememberCoroutineScope()
     var url by remember { mutableStateOf("") }
     var key by remember { mutableStateOf("") }
@@ -87,14 +91,31 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
             }
 
             SectionLabel("Server")
-            ServerField("Address", url, { url = it; result = null }, "http://100.124.77.61:18448", KeyboardType.Uri)
+            // The old direct voice port never wakes Qwen: one tap moves it to the gateway, with the same key.
+            Gateway.gatewayFor(p.edgeUrl)?.let { to ->
+                Column(Modifier.padding(top = 10.dp).fillMaxWidth().background(c.wash, LfmShape.card).padding(horizontal = 14.dp, vertical = 11.dp)) {
+                    Txt("This is the server's old voice port. Through the gateway, Talk can wake Qwen and requests ride out a mode switch.",
+                        LfmType.small, c.text2)
+                    Btn("Switch to the gateway", {
+                        scope.launch {
+                            g.settings.setEdgeServer(to, p.edgeKeySealed)
+                            url = to
+                            result = "Saved · ${to.substringAfter("://")}. If Test says the key is wrong, paste Wren's gateway key."
+                        }
+                    }, Modifier.padding(top = 8.dp), kind = BtnKind.Primary, small = true)
+                }
+            }
+            ServerField("Address", url, { url = it; result = null }, "http://100.124.77.61:18450", KeyboardType.Uri)
+            Txt("Your server's gateway: http://192.168.1.138:18110 at home, http://100.124.77.61:18450 on the tailnet. It " +
+                "wakes Qwen when Talk opens (about a minute); LFM3 answers meanwhile.", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
             problem?.let { Txt(it, LfmType.meta, c.text, Modifier.padding(top = 4.dp)) }
             if (problem == null && url.isNotBlank() && !Edge.isTailnet(url))
                 Txt("Not a tailnet address: requests are not encrypted, and away from home another network could answer at it. " +
                     "Use the server's 100.x tailnet address unless it is https.", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
-            ServerField("API key", key, { key = it; result = null }, if (keySaved) "Saved · type to replace" else "From ~/.config/local-ai/edge.key",
+            ServerField("API key", key, { key = it; result = null }, if (keySaved) "Saved · type to replace" else "Wren's gateway key",
                 KeyboardType.Password, secret = true)
-            Txt("The key is kept encrypted with this phone's keystore.", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
+            Txt("Wren's own gateway key, from ~/.config/local-ai/gateway/inkling.key on gaming-pc. It is kept encrypted with " +
+                "this phone's keystore.", LfmType.meta, c.text2, Modifier.padding(top = 4.dp))
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Btn("Save", {
                     val u = Edge.normalize(url) ?: return@Btn
@@ -112,7 +133,9 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
                     testing = true
                     result = null
                     scope.launch {
-                        result = try { g.edge.test(url, keyNow()) } catch (e: Exception) { "Not reached: ${e.message}" }
+                        result = try { g.edge.test(url, keyNow()) } catch (e: Exception) {
+                            if (e is NetException && Gateway.httpCode(e) == 401) KEY_WRONG else "Not reached: ${e.message}"
+                        }
                         testing = false
                     }
                 }, icon = "server", enabled = !testing && url.isNotBlank() && problem == null)
@@ -126,6 +149,13 @@ fun ServerScreen(g: AppGraph, nav: Nav) {
                 is EdgeState.Online -> "Answering (${s.ms} ms). Chat, pictures and voice go to it."
                 is EdgeState.Offline -> "Not reached: ${s.reason}. This phone answers; it tries the server again every little while."
             }, LfmType.small, c.text2)
+            when (val q = qwen) {
+                QwenState.KeyWrong -> KEY_WRONG
+                is QwenState.Waking -> "Waking Qwen: the server is switching to voice mode."
+                QwenState.Ready -> "Qwen is up: it writes chat and Talk answers."
+                is QwenState.Busy -> "Qwen can't wake now: ${q.reason}. LFM3 answers."
+                QwenState.Idle -> null
+            }?.takeIf { p.edgeOn }?.let { Txt(it, LfmType.small, c.text2, Modifier.padding(top = 6.dp)) }
             Btn("Check now", { scope.launch { runCatching { g.edge.check() } } }, Modifier.padding(top = 8.dp, bottom = 24.dp), small = true,
                 enabled = p.edgeOn && p.edgeUrl.isNotBlank())
         }
@@ -148,3 +178,6 @@ internal fun ServerField(label: String, value: String, onChange: (String) -> Uni
         }
     }
 }
+
+private const val KEY_WRONG = "The server says the key is wrong (401). Paste Wren's gateway key, from " +
+    "~/.config/local-ai/gateway/inkling.key on gaming-pc, and Save."

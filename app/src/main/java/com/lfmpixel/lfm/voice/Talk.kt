@@ -237,6 +237,7 @@ class Talk(
         recorder.reset()
         synchronized(this) { _state.value = TalkState(spoken = _state.value.spoken) }
         exchanges.clear()
+        models.edge?.gateway?.talkClosed()
     }
 
     private fun halt(phase: TalkPhase) {
@@ -268,6 +269,8 @@ class Talk(
     private suspend fun runLoop(run: Int) {
         val p = settings.now()
         set(run) { it.copy(spoken = p.talkSpoken) }
+        // The gateway is asked for voice mode (Qwen) once this Talk, before anything else: the swap takes a minute.
+        models.edge?.takeIf { it.configured.value }?.gateway?.talkOpened()
         loadPace()
         try {
             // Edge mode needs nothing on the phone; Omni loads only for a turn the server can't take.

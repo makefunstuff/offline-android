@@ -140,6 +140,16 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
             if (looking && edgeOn) LookTile(g, prefs?.showSpeed == true, Modifier.padding(top = 12.dp, bottom = 10.dp))
             else Presence(g, state.phase, Color(sky.sun), Modifier.padding(top = 20.dp, bottom = 10.dp))
             PhaseLine(state.phase, state.spoken, state.answering)
+            // Qwen on the gateway: asked for as Talk opened, up in about a minute; LFM3 (or the phone) answers meanwhile.
+            val qwen by g.edge.gateway.state.collectAsState()
+            val qwenLine = if (!edgeOn) null else qwenLine(qwen)
+            // The last line stays while it fades out.
+            val shown = androidx.compose.runtime.remember { arrayOf("") }
+            if (qwenLine != null) shown[0] = qwenLine
+            AnimatedVisibility(qwenLine != null, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),
+                exit = fadeOut(LfmMotion.spec()) + shrinkVertically(LfmMotion.spec())) {
+                Txt(shown[0], LfmType.small, c.text2, Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
+            }
             AnimatedVisibility(state.error != null, enter = fadeIn(LfmMotion.spec()) + expandVertically(LfmMotion.spec()),
                 exit = fadeOut(LfmMotion.spec()) + shrinkVertically(LfmMotion.spec())) {
                 Txt(state.error ?: "", LfmType.small, c.text2, Modifier.padding(top = 8.dp), textAlign = TextAlign.Center)
@@ -243,6 +253,14 @@ private fun Presence(g: AppGraph, phase: TalkPhase, sun: Color, modifier: Modifi
         if (phase == TalkPhase.Listening || phase == TalkPhase.Hearing)
             drawCircle(c.text.copy(alpha = 0.5f), r + 7.dp.toPx(), center, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
     }
+}
+
+/** Talk's calm line about Qwen on the gateway, or null when there is nothing to say. */
+internal fun qwenLine(q: com.lfmpixel.lfm.edge.QwenState): String? = when (q) {
+    is com.lfmpixel.lfm.edge.QwenState.Waking -> "Waking Qwen… LFM3 answers meanwhile"
+    is com.lfmpixel.lfm.edge.QwenState.Busy -> "Qwen can't wake now (${q.reason.take(80)}); LFM3 answers"
+    com.lfmpixel.lfm.edge.QwenState.KeyWrong -> "Your server's key is wrong: enter Wren's gateway key in Settings → Your server"
+    com.lfmpixel.lfm.edge.QwenState.Ready, com.lfmpixel.lfm.edge.QwenState.Idle -> null
 }
 
 /** What it is doing now, marked; a short hint under it. Changes fade through. */
