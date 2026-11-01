@@ -179,9 +179,11 @@ never open in the background. The speaker button switches to text-only answers (
 carries the conversation into Chat, where it can go on in writing and with tools. "Phone is warm" shows when Android
 reports the phone is getting hot.
 
-- How: llama.cpp's own speech-out code for LFM3 (`mtmd_helper_gen_audio`, the same code `llama-tts` and the
-  `/v1/realtime` server use) is called in-process through JNI (`app/src/main/cpp/talk.cpp`). The answer is Omni's
-  mixed mode: blocks of text, then of speech, from one pass. No server, no socket, no network permission.
+- How: OmniVoice (`voice/OmniVoice.kt`) runs LFM3-Omni-2B's LiteRT graphs in-process: the .litertlm's decoder and
+  audio encoder, read straight from the file, then the depth decoder, frame embedding and codec for speech, through a
+  small JNI over LiteRT's C API (`app/src/main/cpp/omni_rt.cpp`). The answer is Omni's mixed mode: blocks of text,
+  then of speech, from one pass. No server, no socket, no network permission. Its first load writes a 2.7 GB weight
+  cache next to the model, so later loads take under a second.
 - Half duplex: the mic is closed while it speaks, so it never hears itself; you can't talk over it (barge-in), tap
   Stop instead.
 - Talk does not run tools or search: it is Omni on its own. "Carry on in Chat" hands the conversation to LFM3-1.7B.
@@ -304,7 +306,7 @@ read out when they change; progress bars report their value; buttons, tabs and r
   captures when no model is loaded.
 - `tools/`: one small class per tool; reminders, the on-phone calendar, contacts, Messages, dialer, phone settings.
   `ExternalLauncher` is the only code that starts other apps.
-- `voice/`: the `Transcriber` seam; `OmniTranscriber` runs LFM3-Omni-2B in-process. `Talk` (the turn loop),
+- `voice/`: the `Transcriber` seam; `OmniTranscriber` runs LFM3-Omni-2B in-process through `OmniVoice` (LiteRT). `Talk` (the turn loop),
   `ReadAloud`, `AudioOut` (plays 24 kHz speech as it is made), `SpeechFormat` (TTS prompt, text to speech, the
   end-of-speech detector `Endpointer`).
 - `assist/`: the assistant service and session, the Quick Settings tile and the widget.
