@@ -532,12 +532,15 @@ class Talk(
      * or anything but a clear yes, is no. Stopped meanwhile, the turn ends there.
      */
     private suspend fun hearYesNo(run: Int, hear: suspend (FloatArray) -> String): Boolean {
+        // Stopped while it asked: the mic must not take the owner's next words as the answer.
+        if (interrupted || run != epoch) throw CancellationException("Stopped")
         set(run) { it.copy(phase = TalkPhase.Listening) }
         val pcm = recorder.record(onStart = { set(run) { it.copy(phase = TalkPhase.Hearing) } },
             onRestart = { set(run) { it.copy(phase = TalkPhase.Listening) } })
         if (interrupted || run != epoch) throw CancellationException("Stopped")
         set(run) { it.copy(phase = TalkPhase.Thinking) }
         val heard = pcm?.let { runCatching { hear(it) }.getOrNull() }.orEmpty()
+        if (interrupted || run != epoch) throw CancellationException("Stopped")
         Log.i(TAG, "talk: asked, heard “$heard”")
         return YesNo.parse(heard) == true
     }

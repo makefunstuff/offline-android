@@ -166,44 +166,47 @@ object TalkWeb {
 }
 
 /**
- * Whether something said out loud needs the web: news, weather, prices, scores, opening hours, or a fact about the
- * world now. The model decides on the server (it has web_search); this decides for Omni on the phone, which has no
- * tools, and nudges the server's model when it does.
+ * Whether something said out loud needs the web: a question about news, weather, prices, scores, opening hours, or a
+ * fact about the world now. The model decides on the server (it has web_search); this decides for Omni on the phone,
+ * which has no tools, and nudges the server's model when it does. Only a question about the world counts: a statement,
+ * a command, or anything about the owner ("I", "my") is never sent to a search provider.
  */
 object WebNeed {
     private val opt = setOf(RegexOption.IGNORE_CASE)
-    private val fresh = Regex("""\b(weather|forecast|temperature (?:outside|in|at)|(?:will|going to|is it) (?:rain|snow)|news|headlines?|""" +
-        """prices?|cost of|exchange rate|stock|share price|bitcoin|score|scores|who won|won the|results? of|fixtures?|kick[- ]?off|""" +
-        """opening (?:hours|times)|(?:is|are) .{1,40}\bopen\b|what time does .{1,40}\b(?:open|close)|(?:open|close)s? (?:today|tonight|tomorrow|now|on)|""" +
-        """traffic|flights?|delayed|election|polls?|release date|showtimes?|look (?:it|that|this) up|search (?:the web|online|for)|google)\b""", opt)
+    private val fresh = Regex("""\b(weather|forecast|temperature|rain|snow|news|headlines?|prices?|cost|costs|exchange rate|stocks?|""" +
+        """share price|bitcoin|score|scores|won|win|results?|fixtures?|kick[- ]?off|opening (?:hours|times)|open|close|closes|""" +
+        """traffic|flights?|delayed|election|polls?|release date|showtimes?)\b""", opt)
     private val now = Regex("""\b(latest|current|currently|right now|recent|recently|today|tonight|tomorrow|this (?:week|weekend|year)|yesterday|20[2-9]\d)\b""", opt)
-    private val question = Regex("""^(?:who|what|what's|whats|when|where|which|how|is|are|was|were|did|does|do|will|has|have)\b""", opt)
+    private val question = Regex("""^(?:who|whose|what|what's|whats|when|where|which|how|is|are|was|were|did|does|do|will|has|have|any)\b""", opt)
     /** The app's own things: the notebook and tools answer those. */
-    private val mine = Regex("""\b(remind|reminders?|note|notes|notebook|to-?dos?|calendar|agenda|appointments?|alarms?|timers?|journal|diary|my (?:list|day|week|schedule)|shopping list|battery|what(?:'s| is) on|date|what day|time is it)\b""", opt)
-    private val about = Regex("""\b(you|your|i|i'm|me|we)\b""", opt)
+    private val mine = Regex("""\b(remind|reminders?|note|notes|notebook|to-?dos?|calendar|agenda|appointments?|alarms?|timers?|journal|diary|""" +
+        """shopping list|list|battery|what(?:'s| is) on|date|what day|time is it|text|message|call|email|send|set|add|play)\b""", opt)
+    private val about = Regex("""\b(you|your|i|i'm|i've|me|my|mine|we|our|us)\b""", opt)
     private val filler = Regex("""^(?:(?:hey|hi|ok|okay|so|um|uh|wren|please|can you|could you|would you|tell me|do you know|i want to know|i'd like to know|look up|search for|find out|check)\b[\s,]*)+""", opt)
 
     fun needs(said: String): Boolean {
-        val s = said.trim()
-        if (s.isEmpty() || mine.containsMatchIn(s)) return false
-        if (fresh.containsMatchIn(s)) return true
-        val asked = query(s)
-        return now.containsMatchIn(asked) && question.containsMatchIn(asked) && !about.containsMatchIn(asked)
+        val asked = query(said)
+        if (asked.isEmpty() || !question.containsMatchIn(asked) || mine.containsMatchIn(asked) || about.containsMatchIn(asked)) return false
+        return fresh.containsMatchIn(asked) || now.containsMatchIn(asked)
     }
 
-    /** What to search for: what was said, without the words around a request. */
-    fun query(said: String): String = said.trim().replace(filler, "").trim().trimEnd('?', '.', '!').ifEmpty { said.trim() }
+    /** What to search for: the question, without the words around a request. */
+    fun query(said: String): String = said.trim().replace(filler, "").trim().trimEnd('?', '.', '!')
 }
 
-/** A yes or no said out loud; null if it was neither. */
+/** A yes or no said out loud; null if it was neither. Anything unsure or with a "not" in it is no. */
 object YesNo {
     private val opt = setOf(RegexOption.IGNORE_CASE)
-    private val no = Regex("""\b(no|nope|nah|don't|do not|dont|cancel|stop|never ?mind|not now|leave it|skip it|nein|non|nee|nie)\b""", opt)
+    private val fine = Regex("""\bno (?:problem|worries)\b""", opt)
+    private val no = Regex("""\b(no|nope|nah|not|don't|do not|dont|cancel|stop|never ?mind|leave it|skip it|wait|hold on|maybe|unsure|nein|non|nee|nie)\b|n't\b""", opt)
     private val yes = Regex("""\b(yes|yeah|yep|yup|ya|sure|ok|okay|please|go ahead|go on|do it|of course|absolutely|correct|right|fine|sounds good|ja|oui|si|sí|tak|sì)\b""", opt)
 
-    fun parse(heard: String): Boolean? = when {
-        no.containsMatchIn(heard) -> false
-        yes.containsMatchIn(heard) -> true
-        else -> null
+    fun parse(heard: String): Boolean? {
+        val h = heard.replace(fine, "")
+        return when {
+            no.containsMatchIn(h) -> false
+            yes.containsMatchIn(h) -> true
+            else -> null
+        }
     }
 }

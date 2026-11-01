@@ -114,8 +114,13 @@ class TalkWebTest {
 
     @Test fun serverQwenAsksFirstOutLoudThenSearches() = runBlocking {
         g.settings.setSearchMode(SearchMode.AskFirst)
-        // Qwen's calls come through the chat stream as JSON; ChatStream hands them over in LFM's form.
-        val model = ServerModel("""<tool_call>{"name": "web_search", "arguments": {"query": "Leeds weather tomorrow"}}</tool_call>""")
+        // Qwen's calls come through the gateway's chat stream as OpenAI tool_calls; ChatStream hands them over in LFM's form.
+        val stream = com.lfmpixel.lfm.edge.ChatStream(thinking = false)
+        fun ev(delta: String) = org.json.JSONObject("""{"choices":[{"index":0,"delta":$delta}]}""")
+        val raw = stream.feed(ev("""{"role":"assistant","content":null}""")) +
+            stream.feed(ev("""{"tool_calls":[{"index":0,"id":"c1","type":"function","function":{"name":"web_search","arguments":"{\"query\":"}}]}""")) +
+            stream.feed(ev("""{"tool_calls":[{"index":0,"function":{"arguments":"\"Leeds weather tomorrow\"}"}}]}""")) + stream.finish()
+        val model = ServerModel(raw)
         val asks = mutableListOf<String>()
         val (said, found, _) = serverTurn(model, "Will it rain in Leeds tomorrow?", asks)
         assertEquals(listOf("Shall I look up “Leeds weather tomorrow” on the web?"), asks)
@@ -206,7 +211,9 @@ class TalkWebTest {
             "What's the latest on the election?", "How much does a flight to Rome cost", "Who is the current prime minister?",
             "What are the opening hours of the library", "Any news today?").forEach { assertTrue(it, WebNeed.needs(it)) }
         listOf("Remind me to buy milk tomorrow", "What's on my calendar today?", "How are you today?", "Tell me a joke",
-            "What time is it?", "What's 12 times 7", "Add oat milk to the shopping list", "What's the date today?").forEach { assertFalse(it, WebNeed.needs(it)) }
+            "What time is it?", "What's 12 times 7", "Add oat milk to the shopping list", "What's the date today?",
+            // Statements, commands and the owner's own things never go to a search provider.
+            "I have news, I got the job", "Text Sam my flight is delayed", "What's my flight number?", "The price was too high").forEach { assertFalse(it, WebNeed.needs(it)) }
         assertEquals("what's the weather in Leeds", WebNeed.query("Hey Wren, can you tell me what's the weather in Leeds?"))
     }
 
@@ -216,6 +223,10 @@ class TalkWebTest {
         assertEquals(false, YesNo.parse("No thanks"))
         assertEquals(false, YesNo.parse("Don't."))
         assertEquals(false, YesNo.parse("OK, actually no"))
+        assertEquals(false, YesNo.parse("I'm not sure"))
+        assertEquals(false, YesNo.parse("Not right now"))
+        assertEquals(false, YesNo.parse("Okay, wait"))
+        assertEquals(true, YesNo.parse("Sure, no problem"))
         assertNull(YesNo.parse("Hmm"))
         assertNull(YesNo.parse(""))
     }
