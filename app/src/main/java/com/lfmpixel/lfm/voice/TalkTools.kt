@@ -204,7 +204,7 @@ object WebNeed {
 object YesNo {
     private val opt = setOf(RegexOption.IGNORE_CASE)
     /** Yes, in words that also hold a "no" or a "not". */
-    private val fine = Regex("""\b(?:no (?:problem|worries)|not a problem|why not|(?:i )?don't mind|don't worry)\b""", opt)
+    private val fine = Regex("""\b(?:no (?:problem|worries)|not a problem|why not|(?:i )?don't mind)\b""", opt)
     private val no = Regex("""\b(no|nope|nah|not|don't|do not|dont|cancel|stop|never ?mind|leave it|skip it|wait|hold on|maybe|unsure|nein|non|nee|nie)\b|n't\b""", opt)
     private val yes = Regex("""\b(yes|yeah|yep|yup|ya|sure|ok|okay|please|go ahead|go on|do it|of course|absolutely|correct|right|fine|sounds good|ja|oui|si|sí|tak|sì)\b""", opt)
 

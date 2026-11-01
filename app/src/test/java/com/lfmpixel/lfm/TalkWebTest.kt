@@ -231,6 +231,7 @@ class TalkWebTest {
         assertEquals(true, YesNo.parse("Sure, no problem"))
         assertEquals(true, YesNo.parse("Yeah, why not"))
         assertEquals(true, YesNo.parse("Yes, I don't mind"))
+        assertEquals("no need, so no", false, YesNo.parse("Don't worry about it"))
         assertNull(YesNo.parse("Hmm"))
         assertNull(YesNo.parse(""))
     }
