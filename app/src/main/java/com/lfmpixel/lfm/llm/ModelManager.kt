@@ -121,7 +121,11 @@ class ModelManager(
         return Threads.pick(settings.now().threads, Cores.fast, com.lfmpixel.lfm.device.Heat.threadCap(h, Cores.fast)).gen
     }
 
-    private fun counter() = store.tokenizer()?.let { TokenCounter.open(it.file.path) }
+    /**
+     * The token counter, read off the main thread: the first read parses an 18 MB tokenizer.json, seconds the screen
+     * would otherwise stand still for (the organizer's jobs ask for a model from the main thread).
+     */
+    private suspend fun counter() = withContext(kotlinx.coroutines.Dispatchers.IO) { store.tokenizer()?.let { TokenCounter.open(it.file.path) } }
 
     /** What each loaded slot was asked for (file, backend), so a settings change loads it again. */
     private val asked = mutableMapOf<Slot, Pair<String?, Backend>>()
@@ -208,7 +212,7 @@ class ModelManager(
         _status.value = _status.value.copy(omni = LoadState.Loading, error = null)
         try {
             val t = threads()
-            val s = withContext(NonCancellable) { OmniVoice.open(m.file, store.dir, BpeTokenizer.load(tok.file), t) }
+            val s = withContext(NonCancellable) { OmniVoice.open(m.file, store.dir, withContext(kotlinx.coroutines.Dispatchers.IO) { BpeTokenizer.load(tok.file) }, t) }
             omni = s
             asked[Slot.Omni] = m.file.path to Backend.LiteRtCpu
             _status.value = _status.value.copy(omni = LoadState.Ready, backends = _status.value.backends + (Slot.Omni to Backend.LiteRtCpu))

@@ -229,6 +229,7 @@ fun DumpScreen(g: AppGraph, nav: Nav, route: Route.Dump, onMic: () -> Unit, list
     val keep = remember { mutableStateListOf<Boolean>() }
     var byRules by remember { mutableStateOf(false) }
     var sorted by remember { mutableStateOf(false) }
+    var added by remember { mutableStateOf(false) }
     fun show(list: List<DumpSort.Item>) { items.clear(); items.addAll(list); keep.clear(); keep.addAll(list.map { true }); sorted = true }
     LaunchedEffect(job.finished) {
         if (!job.finished) return@LaunchedEffect
@@ -263,14 +264,17 @@ fun DumpScreen(g: AppGraph, nav: Nav, route: Route.Dump, onMic: () -> Unit, list
                     Label(when {
                         job.running -> "Sorting on this phone…"
                         items.isEmpty() -> "Nothing to sort yet"
+                        byRules && job.failed -> "No model could answer just now · sorted on this phone by simple rules"
                         byRules -> "Sorted on this phone by simple rules · keep what fits"
                         else -> "Sorted on this phone · keep what fits"
                     })
                     if (job.running) DumpSort.parse(job.text).forEach { DumpRow(it, true, null, null) }
+                    // A tap acts only while row i is still this item: a sort that ended (or ran again) meanwhile may have
+                    // made the list shorter.
                     else items.toList().forEachIndexed { i, it ->
-                        DumpRow(it, keep.getOrElse(i) { true }, onToggle = { keep[i] = !keep[i] }, onKind = {
+                        DumpRow(it, keep.getOrElse(i) { true }, onToggle = { if (i in keep.indices && items.getOrNull(i) == it) keep[i] = !keep[i] }, onKind = {
                             val next = when (it.kind) { InkKind.Todo -> InkKind.Idea; InkKind.Idea -> InkKind.Note; else -> InkKind.Todo }
-                            items[i] = it.copy(kind = next, minutes = if (next == InkKind.Todo) Sizes.guess(it.text) else 0)
+                            if (items.getOrNull(i) == it) items[i] = it.copy(kind = next, minutes = if (next == InkKind.Todo) Sizes.guess(it.text) else 0)
                         })
                     }
                 }
@@ -282,8 +286,11 @@ fun DumpScreen(g: AppGraph, nav: Nav, route: Route.Dump, onMic: () -> Unit, list
             when {
                 job.running -> Btn("Stop", { job.stop() }, icon = "stop")
                 sorted && chosen.isNotEmpty() -> {
-                    Btn("Add ${chosen.size}", {
-                        val list = chosen.map { items[it] }
+                    Btn("Add ${chosen.size}", add@{
+                        // Once: a second tap before the screen has gone would add them twice and go back twice.
+                        if (added) return@add
+                        added = true
+                        val list = chosen.mapNotNull { items.getOrNull(it) }
                         g.scope.launch {
                             val today = DayBounds().at(LocalDate.now())
                             val ids = list.map { item ->

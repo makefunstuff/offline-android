@@ -65,8 +65,12 @@ import com.lfmpixel.lfm.ui.components.pressScale
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmMotion
 import com.lfmpixel.lfm.ui.theme.LfmType
+import com.lfmpixel.lfm.crash.Crashes
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -152,33 +156,102 @@ class Organize(private val g: AppGraph, private val nav: Nav) {
     }
 }
 
-/** One small model job being run for a sheet or a card: its text so far, whether it runs, and what went wrong. */
-class OrgJob(private val g: AppGraph) {
+/**
+ * One small model job being run for a sheet or a card: its text so far, whether it runs, and whether it [failed].
+ *
+ * Nothing the model path throws leaves here: a server that is down, a model that won't load, a native library that
+ * won't link all end the job as [failed], and the sheet offers its answer by rules instead. A job with no first word
+ * after [firstWordMs], or that goes quiet mid-answer for [quietMs] to twice that, is given up the same way.
+ * [stop] and a new [start] end the old run at once for the screen, even while it still winds down underneath (a
+ * native call or a request finishing): a run that is no longer the current one never writes its state again.
+ */
+class OrgJob(
+    private val scope: CoroutineScope,
+    private val model: (user: String, maxTokens: Int) -> Flow<String>,
+    private val firstWordMs: Long = FIRST_WORD_MS,
+    private val quietMs: Long = QUIET_MS,
+    /** An unexpected failure (not a server or model that is simply away), for the crash log. */
+    private val report: (Throwable) -> Unit = {},
+) {
+    constructor(g: AppGraph) : this(g.scope, { user, max -> Organizer.run(g.engine, user, max) },
+        report = { t -> g.scope.launch(kotlinx.coroutines.Dispatchers.IO) { Crashes.caught(t) } })
+
     var text by mutableStateOf("")
         private set
     var running by mutableStateOf(false)
         private set
     var finished by mutableStateOf(false)
         private set
+    /** The last run ended with no answer: no model could be reached, or it failed or went quiet. */
+    var failed by mutableStateOf(false)
+        private set
     private var job: Job? = null
+    private var watch: Job? = null
+    /** Which run is the current one; an older run's late writes are dropped. */
+    private var run = 0
 
     fun start(user: String, maxTokens: Int) {
-        job?.cancel()
-        text = ""; finished = false; running = true
-        job = g.scope.launch {
+        job?.cancel(); watch?.cancel()
+        val mine = ++run
+        text = ""; finished = false; failed = false; running = true
+        var heard = 0
+        job = scope.launch {
+            var error: Throwable? = null
+            var completed = false
             try {
-                Organizer.run(g.engine, user, maxTokens).collect { text = it }
+                model(user, maxTokens).collect { if (mine == run) { text = it; heard++ } }
+                completed = true
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                text = ""
+            } catch (t: Throwable) {
+                // Out of memory or a stack overflow: the app closes as before, written down (Crashes.keepRunning).
+                if (t is VirtualMachineError) throw t
+                error = t
+                // A server or model that is simply away is expected; anything else is written down to be fixed.
+                if (t !is com.lfmpixel.lfm.llm.LlmException && t !is com.lfmpixel.lfm.web.NetException) runCatching { report(t) }
             } finally {
-                running = false; finished = true
+                // However it ended; a run already ended (stopped, replaced, given up) is left as it is.
+                end(mine, failed = error != null || !completed)
+            }
+        }
+        // The first word may take the server's timeout (90 s) and then a cold load of the phone's model; after it,
+        // nothing new between two looks [quietMs] apart ends the run.
+        watch = scope.launch {
+            delay(firstWordMs)
+            while (mine == run && running) {
+                val before = heard
+                if (before == 0) { job?.cancel(); end(mine, failed = true); break }
+                delay(quietMs)
+                if (mine == run && running && heard == before) { job?.cancel(); end(mine, failed = text.isBlank()) }
             }
         }
     }
 
-    fun stop() { job?.cancel(); job = null; running = false }
+    /** Ends the current run now, keeping what it wrote so far. */
+    fun stop() {
+        job?.cancel(); watch?.cancel()
+        job = null
+        end(run, failed = false)
+        run++
+    }
+
+    private fun end(mine: Int, failed: Boolean) {
+        if (mine != run || !running) return
+        this.failed = failed
+        running = false
+        finished = true
+    }
+
+    companion object {
+        /**
+         * A server that hangs is given up by the network first (90 s read timeout, NetEngine), which turns Edge
+         * Offline so the phone's model answers; its cold load (the GPU, then the CPU if the GPU fails) can take
+         * minutes more. This only catches what is left: a load that never ends.
+         */
+        const val FIRST_WORD_MS = 300_000L
+        /** Mid-answer, both the server (streaming) and the phone write every second or so. */
+        const val QUIET_MS = 60_000L
+    }
 }
 
 /**
@@ -294,6 +367,8 @@ internal fun WhereWasI(g: AppGraph, nav: Nav, away: Long, lines: List<Entry>, pr
         since = g.db.entries().countSince(g.focus.leftAt)
     }
     val job = remember { OrgJob(g) }
+    // Hidden mid-recap: the run stops, so it does not hold the phone's model for the next job.
+    androidx.compose.runtime.DisposableEffect(job) { onDispose { job.stop() } }
     var recap by remember { mutableStateOf<String?>(null) }
     val focusTitle = run?.title ?: g.focus.lastTitle
     WashCard(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
@@ -318,7 +393,9 @@ internal fun WhereWasI(g: AppGraph, nav: Nav, away: Long, lines: List<Entry>, pr
             val said = recap ?: job.text.takeIf { it.isNotBlank() }?.let { Recap.short(it) }
             if (said != null) Txt(said, LfmType.voiceBody, c.text2, Modifier.padding(start = 8.dp, top = 6.dp).semantics { liveRegion = LiveRegionMode.Polite })
             else if (job.running) Txt("Thinking back…", LfmType.small, c.text2, Modifier.padding(start = 8.dp, top = 6.dp))
-            LaunchedEffect(job.finished) { if (job.finished && job.text.isBlank()) recap = Recap.rules(focusTitle, lines) }
+            LaunchedEffect(job.finished) {
+                if (job.finished && job.text.isBlank()) recap = (if (job.failed) "No model could answer just now. " else "") + Recap.rules(focusTitle, lines)
+            }
             FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val kind = if (primary) BtnKind.Primary else BtnKind.Secondary
                 if (r != null) Btn("Resume", { onClose(); nav.go(Route.Focus) }, kind = kind)
@@ -343,30 +420,62 @@ private fun awayLabel(ms: Long): String {
 /** A dump note, written in the brain dump (proposal 3). */
 internal fun Entry.isDump() = kind == EntryKind.Note && tags.split(' ').contains("dump")
 
+/**
+ * What the Smaller steps sheet proposes: the model's steps, or a start by rules when it wrote fewer than two (or no
+ * model answered). × and Add go by the step itself, not its place in the list, and Add hands the steps over once:
+ * a second tap that lands before the sheet has redrawn (or closed) finds nothing to do.
+ */
+internal class StepsDraft(private val task: String) {
+    val steps = mutableStateListOf<Organizer.Sized>()
+    var byRules by mutableStateOf(false)
+        private set
+    /** No model answered (a server that is down, a model that failed or went quiet): the start by rules says so. */
+    var noModel by mutableStateOf(false)
+        private set
+    private var taken = false
+
+    /** The start by rules; [noModel] when a model was asked and none answered. */
+    fun rules(noModel: Boolean = false) {
+        steps.clear(); steps.addAll(Steps.starter(task))
+        byRules = true; this.noModel = noModel
+    }
+
+    /** A run's answer once it ended ([OrgJob.finished]): its steps if it wrote two or more, else the start by rules. */
+    fun answer(text: String, failed: Boolean) {
+        val parsed = Steps.parse(text)
+        if (parsed.size < 2) return rules(noModel = failed)
+        steps.clear(); steps.addAll(parsed)
+        byRules = false; noModel = false
+    }
+
+    /** A model run starts (again): until it ends, the sheet speaks of the model, not of a start by rules. */
+    fun asking() { byRules = false; noModel = false }
+
+    fun remove(s: Organizer.Sized) { steps.remove(s) }
+
+    /** The steps to add, the first time only; null after that or when none are left. */
+    fun take(): List<Organizer.Sized>? = if (taken || steps.isEmpty()) null else steps.toList().also { taken = true }
+}
+
 /** Smaller steps (proposal 2): the model's steps for [task] as a proposal, each with its size and an ×. */
 @Composable
 internal fun StepsSheet(g: AppGraph, nav: Nav, task: Entry, onClose: () -> Unit) {
     val c = Lfm.c
     val job = remember(task.id) { OrgJob(g) }
     val model = g.engine.hasText()
-    val steps = remember(task.id) { mutableStateListOf<Organizer.Sized>() }
-    var byRules by remember(task.id) { mutableStateOf(!model) }
-    LaunchedEffect(task.id) {
-        if (model) job.start(Steps.ask(task.title, task.body.takeIf { it != task.title }.orEmpty()), Steps.MAX_TOKENS)
-        else steps.addAll(Steps.starter(task.title))
-    }
-    LaunchedEffect(job.finished) {
-        if (!job.finished) return@LaunchedEffect
-        val parsed = Steps.parse(job.text)
-        steps.clear()
-        if (parsed.size >= 2) steps.addAll(parsed) else { byRules = true; steps.addAll(Steps.starter(task.title)) }
-    }
+    val draft = remember(task.id) { StepsDraft(task.title) }
+    fun ask() { draft.asking(); job.start(Steps.ask(task.title, task.body.takeIf { it != task.title }.orEmpty()), Steps.MAX_TOKENS) }
+    LaunchedEffect(task.id) { if (model) ask() else draft.rules() }
+    LaunchedEffect(job.finished) { if (job.finished) draft.answer(job.text, job.failed) }
     androidx.compose.runtime.DisposableEffect(job) { onDispose { job.stop() } }
     FlatSheet({ job.stop(); onClose() }) {
         Txt("Smaller steps", LfmType.header)
         Txt(task.title, LfmType.small, c.text2, Modifier.padding(top = 2.dp))
-        Txt(if (byRules) "A simple start, made on this phone. Nothing changes until you add it." else "On this phone. Nothing changes until you add it.",
-            LfmType.meta, c.text2, Modifier.padding(top = 2.dp, bottom = 10.dp))
+        Txt(when {
+            draft.noModel -> "No model could answer just now, so here is a simple start, made on this phone. Nothing changes until you add it."
+            draft.byRules -> "A simple start, made on this phone. Nothing changes until you add it."
+            else -> "On this phone. Nothing changes until you add it."
+        }, LfmType.meta, c.text2, Modifier.padding(top = 2.dp, bottom = 10.dp))
         if (job.running) {
             // The answer as it streams, so the wait is visible.
             val partial = Organizer.items(job.text, 6)
@@ -375,13 +484,14 @@ internal fun StepsSheet(g: AppGraph, nav: Nav, task: Entry, onClose: () -> Unit)
             Row(Modifier.padding(top = 12.dp)) { Btn("Stop", { job.stop() }, icon = "stop") }
             return@FlatSheet
         }
-        steps.toList().forEachIndexed { i, s -> StepRow(s) { steps.removeAt(i) } }
+        val steps = draft.steps.toList()
+        steps.forEach { s -> StepRow(s) { draft.remove(s) } }
         if (steps.isNotEmpty()) Txt("about ${leftLabel(steps.sumOf { it.minutes })} in all", LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
         FlowRow(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (steps.isNotEmpty()) Btn(if (steps.size == 1) "Add 1 step" else "Add ${steps.size} steps", {
-                Organize(g, nav).addSteps(task, steps.toList()); onClose()
+                draft.take()?.let { Organize(g, nav).addSteps(task, it); onClose() }
             }, icon = "plus", kind = BtnKind.Primary)
-            if (model) Btn("Try again", { byRules = false; job.start(Steps.ask(task.title, task.body), Steps.MAX_TOKENS) }, icon = "sparkle")
+            if (model) Btn("Try again", { ask() }, icon = "sparkle")
             Btn("Close", onClose)
         }
     }
@@ -411,6 +521,8 @@ internal fun PlanSheet(g: AppGraph, nav: Nav, open: List<Entry>, onClose: () -> 
     val job = remember { OrgJob(g) }
     val picks = remember { mutableStateListOf<DayPlan.Pick>() }
     var byRules by remember { mutableStateOf(!model) }
+    // Use this plan sets it once, though a second tap lands before the sheet closes.
+    var used by remember { mutableStateOf(false) }
     fun draft() {
         picks.clear()
         if (list.isEmpty()) return
@@ -429,6 +541,7 @@ internal fun PlanSheet(g: AppGraph, nav: Nav, open: List<Entry>, onClose: () -> 
         Txt("A calm plan for today", LfmType.header)
         Txt(when {
             list.isEmpty() -> "Nothing open to plan yet. Write a to-do on the page first."
+            byRules && job.failed -> "No model could answer just now, so up to three that fit, picked on this phone by simple rules."
             byRules -> "Up to three that fit, picked on this phone by simple rules."
             else -> "Up to three that fit, picked on this phone."
         }, LfmType.meta, c.text2, Modifier.padding(top = 2.dp, bottom = 10.dp))
@@ -437,6 +550,7 @@ internal fun PlanSheet(g: AppGraph, nav: Nav, open: List<Entry>, onClose: () -> 
             Row(Modifier.padding(top = 12.dp)) { Btn("Stop", { job.stop() }, icon = "stop") }
             return@FlatSheet
         }
+        // × goes by the pick, not its place: a second tap before the list redraws must not reach past its end.
         picks.toList().forEachIndexed { i, p ->
             Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(26.dp).clip(LfmShape.round).background(c.wash), contentAlignment = Alignment.Center) {
@@ -444,7 +558,7 @@ internal fun PlanSheet(g: AppGraph, nav: Nav, open: List<Entry>, onClose: () -> 
                 }
                 Txt(p.entry.title, LfmType.body, c.text, Modifier.weight(1f).padding(start = 10.dp), maxLines = 2)
                 Txt(Sizes.label(p.minutes), LfmType.meta, c.text2, Modifier.padding(horizontal = 6.dp))
-                IconButtonPlain("x", { picks.removeAt(i) }, desc = "Leave out ${p.entry.title}")
+                IconButtonPlain("x", { picks.remove(p) }, desc = "Leave out ${p.entry.title}")
             }
         }
         if (picks.isNotEmpty()) {
@@ -452,7 +566,7 @@ internal fun PlanSheet(g: AppGraph, nav: Nav, open: List<Entry>, onClose: () -> 
             Txt("about ${leftLabel(need)} · ${leftLabel(bounds.minutesLeft)} left today", LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
         }
         FlowRow(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (picks.isNotEmpty()) Btn("Use this plan", { Organize(g, nav).usePlan(picks.toList(), bounds); onClose() }, icon = "check", kind = BtnKind.Primary)
+            if (picks.isNotEmpty()) Btn("Use this plan", { if (!used) { used = true; Organize(g, nav).usePlan(picks.toList(), bounds); onClose() } }, icon = "check", kind = BtnKind.Primary)
             if (list.isNotEmpty()) Btn("Try again", { draft() }, icon = "sparkle")
             Btn("Close", onClose)
         }
