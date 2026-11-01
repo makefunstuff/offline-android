@@ -10,8 +10,16 @@ import java.net.InetAddress
  * address a name resolves to, so a name can't point it elsewhere).
  */
 object EdgeRules {
-    /** The only paths Wren will open on the server: health, models, text, speech in and speech out. */
-    val PATHS = setOf("/health", "/v1/models", "/v1/completions", "/v1/chat/completions", "/v1/audio/transcriptions", "/tts")
+    /**
+     * The only paths Wren will open on the server: health, models, text, speech in and speech out, and the gateway's
+     * warm call (homelab HOME-8), which asks it to swap to voice mode so Qwen comes up.
+     */
+    val PATHS = setOf("/health", "/v1/models", "/v1/completions", "/v1/chat/completions", "/v1/audio/transcriptions", "/tts", "/route/warm")
+
+    /** The gateway's warm call: the only request Wren sends with a query. */
+    const val WARM = "/route/warm?mode=voice"
+    /** The queries each path may carry; a path not listed carries none. */
+    val QUERIES = mapOf("/route/warm" to setOf("mode=voice"))
 
     /**
      * A private address: 10/8, 172.16/12, 192.168/16 (home networks), 100.64/10 (Tailscale and other CGNAT tailnets),

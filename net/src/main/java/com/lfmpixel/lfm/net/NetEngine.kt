@@ -233,11 +233,17 @@ class NetEngine(
         // Only the saved server, but for Settings' Test, which may try a new address (health and the model list only).
         val pinned = edgePinned()?.trim()?.trimEnd('/')
         if (path !in TEST_PATHS && pinned != base.trim().trimEnd('/')) return EdgeReply(0, 0, emptyList(), "That isn't the server saved in Settings")
-        if (path !in EdgeRules.PATHS) return EdgeReply(0, 0, emptyList(), "Wren doesn't open $path on the server")
+        val only = path.substringBefore('?')
+        val query = path.substringAfter('?', "").takeIf { '?' in path }
+        // A path with queries (the warm call) is sent only with one of them, and only as a POST.
+        val wantsQuery = only in EdgeRules.QUERIES
+        if (only !in EdgeRules.PATHS || (query != null && query !in EdgeRules.QUERIES[only].orEmpty()) ||
+            (wantsQuery && (query == null || method != "POST")))
+            return EdgeReply(0, 0, emptyList(), "Wren doesn't open $path on the server")
         if (method != "GET" && method != "POST") return EdgeReply(0, 0, emptyList(), "Bad method")
         EdgeRules.literal(b.host)?.let { if (!edgeAddressAllowed(it)) return EdgeReply(0, 0, emptyList(), "${b.host} is not on your home network or tailnet") }
         EdgeRules.refuse(b.host)?.takeIf { EdgeRules.literal(b.host) == null }?.let { return EdgeReply(0, 0, emptyList(), it) }
-        val url = b.newBuilder().addPathSegments(path.removePrefix("/")).build()
+        val url = b.newBuilder().addPathSegments(only.removePrefix("/")).encodedQuery(query).build()
         if (sentBytes != null && sentBytes.size > MAX_EDGE_BODY) return EdgeReply(0, 0, emptyList(), "Too much to send in one request")
         val hops = Hops()
         val at = clock()
