@@ -101,7 +101,7 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
 
     Column(Modifier.fillMaxSize()) {
     Header("Focus", { nav.back() }, leftIcon = "x", backDesc = "Close Focus (the timer keeps going)") {
-        if (run != null) Box(Modifier.clip(LfmShape.control).clickable { g.focus.stop(); nav.back() }.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        if (run != null) Box(Modifier.clip(LfmShape.control).clickable(role = androidx.compose.ui.semantics.Role.Button) { g.focus.stop(); nav.back() }.padding(horizontal = 12.dp, vertical = 8.dp)) {
             Txt("Stop timer", LfmType.button, Lfm.c.text2)
         }
     }
@@ -133,7 +133,7 @@ fun FocusScreen(g: AppGraph, nav: Nav) {
         }
         val left = r.leftMs(now)
         val up = left == 0L
-        Txt(listOfNotNull("Focus", parent?.title).joinToString(" · "), LfmType.label, c.text2, Modifier.padding(top = 12.dp), maxLines = 1)
+        parent?.let { Txt(it.title, LfmType.label, c.text2, Modifier.padding(top = 12.dp), maxLines = 1) }
         Txt(entry?.title ?: r.title, LfmType.title2, c.text,
             Modifier.padding(top = 6.dp).semantics { heading() }, textAlign = TextAlign.Center, maxLines = 4)
         // The disc: highlighter yellow for the time left, shrinking clockwise like a Time Timer.

@@ -42,8 +42,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -362,10 +360,10 @@ private fun Shutter(mode: SeeKind, recording: Boolean, enabled: Boolean, onClick
     val inner by animateDpAsState(if (recording) 28.dp else 58.dp, LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate), label = "shutterSize")
     val corner by animateDpAsState(if (recording) 6.dp else 29.dp, LfmMotion.spec(LfmMotion.MEDIUM, LfmMotion.emphasizedDecelerate), label = "shutterCorner")
     val desc = when { mode != SeeKind.Video -> "Take photo"; recording -> "Stop recording"; else -> "Record video" }
-    Box(Modifier.size(76.dp).scale(scale).border(2.dp, CameraColors.ink.copy(alpha = if (enabled || recording) 1f else 0.4f), CircleShape)
-        .clip(CircleShape).clickable(press, null, enabled = enabled || recording, role = Role.Button, onClick = onClick)
+    Box(Modifier.size(76.dp).scale(scale).border(2.dp, CameraColors.ink.copy(alpha = if (enabled || recording) 1f else 0.4f), LfmShape.round)
+        .clip(LfmShape.round).clickable(press, null, enabled = enabled || recording, role = Role.Button, onClick = onClick)
         .semantics { contentDescription = desc }, contentAlignment = Alignment.Center) {
-        Box(Modifier.size(inner).background(CameraColors.ink.copy(alpha = if (enabled || recording) 1f else 0.4f), RoundedCornerShape(corner)))
+        Box(Modifier.size(inner).background(CameraColors.ink.copy(alpha = if (enabled || recording) 1f else 0.4f), LfmShape.shutter(corner)))
     }
 }
 

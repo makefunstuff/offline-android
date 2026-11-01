@@ -68,15 +68,6 @@ import androidx.compose.runtime.setValue
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmType
 
-/** The highlighter: yellow drawn behind dark text, never yellow text. */
-@Composable
-fun marked(text: String): AnnotatedString {
-    val c = Lfm.c
-    return buildAnnotatedString {
-        withStyle(SpanStyle(background = c.highlight, color = c.onHighlight)) { append(" $text ") }
-    }
-}
-
 /** Highlights already drawn in during this run: they show at once when they come back into view. */
 private val drawnIn = java.util.Collections.synchronizedSet(HashSet<String>())
 
@@ -124,6 +115,13 @@ fun Txt(text: String, style: TextStyle = LfmType.body, color: Color = Lfm.c.text
         maxLines: Int = Int.MAX_VALUE, decoration: TextDecoration? = null, textAlign: androidx.compose.ui.text.style.TextAlign? = null) {
     Text(text, style = style, color = color, modifier = modifier, maxLines = maxLines, overflow = TextOverflow.Ellipsis,
         textDecoration = decoration, textAlign = textAlign)
+}
+
+/** Text with spans or pictures inline (a citation's number in an answer), in the theme's type. */
+@Composable
+fun RichTxt(text: AnnotatedString, style: TextStyle, color: Color = Lfm.c.text, modifier: Modifier = Modifier,
+            inlineContent: Map<String, androidx.compose.foundation.text.InlineTextContent> = emptyMap(), softWrap: Boolean = true) {
+    Text(text, style = style, color = color, modifier = modifier, inlineContent = inlineContent, softWrap = softWrap)
 }
 
 @Composable

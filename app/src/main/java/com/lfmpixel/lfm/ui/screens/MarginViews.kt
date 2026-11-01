@@ -126,7 +126,7 @@ fun MarginBlock(run: MarginRun, nav: Nav, onAddToNote: (String) -> Unit, modifie
     val c = Lfm.c
     val ask = run.ask ?: return
     val shape = LfmShape.margin
-    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(shape).background(c.fill)) {
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).clip(shape).background(c.wash)) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(c.highlight))
         Column(Modifier.weight(1f).padding(start = 12.dp, end = 10.dp, top = 10.dp, bottom = 10.dp)) {
             Label("Inkling · ${ask.heading.lowercase()} · on this phone")
@@ -135,7 +135,8 @@ fun MarginBlock(run: MarginRun, nav: Nav, onAddToNote: (String) -> Unit, modifie
                 run.text.isBlank() && run.running -> "Writing…"
                 else -> run.text
             }
-            Txt(shown, LfmType.body, if (run.text.isBlank()) c.text2 else c.text,
+            // Inkling's words, in the serif; its own "Writing…" and failures stay in the page's type.
+            Txt(shown, if (run.text.isBlank()) LfmType.body else LfmType.voiceBody, if (run.text.isBlank()) c.text2 else c.text,
                 Modifier.padding(top = 4.dp).semantics { liveRegion = LiveRegionMode.Polite })
             FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (run.running) Btn("Stop", { run.stop() }, small = true, icon = "stop")

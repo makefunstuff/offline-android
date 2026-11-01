@@ -49,6 +49,7 @@ import java.time.ZoneOffset
  * (all sky) and the camera (black) has one.
  */
 @Composable
+// Not inside OnSky (Talk, SkyPage, Today's sky): there Lfm.c.dark is the sky's, not the theme's, and the band would dim wrongly.
 fun SkyBand(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val now by rememberNow()
     val sky = skyAt(now)
@@ -121,8 +122,8 @@ fun DaySheet(initial: LocalDate, onPick: (LocalDate) -> Unit, onClose: () -> Uni
     val c = Lfm.c
     val state = rememberDatePickerState(initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
     FlatSheet(onDismiss = onClose) {
-        Txt("Pick a day", LfmType.header)
-        DatePicker(state, title = null, headline = null, showModeToggle = false, colors = DatePickerDefaults.colors(
+        Txt("Pick a day", LfmType.header, modifier = Modifier.semantics { heading() })
+        DatePicker(state, title = null, showModeToggle = false, colors = DatePickerDefaults.colors(
             containerColor = c.bg, titleContentColor = c.text2, headlineContentColor = c.text, weekdayContentColor = c.text2,
             subheadContentColor = c.text2, navigationContentColor = c.text, yearContentColor = c.text, currentYearContentColor = c.text,
             selectedYearContentColor = c.onHighlight, selectedYearContainerColor = c.highlight, dayContentColor = c.text,

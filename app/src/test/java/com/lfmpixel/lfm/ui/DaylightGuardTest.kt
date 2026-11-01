@@ -21,7 +21,8 @@ class DaylightGuardTest {
     /** Every line of [files] matching [rule], minus comments, as "file:line: text". */
     private fun find(files: List<File>, rule: Regex): List<String> = files.flatMap { f ->
         f.readLines().mapIndexedNotNull { i, line ->
-            val text = line.substringBefore("//").trim()
+            // A comment's text is not code; "https://" in a string is not a comment.
+            val text = line.replace(Regex("""(?<!:)//.*$"""), "").trim()
             if (text.startsWith("*") || text.startsWith("/*")) null
             else if (rule.containsMatchIn(text)) "${f.rel()}:${i + 1}: $text" else null
         }
@@ -33,17 +34,19 @@ class DaylightGuardTest {
     @Test fun foundTheCode() = assertTrue("no Kotlin found under $root", code.size > 50)
 
     @Test fun noRawColours() = none("A colour written out instead of a theme token (Lfm.c, CameraColors, the sky's colours)",
-        find(code.filter { !it.inTheme() }, Regex("""\bColor\(\s*(0x|\d)|\bColor\.(White|Black|Red|Green|Blue|Yellow|Cyan|Magenta|Gray|DarkGray|LightGray)\b""")))
+        find(code.filter { !it.inTheme() }, Regex("""\bColor\(\s*(0x|\d|red\s*=|alpha\s*=)|\bColor\.(White|Black|Red|Green|Blue|Yellow|Cyan|Magenta|Gray|DarkGray|LightGray)\b|""" +
+            """android\.graphics\.Color\.([A-Z]|rgb|argb|parseColor)|\bColor\.(hsl|hsv)\(""")))
 
     @Test fun noRawTypeSizes() = none("A type size written out instead of an LfmType style",
         find(code.filter { !it.inTheme() }, Regex("""\b\d+(\.\d+)?\.sp\b|\bfontSize\s*=|\blineHeight\s*=""")))
 
     @Test fun noRawCorners() = none("A corner written out instead of an LfmShape",
-        find(code.filter { !it.inTheme() }, Regex("""RoundedCornerShape\(\s*(\d|topStart|topEnd|bottomStart|bottomEnd|percent|size)""")))
+        find(code.filter { !it.inTheme() }, Regex("""\b(RoundedCornerShape|CutCornerShape|AbsoluteRoundedCornerShape|AbsoluteCutCornerShape)\(|\bCircleShape\b""")))
 
     @Test fun stockMaterialOnlyInSharedComponents() = none(
-        "A stock Material component on a screen: use the shared one (Btn, Switch, CheckBox, Card, Header, FlatSheet, Menu, DaySheet, SnackHost…)",
-        find(code.filter { !it.inTheme() && !it.inComponents() }, Regex("""androidx\.compose\.material3\.(AlertDialog|BasicAlertDialog|Button|TextButton|""" +
+        "A stock Material component on a screen: use the shared one (Txt, RichTxt, Btn, Switch, CheckBox, Card, Header, FlatSheet, Menu, DaySheet, SnackHost…)",
+        find(code.filter { !it.inTheme() && !it.inComponents() }, Regex("""androidx\.compose\.material3\.\*|androidx\.compose\.material\.(?!ripple\b)[A-Za-z*]|""" +
+            """androidx\.compose\.material3\.(Text|ProvideTextStyle|LocalContentColor|LocalTextStyle|AlertDialog|BasicAlertDialog|Button|TextButton|""" +
             """OutlinedButton|FilledTonalButton|ElevatedButton|IconButton|FloatingActionButton|ExtendedFloatingActionButton|Card|ElevatedCard|OutlinedCard|""" +
             """Surface|Scaffold|TopAppBar|CenterAlignedTopAppBar|NavigationBar|NavigationBarItem|TextField|OutlinedTextField|Switch|Checkbox|RadioButton|""" +
             """Slider|RangeSlider|Snackbar|SnackbarHost|DropdownMenu|DropdownMenuItem|ModalBottomSheet|BottomSheetScaffold|DatePicker|DatePickerDialog|""" +
@@ -57,8 +60,11 @@ class DaylightGuardTest {
         find(code, Regex("""\.(peach|lavender|mint)\b|\bon(Peach|Lavender|Mint)\b|\bc\.sky\b|\bSoftCard\b|\bSoftBtn\b""")) +
             find(code.filter { !it.inTheme() }, Regex("""\b(lightColorScheme|darkColorScheme|dynamicLightColorScheme|dynamicDarkColorScheme|Typography)\(""")))
 
+    /** The widgets' layouts and their drawables (w_*, ic_w_*) take their colours from the values colors.xml files. */
     @Test fun widgetsUseTheirColours() {
-        val res = File(root, "res").walkTopDown().filter { it.extension == "xml" && it.parentFile.name.startsWith("layout") }.toList()
-        none("A colour written out in a widget's layout instead of @color/…", find(res, Regex("""android:(textColor|background|tint)="#""")))
+        val res = File(root, "res").walkTopDown().filter { f -> f.extension == "xml" &&
+            (f.parentFile.name.startsWith("layout") || (f.parentFile.name.startsWith("drawable") && (f.name.startsWith("w_") || f.name.startsWith("ic_w_")))) }.toList()
+        none("A colour written out in a widget's layout or drawable instead of @color/…",
+            find(res, Regex("""android:\w*([Cc]olor|background|[Tt]int)="#(?!00000000")""")))
     }
 }

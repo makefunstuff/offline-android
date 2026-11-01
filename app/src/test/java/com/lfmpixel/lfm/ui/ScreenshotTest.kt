@@ -25,6 +25,7 @@ import com.lfmpixel.lfm.ui.screens.*
 import com.lfmpixel.lfm.ui.theme.Lfm
 import com.lfmpixel.lfm.ui.theme.LfmTheme
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,6 +68,8 @@ class ScreenshotTest {
             e.insert(Entry(kind = EntryKind.Journal, title = "Slow morning, good coffee.", mood = 1))
         }
     }
+
+    @After fun tearDown() { DayClock.offset.value = 0L }
 
     private fun shot(name: String, tabs: Boolean = false, route: Route = Route.Today, screen: @Composable (Nav) -> Unit) {
         for (dark in listOf(false, true)) {

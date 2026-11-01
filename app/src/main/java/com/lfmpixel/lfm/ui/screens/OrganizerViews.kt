@@ -245,7 +245,7 @@ internal fun PlanBlock(g: AppGraph, nav: Nav, plan: List<Entry>, stepsLeft: Map<
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val done = plan.count { it.done }
                 Txt(if (plan.isEmpty()) "Today's plan" else "Today's plan · $done of ${plan.size} done", LfmType.label, c.text2, Modifier.weight(1f))
-                Box(Modifier.clip(LfmShape.round).clickable(role = Role.Button, onClick = onPlan).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Box(Modifier.clip(LfmShape.control).clickable(role = Role.Button, onClick = onPlan).padding(horizontal = 10.dp, vertical = 6.dp)) {
                     Txt(if (plan.isEmpty()) "Plan my day" else "Plan again", LfmType.button, c.text, decoration = TextDecoration.Underline)
                 }
             }

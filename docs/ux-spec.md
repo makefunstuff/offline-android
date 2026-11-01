@@ -43,13 +43,14 @@ it reads at 4.5:1 against both ends of the sky at every minute, in light and dar
   ink. The places of the bottom bar (Notebook, Plans) have their large title on it; the app lock and Talk are all sky.
 - **One set of pieces** (`ui/components`): Header, Btn, Switch, CheckBox, Tabs, Segmented, Card, WashCard, FlatSheet,
   Menu, DaySheet and SnackHost. Colours, type sizes and corners come from `ui/theme` (`Lfm.c`, `LfmType`,
-  `LfmShape`, `CameraColors`); `DaylightGuardTest` fails the build on a colour, size or corner written out elsewhere,
-  on a stock Material piece outside the components, and on a platform dialog. `ScreenshotTest` draws the main screens
+  `LfmShape`, `CameraColors`); `DaylightGuardTest` fails the unit tests on a colour, type size or corner written out in
+  Kotlin elsewhere, on a stock Material piece outside the components, on a platform dialog, and on a colour written
+  out in a widget's layout or drawable. Spacing (dp) is not tokenised. `ScreenshotTest` draws the main screens
   in light and dark on the JVM (`build/outputs/roborazzi/`).
 
 ## 3. Type
 
-- **Inkling's own words** (the day's sentence, Talk's captions, the widget's line, chat and web answers, empty states,
+- **Inkling's own words** (the day's sentence, Talk's captions, the widget's line, chat and web answers, margin notes, empty states,
   the journal's prompt, the first-run and Privacy welcomes) are in the phone's serif (Noto
   Serif via `FontFamily.Serif`). Nothing is bundled, so there is no font licence to track.
 - **Your words and the controls** stay in Roboto.
@@ -109,7 +110,7 @@ From the top: the sky (340 dp), then the ways in, then the page.
   for to-dos.
 - **The ways in:** Talk, Look, Ask, one tap each.
 - **Below:** the seal line, Where was I, Now, the plan, the timeline, carried to-dos, the page and the Ink line, as in
-  v1. Other days keep v1's plain header and line of counts.
+  v1. Other days have their date on a band of the hour's sky, with the line of counts.
 
 ### Talk
 

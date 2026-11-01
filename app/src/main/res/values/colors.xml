@@ -9,7 +9,9 @@
     <color name="sky_top">#8EC5F0</color>
     <color name="sky_horizon">#E9F4FC</color>
     <color name="sky_ink">#0B1A2B</color>
-    <color name="sky_line">#590B1A2B</color>
+    <color name="sky_line">#A60B1A2B</color>
     <!-- The horizon widget's first frame, before Inkling paints the hour's sky and ink over it (daylight/HorizonWidget.kt). -->
     <color name="day_ink">#0B1A2B</color>
+    <color name="day_top">#8EC5F0</color>
+    <color name="day_horizon">#E9F4FC</color>
 </resources>

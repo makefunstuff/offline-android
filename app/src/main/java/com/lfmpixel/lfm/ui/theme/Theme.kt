@@ -101,6 +101,8 @@ object LfmShape {
     val margin = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
     /** The screen under a predictive back swipe: its corners round as the swipe goes, 0..1. */
     fun backPreview(progress: Float) = RoundedCornerShape(24.dp * progress)
+    /** The shutter's inner mark, round for a photo and squaring off while it records. */
+    fun shutter(corner: androidx.compose.ui.unit.Dp) = RoundedCornerShape(corner)
     /** The camera's viewfinder: rounded where it meets the controls. */
     val viewfinder = RoundedCornerShape(bottomStart = 14.dp, bottomEnd = 14.dp)
 }

@@ -1,6 +1,7 @@
 package com.lfmpixel.lfm.ui.screens
 
 import androidx.compose.foundation.border
+import com.lfmpixel.lfm.ui.components.RichTxt
 import com.lfmpixel.lfm.ui.components.FlatSheet
 import com.lfmpixel.lfm.ui.theme.LfmShape
 import androidx.compose.foundation.clickable
@@ -20,7 +21,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -114,7 +114,7 @@ fun QueryCard(req: SearchRequest) {
                             cursorBrush = SolidColor(c.text), modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search words" })
                     }
                 } else {
-                    Text(markWords(req.query, personal.map { it.word }), style = LfmType.small.copy(fontWeight = FontWeight.Bold), color = c.text)
+                    RichTxt(markWords(req.query, personal.map { it.word }), LfmType.small.copy(fontWeight = FontWeight.Bold), c.text)
                 }
             }
             Divider()
@@ -211,11 +211,11 @@ fun AnswerText(text: String, style: TextStyle, markKeyFact: Boolean, modifier: M
     val inline = numbers.associate { n ->
         "cite$n" to InlineTextContent(Placeholder(if (n.length > 1) LfmType.citeWidthWide else LfmType.citeWidth, LfmType.citeHeight, PlaceholderVerticalAlign.TextCenter)) {
             Box(Modifier.fillMaxSize().padding(start = 3.dp).border(1.dp, c.control, LfmShape.thumb), contentAlignment = Alignment.Center) {
-                Text(n, style = LfmType.cite, color = c.text, softWrap = false)
+                RichTxt(androidx.compose.ui.text.AnnotatedString(n), LfmType.cite, c.text, softWrap = false)
             }
         }
     }
-    Text(annotated, style = style, color = c.text, inlineContent = inline, modifier = modifier)
+    RichTxt(annotated, style, c.text, modifier, inlineContent = inline)
 }
 
 /** Spec screen 3: the words that were sent and to whom, the answer with numbered sources, and what left the phone. */
