@@ -74,9 +74,9 @@ outside the components, a platform dialog, a colour written out in a widget's la
   in under it.
 - **Switches** are round, the action blue when on; **check boxes** are rings that fill with the sun and give a
   confirm tick (haptic, as Now's Done does): a small win, felt.
-- **The mic**: the primary one (Talk's own, the bottom bar's) is the pastel; dictation mics sit inside the line they
-  fill (the Ink line, Plans' add line, the message box) as a quiet fill, so the only round button above the bar is
-  Notebook's navy pill holding + and the mic.
+- **The mic**: the primary one (Talk's own, the bottom bar's) is the pastel; dictation mics sit in a line as a quiet
+  fill (the Ink line, Plans' add line, the message box), and stay as Stop while listening. The only round thing above
+  the bar is Notebook's navy pill holding + and the mic.
 - **The highlighter** (`Marked`) is a stroke from just above the baseline to under it, drawn in from the left the
   first time.
 - **The signature** (`SunMark`): every header on the sky ends with a small half dial with the sun on it at now (the

@@ -133,7 +133,7 @@ val LocalMicLevel = androidx.compose.runtime.compositionLocalOf<androidx.compose
 /**
  * The mic: round. The [primary] one (Talk's own, and the bottom bar's talk button) is the highlighter's pastel; the
  * others (dictation into a line or a list) are a quiet fill, so one screen never has two yellow buttons, or solid
- * blue when [floating] over a list. Listening,
+ * navy when [floating] (in Notebook's pill). Listening,
  * it turns navy with a Stop square, and a soft ring breathes out with your voice.
  */
 @Composable
@@ -142,7 +142,7 @@ fun MicButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 42.
     val c = Lfm.c
     val shape = LfmShape.round
     val motion = com.lfmpixel.lfm.ui.theme.LfmMotion
-    val fill by androidx.compose.animation.animateColorAsState(if (listening) c.text else if (primary) c.mic else if (floating) c.text2 else c.text.copy(alpha = 0.08f),
+    val fill by androidx.compose.animation.animateColorAsState(if (listening) (if (floating) c.text2 else c.text) else if (primary) c.mic else if (floating) c.text else c.text.copy(alpha = 0.08f),
         motion.spec(if (listening) motion.TINY else motion.MEDIUM, if (listening) motion.standard else motion.emphasizedDecelerate), label = "mic")
     val voice = LocalMicLevel.current
     val pulse by androidx.compose.animation.core.animateFloatAsState(if (listening) voice.value.coerceIn(0f, 1f) else 0f, motion.level(), label = "pulse")
@@ -436,24 +436,15 @@ fun ThinkChip(on: Boolean, onChange: (Boolean) -> Unit, onInfo: () -> Unit) {
     }
 }
 
-/** The navy round + for a new entry, beside the pastel mic. */
-@Composable
-fun Fab(icon: String, onClick: () -> Unit, desc: String, modifier: Modifier = Modifier) {
-    val c = Lfm.c
-    val shape = LfmShape.round
-    Box(modifier.size(56.dp).clip(shape).background(c.text).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
-        contentAlignment = Alignment.Center) { LIcon(icon, tint = c.bg) }
-}
-
-/** One navy pill with + (write something new) and the mic (say it), each a 56 dp target; listening, the mic half shows Stop. */
+/** One navy pill with + (write something new) and the mic (say it), each a 56 dp target. */
 @Composable
 fun NewPill(onNew: () -> Unit, newDesc: String, onMic: () -> Unit, listening: Boolean, modifier: Modifier = Modifier) {
     val c = Lfm.c
     Row(modifier.height(56.dp).clip(LfmShape.pill).background(c.text), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(56.dp).clickable(role = Role.Button, onClick = onNew).semantics { contentDescription = newDesc },
             contentAlignment = Alignment.Center) { LIcon("plus", tint = c.bg) }
-        Box(Modifier.size(56.dp).clickable(role = Role.Button, onClick = onMic).semantics { contentDescription = if (listening) "Stop listening" else "Speak" },
-            contentAlignment = Alignment.Center) { LIcon(if (listening) "stop" else "mic", tint = c.bg) }
+        // The same mic as everywhere else (its pulse follows the voice), in the pill's navy.
+        MicButton(onMic, size = 56.dp, listening = listening, floating = true)
     }
 }
 
