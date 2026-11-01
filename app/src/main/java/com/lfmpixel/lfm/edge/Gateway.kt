@@ -4,6 +4,7 @@ import android.util.Log
 import com.lfmpixel.lfm.net.EdgeRules
 import com.lfmpixel.lfm.web.EDGE_UNREACHABLE
 import com.lfmpixel.lfm.web.NetException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,6 +42,8 @@ class Gateway(
     private val send: suspend (method: String, path: String) -> GatewayReply,
     private val answerId: () -> String,
     private val now: () -> Long,
+    /** A server is set and Edge mode is on: only then is it asked. */
+    private val configured: () -> Boolean = { true },
 ) {
     private val _state = MutableStateFlow<QwenState>(QwenState.Idle)
     val state: StateFlow<QwenState> = _state
@@ -50,8 +53,10 @@ class Gateway(
     /** The server has no warm call (404): it is not the gateway, so it is never asked again until the address changes. */
     @Volatile private var noGateway = false
     private var waking: Job? = null
+    /** Bumped by [reset]: a reply to an earlier address or key, still on its way, changes nothing. */
+    @Volatile private var gen = 0
 
-    /** Talk opened: asks for Qwen, once until [talkClosed]. */
+    /** Talk opened: asks for Qwen, once until [talkClosed] (or as soon as the server is set, if it isn't yet). */
     fun talkOpened() {
         if (talkAsked) return
         talkAsked = true
@@ -73,21 +78,23 @@ class Gateway(
         else if (st == QwenState.Ready) _state.value = QwenState.Idle
     }
 
-    /** A request was refused with 401. */
+    /** The server answered 401: the key is wrong. Said in Talk and Settings; each request then falls back as before. */
     fun keyWrong() {
         if (_state.value != QwenState.KeyWrong) Log.w(Edge.TAG, "gateway: the key was refused (401)")
         synchronized(this) { waking?.cancel(); waking = null }
         _state.value = QwenState.KeyWrong
     }
 
-    /** A request with the key went through: it is right after all. */
-    fun keyOk() { if (_state.value == QwenState.KeyWrong) _state.value = QwenState.Idle }
-
-    val keyRefused get() = _state.value == QwenState.KeyWrong
+    /** A request with the key went through: it is right after all, and an open Talk asks for Qwen again. */
+    fun keyOk() {
+        if (_state.value != QwenState.KeyWrong) return
+        _state.value = QwenState.Idle
+        if (talkAsked) wake()
+    }
 
     /** A new address or key: forget what this server said; Talk, if open, asks again. */
     fun reset() {
-        synchronized(this) { waking?.cancel(); waking = null }
+        synchronized(this) { gen++; waking?.cancel(); waking = null }
         noGateway = false
         askedAt = -1L
         _state.value = QwenState.Idle
@@ -96,16 +103,18 @@ class Gateway(
 
     private fun wake() = synchronized(this) {
         val st = _state.value
-        if (noGateway || waking?.isActive == true || st == QwenState.Ready || st == QwenState.KeyWrong) return@synchronized
+        if (!configured() || noGateway || waking?.isActive == true || st == QwenState.Ready || st == QwenState.KeyWrong) return@synchronized
         askedAt = now()
         _state.value = QwenState.Waking(askedAt)
         Log.i(Edge.TAG, "gateway: asking for voice mode")
+        val mine = gen
         waking = scope.launch {
             // The warm call may answer at once or only when the swap is done: the list is asked meanwhile either way.
-            val poll = launch { poll() }
-            val r = runCatching { send("POST", EdgeRules.WARM) }.getOrElse { GatewayReply(0, it.message.orEmpty()) }
+            val poll = launch { poll(mine) }
+            val r = ask("POST", EdgeRules.WARM)
+            if (gen != mine) return@launch
             when {
-                r.status == 401 || r.status == 403 -> { poll.cancel(); keyWrong() }
+                r.status == 401 -> { poll.cancel(); keyWrong() }
                 r.status == 404 -> {
                     // Not the gateway (the old direct port): LFM3 answers, as before.
                     poll.cancel(); noGateway = true
@@ -115,10 +124,19 @@ class Gateway(
                 r.status in 200..299 && refused(r.body) -> { poll.cancel(); busy(reason(r.body)) }
                 // Accepted, or not reached (the swap drops ports for a few seconds): the list says when Qwen is up.
                 r.status in 200..299 || r.status == 0 -> poll.join()
-                // 409, 423, 503…: refused, a game is on.
+                // 403, 409, 423, 503…: refused, a game is on.
                 else -> { poll.cancel(); busy(reason(r.body)) }
             }
         }
+    }
+
+    /** [send], with a failure as status 0; a cancelled request stays cancelled. */
+    private suspend fun ask(method: String, path: String): GatewayReply = try {
+        send(method, path)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        GatewayReply(0, e.message.orEmpty())
     }
 
     private fun busy(reason: String) {
@@ -127,26 +145,33 @@ class Gateway(
     }
 
     /** /v1/models with a growing pause (2 s up to 15 s) until Qwen is listed; gives up after [POLL_FOR_MS]. */
-    private suspend fun poll() {
+    private suspend fun poll(mine: Int) {
         val start = now()
         var wait = 2_000L
         while (now() - start < POLL_FOR_MS) {
             delay(wait)
             wait = (wait * 3 / 2).coerceAtMost(15_000L)
-            if (_state.value == QwenState.Ready) return
-            val r = runCatching { send("GET", "/v1/models") }.getOrNull() ?: continue
-            if (r.status == 401 || r.status == 403) { keyWrong(); return }
+            if (gen != mine || _state.value == QwenState.Ready) return
+            val r = ask("GET", "/v1/models")
+            if (gen != mine) return
+            if (r.status == 401) { keyWrong(); return }
             if (r.status !in 200..299) continue
             listed(ids(r.body))
             if (_state.value == QwenState.Ready) return
         }
         Log.i(Edge.TAG, "gateway: ${answerId()} not served after ${POLL_FOR_MS / 1000} s; LFM3 answers")
-        if (_state.value is QwenState.Waking) _state.value = QwenState.Idle
+        if (gen == mine && _state.value is QwenState.Waking) _state.value = QwenState.Idle
     }
+
+    /** Asked for or up lately: a request that meets a dropped port is likely meeting a mode swap. */
+    val swapping get() = _state.value.let { it is QwenState.Waking || it == QwenState.Ready } ||
+        (askedAt >= 0 && now() - askedAt < SWAP_WINDOW_MS)
 
     companion object {
         /** How long Qwen is waited for: the swap takes about a minute. */
         const val POLL_FOR_MS = 4 * 60_000L
+        /** After asking, how long a dropped port is taken for the swap. */
+        const val SWAP_WINDOW_MS = 5 * 60_000L
         /** Chat and Ask ask for Qwen at most this often (the server goes back to Edge 10 minutes after Talk ends). */
         const val ASK_EVERY_MS = 5 * 60_000L
 
@@ -211,8 +236,17 @@ class Gateway(
         /** How long a failure may take to count as a dropped port rather than a server that is away. */
         const val QUICK_MS = 2_500L
 
-        /** A dropped port or the gateway's own "not now": not reached (Wren's Offline aside), or 502, 503, 504. */
-        fun isDrop(e: NetException): Boolean =
-            (e.code == EDGE_UNREACHABLE && com.lfmpixel.lfm.net.NetEngine.OFFLINE !in e.message.orEmpty()) || httpCode(e) in setOf(502, 503, 504)
+        /**
+         * A dropped port or the gateway's own "not now": a connection refused, reset or closed, or 502, 503, 504. Not
+         * Wren's Offline, a name that didn't resolve, or the network module's own refusals (another address, a path).
+         */
+        fun isDrop(e: NetException): Boolean {
+            val m = e.message.orEmpty()
+            if (httpCode(e) in setOf(502, 503, 504)) return true
+            return e.code == EDGE_UNREACHABLE && com.lfmpixel.lfm.net.NetEngine.OFFLINE !in m &&
+                DROPS.any { it in m.lowercase() }
+        }
+
+        private val DROPS = listOf("failed to connect", "connection refused", "econnrefused", "connection reset", "unexpected end of stream", "closed")
     }
 }

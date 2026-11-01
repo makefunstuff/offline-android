@@ -179,5 +179,5 @@ internal fun ServerField(label: String, value: String, onChange: (String) -> Uni
     }
 }
 
-private const val KEY_WRONG = "The server says the key is wrong (401). Paste Wren's gateway key, from " +
+private const val KEY_WRONG = "The server says the key is wrong. Paste Wren's gateway key, from " +
     "~/.config/local-ai/gateway/inkling.key on gaming-pc, and Save."

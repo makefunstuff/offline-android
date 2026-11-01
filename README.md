@@ -236,8 +236,8 @@ voice port (`:18101`, `:18448`) gets a **Switch to the gateway** button, which k
 - The chat header shows **Server** or **On phone**. When the server can't be reached the phone's own models answer
   ("Your server isn't answering · this phone answers until it's back"), and it switches back by itself.
 - Settings → Models → **Phone and server**: writing speed, first token and voice first audio, phone next to server.
-  Debug builds: `adb shell am broadcast -p com.lfmpixel.lfm -a com.lfmpixel.lfm.DEBUG_EDGE --es url http://192.168.1.138:18101
-  --es keyfile edge.key --ez on true --ez bench true` (the key file pushed into the app's files first; logcat tag `lfm-edge`).
+  Debug builds: `adb shell am broadcast -p com.lfmpixel.lfm -a com.lfmpixel.lfm.DEBUG_EDGE --es url http://192.168.1.138:18110
+  --es keyfile inkling.key --ez on true --ez bench true` (the key file pushed into the app's files first; logcat tag `lfm-edge`).
 
 ## Smart answers, Look, small classifiers (LP-45)
 

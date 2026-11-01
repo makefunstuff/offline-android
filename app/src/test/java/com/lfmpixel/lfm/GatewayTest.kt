@@ -145,7 +145,7 @@ class GatewayTest {
         assertTrue("tries: $tries", tries in 3..6)
         // A timeout (the server is away) is not tried again: the phone answers sooner.
         tries = 0
-        val slow = runCatching { Gateway.throughSwap(now, 15_000, Gateway::isDrop) { tries++; delay(4_000); throw NetException("timeout", EDGE_UNREACHABLE) } }
+        val slow = runCatching { Gateway.throughSwap(now, 15_000, Gateway::isDrop) { tries++; delay(4_000); throw NetException("Connection refused", EDGE_UNREACHABLE) } }
         assertTrue(slow.isFailure); assertEquals(1, tries)
         // Nor Wren's own Offline, nor an error the server meant (a bad request), nor anything past the budget.
         tries = 0
@@ -162,7 +162,7 @@ class GatewayTest {
         assertTrue("tries: $tries", tries in 3..7)
         // Budget 0 (the server was not answering anyway): one try.
         tries = 0
-        runCatching { Gateway.throughSwap(now, 0, Gateway::isDrop) { tries++; throw NetException("refused", EDGE_UNREACHABLE) } }
+        runCatching { Gateway.throughSwap(now, 0, Gateway::isDrop) { tries++; throw NetException("Connection refused", EDGE_UNREACHABLE) } }
         assertEquals(1, tries)
     }
 
@@ -172,7 +172,6 @@ class GatewayTest {
             fake.sentKey = bad
             gw.talkOpened(); runCurrent()
             assertEquals(QwenState.KeyWrong, gw.state.value)
-            assertTrue(gw.keyRefused)
             advanceTimeBy(600_000); runCurrent()
             assertEquals("no retry loop on a wrong key", 1, fake.warms)
             assertTrue(fake.polls <= 1)
@@ -229,5 +228,61 @@ class GatewayTest {
         assertEquals("busy", Gateway.reason("""{"error":{"message":"busy"}}"""))
         assertEquals(503, Gateway.httpCode(NetException("HTTP 503: x")))
         assertEquals(listOf("a", "b"), Gateway.ids("""{"data":[{"id":"a"},{"id":"b"}]}"""))
+    }
+
+    @Test fun aReplyFromTheOldAddressChangesNothing() = runTest {
+        val now = { testScheduler.currentTime }
+        var old = true
+        var warms = 0
+        // The old direct port answers 404, slowly; the owner switches to the gateway meanwhile.
+        val gw = Gateway(backgroundScope, { _, p ->
+            if (p == EdgeRules.WARM) warms++
+            if (old) { delay(3_000); GatewayReply(404, "HTTP 404") } else GatewayReply(202, "{}")
+        }, { EdgeModels.ANSWER }, now)
+        gw.talkOpened(); runCurrent()
+        advanceTimeBy(1_000)
+        old = false
+        gw.reset(); runCurrent()
+        advanceTimeBy(5_000); runCurrent()
+        assertEquals("the new gateway was asked", 2, warms)
+        assertTrue("${gw.state.value}", gw.state.value is QwenState.Waking)
+    }
+
+    @Test fun talkOpenedBeforeTheServerIsSetAsksOnceItIs() = runTest {
+        val (fake, _) = setUp()
+        var set = false
+        val gw = Gateway(backgroundScope, { m, p -> fake.raw(m, p) }, { EdgeModels.ANSWER }, { testScheduler.currentTime }, { set })
+        gw.talkOpened(); runCurrent()
+        assertEquals("nothing sent before the server is set", 0, fake.warms)
+        set = true
+        gw.reset(); runCurrent()
+        assertEquals(1, fake.warms)
+    }
+
+    @Test fun aFixedKeyWakesAnOpenTalk() = runTest {
+        val (fake, gw) = setUp()
+        fake.sentKey = "wrong"
+        gw.talkOpened(); runCurrent()
+        assertEquals(QwenState.KeyWrong, gw.state.value)
+        fake.sentKey = fake.key
+        gw.keyOk(); runCurrent()
+        assertEquals(2, fake.warms)
+    }
+
+    @Test fun forbiddenWarmIsBusyNotAWrongKey() = runTest {
+        val gw = Gateway(backgroundScope, { _, _ -> GatewayReply(403, "HTTP 403: warm not allowed for this key") }, { EdgeModels.ANSWER }, { testScheduler.currentTime })
+        gw.talkOpened(); runCurrent()
+        assertTrue("${gw.state.value}", gw.state.value is QwenState.Busy)
+    }
+
+    @Test fun onlyRealDropsAreTriedAgain() {
+        assertTrue(Gateway.isDrop(NetException("Failed to connect to /192.168.1.138:18110", EDGE_UNREACHABLE)))
+        assertTrue(Gateway.isDrop(NetException("unexpected end of stream on http://100.124.77.61:18450/...", EDGE_UNREACHABLE)))
+        assertTrue(Gateway.isDrop(NetException("HTTP 502: Bad Gateway", EDGE_REFUSED)))
+        assertTrue(!Gateway.isDrop(NetException("That isn't the server saved in Settings", EDGE_UNREACHABLE)))
+        assertTrue(!Gateway.isDrop(NetException("Unable to resolve host \"gaming-pc\"", EDGE_UNREACHABLE)))
+        assertTrue(!Gateway.isDrop(NetException("Wren is offline", EDGE_UNREACHABLE)))
+        assertTrue(!Gateway.isDrop(NetException("timeout", EDGE_UNREACHABLE)))
+        assertTrue(!Gateway.isDrop(NetException("HTTP 401: Invalid API Key", EDGE_REFUSED)))
     }
 }

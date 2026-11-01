@@ -91,7 +91,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
     data class Server(val url: String, val key: String)
 
     /** The owner's gateway: wakes Qwen (voice mode) for Talk, chat and Ask ([Gateway]). */
-    val gateway = Gateway(scope, ::gatewaySend, { answerId }, SystemClock::elapsedRealtime)
+    val gateway = Gateway(scope, ::gatewaySend, { answerId }, SystemClock::elapsedRealtime, { configured.value })
 
     init {
         // Turning it on, or a new address, checks at once.
@@ -125,8 +125,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
     suspend fun usable(): Boolean {
         if (server() == null) return false
         if (_state.value is EdgeState.Off || _state.value is EdgeState.Checking) runCatching { check() }
-        // A wrong key: the phone answers until the owner fixes it in Settings → Your server.
-        return _state.value is EdgeState.Online && !gateway.keyRefused
+        return _state.value is EdgeState.Online
     }
 
     /**
@@ -210,7 +209,7 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
         return try {
             request(s, "GET", "/health", null, null, "Your server: check") { true }
             // The key was refused: asked with the key again (health may not need it), so a fixed key is seen.
-            if (gateway.keyRefused) request(s, "GET", "/v1/models", null, null, "Your server: check the key") { true }
+            if (gateway.state.value == QwenState.KeyWrong) runCatching { request(s, "GET", "/v1/models", null, null, "Your server: check the key") { true } }
             val ms = SystemClock.elapsedRealtime() - t0
             online(ms)
             ms
@@ -271,19 +270,22 @@ class Edge(private val net: NetClient, private val settings: Settings, private v
     /**
      * One request; a failure that means the server is gone turns the state Offline. While the server was answering, a
      * request that never got a reply is tried again through a mode swap's brief port drop ([Gateway.throughSwap]);
-     * the warm call's own "no" (503 during a game) is an answer, not a drop. A 401 says the key is wrong.
+     * the warm call's own "no" (503 during a game) is an answer, not a drop, and its failure (it may wait out the whole
+     * swap) never turns the server Offline. A 401 says the key is wrong.
      */
     suspend fun request(s: Server, method: String, path: String, contentType: String?, body: ByteArray?, label: String,
                         onData: (ByteArray) -> Boolean): Int {
-        var delivered = false
-        val budget = if (_state.value is EdgeState.Online) SWAP_RETRY_MS else 0L
+        val delivered = java.util.concurrent.atomic.AtomicBoolean(false)
+        // Only around a swap: a server that is away, or a LAN address away from home, falls back at once as before.
+        val budget = if (_state.value is EdgeState.Online && gateway.swapping) SWAP_RETRY_MS else 0L
         return try {
-            Gateway.throughSwap(SystemClock::elapsedRealtime, budget, { e -> !delivered && Gateway.isDrop(e) && (path != EdgeRules.WARM || e.code == EDGE_UNREACHABLE) }) {
-                net.edge(s.url, s.key, method, path, contentType, body, label) { bytes -> delivered = true; onData(bytes) }
+            Gateway.throughSwap(SystemClock::elapsedRealtime, budget, { e -> !delivered.get() && Gateway.isDrop(e) && (path != EdgeRules.WARM || e.code == EDGE_UNREACHABLE) }) {
+                net.edge(s.url, s.key, method, path, contentType, body, label) { bytes -> delivered.set(true); onData(bytes) }
             }.also { if (path != "/health") gateway.keyOk() }
         } catch (e: NetException) {
-            if (Gateway.httpCode(e) == 401) gateway.keyWrong()
-            failed(e)
+            // A reply for an address or key that was just changed says nothing about the new one.
+            if (Gateway.httpCode(e) == 401 && server() == s) gateway.keyWrong()
+            if (path != EdgeRules.WARM) failed(e)
             throw e
         }
     }

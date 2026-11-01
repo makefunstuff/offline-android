@@ -142,7 +142,11 @@ fun TalkScreen(g: AppGraph, nav: Nav, gate: PermissionGate) {
             PhaseLine(state.phase, state.spoken, state.answering)
             // Qwen on the gateway: asked for as Talk opened, up in about a minute; LFM3 (or the phone) answers meanwhile.
             val qwen by g.edge.gateway.state.collectAsState()
-            val qwenLine = if (!edgeOn) null else qwenLine(qwen)
+            val edgeState by g.edge.state.collectAsState()
+            val netState by g.net.current.collectAsState()
+            // Only while the server answers: Offline (Wren's or the server's) has the phone answering, not LFM3.
+            val qwenLine = if (!edgeOn || edgeState !is com.lfmpixel.lfm.edge.EdgeState.Online ||
+                netState == com.lfmpixel.lfm.web.NetClient.State.Offline) null else qwenLine(qwen)
             // The last line stays while it fades out.
             val shown = androidx.compose.runtime.remember { arrayOf("") }
             if (qwenLine != null) shown[0] = qwenLine
