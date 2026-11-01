@@ -47,7 +47,8 @@ class AppGraph(context: Context) {
     val launcher = ExternalLauncher(context)
     // Late: the lock is made below; the journal is left out of library searches while it is locked.
     private val journalHidden: () -> Boolean = { lock.locks(com.lfmpixel.lfm.settings.LockMode.Journal) }
-    val tools = ToolRegistry(defaultTools(ToolEnv(db, reminders, calendar, contacts, controls, launcher, hideJournal = { journalHidden() })))
+    val toolEnv = ToolEnv(db, reminders, calendar, contacts, controls, launcher, focus, hideJournal = { journalHidden() })
+    val tools = ToolRegistry(defaultTools(toolEnv), toolEnv)
     val net = NetClient(context, settings, db, scope)
     /** Edge mode: the owner's server, through Inkling Net. */
     val edge = com.lfmpixel.lfm.edge.Edge(net, settings, scope).also { engine.edge = it }
@@ -69,7 +70,13 @@ class AppGraph(context: Context) {
         }
         talk.tools = object : com.lfmpixel.lfm.voice.TalkTools {
             override fun specs() = tools.specsJson()
-            override suspend fun run(call: com.lfmpixel.lfm.llm.ToolCall) = assistant.execute(call, "voice", afterWebText = false)
+            override suspend fun run(call: com.lfmpixel.lfm.llm.ToolCall): com.lfmpixel.lfm.tools.ToolResult {
+                val t0 = System.nanoTime()
+                return assistant.execute(call, "voice", afterWebText = false).also { r ->
+                    android.util.Log.i("lfm-talk", "tool %s %s in %.0f ms: %s".format(java.util.Locale.ENGLISH, call.name,
+                        if (r.ok) "ok" else "failed", (System.nanoTime() - t0) / 1e6, r.cardLabel))
+                }
+            }
         }
         assistant.seeing = { l.seeing() }
         assistant.labels = labels

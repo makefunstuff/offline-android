@@ -97,6 +97,14 @@ class ExternalLauncher(private val context: Context) {
     fun openPage(url: String) = (url.startsWith("https://") || url.startsWith("http://")) && start(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     /** LFM Net's own settings (provider, key, proxy). */
     fun openApp(intent: Intent) = start(intent)
+    /** The apps on the launcher, as label and package, for open_app. */
+    fun apps(): List<Pair<String, String>> = runCatching {
+        val pm = context.packageManager
+        pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
+            .map { it.loadLabel(pm).toString() to it.activityInfo.packageName }
+            .filter { it.second != context.packageName }.distinctBy { it.second }
+    }.getOrDefault(emptyList())
+    fun launch(pkg: String) = context.packageManager.getLaunchIntentForPackage(pkg)?.let { start(it) } ?: false
     /** The share sheet, for an export the owner asked for. */
     fun share(subject: String, text: String) = start(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain")
         .putExtra(Intent.EXTRA_SUBJECT, subject).putExtra(Intent.EXTRA_TEXT, text), subject))
@@ -341,4 +349,18 @@ class PhoneControls(private val context: Context) {
     }.getOrDefault(false)
 
     fun dndSettingsAction() = Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS
+
+    /** Play, pause, next, previous for whatever app plays media, as a headset button would. */
+    fun mediaKey(code: Int): Boolean = runCatching {
+        audio.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+        audio.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
+        true
+    }.getOrDefault(false)
+    val musicActive get() = audio.isMusicActive
+
+    /** Battery percent and whether it is charging; no permission needed. */
+    fun battery(): Pair<Int, Boolean> {
+        val bm = context.getSystemService(android.os.BatteryManager::class.java)
+        return (bm?.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1) to (bm?.isCharging ?: false)
+    }
 }

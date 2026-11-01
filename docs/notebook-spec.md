@@ -226,6 +226,35 @@ are shrunk to 512 px and sent as JPEG 75 (about 12 KB) only when the view has ch
 thumbnail), or on a tap. One request at a time; a newer frame replaces one waiting, which is dropped, never sent late.
 Measured on the server: 512 px reads a receipt as well as 768, in half the bytes and prompt tokens.
 
+## C. More things to say in Talk (LFMP-6)
+
+The owner: "add more tools to voice mode". Talk could add and remind, but not touch anything already there: an ADHD
+day is mostly *changing* plans (it moved, it's done, not today), asking what's next, and small sums. Ranked by how
+often they help by voice, per unit of effort. 1–10 are built; the rest are follow-ups or were already there.
+
+| # | Tool | Says | Asks first | Undo |
+| --- | --- | --- | --- | --- |
+| 1 | `daily_brief` | "What's on today?", "What's next?" Next thing, to-dos, reminders, events; earlier ones are "still open" (A.1, 6) | No (reads) | — |
+| 2 | `complete_todo` | "Done with the milk." | No | Reopens it |
+| 3 | `reschedule` | "Move the report to Friday", "snooze that 10 minutes" (a reminder that just went off too) | No | Old time back |
+| 4 | `focus_timer` | "Focus on the taxes for 25 minutes, quiet." Starts Focus (A.1, 5) on the to-do (made if new; the Now pick if none named), Do Not Disturb if asked; or stops it | No | Stops it, DND and the new to-do back |
+| 5 | `delete_item` | "Delete the bins reminder." To-do (with its steps), reminder, note or idea; never the journal or events | **Yes** | Puts it back, same id |
+| 6 | `calculate` | "15% of 80", "5 km in miles", "180 c to f". Exact on the phone, where a model guesses | No (reads) | — |
+| 7 | `read_latest` | "Read me my last note." A locked journal stays shut | No (reads) | — |
+| 8 | `media_control` | "Pause the music." Play, pause, next, previous, for any player | No | Play/pause back |
+| 9 | `phone_status` | "How's my battery?" Battery, charging, sound mode, DND, volume, torch | No (reads) | — |
+| 10 | `open_app` | "Open Spotify." Matched by the app's name on the launcher; nothing is sent | No | — |
+| — | `call` (was there) | The dialer opens; the owner presses Call | Yes | — |
+| — | Look (was there, B.3) | "What am I holding?" with the camera on | — | — |
+| 11 | Navigate | Follow-up: the destination leaves the phone for a maps app, so it must ask first and show it | — | — |
+| 12 | Edit an event | Follow-up: only in Inkling's own calendar; others aren't ours to change | — | — |
+
+Rules: an item is named in a few words ("milk", "the dentist one", "last"); the phone finds it by words, and when two
+fit as well the tool says both and the model asks which ("Several fit: Oat milk, Milk chocolate"), never guesses.
+Anything that deletes, sends, calls or opens another app with the owner's words asks first, as `send_message` does.
+Descriptions stay one short sentence and arguments use enums where they can, for Qwen and for LFM3-1.7B, which now
+gets the tools in Talk too when Qwen isn't loaded (it was words only).
+
 ## 0. What is generic today
 
 Walking the current build:
