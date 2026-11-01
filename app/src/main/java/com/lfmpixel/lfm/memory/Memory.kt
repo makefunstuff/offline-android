@@ -527,22 +527,21 @@ object MemoryCommand {
      * leave"): left to the model and its tools, never kept as a lasting fact.
      */
     private val timely = Regex("""\b(?:today|tonight|tomorrow|this (?:morning|afternoon|evening|week|weekend)|next (?:week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|""" +
-        """when i|before i|after i|until|parked|on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday) at \d|i'm (?:out|away|off)\b|i am (?:out|away|off)\b|""" +
-        // "I'm picking up the kids", "I'm seeing Tom": a plan; "I'm working on…" and "I'm learning…" are projects.
-        """(?:i'm|i am) (?!working on|learning|training|saving|allergic|married|vegan|vegetarian)\w+ing\b|""" +
+        """when i|before i|after i|parked|(?<!birthday is )on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|""" +
+        """at \d|\d\s*(?:am|pm)\b|o'clock|(?:i'm|i am) (?:out|away|picking|seeing|meeting|going|leaving|flying|visiting|getting)\b|""" +
         """need to|have to|got to|must|appointment|meeting|in \d+ (?:minutes?|hours?|days?))\b""", RegexOption.IGNORE_CASE)
     private val all = Regex("""^(?:everything|all of it|all|everything you know|everything about me|all you know)$""", RegexOption.IGNORE_CASE)
 
     private val forgetAll = Regex(LEAD + """forget\s+(?:everything|all of it|all|everything you know|everything about me|all you know)[\s.!]*$""", RegexOption.IGNORE_CASE)
 
     fun timely(text: String) = timely.containsMatchIn(text)
-    /** A to-do (it starts with a verb to do) or a thing with no verb ("my umbrella", "the keys"). */
-    private val todo = Regex("""^(?:(?:to|call|ring|phone|text|email|buy|get|pick|take|bring|book|pay|send|check|ask|tell|go|do|make|order|renew|cancel|feed|water|clean|fix|write|finish|charge|lock|put)\b|""" +
-        """(?:my|the|your|our|a|an)\s+[\p{L}'-]+(?:\s+[\p{L}'-]+)?\s*$)""", RegexOption.IGNORE_CASE)
+    /** What reads as a lasting fact about the owner, said without "that". */
+    private val aboutMe = Regex("""^(?:i'm|i am|i (?:like|love|prefer|hate|don't|do not|can't|never|always|have|take|eat|drink|own|use)\b|""" +
+        """we (?:have|own|live)\b|my \w+(?: \w+)? (?:is|are|was)\b)""", RegexOption.IGNORE_CASE)
 
     fun parse(text: String): Cmd? {
         // "Can you remember that…?" asks for it all the same; any other question is just a question.
-        val t = text.trim().let { if (asking.containsMatchIn(it)) it.trimEnd('?', ' ') else it }
+        val t = text.trim().replace('\u2019', '\'').let { if (asking.containsMatchIn(it)) it.trimEnd('?', ' ') else it }
         if (t.length > 240) return null
         if (forgetAll.matches(t)) return Cmd.ForgetAll
         forget.find(t)?.let { m ->
@@ -555,8 +554,11 @@ object MemoryCommand {
         if (t.endsWith("?")) return null
         (remember.find(t) ?: rememberMine.find(t))?.let { m ->
             val what = m.groupValues[1].trim()
-            // Not a to-do ("Remember: call the bank") or a thing to take ("remember my umbrella").
-            if (!timely.containsMatchIn(what) && !todo.containsMatchIn(what)) return Cmd.Remember(what)
+            // A wrong "remember" costs more than a missed one (the reminder is never made, and the line stays as a
+            // fact), so: never anything with a time or a plan in it, and without "that" only what reads as a fact
+            // about the owner ("Remember, I'm vegetarian"), not a to-do ("Remember: call the bank", "remember my umbrella").
+            val plain = Regex("""(?i)^\W*(?:\w+\W+){0,6}?(?:remember|forget)\s+that\b""").containsMatchIn(t)
+            if (!timely.containsMatchIn(what) && (plain || aboutMe.containsMatchIn(what) || FactRules.find(what, chat = true).isNotEmpty())) return Cmd.Remember(what)
         }
         return null
     }

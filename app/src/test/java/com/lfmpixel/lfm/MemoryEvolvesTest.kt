@@ -126,15 +126,19 @@ class MemoryEvolvesTest {
         for (t in listOf("Can you remember that I'm vegetarian?", "Don't forget that I'm vegetarian", "Remember, I'm vegetarian",
             "I want you to remember that I'm vegetarian"))
             assertEquals(t, MemoryCommand.Cmd.Remember("I'm vegetarian"), MemoryCommand.parse(t))
-        assertEquals(MemoryCommand.Cmd.Remember("I take my pills at 9"), MemoryCommand.parse("Remember that I take my pills at 9"))
+        assertEquals(MemoryCommand.Cmd.Remember("I take my pills every morning"), MemoryCommand.parse("Remember that I take my pills every morning"))
         assertEquals(MemoryCommand.Cmd.Forget("I like coffee"), MemoryCommand.parse("Can you forget that I like coffee?"))
         assertEquals(MemoryCommand.Cmd.Forget("my address", explicit = false), MemoryCommand.parse("Forget my address"))
         assertEquals(MemoryCommand.Cmd.Forget("Ana"), MemoryCommand.parse("Forget what I said about Ana"))
         for (t in listOf("Remember: call the bank", "Remember, dentist on Friday at 3", "Remember my umbrella", "Remember I parked on level 3",
             "Remember that I'm out on Friday", "Remember that I'm out Friday", "Remember I'm picking up the kids at 3", "Remember that I parked on level 3",
             "Remember that I'm away until Sunday")) assertNull(t, MemoryCommand.parse(t))
+        for (t in listOf("Remember I have a call at 4", "Remember I have yoga on Thursday", "Remember, dentist on Friday", "Remember: milk",
+            "Remember: eggs and milk", "Remember, keys and wallet", "Remember my flight is at 6am", "Remember that the party is on Saturday",
+            "Remember I’m picking up the kids at 3")) assertNull(t, MemoryCommand.parse(t))
         for (t in listOf("Remember I have two cats", "Remember I don't eat pork", "Wren, remember I take the bus", "Remember we have a dog called Rex",
-            "Remember, Tom is vegetarian", "Remember, keep your answers short", "Remember I'm learning Japanese", "Remember that the bins go out on Monday"))
+            "Remember, keep your answers short", "Remember I'm learning Japanese", "Remember I'm working at Google", "Remember I'm living in Berlin",
+            "Remember my name is Jay"))
             assertTrue(t, MemoryCommand.parse(t) is MemoryCommand.Cmd.Remember)
         assertEquals(MemoryCommand.Cmd.Remember("Ana's birthday is on Friday"), MemoryCommand.parse("Remember that Ana's birthday is on Friday"))
         // Working with someone is not an employer; trying to do something once is not a goal.
