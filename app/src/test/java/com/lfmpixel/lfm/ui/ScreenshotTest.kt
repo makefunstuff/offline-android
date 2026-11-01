@@ -57,6 +57,9 @@ class ScreenshotTest {
 
     @Before fun setUp() {
         at(10)
+        // Animations off (as "Remove animations" does), so rows and highlights are drawn where they land, not mid-fade.
+        android.provider.Settings.Global.putFloat(ApplicationProvider.getApplicationContext<LfmApp>().contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
         val today = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         runBlocking {
             val e = g.db.entries()

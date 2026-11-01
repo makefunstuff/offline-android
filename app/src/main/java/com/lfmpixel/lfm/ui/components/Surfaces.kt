@@ -106,7 +106,7 @@ fun FlatSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit
 fun Menu(expanded: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val c = Lfm.c
     DropdownMenu(expanded, onDismiss, shape = LfmShape.card, containerColor = c.bg, tonalElevation = 0.dp, shadowElevation = 0.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, c.control), content = content)
+        border = androidx.compose.foundation.BorderStroke(1.dp, c.line), content = content)
 }
 
 /** One line of a [Menu], with its icon. */
