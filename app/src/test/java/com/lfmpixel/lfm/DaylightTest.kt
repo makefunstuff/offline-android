@@ -5,7 +5,7 @@ import com.lfmpixel.lfm.daylight.DayPart
 import com.lfmpixel.lfm.daylight.DaySentence
 import com.lfmpixel.lfm.daylight.Feel
 import com.lfmpixel.lfm.daylight.HorizonLayout
-import com.lfmpixel.lfm.daylight.Persona
+import com.lfmpixel.lfm.assistant.Persona
 import com.lfmpixel.lfm.daylight.Plan
 import com.lfmpixel.lfm.daylight.Skies
 import com.lfmpixel.lfm.daylight.contrast
@@ -117,8 +117,8 @@ class DaySentenceTest {
 
 class VoiceAndFeelTest {
     @Test fun oneVoiceInTalk() {
-        assertTrue(SpeechFormat.talkSystem(SpeechLanguage.EnglishUK, "Sunday").contains(Persona.PROMPT))
-        assertTrue(SpeechFormat.talkToolSystem(SpeechLanguage.EnglishUK).contains(Persona.PROMPT))
+        assertTrue(SpeechFormat.talkSystem(SpeechLanguage.EnglishUK, "Sunday").contains(Persona.SHORT))
+        assertTrue(SpeechFormat.talkToolSystem(SpeechLanguage.EnglishUK).contains(Persona.CORE))
     }
 
     @Test fun softShortTones() {

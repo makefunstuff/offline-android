@@ -386,13 +386,15 @@ class Talk(
         val recall = if (remembered != null) null else memory?.let { m -> withTimeoutOrNull(600) { runCatching { m.context(said, TALK_CONTEXT) }.getOrNull() } }
         recall?.let { Log.i(TAG, "talk: recall ${it.system.length} + ${it.turn.length} chars in ${it.ms} ms") }
         val prompt = SpeechFormat.talkPrompt(
-            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date())), recall, before, said)
+            SpeechFormat.talkSystem(p.speechLanguage, SimpleDateFormat("EEEE d MMMM yyyy", Locale.UK).format(Date()), full = true), recall, before, said)
         val text = StringBuilder()
         var firstWord = 0L
         var firstAudio = 0L
         var model = ""
         var ran = 0
         val chunker = SpeechChunker()
+        // An offer of a reminder nobody asked for is not said (Persona.TOOLS asks for none; this makes sure).
+        val offers = com.lfmpixel.lfm.assistant.OfferFilter(said)
         // Pieces to say, in order; one with [Piece.heard] waits until everything before it has been heard (a question).
         val pieces = Channel<Piece>(Channel.UNLIMITED)
         val voice = p.speechVoice.name.lowercase()
@@ -410,14 +412,14 @@ class Talk(
                 st.copy(phase = if (!spoken) TalkPhase.Speaking else st.phase,
                     turns = st.turns.map { if (it.id == id) it.copy(it = text.toString().trim()) else it })
             }
-            if (spoken) chunker.feed(words).forEach { pieces.send(Piece(it)) }
+            if (spoken) chunker.feed(words).flatMap(offers::feed).forEach { pieces.send(Piece(it)) }
         }
         val turnTools = TalkToolTurn(
             ask = { q ->
                 if (text.isNotEmpty() && !text.endsWith(" ")) text.append(' ')
                 say("$q ")
                 if (spoken) {
-                    chunker.flush().forEach { pieces.send(Piece(it)) }
+                    (chunker.flush().flatMap(offers::feed) + offers.flush()).forEach { pieces.send(Piece(it)) }
                     val heard = kotlinx.coroutines.CompletableDeferred<Unit>()
                     pieces.send(Piece("", heard))
                     heard.await()
@@ -491,7 +493,7 @@ class Talk(
                     model = com.lfmpixel.lfm.edge.EdgeModels.label(session.answeredBy)
                 }
                 }
-                if (spoken) chunker.flush().forEach { pieces.send(Piece(it)) }
+                if (spoken) (chunker.flush().flatMap(offers::feed) + offers.flush()).forEach { pieces.send(Piece(it)) }
                 pieces.close()
                 speaker?.join()
             }
@@ -522,7 +524,8 @@ class Talk(
             model = model, tools = ran)
         Log.i(TAG, "server answer: $timing: $text")
         val stopped = interrupted || !finished
-        set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(done = true, stopped = stopped) else it }) }
+        val shown = com.lfmpixel.lfm.assistant.Offers.strip(text.toString().trim(), said)
+        set(run) { st -> st.copy(timing = timing, turns = st.turns.map { if (it.id == id) it.copy(it = shown, done = true, stopped = stopped) else it }) }
         return true
     }
 

@@ -1,5 +1,6 @@
 package com.lfmpixel.lfm.voice
 
+import com.lfmpixel.lfm.assistant.Persona
 import com.lfmpixel.lfm.llm.PromptFormat
 
 /** The voices and languages Omni speaks (its "tts" chat template). */
@@ -34,31 +35,30 @@ object SpeechFormat {
             "${PromptFormat.IM_START}user\n$text${PromptFormat.IM_END}\n" +
             "${PromptFormat.IM_START}assistant\n<think></think><|audio_start|>"
 
-    /** Talk's instructions: short spoken answers, in the owner's language. */
-    fun talkSystem(language: SpeechLanguage, today: String) =
-        "You are Wren, a private assistant that runs on the owner's phone. You are talking out loud with the owner. " +
-            com.lfmpixel.lfm.daylight.Persona.PROMPT + " " +
-            "Answer in ${language.ttsName}, in one to three short spoken sentences, without lists, Markdown or web links. " +
-            "If you do not know, say so. Today is $today."
+    /**
+     * Talk's instructions without tools: short spoken answers, in the owner's language. [full] for a model with room
+     * (the server's); else Omni on the phone gets the short persona, so its small context keeps room for the talk.
+     */
+    fun talkSystem(language: SpeechLanguage, today: String, full: Boolean = false) =
+        "You are Wren, the owner's own assistant on their phone. " + (if (full) Persona.CORE else Persona.SHORT) + " " +
+            Persona.spoken(language.ttsName) + " " + Persona.NO_TOOLS + " Today is $today."
 
     /**
      * Talk with the answer model and the app's tools (Edge mode, Qwen): it may add, remind, note and plan by calling a
-     * tool, then says so in a few words. The day only: the time and the camera's view go with each turn ([talkUser]), so
-     * the server can keep this start read in.
+     * tool when asked, then says so in a few words. The day only: the time and the camera's view go with each turn
+     * ([talkUser]), so the server can keep this start read in.
      */
     fun talkToolSystem(language: SpeechLanguage, now: java.time.ZonedDateTime = java.time.ZonedDateTime.now(), web: Boolean = false) =
-        "You are Wren, the owner's private assistant and notebook. You are talking out loud with the owner. " +
-            com.lfmpixel.lfm.daylight.Persona.PROMPT + " " +
-            "Answer in ${language.ttsName}, in one to three short spoken sentences, without lists, Markdown or web links. " +
-            "When they ask you to remember, note, add, remind, plan, set or change something, call a tool; \"remind me\" is " +
-            "set_reminder. For something already there (done, move, snooze, delete) use complete_todo, reschedule or " +
-            "delete_item; for what's on the day, daily_brief; for any sum or unit conversion, calculate. Write dates and times as local ISO time like 2026-10-30T18:00. After a tool runs, say what was " +
-            "done in a few words. Never claim something was done unless a tool did it. Never say what is in the notebook, on " +
-            "the phone or what a sum comes to without calling its tool in this turn. " +
+        "You are Wren, the owner's own assistant on their phone, and their notebook. " + Persona.CORE + " " +
+            Persona.spoken(language.ttsName) + " " + Persona.TOOLS + " " +
+            "\"Remind me\" is set_reminder. For something already there (done, move, snooze, delete) use complete_todo, " +
+            "reschedule or delete_item; for what's on the day, daily_brief; for any sum or unit conversion, calculate. Write " +
+            "dates and times as local ISO time like 2026-10-30T18:00. After a tool runs, say what was done in a few words. " +
+            "Never claim something was done unless a tool did it. Never say what is in the notebook, on the phone or what " +
+            "a sum comes to without calling its tool in this turn. " +
             (if (web) "When a question needs current or outside facts (news, weather, prices, scores, opening hours) or " +
                 "anything you are unsure of, call web_search with a few keywords first, then say the gist in a sentence or " +
                 "two, without source numbers or links. " else "") +
-            "If you do not know, say so: do not guess. " +
             "Today is " + now.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", java.util.Locale.ENGLISH)) +
             ", time zone ${now.zone.id}."
 

@@ -284,6 +284,10 @@ class MemoryEvolvesTest {
         assertTrue(prompt, prompt.contains("Ana is your sister"))
         assertTrue(prompt, prompt.contains("You prefer short answers"))
         assertTrue(prompt.indexOf("Ana is your sister") < prompt.indexOf(said))
+        // The same persona as the chat's, and the facts with it, on each Talk path (LFMP-33).
+        assertTrue(prompt.contains(com.lfmpixel.lfm.assistant.Persona.SHORT))
+        val withTools = SpeechFormat.talkToolSystem(SpeechLanguage.entries.first()) + recall.system
+        assertTrue(withTools.contains(com.lfmpixel.lfm.assistant.Persona.CORE) && withTools.contains("Ana is your sister"))
         // Omni on the phone gets the same facts after what was said (no notes; its context is small).
         assertTrue(memory.context("Ana's birthday plans", 4096, notes = false).let { it.system + it.turn }.contains("Ana is your sister"))
 

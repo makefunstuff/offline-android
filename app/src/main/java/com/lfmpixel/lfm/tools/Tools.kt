@@ -145,7 +145,7 @@ class SearchLibraryTool(private val env: ToolEnv) : Tool {
 
 class SetReminderTool(private val env: ToolEnv) : Tool {
     override val spec = ToolSpec("set_reminder",
-        "Remind the owner at a time with a notification from this app. The default for 'remind me'.",
+        "Remind the owner of something at a time, when they ask to be reminded ('remind me'). Never unasked.",
         listOf(Param("text", "string", "What to remind about, short"),
             Param("at", "string", "When, as local ISO time like 2026-10-30T18:00")))
     override val label = "Reminders"

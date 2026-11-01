@@ -353,19 +353,18 @@ class Assistant(
             cardLabel = r.cardLabel, cardTitle = r.cardTitle, cardDetail = r.cardDetail, actionId = r.actionId))
     }
 
-    private fun systemPrompt(webOn: Boolean): String {
+    private fun systemPrompt(webOn: Boolean, contextTokens: Int): String {
         val tz = zone.id
         val net = if (webOn) "It can search the web with web_search: use it when a question needs current facts, prices, news or " +
             "anything you are unsure of; answer from your own knowledge otherwise. " else "with no internet access. "
-        return "You are Wren, a private assistant that runs entirely on the owner's phone" + (if (webOn) ". " else ", ") + net +
-            com.lfmpixel.lfm.daylight.Persona.PROMPT + " " +
-            "Answer briefly and plainly. When the owner asks you to remember, note, remind, add, set, text, call or change " +
-            "something, call a tool. \"Remind me\" means set_reminder; use set_alarm only when they say alarm. Things to buy " +
+        return "You are Wren, the owner's own assistant, running entirely on their phone" + (if (webOn) ". " else ", ") + net +
+            Persona.forContext(contextTokens) + " " + Persona.WRITTEN + " " + Persona.TOOLS + " " +
+            "\"Remind me\" means set_reminder; use set_alarm only when they say alarm. Things to buy " +
             "are to-dos on the Shopping list. For something already there (done, move, snooze, delete) use complete_todo, " +
             "reschedule or delete_item; for what's on the day, daily_brief; for any sum or unit conversion, calculate. Work out dates and times from the time given with each message and write them " +
             "as local ISO time like 2026-10-30T18:00. After a tool runs, confirm in a few words. Never say something was " +
-            "done unless a tool did it. If you do not know, or a question is about the owner's notes and you have not looked, " +
-            "say so or search the library: do not guess. Time zone: $tz." +
+            "done unless a tool did it. If a question is about the owner's notes and you have not looked, " +
+            "search the library: do not guess. Time zone: $tz." +
             (seeing?.invoke()?.let { " The camera is on; it sees: $it" } ?: "") + recall.system
     }
 
@@ -412,12 +411,12 @@ class Assistant(
             // turns go; the last thing the owner said always stays.
             val fitSession = models.answerSession()
             suspend fun fits(h: List<PromptMessage>) =
-                fitSession.countTokens(PromptFormat.build(systemPrompt(webOn), tools, h, thinking)) <= fitSession.contextTokens - maxTokens - 64
+                fitSession.countTokens(PromptFormat.build(systemPrompt(webOn, fitSession.contextTokens), tools, h, thinking)) <= fitSession.contextTokens - maxTokens - 64
             if (!fits(history)) history = PromptFormat.withoutOldThoughts(history)
             while (!fits(history)) {
                 history = history.drop(1).dropWhile { it.role != PromptMessage.Role.User }.takeIf { it.isNotEmpty() } ?: break
             }
-            var prompt = PromptFormat.build(systemPrompt(webOn), tools, history, thinking)
+            var prompt = PromptFormat.build(systemPrompt(webOn, fitSession.contextTokens), tools, history, thinking)
             // Still too long (web results in LiteRT-LM's short context, say): this round thinks less, or not at all,
             // rather than run past the end of the context.
             val budget = minOf(thinkBudget, fitSession.contextTokens - fitSession.countTokens(prompt) - answerBudget - 64)
@@ -425,7 +424,7 @@ class Assistant(
             // web search it thinks again, as it writes its answer from the pages.
             val afterAction = thread.lastOrNull()?.let { it.role == Role.Tool && it.searchId == null } == true
             val thinks = thinking && !afterAction && budget >= 128
-            if (thinks != thinking) prompt = PromptFormat.build(systemPrompt(webOn), tools, history, false)
+            if (thinks != thinking) prompt = PromptFormat.build(systemPrompt(webOn, fitSession.contextTokens), tools, history, false)
             val raw = StringBuilder()
             streaming.value = Streaming("", thinks)
             // How long it thought: from its first word to the end of its think block.

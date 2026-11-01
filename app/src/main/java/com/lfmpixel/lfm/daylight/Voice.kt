@@ -3,16 +3,6 @@ package com.lfmpixel.lfm.daylight
 import java.time.LocalDateTime
 
 /**
- * Wren's one voice (docs/ux-spec.md, "Voice"): the same few lines open every prompt that speaks to the owner, in
- * Talk and in the chat, and the app's own copy follows them.
- */
-object Persona {
-    const val PROMPT = "Your manner: warm, calm and brief, like a friend who keeps good time. Plain words; no exclamation " +
-        "marks, flattery, emoji or pep talk. Never scold, never count what was missed: offer one next step instead. If you " +
-        "do not know, say so plainly."
-}
-
-/**
  * Today's first line: the day in one sentence, not counts (no-nag rules: nothing counted against the owner, nothing
  * red, nothing about what was missed). [plans] are today's timed things; [openTodos] the to-dos without a time.
  */
