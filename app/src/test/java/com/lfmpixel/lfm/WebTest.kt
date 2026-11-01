@@ -81,10 +81,12 @@ class WebTest {
     }
 
     @Test fun lfmNetDownloadsExactlyTheCatalog() {
-        // LFM Net's pinned list and LFM's hash list must name the same files, sizes and repos.
-        assertEquals(ModelCatalog.all.map { Triple(it.fileName, it.repo, it.sizeBytes) }.toSet(),
-            PinnedFiles.all.map { Triple(it.name, it.repo, it.size) }.toSet())
-        // Q4 and Q8 of each GGUF model; the LiteRT-LM conversion comes in one file.
-        assertTrue(ModelCatalog.groups.all { g -> (g.variants.size == 2 || g.variants.single().role == ModelRole.TextLiteRt) && g.variants.all { it.family == g.family } })
+        // LFM Net's pinned list and LFM's hash list must name the same files, sizes, repos, paths and revisions.
+        assertEquals(ModelCatalog.all.map { listOf(it.fileName, it.repo, it.sizeBytes, it.remotePath, it.rev) }.toSet(),
+            PinnedFiles.all.map { listOf(it.name, it.repo, it.size, it.path, it.rev) }.toSet())
+        // Every file is LiteRT's (no GGUF on the phone), pinned to a revision, and offered by one group or as a part.
+        assertTrue(ModelCatalog.all.none { it.fileName.endsWith(".gguf") } && ModelCatalog.all.all { it.rev.length == 40 })
+        assertEquals(ModelCatalog.all.toSet(), ModelCatalog.groups.flatMap { it.variants + it.parts }.toSet())
+        assertTrue(ModelCatalog.groups.all { g -> g.variants.all { it.family == g.family } })
     }
 }

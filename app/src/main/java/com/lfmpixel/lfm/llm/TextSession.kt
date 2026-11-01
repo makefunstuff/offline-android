@@ -23,8 +23,8 @@ import com.google.ai.edge.litertlm.Session as LtSession
 import com.google.ai.edge.litertlm.SessionConfig
 
 /**
- * The chat model, loaded on one backend: llama.cpp ([LlamaSession]) or LiteRT-LM ([LiteRtSession]). Chat, tools and
- * documents use only this; pictures and speech stay with llama.cpp's Omni and VL sessions.
+ * A model that writes: LFM3-1.7B in LiteRT-LM ([LiteRtSession]), LFM3-VL-2B ([LiteRtVision], which also looks), or
+ * the owner's server (EdgeSession). Chat, tools and documents use only this; speech is OmniVoice's.
  */
 interface TextSession {
     /** The model file it runs. */
@@ -45,7 +45,7 @@ interface TextSession {
     /** Numbers from the last generate call. */
     fun stats(): GenStats
 
-    /** Reads in [nPrompt] tokens, then writes [nGen]; see [LlamaSession.bench]. */
+    /** Reads in about [nPrompt] tokens, then writes [nGen] greedily, on fresh state. */
     suspend fun bench(nPrompt: Int, nGen: Int): BenchRun
 
     /** How the session runs, one "key: value" a line. */
@@ -54,12 +54,12 @@ interface TextSession {
     suspend fun close()
 }
 
-/** Pictures in, text out: llama.cpp's [LlamaSession.see]; with no pictures, any session just writes. */
+/** Pictures in, text out: [LiteRtVision.see] or the server's; with no pictures, any session just writes. */
 fun TextSession.look(images: List<RgbImage>, prompt: String, maxTokens: Int, temp: Float = 0.1f): Flow<String> = when {
-    this is LlamaSession -> see(images, prompt, maxTokens, temp)
+    this is LiteRtVision && images.isNotEmpty() -> see(images, prompt, maxTokens, temp)
     this is com.lfmpixel.lfm.edge.EdgeSession && images.isNotEmpty() -> see(images, prompt, maxTokens, temp)
     images.isEmpty() -> generate(prompt, maxTokens, temp)
-    else -> throw LlmException("Pictures need LFM3-Omni-2B or LFM3-VL-2B")
+    else -> throw LlmException("Pictures need LFM3-VL-2B")
 }
 
 /** Greedy answers to [Backends.checks] with thinking off, asked as one conversation so each prompt extends the last. */
@@ -74,38 +74,33 @@ suspend fun TextSession.checkAnswers(): List<String> {
     }
 }
 
-/**
- * Counts tokens with a GGUF's tokenizer alone, loaded without weights: LFM3's, the same one the .litertlm file
- * carries (its card: the source tokenizer.json byte for byte), so LiteRT-LM chats count exactly.
- */
-class TokenCounter private constructor(private var handle: Long) {
+/** Counts tokens with LFM3's tokenizer.json (Omni's copy; the .litertlm files carry the same one, but LiteRT-LM has no tokenizer call). */
+class TokenCounter private constructor(private val tokenizer: BpeTokenizer) {
     companion object {
-        /** Null if [ggufPath] would not load. */
-        fun open(nativeLibDir: String, ggufPath: String): TokenCounter? = runCatching {
-            LlamaNative.ensureLoaded(nativeLibDir)
-            LlamaNative.loadVocab(ggufPath).takeIf { it != 0L }?.let { TokenCounter(it) }
-        }.getOrNull()
+        /** Null if [tokenizerJson] would not load. Loaded once and shared: the file is 18 MB. */
+        fun open(tokenizerJson: String): TokenCounter? = synchronized(this) {
+            cached?.takeIf { it.first == tokenizerJson }?.second ?: runCatching { TokenCounter(BpeTokenizer.load(java.io.File(tokenizerJson))) }
+                .getOrNull()?.also { cached = tokenizerJson to it }
+        }
+        @Volatile private var cached: Pair<String, TokenCounter>? = null
     }
 
-    /** Tokens in [text], or -1 once closed. */
-    @Synchronized fun count(text: String): Int = if (handle == 0L) -1 else LlamaNative.countTokens(handle, text.toByteArray())
+    fun count(text: String): Int = tokenizer.count(text)
 
-    @Synchronized fun close() {
-        if (handle != 0L) LlamaNative.free(handle)
-        handle = 0L
-    }
+    /** Kept for the next session: the tokenizer is shared. */
+    fun close() {}
 }
 
 /**
  * LFM3-1.7B in LiteRT-LM (the .litertlm file), on the GPU through OpenCL or on the CPU through XNNPACK.
  *
- * It takes raw prompts, built by [PromptFormat] as for llama.cpp. One LiteRT-LM session holds the conversation so
+ * It takes raw prompts, built by [PromptFormat] in LFM3's chat format. One LiteRT-LM session holds the conversation so
  * far: a prompt that starts with everything the session has read and written only has its new part read in. Any
  * other prompt gets a new engine, not just a new session: LFM3's short convolutions keep a running state that
  * LiteRT-LM carries from one session of an engine into the next (LiteRT-LM issue #3165), which corrupts answers.
  */
 class LiteRtSession private constructor(override val path: String, override val backend: Backend, private val cacheDir: String,
-                                        private var engine: LtEngine?, private val counter: TokenCounter?) : TextSession {
+                                        private val threads: Int, private var engine: LtEngine?, private val counter: TokenCounter?) : TextSession {
     private val mutex = Mutex()
     private var closed = false
     private var session: LtSession? = null
@@ -140,8 +135,8 @@ class LiteRtSession private constructor(override val path: String, override val 
         private val thread = Executors.newSingleThreadExecutor { r -> Thread(r, "litert").apply { priority = Thread.MAX_PRIORITY } }
             .asCoroutineDispatcher()
 
-        private fun newEngine(path: String, backend: Backend, cacheDir: String): LtEngine {
-            val lt = if (backend == Backend.LiteRtGpu) LtBackend.GPU() else LtBackend.CPU()
+        private fun newEngine(path: String, backend: Backend, cacheDir: String, threads: Int): LtEngine {
+            val lt = if (backend == Backend.LiteRtGpu) LtBackend.GPU() else LtBackend.CPU(threads.takeIf { it > 0 })
             val e = LtEngine(EngineConfig(modelPath = path, backend = lt, maxNumTokens = MAX_TOKENS, cacheDir = cacheDir))
             try { e.initialize() } catch (t: Throwable) {
                 runCatching { e.close() }
@@ -154,23 +149,22 @@ class LiteRtSession private constructor(override val path: String, override val 
          * [cacheDir] keeps the GPU's compiled programs, so the second load is quicker. [counter] counts prompt tokens
          * (the session closes it); without one they are estimated.
          */
-        suspend fun open(path: String, backend: Backend, cacheDir: String, counter: TokenCounter?): LiteRtSession = withContext(thread) {
-            require(backend.liteRt)
+        suspend fun open(path: String, backend: Backend, cacheDir: String, counter: TokenCounter?, threads: Int = 0): LiteRtSession = withContext(thread) {
             val t0 = System.nanoTime()
-            val e = try { newEngine(path, backend, cacheDir) } catch (t: Throwable) { counter?.close(); throw t }
-            LiteRtSession(path, backend, cacheDir, e, counter).also {
+            val e = try { newEngine(path, backend, cacheDir, threads) } catch (t: Throwable) { counter?.close(); throw t }
+            LiteRtSession(path, backend, cacheDir, threads, e, counter).also {
                 it.restartMs = (System.nanoTime() - t0) / 1e6
                 it.probe()
                 it.initMs = (System.nanoTime() - t0) / 1e6
             }
         }
 
-        /** llama.cpp's benchmark text (lfm_jni.cpp), and how many characters of it LFM3's tokenizer makes one token. */
+        /** The benchmark's text (llama.cpp's before LFMP-8, so old numbers compare), and how many characters of it LFM3's tokenizer makes one token. */
         const val BENCH_SENTENCE = "The quick brown fox jumps over the lazy dog while the old clock on the wall ticks the afternoon away. "
         const val BENCH_CHARS_PER_TOKEN = 4.4
 
         /**
-         * About how many tokens [text] is, erring high, when no GGUF tokenizer is at hand: LiteRT-LM has no tokenizer call. LFM3's makes about one token
+         * About how many tokens [text] is, erring high, when the tokenizer file is not here: LiteRT-LM has no tokenizer call. LFM3's makes about one token
          * of 4.4 bytes of English; here 3, and digits a token each, as in dates, times and tool results they may split.
          */
         fun estimateTokens(text: String): Int {
@@ -191,7 +185,7 @@ class LiteRtSession private constructor(override val path: String, override val 
 
     /**
      * Reads in the token every chat prompt starts with, so a GPU that can't run the model (no OpenCL) fails here, at
-     * load, where ModelManager falls back to llama.cpp, and not in the middle of an answer.
+     * load, where ModelManager falls back to the CPU, and not in the middle of an answer.
      */
     private fun probe() {
         try {
@@ -215,7 +209,7 @@ class LiteRtSession private constructor(override val path: String, override val 
             closeEngine()
             val t0 = System.nanoTime()
             // If this throws, there is no engine (not a closed one): the next prompt tries again.
-            engine = newEngine(path, backend, cacheDir)
+            engine = newEngine(path, backend, cacheDir, threads)
             restartMs = (System.nanoTime() - t0) / 1e6
             engines++
         } else {
@@ -260,7 +254,7 @@ class LiteRtSession private constructor(override val path: String, override val 
             // finished in cancelled state", seen on the emulator), so the next prompt starts over.
             if (n >= maxTokens) dirty = true
             val firstMs = if (firstAt > 0) (firstAt - started) / 1e6 else 0.0
-            // Like llama.cpp, decodeTokens counts every token written (the Assistant compares it with its budget). The
+            // decodeTokens counts every token written (the Assistant compares it with its budget). The
             // first token's time is in firstMs with the prompt, so the time for all n is scaled from the n - 1 after it.
             val afterFirstMs = if (firstAt > 0) (end - firstAt) / 1e6 else 0.0
             lastStats = GenStats(firstMs, estimateTokens(input), if (n > 1) afterFirstMs * n / (n - 1) else afterFirstMs, n, 0, firstMs)

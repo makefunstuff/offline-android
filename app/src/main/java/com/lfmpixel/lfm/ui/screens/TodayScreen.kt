@@ -533,7 +533,7 @@ fun modelState(g: AppGraph): String {
     val prefs by g.settings.prefs.collectAsState(null)
     val edge by g.edge.state.collectAsState()
     if (edge is com.lfmpixel.lfm.edge.EdgeState.Online) return "LFM3-1.7B · on your server"
-    val chat = installed.firstOrNull { it.file.name == (st.textFile ?: prefs?.chatModel) && (it.known.role == com.lfmpixel.lfm.llm.ModelRole.Text || it.known.role == com.lfmpixel.lfm.llm.ModelRole.TextLiteRt) }
+    val chat = installed.firstOrNull { it.file.name == (st.textFile ?: prefs?.chatModel) && it.known.role == com.lfmpixel.lfm.llm.ModelRole.Text }
         ?: g.models.text()
     val name = chat?.let { "${it.known.family} ${it.known.quant}" } ?: return "No chat model"
     return name + " · " + when (st.text) {

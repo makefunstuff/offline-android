@@ -494,18 +494,13 @@ class Assistant(
                 if (models.edge?.state?.value is com.lfmpixel.lfm.edge.EdgeState.Online) throw e
             }
         }
-        val model = SeeRules.pick(req.kind, models.hasVoice() && models.omniSees, models.hasVision(), models.hasText(), picturesNeeded)
+        // On the phone VL looks at everything: Omni's LiteRT form is kept for voice (docs/model-pool.md).
+        val model = SeeRules.pick(req.kind, false, models.hasVision(), models.hasText(), picturesNeeded)
             ?: throw LlmException(if (req.kind == SeeKind.Document) "Documents need LFM3-VL-2B. Get it in Settings → Models."
-                else "Photos and video need LFM3-Omni-2B or LFM3-VL-2B. Get one in Settings → Models.")
-        var session: com.lfmpixel.lfm.llm.TextSession = when (model) {
-            SeeModel.Omni -> models.omniSession()
-            SeeModel.Vision -> models.visionSession()
+                else "Photos and video need LFM3-VL-2B. Get it in Settings → Models.")
+        val session: com.lfmpixel.lfm.llm.TextSession = when (model) {
+            SeeModel.Omni, SeeModel.Vision -> models.visionSession()
             SeeModel.Text -> models.textSession()
-        }
-        // An Omni projector without vision is only known once loaded: then VL looks instead.
-        if (model == SeeModel.Omni && !models.omniSees) {
-            if (!models.hasVision()) throw LlmException("This Omni projector file has no vision. Get LFM3-VL-2B in Settings → Models.")
-            session = models.visionSession()
         }
         val looker = if (session.path == models.visionPath()) SeeModel.Vision else model
         lookWith(req, session, looker.label, "on this phone")

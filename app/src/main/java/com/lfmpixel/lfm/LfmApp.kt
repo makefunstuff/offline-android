@@ -30,15 +30,11 @@ import kotlinx.coroutines.launch
 /** Everything the app is made of, wired by hand. */
 class AppGraph(context: Context) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val heat = com.lfmpixel.lfm.device.HeatWatch(context).also { w ->
-        com.lfmpixel.lfm.llm.LlamaNative.heat(w.heat.value)
-        w.onChange = { com.lfmpixel.lfm.llm.LlamaNative.heat(it) }
-    }
+    val heat = com.lfmpixel.lfm.device.HeatWatch(context)
     val db = LfmDatabase.open(context)
     val settings = Settings(context)
     val models = ModelStore(context)
-    val engine = ModelManager(context.applicationInfo.nativeLibraryDir.orEmpty(), models, settings, scope,
-        java.io.File(context.cacheDir, "litert").apply { mkdirs() })
+    val engine = ModelManager(models, settings, scope, java.io.File(context.cacheDir, "litert").apply { mkdirs() }, heat.heat)
     val reminders = Reminders(context)
     val focus = com.lfmpixel.lfm.assistant.Focus(context)
     val calendar = LocalCalendar(context)

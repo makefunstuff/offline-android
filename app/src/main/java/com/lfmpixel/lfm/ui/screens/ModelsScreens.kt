@@ -85,8 +85,8 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             ModelControl(g)
             SectionLabel("Get models")
             ModelList(g, highlight = true)
-            // Files imported by hand that the list above doesn't offer (other quantisations).
-            val offered = ModelCatalog.groups.flatMap { it.variants + listOfNotNull(it.projector) }.toSet()
+            // Files imported by hand that the list above doesn't offer.
+            val offered = ModelCatalog.groups.flatMap { it.variants + it.parts }.toSet()
             val others = installed.filter { it.known !in offered }
             if (others.isNotEmpty()) {
                 SectionLabel("Also on this phone")
@@ -103,13 +103,14 @@ fun ModelsScreen(g: AppGraph, nav: Nav, onImport: () -> Unit) {
             }
             Btn("Import a file", onImport, Modifier.padding(top = 14.dp).fillMaxWidth(), icon = "folder")
             Txt("Downloads come from Hugging Face with no login, through Inkling Net, and each file is checked against its pinned SHA-256 before it is used. " +
-                "Import works fully offline: copy the GGUF to the phone (adb push or USB), then pick it.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
+                "Import works fully offline: copy the file to the phone (adb push or USB), then pick it.", LfmType.meta, c.text2, Modifier.padding(top = 12.dp))
+            LeftoverFiles(g)
             BackendSection(g)
             BenchmarkSection(g)
             ServerColumn(g)
             VoiceBenchSection(g)
             if (downloads.isEmpty()) g.engine.systemInfo().takeIf { it.isNotEmpty() }?.let {
-                SectionLabel("llama.cpp on this phone")
+                SectionLabel("LiteRT on this phone")
                 Txt(it.trim(), LfmType.meta, c.text2)
             }
             Spacer(Modifier.height(24.dp))
@@ -147,42 +148,58 @@ fun ModelList(g: AppGraph, highlight: Boolean) {
         Column(Modifier.padding(bottom = 8.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(horizontal = 14.dp, vertical = 12.dp)) {
             Txt(grp.family, LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
             Txt(grp.purpose, LfmType.label.copy(fontWeight = null), c.text2)
-            (grp.variants + listOfNotNull(grp.projector)).forEach { m ->
+            grp.variants.forEach { m ->
                 val have = installed.firstOrNull { it.known == m }
                 val d = downloads[m.fileName]?.takeIf { have == null && it.state != ModelDownloads.State.Done }
                 val inMemory = have != null && status.of(slotOf(m.role)) == LoadState.Ready &&
                     (slotOf(m.role) != Slot.Text || status.textFile == have.file.name)
+                // The files it needs beside it: one line for all of them, and progress for any still coming.
+                val missing = grp.parts.filter { p -> installed.none { it.known == p && it.verified } }
                 Divider(Modifier.padding(top = 10.dp))
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f)) {
-                        Txt(if (m == grp.projector) "Projector ${m.quant}" else m.quant + when {
-                                m.role == ModelRole.TextLiteRt -> " · LiteRT-LM"
-                                m.quant.startsWith("Q4") -> " · smaller, faster"
-                                else -> " · more accurate"
-                            },
-                            LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight))
+                        Txt("${m.quant} · LiteRT", LfmType.small.copy(fontWeight = LfmType.rowTitle.fontWeight))
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Txt(m.sizeLabel + if (m == grp.projector) " · needed with either" else "", LfmType.label.copy(fontWeight = null), c.text2)
+                            val partsSize = grp.parts.sumOf { it.sizeBytes }
+                            Txt(m.sizeLabel + if (grp.parts.isNotEmpty()) " + ${formatBytes(partsSize)} of ${if (grp.parts.size == 1) "tokenizer" else "voice files"}" else "",
+                                LfmType.label.copy(fontWeight = null), c.text2)
                             if (have != null) {
                                 Txt("·", LfmType.label, c.text2)
-                                if (have.verified) { LIcon("check", size = 14.dp, tint = c.text2); Txt("verified", LfmType.label.copy(fontWeight = null), c.text2) }
-                                else Txt("not verified", LfmType.label.copy(fontWeight = null), c.text2)
+                                if (have.verified && missing.isEmpty()) { LIcon("check", size = 14.dp, tint = c.text2); Txt("verified", LfmType.label.copy(fontWeight = null), c.text2) }
+                                else Txt(if (have.verified) "${missing.size} files to get" else "not verified", LfmType.label.copy(fontWeight = null), c.text2)
                             }
                         }
                     }
                     when {
-                        have != null -> {
+                        have != null && missing.isEmpty() -> {
                             if (inMemory) Pill("In memory")
                             IconButtonPlain("trash", { deleting = have }, desc = "Delete ${m.fileName}")
                         }
-                        d == null && canDownload -> Btn("Download", { g.downloads.startWithProjector(m) }, small = true, icon = "download")
-                        d == null -> Txt("Not on this phone", LfmType.meta, c.text2)
+                        d == null && missing.none { downloads[it.fileName] != null } && canDownload -> Btn("Download", { g.downloads.startWithParts(m) }, small = true, icon = "download")
+                        d == null && have == null && !canDownload -> Txt("Not on this phone", LfmType.meta, c.text2)
                     }
                 }
-                if (d != null) DownloadProgress(d, highlight && d == running, onPause = { g.downloads.pause(m) },
-                    onResume = { g.downloads.resume(m) }, onCancel = { g.downloads.cancel(m) })
+                (listOf(m) + missing).forEach { f ->
+                    val df = downloads[f.fileName]?.takeIf { it.state != ModelDownloads.State.Done && installed.none { i -> i.known == f && i.verified } }
+                    if (df != null) DownloadProgress(df, highlight && df == running, onPause = { g.downloads.pause(f) },
+                        onResume = { g.downloads.resume(f) }, onCancel = { g.downloads.cancel(f) })
+                }
             }
         }
+    }
+}
+
+/** GGUF files from before LFMP-8 (llama.cpp left the phone) and older pins: nothing uses them; one tap frees the space. */
+@Composable
+private fun LeftoverFiles(g: AppGraph) {
+    val c = Lfm.c
+    val installed by g.models.installed.collectAsState()
+    var bytes by remember(installed) { mutableStateOf(g.models.leftovers().sumOf { it.length() }) }
+    if (bytes <= 0) return
+    Column(Modifier.padding(top = 14.dp).fillMaxWidth().border(1.dp, c.line, RoundedCornerShape(8.dp)).padding(12.dp)) {
+        Txt("Old model files: ${formatBytes(bytes)}", LfmType.body.copy(fontWeight = LfmType.rowTitle.fontWeight))
+        Txt("GGUF files for llama.cpp, which Inkling no longer runs: every model now runs on LiteRT.", LfmType.label.copy(fontWeight = null), c.text2)
+        Btn("Free ${formatBytes(bytes)}", { g.models.deleteLeftovers(); bytes = 0 }, Modifier.padding(top = 8.dp), small = true, icon = "trash")
     }
 }
 
@@ -298,8 +315,8 @@ class ImportRun(val uris: List<Uri>) {
                     try {
                         g.engine.unloadAll()
                         val t0 = System.nanoTime()
-                        // The GGUF itself, on llama.cpp's CPU, whatever backend chat is set to.
-                        val s = g.engine.benchSession(Slot.Text, com.lfmpixel.lfm.llm.Backend.Cpu)
+                        // The file itself, on the CPU (which every phone has), whatever backend chat is set to.
+                        val s = g.engine.benchSession(Slot.Text, com.lfmpixel.lfm.llm.Backend.LiteRtCpu)
                         val prompt = PromptFormat.build("", emptyList(), listOf(PromptMessage(PromptMessage.Role.User, "Say hello in three words.")), thinking = false)
                         val out = try { s.generate(prompt, 16, temp = 0f).toList().joinToString("").trim() } finally { s.close() }
                         f.test = "“${out.take(40)}” · %.1f s".format((System.nanoTime() - t0) / 1e9)
@@ -387,9 +404,9 @@ private fun Check(ok: Boolean?, title: String?, detail: String, marked: String? 
 }
 
 fun slotOf(role: ModelRole) = when (role) {
-    ModelRole.Text, ModelRole.TextLiteRt -> Slot.Text
-    ModelRole.Omni, ModelRole.OmniProjector -> Slot.Omni
-    ModelRole.Vision, ModelRole.VisionProjector -> Slot.Vision
+    ModelRole.Text, ModelRole.Tokenizer -> Slot.Text
+    ModelRole.Omni, ModelRole.OmniSpeech -> Slot.Omni
+    ModelRole.Vision -> Slot.Vision
 }
 
 private val idleChoices = listOf(0 to "Never", 1 to "1 min", 5 to "5 min", 15 to "15 min", 30 to "30 min")
@@ -534,9 +551,8 @@ private fun BackendSection(g: AppGraph) {
     val installed by g.models.installed.collectAsState()
     val status by g.engine.status.collectAsState()
     val p = prefs ?: return
-    val gpu by produceState<String?>(null) { value = g.engine.gpuName() }
-    val available by produceState(setOf(com.lfmpixel.lfm.llm.Backend.Cpu), installed, gpu) { value = g.engine.available(Slot.Text) }
-    val chosen by produceState(emptyMap<Slot, com.lfmpixel.lfm.llm.Backend>(), p, installed, gpu) {
+    val available = remember { g.engine.available(Slot.Text) }
+    val chosen by produceState(emptyMap<Slot, com.lfmpixel.lfm.llm.Backend>(), p, installed) {
         value = Slot.entries.filter { g.engine.installed(it) }.associateWith { g.engine.backendFor(it) }
     }
     val choices = BackendChoice.entries.filter { it.backend == null || it.backend in available || it == p.backend }
@@ -548,21 +564,11 @@ private fun BackendSection(g: AppGraph) {
         if (!writing && pick != p.backend) scope.launch { g.settings.setBackend(pick); g.engine.unloadAll() }
     })
     val now = chosen.entries.joinToString(" · ") { (slot, b) -> "${slot.label}: ${(status.backends[slot] ?: b).short}" }
-    Txt((if (p.backend == BackendChoice.Auto) "Auto puts each model on the quickest backend the benchmark found that answered right; until then, the CPU. "
-        else "Every model runs on ${p.backend.label} where it can; the rest on the CPU. ") +
+    Txt((if (p.backend == BackendChoice.Auto) "Auto puts chat and pictures on the GPU, unless the benchmark finds the CPU quicker or the GPU fails. Omni's voice runs on the CPU. "
+        else "Chat and pictures run on the ${p.backend.label} where they can; Omni's voice runs on the CPU. ") +
         (if (now.isNotEmpty()) "Now: $now. " else "") +
-        // LiteRT-LM's file holds 4,096 tokens: a chat there remembers fewer turns than on llama.cpp.
-        (if ((status.backends[Slot.Text] ?: chosen[Slot.Text])?.liteRt == true)
-            "On LiteRT-LM chat remembers about half as much (4,096 tokens, against ${p.contextTokens} on llama.cpp). " else "") +
-        when {
-            gpu == null -> ""
-            gpu!!.isEmpty() -> "No Vulkan GPU found."
-            else -> "GPU: ${gpu!!.substringAfter(": ")}."
-        } + when {
-            com.lfmpixel.lfm.llm.Backend.LiteRtCpu !in available -> " LiteRT-LM needs “LFM3-1.7B LiteRT” above."
-            com.lfmpixel.lfm.llm.Backend.LiteRtGpu !in available -> " No OpenCL here, so LiteRT-LM uses the CPU only."
-            else -> ""
-        },
+        "Chat remembers about 4,096 tokens. " +
+        (if (com.lfmpixel.lfm.llm.Backend.LiteRtGpu !in available) "No OpenCL here, so everything runs on the CPU." else ""),
         LfmType.meta, c.text2, Modifier.padding(top = 6.dp))
 }
 

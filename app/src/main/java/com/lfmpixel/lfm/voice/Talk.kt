@@ -235,7 +235,7 @@ class Talk(
     }
 
     /** The session that answered last, for its stage numbers. */
-    @Volatile private var omniUsed: com.lfmpixel.lfm.llm.LlamaSession? = null
+    @Volatile private var omniUsed: OmniVoice? = null
 
     /** True while Omni is answering: only then does stopping need to reach native code. */
     @Volatile private var interruptible = false
@@ -254,7 +254,6 @@ class Talk(
             if (models.edge?.usableNow() != true) {
                 Log.i(TAG, "talk: server not in use (${models.edge?.state?.value ?: "Edge mode off"}): Omni on this phone")
                 val session = models.omniSession()
-                if (!session.canSpeak()) throw LlmException("This Omni projector file has no voice part. Get mmproj-LFM3-Omni-2B again in Settings → Models.")
             }
             // Asked now, so a sleeping Qwen is woken while the owner speaks, not after.
             models.edge?.takeIf { it.usable() }?.let { e -> scope.launch { runCatching { e.answerModel() } } }

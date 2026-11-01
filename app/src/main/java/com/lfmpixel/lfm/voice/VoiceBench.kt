@@ -109,7 +109,6 @@ class VoiceBench(private val models: ModelManager, private val settings: Setting
         val t0 = System.nanoTime()
         val s = models.omniSession()
         val loadMs = (System.nanoTime() - t0) / 1e6
-        if (!s.canSpeak()) throw LlmException("This Omni projector file has no voice part.")
 
         step("Speaking the question…")
         val q24 = ArrayList<FloatArray>()

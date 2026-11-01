@@ -5,18 +5,22 @@ import java.io.OutputStream
 import java.security.MessageDigest
 
 enum class ModelRole(val label: String) {
+    /** LFM3-1.7B for LiteRT-LM: chat, tools, writing (docs/model-pool.md). */
     Text("Chat, tools, writing"),
-    Omni("Voice, camera, talk"),
-    OmniProjector("Omni's ears and eyes"),
-    Vision("Documents"),
-    VisionProjector("Documents (projector)"),
-    /** The chat model converted for LiteRT-LM, which runs it on the GPU (docs/acceleration.md). */
-    TextLiteRt("Chat, on the GPU"),
+    /** LFM3-Omni-2B's .litertlm: its decoder and audio encoder, run by OmniVoice. */
+    Omni("Voice and talk"),
+    /** Omni's speech graphs and the files that drive them: its voice. */
+    OmniSpeech("Omni's voice"),
+    /** LFM3's tokenizer.json: Omni's prompts, and counting chat tokens. */
+    Tokenizer("Tokenizer"),
+    /** LFM3-VL-2B for LiteRT-LM: photos, video frames and documents. */
+    Vision("Photos and documents"),
 }
 
 /**
- * A model file we know: its exact name, size and SHA-256, pinned from Hugging Face (LiquidAI, 28 Oct 2026; the
- * LiteRT-LM file from litert-community, 29 Oct 2026).
+ * A model file we know: its exact name, size and SHA-256, pinned from Hugging Face (litert-community, 29 Oct to
+ * 1 Nov 2026). [remotePath] is where it sits in [repo] at revision [rev] when that differs from [fileName], which
+ * must be unique on the phone (two repos both have a tokenizer.json).
  */
 data class KnownModel(
     val fileName: String,
@@ -26,53 +30,55 @@ data class KnownModel(
     val sizeBytes: Long,
     val sha256: String,
     val repo: String,
+    val remotePath: String = fileName,
+    val rev: String = "main",
 ) {
     val sizeLabel get() = formatBytes(sizeBytes)
     val displayName get() = family
 }
 
 object ModelCatalog {
-    private const val TEXT = "LiquidAI/LFM3-1.7B-GGUF"
-    private const val OMNI = "LiquidAI/LFM3-Omni-2B-GGUF"
-    private const val VL = "LiquidAI/LFM3-VL-2B-GGUF"
-    private const val LITERT = "litert-community/LFM3-1.7B-LiteRT"
+    private const val TEXT = "litert-community/LFM3-1.7B-LiteRT"
+    private const val TEXT_REV = "9bbda264c623f30c905b9c247761ee7463f2b00d"
+    private const val OMNI = "litert-community/LFM3-Omni-2B-LiteRT"
+    private const val OMNI_REV = "a287b6e6e2535de6a4b48b50e5a5a5b9b82632cc"
+    private const val VL = "litert-community/LFM3-VL-2B-LiteRT"
+    private const val VL_REV = "580859278a59710b3c93b298982f3f9e884d80e8"
+
+    private fun speech(name: String, size: Long, sha: String, path: String = "speech/$name") =
+        KnownModel(name, "Omni voice", "graph", ModelRole.OmniSpeech, size, sha, OMNI, path, OMNI_REV)
 
     val all = listOf(
-        KnownModel("LFM3-1.7B-QAD-Q4_0.gguf", "LFM3-1.7B", "Q4_0", ModelRole.Text, 1049615680, "43a7d09a0e9cba91b63eb7052488b9564569bddfd65754d2e426465e572a7452", TEXT),
-        KnownModel("LFM3-1.7B-Q4_K_M.gguf", "LFM3-1.7B", "Q4_K_M", ModelRole.Text, 1099627808, "3793e1e6e2266919d6e015287221b41100175a98eddaba92e111aed3b05c93c4", TEXT),
-        KnownModel("LFM3-1.7B-Q5_K_M.gguf", "LFM3-1.7B", "Q5_K_M", ModelRole.Text, 1258663200, "41e51fb0be5f472d323055f2734d986d5a2429570973508fa6322f3f07f6d7f3", TEXT),
-        KnownModel("LFM3-1.7B-Q6_K.gguf", "LFM3-1.7B", "Q6_K", ModelRole.Text, 1427638304, "54e1bd947c77167823d45bf495f1c3e2d226ca7fb242f83cfa141ee3a6ab55c6", TEXT),
-        KnownModel("LFM3-1.7B-Q8_0.gguf", "LFM3-1.7B", "Q8_0", ModelRole.Text, 1846238496, "8f6b24182258205e9e01e21f1f24a1f208c1e8115578825d202ce39976af20b6", TEXT),
-        KnownModel("LFM3-Omni-2B-Q4_0.gguf", "LFM3-Omni-2B", "Q4_0", ModelRole.Omni, 1049617920, "6d2273a383b92dd7c5db0eb4c8dfeae13e805b485a6621c4b391ae179c2b5f28", OMNI),
-        KnownModel("LFM3-Omni-2B-Q4_K_M.gguf", "LFM3-Omni-2B", "Q4_K_M", ModelRole.Omni, 1099630080, "9f8d30e9d4fd7a9349d586e077988229b3ca0a0e4ad730897563d1eccc9893e2", OMNI),
-        KnownModel("LFM3-Omni-2B-Q8_0.gguf", "LFM3-Omni-2B", "Q8_0", ModelRole.Omni, 1846240768, "59118f661eaacb93d204723d76355b53347f0940b508c11412f6290fd49158d4", OMNI),
-        KnownModel("mmproj-LFM3-Omni-2B-Q4_0.gguf", "Omni projector", "Q4_0", ModelRole.OmniProjector, 270576544, "c7341273f1757b33ccd9e6f8b17007eb81307d26c90d8c36c22efb45fd3d82eb", OMNI),
-        KnownModel("mmproj-LFM3-Omni-2B-Q4_K_M.gguf", "Omni projector", "Q4_K_M", ModelRole.OmniProjector, 291586720, "0a746c0794782a16d4456b230c2a0b5888a2d94a6677211edbed7d7a4177a39a", OMNI),
-        KnownModel("mmproj-LFM3-Omni-2B-Q8_0.gguf", "Omni projector", "Q8_0", ModelRole.OmniProjector, 506842528, "8a25f9d1931244429de404fccacfb7fb933970a36aa5688d2f5069f29c6b27b1", OMNI),
-        KnownModel("LFM3-VL-2B-QAD-Q4_0.gguf", "LFM3-VL-2B", "Q4_0", ModelRole.Vision, 1049615648, "621c455376cb96a20891697deb9975c6fb47dd5ea98ed3ad1f3b7e8f24f0b1e6", VL),
-        KnownModel("LFM3-VL-2B-Q4_K_M.gguf", "LFM3-VL-2B", "Q4_K_M", ModelRole.Vision, 1099627808, "56dac2e192ff0d9ab8507f4f1aeb4aed0463449bbbefaac79497f041c95f21eb", VL),
-        KnownModel("LFM3-VL-2B-Q8_0.gguf", "LFM3-VL-2B", "Q8_0", ModelRole.Vision, 1846238496, "e138e54189a751d90ea8c0b236360490613ecd465d28d68fa6094d3db7fa6727", VL),
-        KnownModel("mmproj-LFM3-VL-2B-Q8_0.gguf", "VL projector", "Q8_0", ModelRole.VisionProjector, 203031872, "c5c5b58d544a18da919172d2d0368090ea1a4a351b6feb7f8a326a264a5918ab", VL),
         // MLP gate and up projections int4, the rest int8; a 4,096-token cache (the 2,048 one cuts chats short).
-        KnownModel("LFM3-1.7B_mixed_int4_ekv4096.litertlm", "LFM3-1.7B LiteRT", "mixed int4", ModelRole.TextLiteRt, 1441629120, "327486bf01d0b1eefd727b7aadec8627a2b8db143349262857ac98403109d72b", LITERT),
+        KnownModel("LFM3-1.7B_mixed_int4_ekv4096.litertlm", "LFM3-1.7B", "mixed int4", ModelRole.Text, 1441629120, "327486bf01d0b1eefd727b7aadec8627a2b8db143349262857ac98403109d72b", TEXT, rev = TEXT_REV),
+        // The decoder int8, the audio and vision encoders inside; speech out runs on the graphs below.
+        KnownModel("LFM3-Omni-2B_int8.litertlm", "LFM3-Omni-2B", "int8", ModelRole.Omni, 3226750192, "959617973a7ddcb3d887fa0d9891d79556a266490d5c432b02a18ffcac3124ed", OMNI, rev = OMNI_REV),
+        speech("LFM3-Omni-2B_depth_frame2_f32.tflite", 435046636, "19646b570f453711a60add2523febb4884e3214e8c3b7f5ca898dc29dae3d60a"),
+        speech("LFM3-Omni-2B_frame_embed_f32.tflite", 198281972, "71b68529124ef770a495554ea6928f42a66c8c0f2756df2452b15b22bdbc707d"),
+        speech("LFM3-Omni-2B_codec_decoder_f12_f32.tflite", 152370912, "7134523fb54c2fd9b31697373b37e1a5bd1669c3a432ab7896a8a7d070f38ed3"),
+        speech("codec_window_f32.npy", 5248, "e83a39f565c8edd9d516989d4998631bac2d257734ea11166a407959440591b6"),
+        speech("LFM3-Omni-2B_contract.json", 8362, "6ea3753fae712eb6426f5d81b0605cc25a2ea360b9dfb5d3cd4c6260257e3746", "runner/contract.json"),
+        speech("LFM3-Omni-2B_bundle_sections.json", 2919, "93832d50f1fa84c5c9acd79496a0b3080062c139271021a0958685af29df7d5b", "runner/bundle_sections.json"),
+        // Omni's copy of LFM3's tokenizer (one byte from LFM3-1.7B's: the same tokens), for both.
+        KnownModel("LFM3_tokenizer.json", "LFM3 tokenizer", "", ModelRole.Tokenizer, 17908634, "41927bd314d17d7d7fadb44e10cd0919f7b71528d7741596d8cbd15c6945ec44", OMNI, "tokenizer.json", OMNI_REV),
+        // int4 decoder, a 2,048-token cache: 2.5 times the float16 file's speed on a phone GPU (its card).
+        KnownModel("LFM3-VL-2B_int4.litertlm", "LFM3-VL-2B", "int4", ModelRole.Vision, 2071595259, "8c208746b7758996c41e27eec8507b3c875a9e3bbde4b6da0e4c145d3e450c41", VL, rev = VL_REV),
     )
 
-    /** A model as the Models screen lists it: what it is for, the quantisations offered, and the projector it needs. */
-    data class Group(val family: String, val purpose: String, val variants: List<KnownModel>, val projector: KnownModel?)
+    /** A model as the Models screen lists it: what it is for, the file offered, and the files it needs beside it. */
+    data class Group(val family: String, val purpose: String, val variants: List<KnownModel>, val parts: List<KnownModel>)
 
-    /** Q4 (smaller, faster) and Q8 (more accurate) of each model, as the spec has them; other pinned files can be imported. */
+    private val tokenizer get() = byName("LFM3_tokenizer.json")!!
+
     val groups get() = listOf(
-        Group("LFM3-1.7B", "Chat, tools and writing", listOf(byName("LFM3-1.7B-QAD-Q4_0.gguf")!!, byName("LFM3-1.7B-Q8_0.gguf")!!), null),
-        Group("LFM3-Omni-2B", "Voice, photos and short videos", listOf(byName("LFM3-Omni-2B-Q4_0.gguf")!!, byName("LFM3-Omni-2B-Q8_0.gguf")!!),
-            byName("mmproj-LFM3-Omni-2B-Q4_K_M.gguf")!!),
-        Group("LFM3-VL-2B", "Documents: reads pages, scans and PDFs", listOf(byName("LFM3-VL-2B-QAD-Q4_0.gguf")!!, byName("LFM3-VL-2B-Q8_0.gguf")!!),
-            byName("mmproj-LFM3-VL-2B-Q8_0.gguf")!!),
-        Group("LFM3-1.7B LiteRT", "The chat model for LiteRT-LM, which can run it on the GPU. The benchmark below finds out which is quicker.",
-            listOf(byName("LFM3-1.7B_mixed_int4_ekv4096.litertlm")!!), null),
+        Group("LFM3-1.7B", "Chat, tools and writing", listOf(byName("LFM3-1.7B_mixed_int4_ekv4096.litertlm")!!), listOf(tokenizer)),
+        Group("LFM3-Omni-2B", "Voice: dictation, read-aloud and Talk", listOf(byName("LFM3-Omni-2B_int8.litertlm")!!),
+            all.filter { it.role == ModelRole.OmniSpeech } + tokenizer),
+        Group("LFM3-VL-2B", "Photos, short videos and documents", listOf(byName("LFM3-VL-2B_int4.litertlm")!!), emptyList()),
     )
 
-    /** What first run downloads: chat and voice (2.4 GB). */
-    val essentials get() = listOf("LFM3-1.7B-QAD-Q4_0.gguf", "LFM3-Omni-2B-Q4_0.gguf", "mmproj-LFM3-Omni-2B-Q4_K_M.gguf").map { byName(it)!! }
+    /** What first run downloads: chat and voice. */
+    val essentials get() = groups.take(2).flatMap { it.variants + it.parts }.distinct()
 
     fun byName(fileName: String): KnownModel? = all.firstOrNull { it.fileName.equals(fileName, ignoreCase = true) }
 }

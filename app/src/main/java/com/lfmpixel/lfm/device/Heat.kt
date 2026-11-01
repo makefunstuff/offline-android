@@ -27,7 +27,7 @@ enum class Heat(val label: String) {
             else -> Normal
         }
 
-        /** Most threads llama.cpp may use at [heat] on a phone with [fastCores] big cores; 0 is no cap. */
+        /** Most CPU threads LiteRT may use at [heat] on a phone with [fastCores] big cores; 0 is no cap. */
         fun threadCap(heat: Heat, fastCores: Int): Int {
             val fast = fastCores.coerceAtLeast(1)
             return when (heat) {
@@ -41,8 +41,8 @@ enum class Heat(val label: String) {
 }
 
 /**
- * Listens to Android's thermal status (spec section 7, Battery and heat). The model threads follow it at once
- * (see LlamaNative.heat); the assistant's queue and long jobs read [heat] before they start.
+ * Listens to Android's thermal status (spec section 7, Battery and heat). Models loaded on the CPU from then on take
+ * its thread cap (ModelManager); the assistant's queue and long jobs read [heat] before they start.
  */
 class HeatWatch(context: Context) {
     private val power = context.getSystemService(PowerManager::class.java)
