@@ -17,7 +17,7 @@ import java.util.Locale
 
 enum class FactKind(val label: String) {
     Preference("How you like things done"), Person("People"), Place("Places"), Routine("Routines"),
-    Project("Projects"), Like("Likes and dislikes"), Other("Other");
+    Project("Projects"), Goal("Goals"), Like("Likes and dislikes"), Other("Other");
 
     companion object {
         fun of(word: String): FactKind? = when (word.trim().lowercase().removeSuffix("s")) {
@@ -26,6 +26,7 @@ enum class FactKind(val label: String) {
             "place" -> Place
             "routine", "habit" -> Routine
             "project" -> Project
+            "goal", "aim" -> Goal
             "like", "dislike" -> Like
             "other", "fact" -> Other
             else -> null
@@ -40,7 +41,8 @@ data class Source(val ref: String, val label: String, val at: Long)
  * One durable thing about the owner, in a short sentence ("Ana is your sister"). [key] ties facts about the same
  * slot ("person:dentist"): a newer one replaces the older. [mentions] counts how often it was seen; [edited] is set
  * once the owner changed it by hand, and then nothing automatic changes it again. [journal] facts stay out of every
- * prompt while the journal is locked; [sensitive] ones (health, money…) never go in the standing profile.
+ * prompt while the journal is locked; [sensitive] ones (health, money…) never go in the standing profile. When a
+ * newer fact took the slot ("you moved to York"), [was] keeps what it said before and [changedAt] when.
  */
 data class Fact(
     val id: Long = 0,
@@ -55,8 +57,10 @@ data class Fact(
     val journal: Boolean = false,
     val sensitive: Boolean = Sensitive.looks(text),
     val vec: FloatArray? = null,
+    val was: String = "",
+    val changedAt: Long = 0,
 ) {
-    fun toJson(): String = JSONObject().put("kind", kind.name).put("text", text).put("key", key)
+    fun toJson(): String = JSONObject().put("kind", kind.name).put("text", text).put("key", key).put("was", was).put("changed", changedAt)
         .put("ref", source.ref).put("label", source.label).put("at", source.at).put("first", firstSeen).put("last", lastSeen)
         .put("n", mentions).put("edited", edited).put("journal", journal).put("sensitive", sensitive)
         .put("vec", vec?.let { java.util.Base64.getEncoder().encodeToString(HybridSearch.pack(it)) } ?: "").toString()
@@ -68,7 +72,7 @@ data class Fact(
             Fact(id, FactKind.valueOf(o.getString("kind")), o.getString("text"), o.optString("key"),
                 Source(o.optString("ref"), o.optString("label"), o.optLong("at")), o.optLong("first"), o.optLong("last"),
                 o.optInt("n", 1), o.optBoolean("edited"), o.optBoolean("journal"), o.optBoolean("sensitive"),
-                if (v.isEmpty()) null else HybridSearch.unpack(java.util.Base64.getDecoder().decode(v)))
+                if (v.isEmpty()) null else HybridSearch.unpack(java.util.Base64.getDecoder().decode(v)), o.optString("was"), o.optLong("changed"))
         }.getOrNull()
     }
 }
@@ -120,20 +124,20 @@ object FactRules {
     private val relationAfter = Regex("""\b($NAME),? (?:is )?my ($RELATIONS)\b""")
     private val birthday = Regex("""\b($NAME)'s birthday(?: is| on|:)? ([\p{L}\d ]{3,20}?)(?:[.,;!]|$)""")
     private val live = Regex("""\bi (?:live|moved) (?:in|to) ([\p{L}][\p{L} '-]{1,30}?)(?:[.,;!]|\band\b|$)""", RegexOption.IGNORE_CASE)
-    private val work = Regex("""\bi work (?:at|for) ([\p{L}\d][\p{L}\d &'-]{1,30}?)(?:[.,;!]|\band\b|\bas\b|$)""", RegexOption.IGNORE_CASE)
+    private val work = Regex("""\bi (?:work|now work|started working|(?:started|got|have) a new job) (?:at|for) ([\p{L}\d][\p{L}\d &'-]{1,30}?)(?:[.,;!]|\band\b|\bas\b|$)""", RegexOption.IGNORE_CASE)
     private val like = Regex("""\bi (really |)(love|like|enjoy|adore|hate|dislike|can't stand|cannot stand|don't like|do not like) ([^.,;!?]{3,50})""", RegexOption.IGNORE_CASE)
     private val prefer = Regex("""\bi (?:prefer|would rather|'d rather) ([^.;!?]{3,60})""", RegexOption.IGNORE_CASE)
     private val routine = Regex("""\b(?:i (?:usually|always|normally|tend to)|every (?:morning|evening|night|day|weekday|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday),? i) ([^.;!?]{3,60})""", RegexOption.IGNORE_CASE)
+    private val goal = Regex("""\b(?:my goal is to|this year i want to|i'm saving (?:up )?for|i am saving (?:up )?for) ([^.,;!?]{3,60})""", RegexOption.IGNORE_CASE)
     private val project = Regex("""\bi(?:'m| am) (?:working on|building|writing|learning|training for) ([^.,;!?]{3,50})""", RegexOption.IGNORE_CASE)
     private val wants = Regex("""^(?:please |from now on,? |in future,? )?((?:always |never |don't |do not )?(?:keep|answer|reply|call me|use|write|give|remind me|speak|talk)\b[^.!?]{3,80})""", RegexOption.IGNORE_CASE)
-    private val remember = Regex("""^(?:please )?remember(?: that)? ([^?]{5,120})""", RegexOption.IGNORE_CASE)
     private val boring = Regex("""^(?:it|that|this|them|you|to)\b""", RegexOption.IGNORE_CASE)
 
     data class Found(val kind: FactKind, val text: String, val key: String)
 
     /** Facts in [text]. [chat] is a message to the assistant, where "keep it short" is how the owner wants answers. */
     fun find(text: String, chat: Boolean = false): List<Found> {
-        if (Sensitive.secret(text)) return emptyList()
+        if (Sensitive.secret(text) || MemoryCommand.parse(text) is MemoryCommand.Cmd.Forget) return emptyList()
         val out = mutableListOf<Found>()
         for (sentence in text.split(Regex("""(?<=[.!?])\s+|\n+""")).map { it.trim() }.filter { it.length >= 6 }) {
             relation.findAll(sentence).forEach { m ->
@@ -163,10 +167,15 @@ object FactRules {
                 val lead = if (head.lowercase().startsWith("every")) head.replace(Regex(""",?\s+i$""", RegexOption.IGNORE_CASE), "").cap() + ", you " else "You usually "
                 out += Found(FactKind.Routine, lead + m.groupValues[1].trim(), "routine:" + Words.content(m.groupValues[1]).take(3).joinToString(" "))
             }
+            goal.find(sentence)?.takeIf { !sentence.endsWith("?") && !MemoryCommand.timely(sentence) }?.let { m ->
+                val saving = m.value.lowercase().contains("saving")
+                out += Found(FactKind.Goal, (if (saving) "You're saving for " else "You want to ") + you(m.groupValues[1].trim()), "goal:" + Words.content(m.groupValues[1]).take(3).joinToString(" "))
+            }
             project.find(sentence)?.let { m -> out += Found(FactKind.Project, "You're working on ${m.groupValues[1].trim()}", "project:" + Words.content(m.groupValues[1]).take(3).joinToString(" ")) }
             if (chat) {
-                remember.find(sentence)?.let { m -> out += Found(FactKind.Other, you(m.groupValues[1].trim()).cap(), "") }
-                    ?: wants.find(sentence)?.let { m -> if (!sentence.endsWith("?")) out += Found(FactKind.Preference, "You asked: " + m.groupValues[1].trim().replaceFirstChar { it.lowercase() }, "wants:" + Words.content(m.groupValues[1]).take(3).joinToString(" ")) }
+                // "Remember that…" as MemoryCommand reads it: never a reminder ("remember to…", "…tomorrow at 3").
+                (MemoryCommand.parse(sentence) as? MemoryCommand.Cmd.Remember)?.let { r -> out += Found(FactKind.Other, you(r.text).cap(), "") }
+                    ?: wants.find(sentence)?.let { m -> if (!sentence.endsWith("?") && !MemoryCommand.timely(m.value)) out += Found(FactKind.Preference, "You asked: " + m.groupValues[1].trim().replaceFirstChar { it.lowercase() }, "wants:" + Words.content(m.groupValues[1]).take(3).joinToString(" ")) }
             }
         }
         return out.distinctBy { it.text.lowercase() }
@@ -201,7 +210,13 @@ object Words {
         return x.intersect(y).size.toDouble() / x.union(y).size
     }
 
-    fun stem(w: String) = if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) w.dropLast(1) else w
+    /** Plural s, and a simple past ("lived" → "live", "worked" → "work") so a fact said in the past still matches. */
+    fun stem(w: String) = when {
+        w.length > 5 && w.endsWith("ied") -> w.dropLast(3) + "y"
+        w.length > 4 && w.endsWith("ed") && !w.endsWith("eed") -> if (w[w.length - 3] in "vcgsz" ) w.dropLast(1) else w.dropLast(2)
+        w.length > 3 && w.endsWith("s") && !w.endsWith("ss") -> w.dropLast(1)
+        else -> w
+    }
 }
 
 /**
@@ -221,18 +236,25 @@ object FactMerge {
         val same = Words.overlap(old.text, found.text) >= SAME
         val newer = found.source.at >= old.lastSeen
         val merged = when {
+            // What the owner told Wren to remember about a slot ("I live in Leeds") still moves when they say it changed.
+            old.edited && old.source.ref == "owner" && old.key.isNotEmpty() && old.key == found.key && !same && newer ->
+                old.copy(text = found.text, source = found.source, lastSeen = found.source.at, mentions = 1, edited = false,
+                    journal = found.journal, sensitive = found.sensitive, vec = null, was = carried(old, found.journal), changedAt = found.source.at)
             old.edited -> old.copy(mentions = old.mentions + 1, lastSeen = maxOf(old.lastSeen, found.source.at))
             // Same slot, other words, said later: "my dentist is now Dr Park" replaces "Dr Lee".
             !same && newer -> old.copy(text = found.text, source = found.source, lastSeen = found.source.at, mentions = 1,
-                journal = found.journal, sensitive = found.sensitive, vec = null)
+                journal = found.journal, sensitive = found.sensitive, vec = null, was = carried(old, found.journal), changedAt = found.source.at)
             else -> old.copy(mentions = old.mentions + if (old.source.ref == found.source.ref) 0 else 1, lastSeen = maxOf(old.lastSeen, found.source.at))
         }
         return facts.toMutableList().also { it[i] = merged }
     }
 
+    /** What a changed fact keeps of its old words: nothing from the journal once the new fact isn't (the lock hides only journal facts). */
+    fun carried(old: Fact, journal: Boolean) = if (old.journal && !journal) "" else old.text
+
     /** Duplicates merged (same key, or nearly the same words): the nightly pass. */
     fun dedupe(facts: List<Fact>): List<Fact> = facts.sortedBy { it.firstSeen }.fold(emptyList()) { acc, f ->
-        val j = acc.indexOfFirst { (f.key.isNotEmpty() && it.key == f.key) || Words.overlap(it.text, f.text) >= SAME }
+        val j = acc.indexOfFirst { (f.key.isNotEmpty() && it.key == f.key) || Words.overlap(it.text, f.text) >= SAME || sameMeaning(it, f) }
         if (j < 0) acc + f else acc.toMutableList().also { list ->
             val a = acc[j]
             // The owner's own words win; else the newer fact's, with both counts.
@@ -243,6 +265,17 @@ object FactMerge {
                 vec = keep.vec ?: drop.vec.takeIf { keep.text == drop.text })
         }
     }
+
+    /** Near-duplicates by meaning ("You love oat flat whites" and "You like oat milk flat whites"): same kind, vectors this close. */
+    const val SAME_MEANING = 0.93f
+    fun sameMeaning(a: Fact, b: Fact): Boolean =
+        a.kind == b.kind && a.vec != null && b.vec != null && a.vec.size == b.vec.size && !(a.edited && b.edited) &&
+            // "Ana is your friend" and "Mia is your friend" read alike but are two people.
+            !(a.key.isNotEmpty() && b.key.isNotEmpty() && a.key != b.key) && names(a.text) == names(b.text) &&
+            HybridSearch.dot(a.vec, b.vec) >= SAME_MEANING
+
+    private fun names(t: String) = Regex("""\b\p{Lu}[\p{L}'-]+""").findAll(t).map { it.value.removeSuffix("'s") }
+        .filter { it !in setOf("You", "Your", "You're", "Every", "Dr") }.toSet()
 
     /**
      * What the nightly pass lets go: facts from notes since deleted (unless the owner edited them), and facts seen once,
@@ -258,12 +291,36 @@ object FactMerge {
 
     /** How much a fact matters for the profile: how it ranks, by kind, use and how recent. */
     fun score(f: Fact, now: Long): Double {
+        val days = ((now - f.lastSeen) / 86_400_000.0).coerceAtLeast(0.0)
+        return importance(f) - days / 60.0
+    }
+
+    /** How much a fact matters, whatever the question: its kind, the owner's own words, how often it came up. */
+    fun importance(f: Fact): Double {
         val kind = when (f.kind) {
             FactKind.Preference -> 3.0; FactKind.Person -> 2.5; FactKind.Routine -> 2.0; FactKind.Project -> 2.0
-            FactKind.Place -> 1.8; FactKind.Like -> 1.5; FactKind.Other -> 1.2
+            FactKind.Goal -> 2.0; FactKind.Place -> 1.8; FactKind.Like -> 1.5; FactKind.Other -> 1.2
         }
-        val days = ((now - f.lastSeen) / 86_400_000.0).coerceAtLeast(0.0)
-        return kind + (if (f.edited) 2.0 else 0.0) + kotlin.math.ln(1.0 + f.mentions) - days / 60.0
+        return kind + (if (f.edited) 2.0 else 0.0) + kotlin.math.ln(1.0 + f.mentions)
+    }
+
+    /**
+     * The facts [what] is about, for "Forget that…": nearly the same words, or most of its words, or (with vectors)
+     * nearly the same meaning; "forget about Ana" takes every fact that names Ana. Best first.
+     */
+    fun matching(facts: List<Fact>, what: String, q: FloatArray? = null): List<Fact> {
+        val words = Words.content(what).map(Words::stem).toSet()
+        if (words.isEmpty()) return emptyList()
+        val names = Regex("""\b\p{Lu}[\p{L}'-]+""").findAll(what).map { it.value.removeSuffix("'s").lowercase() }
+            .filter { it !in setOf("i", "my", "that", "the", "forget", "please", "wren") }.toSet()
+        val scored = facts.map { f ->
+            val have = Words.content(f.text).map(Words::stem).toSet()
+            val covered = words.count { it in have }.toDouble() / words.size
+            val meaning = if (q != null && f.vec != null && q.size == f.vec.size) HybridSearch.dot(q, f.vec).toDouble() else 0.0
+            val named = names.isNotEmpty() && names.size == words.size && names.all { n -> Words.all(f.text).any { it.removeSuffix("s") == n || it == n } }
+            f to maxOf(Words.overlap(f.text, what), covered * 0.9, if (meaning >= 0.82) meaning else 0.0, if (named) 1.0 else 0.0)
+        }.filter { it.second >= 0.6 }.sortedByDescending { it.second }
+        return scored.map { it.first }
     }
 }
 
@@ -294,15 +351,30 @@ object Recall {
     }
 
     /**
-     * The facts that fit [question] best, best first: by meaning when both have vectors, else by shared words. Facts
-     * already in the profile are skipped by the caller.
+     * The facts that fit [question] best, best first. How well each fits (by meaning when both have vectors, and by
+     * shared words) decides whether it is in at all; then recency and importance lift it: a fact used often, in the
+     * owner's own words, or seen this week comes before an old one-off that fits as well. Facts already in the
+     * profile are skipped by the caller.
      */
-    fun relevant(facts: List<Fact>, question: String, q: FloatArray?, journalLocked: Boolean, limit: Int = 5): List<Fact> =
-        facts.asSequence().filter { !(journalLocked && it.journal) }.map { f ->
-            val byMeaning = if (q != null && f.vec != null) HybridSearch.dot(q, f.vec).toDouble() else 0.0
-            val byWords = Words.overlap(f.text, question)
-            f to maxOf(byMeaning - 0.55, 0.0) * 4 + byWords
-        }.filter { it.second >= 0.2 }.sortedByDescending { it.second }.take(limit).map { it.first }.toList()
+    fun relevant(facts: List<Fact>, question: String, q: FloatArray?, journalLocked: Boolean, limit: Int = 5,
+                 now: Long = System.currentTimeMillis()): List<Fact> =
+        facts.asSequence().filter { !(journalLocked && it.journal) }.map { f -> f to fit(f, question, q) }
+            .filter { it.second >= 0.2 }.map { (f, fit) -> f to rank(f, fit, now) }
+            .sortedByDescending { it.second }.take(limit).map { it.first }.toList()
+
+    /** How well [f] fits the question, 0 and up: meaning above the floor where unrelated texts sit, plus shared words. */
+    fun fit(f: Fact, question: String, q: FloatArray?): Double {
+        val byMeaning = if (q != null && f.vec != null && q.size == f.vec.size) HybridSearch.dot(q, f.vec).toDouble() else 0.0
+        return maxOf(byMeaning - 0.55, 0.0) * 4 + Words.overlap(f.text, question)
+    }
+
+    /** [fit] lifted by up to a half for recency (a 90-day half-life of sorts) and up to a half for importance. */
+    fun rank(f: Fact, fit: Double, now: Long): Double {
+        val days = ((now - f.lastSeen) / 86_400_000.0).coerceAtLeast(0.0)
+        val recency = kotlin.math.exp(-days / 90.0)
+        val importance = (FactMerge.importance(f) / 7.0).coerceIn(0.0, 1.0)
+        return fit * (1.0 + 0.5 * recency + 0.5 * importance)
+    }
 
     /** The capitalised words in [facts] (names, mostly) that [question] doesn't have: more to look for in the notes. */
     fun names(facts: List<Fact>, question: String): List<String> {
@@ -329,15 +401,16 @@ object Recall {
 
     /** The block for the system prompt; empty when there is nothing. */
     fun systemBlock(profile: String): String = if (profile.isBlank()) "" else
-        "\n\nWhat you know about the owner (learned from their notes; they can see and edit it in What Wren knows). " +
+        "\n\nWhat you know about the owner (learned from their notes, chats and Talk; they can see and edit it in What Wren knows). " +
             "Use it when it helps; never recite it:\n$profile"
 
-    /** The block put after the owner's message: the facts and notes that fit it. */
-    fun turnBlock(facts: List<Fact>, notes: String): String {
-        val f = facts.joinToString("\n") { "- " + it.text }
-        if (f.isEmpty() && notes.isEmpty()) return ""
+    /** The block put after the owner's message: the facts, past conversations and notes that fit it. */
+    fun turnBlock(facts: List<Fact>, notes: String, said: String = ""): String {
+        val f = facts.joinToString("\n") { "- " + it.text + if (it.was.isNotEmpty()) " (before: ${it.was})" else "" }
+        if (f.isEmpty() && notes.isEmpty() && said.isEmpty()) return ""
         return "\n\n(From your memory and notes, in case it helps; answer from these over guessing:" +
-            (if (f.isNotEmpty()) "\n$f" else "") + (if (notes.isNotEmpty()) "\n$notes" else "") + ")"
+            (if (f.isNotEmpty()) "\n$f" else "") + (if (said.isNotEmpty()) "\nFrom past conversations:\n$said" else "") +
+            (if (notes.isNotEmpty()) "\n$notes" else "") + ")"
     }
 }
 
@@ -419,7 +492,7 @@ object FactPrompt {
     const val SYSTEM = "You keep a short memory for the owner's private notebook. From the lines below, list lasting facts " +
         "about the owner that will help later: people (name and who they are to the owner), places, routines, projects, " +
         "likes and dislikes, and how the owner wants things done. One per line as `kind: fact [n]`, where kind is person, " +
-        "place, routine, project, like or preference, and n is the line's number. Write each fact as a short sentence to " +
+        "place, routine, project, goal, like or preference, and n is the line's number. Write each fact as a short sentence to " +
         "the owner, like \"Ana is your sister\". Leave out one-off tasks, single events, health, money and passwords. " +
         "If there are none, write None."
 
@@ -435,4 +508,243 @@ object FactPrompt {
         if (text.length !in 6..140 || text.equals("none", true) || Sensitive.secret(text)) return@mapNotNull null
         Triple(kind, text.replaceFirstChar { it.uppercase() }, m.groupValues[3].toIntOrNull() ?: 0)
     }
+}
+
+/**
+ * "Remember that…" and "Forget that…", typed or said: done at once by the memory, not left to the model. "Remember
+ * to…" is a reminder, not this; "forget everything" is only done on the What Wren knows screen.
+ */
+object MemoryCommand {
+    sealed interface Cmd {
+        data class Remember(val text: String) : Cmd
+        /** [explicit]: "forget that…"; else "forget about…", which is only done when there is something to forget. */
+        data class Forget(val what: String, val explicit: Boolean = true) : Cmd
+        data object ForgetAll : Cmd
+    }
+
+    private const val LEAD = """^(?:(?:hey |ok |okay )?wren[,!]?\s+)?(?:please\s+)?(?:(?:can|could|will|would) you\s+(?:please\s+)?|i want you to\s+|i'd like you to\s+)?"""
+    private val remember = Regex(LEAD + """(?:remember(?:\s+that|\s*[:,])|(?:don't|do not) forget\s+that)\s+([^?]{4,200}?)[\s.!]*$""", RegexOption.IGNORE_CASE)
+    private val asking = Regex("""^(?:(?:hey |ok |okay )?wren[,!]?\s+)?(?:please\s+)?(?:can|could|will|would) you\b""", RegexOption.IGNORE_CASE)
+    // "Remember I'm vegetarian", "remember my sister is Ana": the owner's own facts, without "that".
+    private val rememberMine = Regex(LEAD + """remember\s+((?:i|i'm|i am|my|we|our)\b[^?]{3,200}?)[\s.!]*$""", RegexOption.IGNORE_CASE)
+    // Only the whole message, one clause: "forget that I like coffee", not "forget it, tell me a joke".
+    private val forget = Regex(LEAD + """(forget\s+that|forget\s+what i said about|forget\s+about|forget\s*:|forget\s+(?=my\b)|stop remembering|don't remember|do not remember|unlearn)\s*([^,;.!?]{2,160}?)[\s.!]*$""", RegexOption.IGNORE_CASE)
+    /** "Forget that one", "forget that last question": about the conversation, not the memory. */
+    private val aboutTheChat = Regex("""^(?:one|last\b|previous\b|this\b|it\b|answer\b|question\b|bit\b|part\b)""", RegexOption.IGNORE_CASE)
+    /**
+     * What a reminder or a to-do sounds like ("remember I have a meeting at 10 tomorrow", "remember my keys when I
+     * leave"): left to the model and its tools, never kept as a lasting fact.
+     */
+    private val timely = Regex("""\b(?:today|tonight|tomorrow|weekend|noon|midnight|o'clock|later|until|till|due(?! to)|parked|in (?:an?|half an) (?:hour|minute)|the \d+(?:st|nd|rd|th)|when i|before i|after i|""" +
+        """need to|have to|got to|must|appointment|meeting|(?:this|next) (?:morning|afternoon|evening|week|weekend|month|time|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|in \d+ (?:minutes?|hours?|days?|weeks?)|""" +
+        """(?<!birthday is )(?<!birthday is on )(?<!birthday's )(?<!birthday on )(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?|""" +
+        """at \d|by \d|\d\s*(?:am|pm)|(?:i'm|i am) (?:out|away|off)|""" +
+        // "I'm having dinner with Ana", "I'm working late": a plan. Only these -ing words say something lasting.
+        """(?:i'm|i am) (?!working (?:on|at|for|as)|living in|studying|learning|training for|saving for)\w+ing)\b""", RegexOption.IGNORE_CASE)
+    private val all = Regex("""^(?:everything|all of it|all|everything you know|everything about me|all you know)$""", RegexOption.IGNORE_CASE)
+
+    private val forgetAll = Regex(LEAD + """forget\s+(?:everything|all of it|all|everything you know|everything about me|all you know)[\s.!]*$""", RegexOption.IGNORE_CASE)
+
+    fun timely(text: String) = timely.containsMatchIn(text)
+    /** What reads as a lasting fact about the owner, said without "that". */
+    private val aboutMe = Regex("""^(?:i'm|i am|i (?:like|love|prefer|hate|don't|do not|can't|never|always|have|take|eat|drink|own|use)\b|""" +
+        """we (?:have|own|live)\b|my \w+(?:'s)?(?: \w+)? (?:is|are|was)\b|(?:always |never )?(?:keep (?:answers|your answers|replies|it short|it brief)|answer (?:in|briefly|shortly)|reply (?:in|briefly)|call me|speak (?:slowly|slower|more)|talk to me)\b)""", RegexOption.IGNORE_CASE)
+
+    fun parse(text: String): Cmd? {
+        // "Can you remember that…?" asks for it all the same; any other question is just a question.
+        val t = text.trim().replace('\u2019', '\'').let { if (asking.containsMatchIn(it)) it.trimEnd('?', ' ') else it }
+        if (t.length > 240) return null
+        if (forgetAll.matches(t)) return Cmd.ForgetAll
+        forget.find(t)?.let { m ->
+            val what = m.groupValues[2].trim()
+            if (all.matches(what)) return Cmd.ForgetAll
+            val how = m.groupValues[1].lowercase()
+            if (Words.content(what).isNotEmpty() && !aboutTheChat.containsMatchIn(what.removePrefix("my ").removePrefix("My ")))
+                return Cmd.Forget(what, explicit = !how.startsWith("forget about") && how.trim() != "forget")
+        }
+        if (t.endsWith("?")) return null
+        (remember.find(t) ?: rememberMine.find(t))?.let { m ->
+            val what = m.groupValues[1].trim()
+            // A wrong "remember" costs more than a missed one (the reminder is never made, and the line stays as a
+            // fact), so: never anything with a time or a plan in it, and without "that" only what reads as a fact
+            // about the owner ("Remember, I'm vegetarian"), not a to-do ("Remember: call the bank", "remember my umbrella").
+            val plain = Regex("""(?i)^\W*(?:\w+\W+){0,6}?(?:remember|forget)\s+that\b""").containsMatchIn(t)
+            if (!timely.containsMatchIn(what) && (plain || aboutMe.containsMatchIn(what))) return Cmd.Remember(what)
+        }
+        return null
+    }
+
+    /**
+     * What a "remember" keeps: the fact the rules see in it ("my sister is Ana" → "Ana is your sister", a person), else
+     * the owner's words turned to "you" ("I'm vegetarian" → "You're vegetarian").
+     */
+    fun fact(text: String): FactRules.Found {
+        FactRules.find(text).firstOrNull()?.let { return it }
+        val t = FactRules.you(text.trim().removeSuffix(".")).replaceFirstChar { it.uppercase() }
+        val kind = when {
+            Regex("""\b(?:prefer|rather|answers?|reply|replies|call me|short|brief)\b""", RegexOption.IGNORE_CASE).containsMatchIn(t) -> FactKind.Preference
+            else -> FactKind.Other
+        }
+        return FactRules.Found(kind, t, "")
+    }
+
+    /** The line a Talk turn on the phone gets, so the voice confirms what was done in its own words. */
+    fun note(reply: String) = "\n\n(Already done by Wren's memory: $reply Tell the owner so in one short sentence.)"
+}
+
+/** What the owner told Wren to forget: never learned again from the same words (a newer, different fact still is). */
+data class Forgotten(val id: Long = 0, val text: String, val at: Long) {
+    fun toJson(): String = JSONObject().put("text", text).put("at", at).toString()
+
+    companion object {
+        const val MAX = 200
+        fun fromJson(id: Long, s: String): Forgotten? = runCatching { JSONObject(s).let { Forgotten(id, it.getString("text"), it.optLong("at")) } }.getOrNull()
+        /**
+         * Nearly the same words, or every word of the forgotten fact in the new one ("Your sister is called Ana" after
+         * "Ana is your sister" was forgotten).
+         */
+        fun blocks(list: List<Forgotten>, text: String): Boolean {
+            val have = Words.content(text).map(Words::stem).toSet()
+            return list.any { f ->
+                val gone = Words.content(f.text).map(Words::stem).toSet()
+                Words.overlap(f.text, text) >= FactMerge.SAME || (gone.size >= 2 && have.containsAll(gone))
+            }
+        }
+    }
+}
+
+/**
+ * One conversation, chat or Talk: what was said ([lines], "You: …" and "Wren: …", cut short), when, and once the
+ * model read it, a one-line [summary]. Kept so Wren can answer "what did I say about…"; the facts in it go to the
+ * memory. Old ones keep only their summary, and only the newest [Episodes.MAX] are kept.
+ */
+data class Episode(val id: Long = 0, val kind: String, val at: Long, val lines: String, val summary: String = "",
+                   val read: Boolean = false, val vec: FloatArray? = null) {
+    fun toJson(): String = JSONObject().put("kind", kind).put("at", at).put("lines", lines).put("summary", summary).put("read", read)
+        .put("vec", vec?.let { java.util.Base64.getEncoder().encodeToString(HybridSearch.pack(it)) } ?: "").toString()
+
+    /** What the screen and search show: the summary, else the first thing the owner said. */
+    fun title(): String = summary.ifEmpty { lines.lineSequence().firstOrNull { it.startsWith("You: ") }?.removePrefix("You: ")?.take(80).orEmpty() }
+
+    companion object {
+        fun fromJson(id: Long, s: String): Episode? = runCatching {
+            val o = JSONObject(s)
+            val v = o.optString("vec")
+            Episode(id, o.getString("kind"), o.optLong("at"), o.optString("lines"), o.optString("summary"), o.optBoolean("read"),
+                if (v.isEmpty()) null else HybridSearch.unpack(java.util.Base64.getDecoder().decode(v)))
+        }.getOrNull()
+    }
+}
+
+object Episodes {
+    const val MAX = 150
+    const val CHARS = 2_000
+    /** Older than this, an episode read by the model keeps only its summary. */
+    const val KEEP_LINES_DAYS = 30L
+    /** A chat with nothing new for this long is over: it becomes an episode. */
+    const val IDLE_MS = 10 * 60_000L
+
+    /** An episode from (owner, Wren) pairs, or null when the owner said too little to keep. */
+    fun of(kind: String, at: Long, all: List<Pair<String, String>>): Episode? {
+        // "Remember that…" and "Forget that…" are done, not kept: a forgotten thing must not live on in its own words.
+        val turns = all.filter { MemoryCommand.parse(it.first) == null }
+        val owner = turns.joinToString(" ") { it.first }.trim()
+        if (owner.length < 8 || turns.any { Sensitive.secret(it.first) || Sensitive.secret(it.second) }) return null
+        val sb = StringBuilder()
+        for ((you, it) in turns) {
+            val a = "You: " + you.replace(Regex("""\s+"""), " ").trim().take(400)
+            val b = if (it.isBlank()) "" else "Wren: " + it.replace(Regex("""\s+"""), " ").trim().take(240)
+            if (sb.length + a.length + 1 > CHARS) break
+            sb.append(a).append('\n')
+            if (b.isNotEmpty() && sb.length + b.length + 1 <= CHARS) sb.append(b).append('\n')
+        }
+        return Episode(kind = kind, at = at, lines = sb.toString().trimEnd())
+    }
+
+    /** The owner's own lines in an episode, the text rules and search read. */
+    fun owner(e: Episode): String = e.lines.lineSequence().filter { it.startsWith("You: ") }.joinToString("\n") { it.removePrefix("You: ") }
+
+    private val asking = Regex("""\b(?:what|when|where|did|have|remind me what)\b.{0,30}?\bi\s+(?:say|said|tell|told|mention|mentioned|talk|talked|ask|asked)\b(?:\s+(?:you|to you|wren))?(?:\s+(?:about|regarding|on|that))?\s*(.*)""", RegexOption.IGNORE_CASE)
+    private val earlier = Regex("""\b(?:we|you and i)\s+(?:talked|spoke|chatted)\s+about\s+(.*)""", RegexOption.IGNORE_CASE)
+
+    /** The topic of "what did I say about the garden?" ("the garden"), or null when the question isn't about past talk. */
+    fun asked(question: String): String? {
+        val m = asking.find(question) ?: earlier.find(question) ?: return null
+        val topic = m.groupValues[1].trim().trimEnd('?', '.', '!', ' ')
+        return topic.takeIf { Words.content(it).isNotEmpty() }
+    }
+
+    /**
+     * The episodes that talk about [topic], best first: most of its words in what was said, or (with vectors) close in
+     * meaning to the summary. Newer first among equals.
+     */
+    fun search(episodes: List<Episode>, topic: String, q: FloatArray?, limit: Int = 3): List<Episode> {
+        val words = Words.content(topic).map(Words::stem).toSet()
+        if (words.isEmpty()) return emptyList()
+        return episodes.map { e ->
+            val have = Words.content(e.lines + " " + e.summary).map(Words::stem).toSet()
+            val covered = words.count { it in have }.toDouble() / words.size
+            val meaning = if (q != null && e.vec != null && q.size == e.vec.size) (HybridSearch.dot(q, e.vec) - 0.55).coerceAtLeast(0.0) * 4.0 else 0.0
+            e to maxOf(covered, meaning)
+        }.filter { it.second >= 0.5 }.sortedWith(compareByDescending<Pair<Episode, Double>> { it.second }.thenByDescending { it.first.at })
+            .take(limit).map { it.first }
+    }
+
+    private val day = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
+
+    /** "[Talk · 3 Nov 2026] summary" and the owner's lines that name the topic, cut to [chars] in all. */
+    fun block(found: List<Episode>, topic: String, chars: Int, zone: ZoneId = ZoneId.systemDefault()): String {
+        val words = Words.content(topic).map(Words::stem).toSet()
+        val sb = StringBuilder()
+        for (e in found) {
+            val said = owner(e).lines().filter { l -> Words.content(l).any { Words.stem(it) in words } }.take(3)
+            val line = "[${e.kind.replaceFirstChar { it.uppercase() }} · ${Instant.ofEpochMilli(e.at).atZone(zone).format(day)}] " +
+                (if (e.summary.isNotEmpty()) e.summary + (if (said.isNotEmpty()) " — " else "") else "") +
+                said.joinToString(" / ") { "you said “${it.take(160)}”" }
+            if (sb.length + line.length + 1 > chars) break
+            sb.append(line).append('\n')
+        }
+        return sb.toString().trimEnd()
+    }
+
+    /**
+     * After "Forget that…": the lines (and summaries) that say any of [gone] are taken out, so "what did I say
+     * about…" can't bring it back. An episode left with nothing the owner said is dropped (null).
+     */
+    fun scrub(e: Episode, gone: List<String>): Episode? {
+        val sets = gone.map { g -> Words.content(g).map(Words::stem).toSet() }.filter { it.isNotEmpty() }
+        fun says(line: String): Boolean { val have = Words.content(line).map(Words::stem).toSet(); return sets.any { have.containsAll(it) } }
+        val lines = e.lines.lines().filter { it.isNotBlank() && !says(it) }.joinToString("\n")
+        val summary = if (says(e.summary)) "" else e.summary
+        if (lines == e.lines && summary == e.summary) return e
+        if (lines.lineSequence().none { it.startsWith("You: ") } && summary.isEmpty()) return null
+        return e.copy(lines = lines, summary = summary, vec = if (summary == e.summary) e.vec else null)
+    }
+
+    /**
+     * Keeping the store small: episodes older than [KEEP_LINES_DAYS] that the model has read keep only their summary
+     * (their facts are in the memory by then); only the newest [MAX] are kept.
+     */
+    fun compact(episodes: List<Episode>, now: Long): List<Episode> {
+        val old = now - KEEP_LINES_DAYS * 86_400_000L
+        return episodes.sortedByDescending { it.at }.take(MAX).map { e ->
+            if (e.at < old && e.read && e.lines.isNotEmpty() && e.summary.isNotEmpty()) e.copy(lines = "") else e
+        }
+    }
+}
+
+/** The small model's job after a conversation: the lasting facts in it, and one line on what it was about. */
+object EpisodePrompt {
+    const val SYSTEM = "You keep a short memory for the owner of a private assistant. Below is one conversation between " +
+        "the owner (You) and the assistant (Wren). List lasting facts about the owner that will help later: people (name " +
+        "and who they are to the owner), places, routines, projects, goals, likes and dislikes, and how the owner wants " +
+        "answers. Only what the owner said about themselves, not what Wren said. One per line as `kind: fact`, where kind " +
+        "is person, place, routine, project, goal, like or preference, each a short sentence to the owner, like \"Ana is " +
+        "your sister\". Leave out one-off requests, health, money and passwords. Then one last line `summary: …`: what " +
+        "the conversation was about, in at most twelve words."
+
+    private val summary = Regex("""^\s*summary\s*:\s*(.+?)\s*$""", RegexOption.IGNORE_CASE)
+
+    fun summary(answer: String): String = answer.lines().firstNotNullOfOrNull { summary.find(it)?.groupValues?.get(1) }
+        ?.trim()?.trim('"')?.removeSuffix(".")?.take(120).orEmpty()
 }
