@@ -131,7 +131,11 @@ class MemoryEvolvesTest {
         assertEquals(MemoryCommand.Cmd.Forget("my address", explicit = false), MemoryCommand.parse("Forget my address"))
         assertEquals(MemoryCommand.Cmd.Forget("Ana"), MemoryCommand.parse("Forget what I said about Ana"))
         for (t in listOf("Remember: call the bank", "Remember, dentist on Friday at 3", "Remember my umbrella", "Remember I parked on level 3",
-            "Remember that I'm out on Friday")) assertNull(t, MemoryCommand.parse(t))
+            "Remember that I'm out on Friday", "Remember that I'm out Friday", "Remember I'm picking up the kids at 3", "Remember that I parked on level 3",
+            "Remember that I'm away until Sunday")) assertNull(t, MemoryCommand.parse(t))
+        for (t in listOf("Remember I have two cats", "Remember I don't eat pork", "Wren, remember I take the bus", "Remember we have a dog called Rex",
+            "Remember, Tom is vegetarian", "Remember, keep your answers short", "Remember I'm learning Japanese", "Remember that the bins go out on Monday"))
+            assertTrue(t, MemoryCommand.parse(t) is MemoryCommand.Cmd.Remember)
         assertEquals(MemoryCommand.Cmd.Remember("Ana's birthday is on Friday"), MemoryCommand.parse("Remember that Ana's birthday is on Friday"))
         // Working with someone is not an employer; trying to do something once is not a goal.
         assertTrue(FactRules.find("I work with Tom on the quarterly report.").none { it.key == "place:work" })

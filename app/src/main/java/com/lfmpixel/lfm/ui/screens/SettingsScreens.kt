@@ -358,7 +358,7 @@ fun PrivacyScreen(g: AppGraph, nav: Nav, pickers: Pickers) {
                         }
                     }
                 }, Modifier.weight(1f), icon = "down")
-                Btn("Clear chats", { scope.launch { g.assistant.clearQueue(); g.assistant.newChat(keep = false); g.memory.forgetChats(); g.db.messages().deleteAll(); g.db.searches().deleteAll(); g.prep.deleteAll(); g.settings.clearChatThinking() } }, Modifier.weight(1f), icon = "trash")
+                Btn("Clear chats", { scope.launch { g.assistant.clearQueue(); g.assistant.newChat(keep = false); runCatching { g.memory.forgetChats() }; g.db.messages().deleteAll(); g.db.searches().deleteAll(); g.prep.deleteAll(); g.settings.clearChatThinking() } }, Modifier.weight(1f), icon = "trash")
             }
             var wipe by remember { mutableStateOf(false) }
             var wiping by remember { mutableStateOf(false) }
